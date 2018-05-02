@@ -3,17 +3,25 @@ class Datatype:
         self.name, self.size = name, size
     
     def __str__(self):
-        return self.name + ' (' + str(self.size) + ' bytes)'
+        return (self.name or '') + ' (' + str(self.size) + ' bytes)'
 
 class ArrayDatatype(Datatype):
     def __init__(self, element_type, length):
+        assert element_type is not None
         super().__init__(element_type.name + '[' + str(length) + ']', element_type.size * length)
 
 class ObjectDatatype(Datatype):
-    def __init__(self, name, members):
+    def __init__(self, members):
         self.members = members
         total_size = sum([m.datatype.size for m in members])
-        super.__init__(name, total_size)
+        super().__init__(None, total_size)
+    
+    def __str__(self):
+        out = super().__str__() + ' {\n'
+        for member in self.members:
+            out += '\t' + str(member).replace('\n', '\n\t')
+        out += '\n}'
+        return out
 
 class Variable:
     def __init__(self, datatype, name):
@@ -66,18 +74,18 @@ class Scope:
             if(item.name == name):
                 return item
         if(pfunc):
-            return pfunc()
+            return pfunc(name)
         else:
             return None
     
     def find_datatype(self, name):
-        self.find(self.datatypes, name, self.parent and self.parent.find_datatype)
+        return self.find(self.datatypes, name, self.parent and self.parent.find_datatype)
     
     def find_variable(self, name):
-        self.find(self.variables, name, self.parent and self.parent.find_variable)
+        return self.find(self.variables, name, self.parent and self.parent.find_variable)
     
     def find_function(self, name):
-        self.find(self.functions, name, self.parent and self.parent.find_function)
+        return self.find(self.functions, name, self.parent and self.parent.find_function)
     
     def add_datatype(self, datatype):
         self.datatypes.append(datatype)
@@ -115,8 +123,5 @@ class Scope:
         
         output += '\n\t}\n}'
         return output
-
-v1, v2 = Variable(Datatype('Int', 4), 'Hello'), Variable(Datatype('Int', 4), 'Bye')
-print(Function('test', [v1], [v1, v2], Scope()))
     
     

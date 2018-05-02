@@ -17,7 +17,7 @@ sort(Int a,Int b):(Int c, Int d) {
 }
 Int a = 5, b = 2;
 Int d = sort(a, b):(Int c, return);
-typedef {Float[256][2] left, right} Buffer;
+typedef {Float[256][2] left, right=2} Buffer;
 Buffer buf = {left=0, right=0};
 Int[12] array = [1, 2, 3, 4, a, b, c, d, (1 + (2))], array2 = 0;
 Float e = cos(12.0), f = sin(array[8] + array[7]), g = pow(4.0, 5.0 + 6.0 * 0.7);
