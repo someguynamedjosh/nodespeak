@@ -31,7 +31,7 @@ def process(token, parent_scope=None):
                 scope.add_datatype(convert_type(scope, sub.subs[0]))
             elif(sub.__name__() == 'statement_defineVar'):
                 scope.add_variable(Variable(convert_type(scope, sub.subs[0]), sub.subs[1].label))
-            elif(sub.__name__() == 'statement_defineTrans'):
+            elif(sub.__name__() in ['statement_defineTrans', 'statement_defineFunc']):
                 seperator = 0
                 for i in range(len(sub.subs)):
                     if(sub.subs[i].__name__() == 'op_:'):
@@ -40,5 +40,11 @@ def process(token, parent_scope=None):
                 ins = [DefaultableVariable(convert_type(scope, i.subs[0]), i.subs[1].label) for i in sub.subs[1:seperator]]
                 outs = [DefaultableVariable(convert_type(scope, i.subs[0]), i.subs[1].label) for i in sub.subs[seperator+1:-1]]
                 scope.add_function(Function(sub.subs[0].label, ins, outs, process(sub.subs[-1], scope)))
+            else:
+                if(sub.__name__() == 'statement_branch'):
+                    for i, ssub in enumerate(sub.subs):
+                        if(ssub.role == TokenRole.NAMESPACE):
+                            sub.subs[i] = process(ssub, scope)
+                scope.add_statement(sub)
         return scope
                 
