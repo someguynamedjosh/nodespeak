@@ -1,4 +1,4 @@
-class DeterminateFiniteAutomota:
+class DeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
         self.node_counter = -1
@@ -26,7 +26,7 @@ class DeterminateFiniteAutomota:
         out += '====== END DFA DESCRIPTION ======'
         return out
 
-class NondeterminateFiniteAutomota:
+class NondeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
         self.node_counter = -1
@@ -56,7 +56,7 @@ class NondeterminateFiniteAutomota:
         return out
     
     def convert_to_dfa(self):
-        out = DeterminateFiniteAutomota()
+        out = DeterminateFiniteAutomaton()
         multi_state_map = {} # Keeps track of the states in the DFA that represent combinations of states in the NFA.
         for i in range(self.node_counter + 1):
             multi_state_map[(i,)] = out.add_node() # For when looking up a 'combo state' of one state.
@@ -88,7 +88,7 @@ class NondeterminateFiniteAutomota:
         return out
 
 if __name__ == '__main__':
-    nfa = NondeterminateFiniteAutomota()
+    nfa = NondeterminateFiniteAutomaton()
     a, b, c, d, e = [nfa.add_node() for i in range(5)]
     nfa.add_transition(a, '1', b)
     nfa.add_transition(a, '1', c)
