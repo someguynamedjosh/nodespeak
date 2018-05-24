@@ -108,7 +108,6 @@ class NondeterminateFiniteAutomaton:
                 out.set_transition(from_dfa_state, trigger, get_dfa_state(tuple(set(transitions[trigger]))))
             labels = set([i for i in labels if i is not None])
             if(len(labels) > 0):
-                print(labels)
                 out.set_state_label(get_dfa_state(from_states), max(labels))
         for i in range(self.state_counter + 1):
             convert_transition((i,))
