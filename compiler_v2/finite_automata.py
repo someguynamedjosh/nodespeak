@@ -1,23 +1,24 @@
 class DeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
-        self.state_labels = []
+        self.state_labels = {}
         self.state_counter = -1
+        self.start_state = None
     
-    def add_state(self, label=None):
+    def add_state(self):
         self.state_counter += 1
         self.transitions[self.state_counter] = {}
-        self.state_labels.append(label)
+        self.state_labels[self.state_counter] = set()
         return self.state_counter
     
-    def set_state_label(self, state, label):
-        self.state_labels[state] = label
+    def add_state_label(self, state, label):
+        self.state_labels[state].add(label)
         
-    def get_state_label(self, state):
+    def get_state_labels(self, state):
         return self.state_labels[state]
     
     def set_transition(self, start_state, trigger, end_state):
-        assert trigger != '' and trigger != '\x00' # empty string transitions not allowed in DFAs
+        assert trigger != '\x00' # empty string transitions not allowed in DFAs
         # Add extra states if they are not already part of the graph.
         while(self.state_counter < start_state):
             self.add_state()
@@ -29,8 +30,10 @@ class DeterminateFiniteAutomaton:
         out = '===== BEGIN DFA DESCRIPTION =====\n'
         out += str(self.state_counter + 1) + ' state(s)\n'
         for i in range(self.state_counter + 1):
-            if(self.state_labels[i] is not None):
-                out += 'State ' + str(i) + ' has label ' + str(self.state_labels[i]) + '\n'
+            if(len(self.get_state_labels(i))):
+                out += 'State ' + str(i) + ' has label(s) ' + ', '.join([str(i) for i in self.get_state_labels(i)]) + '\n'
+            if(i == self.start_state):
+                out += 'State ' + str(i) + ' is the starting point.\n'
             for trigger in self.transitions[i].keys():
                 out += str(i) + ' -> "' + trigger + '" -> ' + str(self.transitions[i][trigger]) + '\n'
         out += '====== END DFA DESCRIPTION ======'
@@ -39,19 +42,20 @@ class DeterminateFiniteAutomaton:
 class NondeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
-        self.state_labels = []
+        self.state_labels = {}
         self.state_counter = -1
+        self.start_state = None
     
-    def add_state(self, label=None):
+    def add_state(self):
         self.state_counter += 1
         self.transitions[self.state_counter] = {}
-        self.state_labels.append(label)
+        self.state_labels[self.state_counter] = set()
         return self.state_counter
     
-    def set_state_label(self, state, label):
-        self.state_labels[state] = label
+    def add_state_label(self, state, label):
+        self.state_labels[state].add(label)
         
-    def get_state_label(self, state):
+    def get_state_labels(self, state):
         return self.state_labels[state]
     
     def add_transition(self, start_state, trigger, end_state):
@@ -61,57 +65,72 @@ class NondeterminateFiniteAutomaton:
         while(self.state_counter < end_state):
             self.add_state()
         if(trigger not in self.transitions[start_state].keys()):
-            self.transitions[start_state][trigger] = []
-        self.transitions[start_state][trigger].append(end_state)
+            self.transitions[start_state][trigger] = set()
+        self.transitions[start_state][trigger].add(end_state)
     
     def __str__(self):
         out = '===== BEGIN NFA DESCRIPTION =====\n'
         out += str(self.state_counter + 1) + ' state(s)\n'
         for i in range(self.state_counter + 1):
-            if(self.state_labels[i] is not None):
-                out += 'State ' + str(i) + ' has label ' + str(self.state_labels[i]) + '\n'
+            if(len(self.get_state_labels(i))):
+                out += 'State ' + str(i) + ' has label(s) ' + ', '.join([str(i) for i in self.get_state_labels(i)]) + '\n'
+            if(i == self.start_state):
+                out += 'State ' + str(i) + ' is the starting point.\n'
             for trigger in self.transitions[i].keys():
                 out += str(i) + ' -> "' + trigger + '" -> ' + str(self.transitions[i][trigger]) + '\n'
         out += '====== END NFA DESCRIPTION ======'
         return out
     
     def convert_to_dfa(self):
-        out = DeterminateFiniteAutomaton()
-        multi_state_map = {} # Keeps track of the states in the DFA that represent combinations of states in the NFA.
-        for i in range(self.state_counter + 1):
-            multi_state_map[(i,)] = out.add_state() # For when looking up a 'combo state' of one state.
-        def get_dfa_state(superposition): # Given a superposition of multiple possible states, get (or create) the corresponding DFA state.
-            if(superposition not in multi_state_map.keys()):
-                # The multi_state_map dict contains which DFA states correspond to each superposition.
-                multi_state_map[superposition] = out.add_state()
-                convert_transition(superposition) # Find what will happen with this superposition.
-            return multi_state_map[superposition]
-        def convert_transition(from_states): # Finds all of the possible outcomes of starting from any state from a list of states.
-            transitions = {} # A dictionary filled with all the possible outcomes of any given trigger when starting from any of the given start states.
-            labels = [self.get_state_label(i) for i in from_states]
-            from_dfa_state = get_dfa_state(from_states)
-            def add_transitions(from_states): # Sub function that is used to recursively search through possible transitions when a blank transition is encountered.
-                nonlocal transitions, labels
-                for from_state in from_states:
-                    for trigger in self.transitions[from_state].keys():
-                        if(trigger == '' or trigger == '\x00'): # \x00 will be the representation of an empty string transition in the c++ implementation.
-                            to_states = self.transitions[from_state][trigger]
-                            labels += [self.get_state_label(i) for i in to_states]
-                            # Directly add the transitions from what will be transitioned to, to flatten and remove empty string transitions.
-                            add_transitions(to_states)
-                        else:
-                            if(trigger not in transitions.keys()):
-                                transitions[trigger] = []
-                            transitions[trigger] += self.transitions[from_state][trigger] # Add the destination of this transition as a possible outcome for the given superposition of inputs.
-            add_transitions(from_states) # Start the recursion off with the root input.
-            for trigger in transitions.keys(): # Right now, the dict pairs triggers with what outcomes could possibly happen. This loop converts those to DFA states representing the superposition of those possibilities.
-                out.set_transition(from_dfa_state, trigger, get_dfa_state(tuple(set(transitions[trigger]))))
-            labels = set([i for i in labels if i is not None])
-            if(len(labels) > 0):
-                out.set_state_label(get_dfa_state(from_states), max(labels))
-        for i in range(self.state_counter + 1):
-            convert_transition((i,))
-        return out
+        dfa = DeterminateFiniteAutomaton()
+        epsilon_closures = {} # An epsilon closure is the list of states, including the starting state, that can be reached from the start state, using only zero or more epsilon transitions.
+        def traverse_epsilon_transitions(state, exclude=set()):
+            out = exclude.union({state})
+            if('\x00' in self.transitions[state].keys()):
+                for to_state in self.transitions[state]['\x00']:
+                    if(to_state not in out):
+                        out.add(to_state)
+                        for sub_state in traverse_epsilon_transitions(to_state, out):
+                            out.add(sub_state)
+            return out
+        for state in range(self.state_counter + 1):
+            epsilon_closures[state] = traverse_epsilon_transitions(state)
+            
+        # Compute a DFA structure using combinations of states.
+        table = {} # Table of states and their transitions.
+        states = [epsilon_closures[self.start_state]]
+        index = 0
+        while index < len(states):
+            from_states = frozenset(states[index])
+            table[from_states] = {}
+            for from_state in from_states:
+                for trigger, sub_states in [i for i in self.transitions[from_state].items() if i[0] != '\x00']:
+                    to_states = set()
+                    for sub_state in sub_states:
+                        to_states = to_states.union(epsilon_closures[sub_state])
+                    if(trigger not in table[from_states].keys()):
+                        table[from_states][trigger] = set()
+                    table[from_states][trigger] = table[from_states][trigger].union(to_states)
+            for trigger, to_states in table[from_states].items():
+                if(to_states not in states):
+                    states.append(to_states)
+            index += 1
+        dfa_map = {}
+        for from_states in table.keys():
+            dfa_map[from_states] = dfa.add_state()
+            for from_state in from_states:
+                for label in self.get_state_labels(from_state):
+                    dfa.add_state_label(dfa_map[from_states], label)
+        
+        # Transfer labels and entry point from the NFA to the DFA
+        dfa.start_state = dfa_map[frozenset(epsilon_closures[self.start_state])]
+        for from_states, transitions in table.items():
+            for trigger, to_states in transitions.items():
+                dfa.set_transition(dfa_map[from_states], trigger, dfa_map[frozenset(to_states)])
+        print(epsilon_closures)
+        print(table)
+        print(dfa_map)
+        return dfa
 
 if __name__ == '__main__':
     nfa = NondeterminateFiniteAutomaton()
@@ -120,7 +139,7 @@ if __name__ == '__main__':
     nfa.add_transition(a, '1', c)
     nfa.add_transition(b, '2', c)
     nfa.add_transition(c, '3', a)
-    nfa.add_transition(d, '', e)
+    nfa.add_transition(d, '\x00', e)
     nfa.add_transition(e, '5', a)
     
     print(nfa)
