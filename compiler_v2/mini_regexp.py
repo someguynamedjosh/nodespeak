@@ -10,13 +10,13 @@ def n_or(regexp, nfa): # Converts a regular expression to an NFA segment.
     start_state, end_state = nfa.add_state(), nfa.add_state()
     for option in regexp[1:]:
         if(type(option) is str): # One or more characters
-            if(option == ''): # Empty transition
-                nfa.add_transition(start_state, '', end_state)
+            if(option == '\x00'): # Empty transition
+                nfa.add_transition(start_state, '\x00', end_state)
             for char in option:
                 nfa.add_transition(start_state, char, end_state)
         elif(type(option) is tuple and type(option[1]) is tuple): # A regexp segment that has been converted to a series of NFA states.
-            nfa.add_transition(start_state, '', option[1][0]) # Add a blank transition to the start of the option's network.
-            nfa.add_transition(option[1][1], '', end_state) # Blank transition from the output of the option's network to the overall output.
+            nfa.add_transition(start_state, '\x00', option[1][0]) # Add a blank transition to the start of the option's network.
+            nfa.add_transition(option[1][1], '\x00', end_state) # Blank transition from the output of the option's network to the overall output.
     return regexp[:1] + ((start_state, end_state),) + regexp[1:]
 
 def r_and(*sequence):
@@ -35,16 +35,16 @@ def n_and(regexp, nfa):
                 nfa.add_transition(middle_state, char, nms)
                 middle_state = nms
         elif(type(option) is tuple and type(option[1]) is tuple): # A regexp segment that has been converted to a series of NFA states.
-            nfa.add_transition(middle_state, '', option[1][0]) # Add a blank transition to the start of the option's network.
+            nfa.add_transition(middle_state, '\x00', option[1][0]) # Add a blank transition to the start of the option's network.
             middle_state = option[1][1]
     return regexp[:1] + ((start_state, middle_state),) + regexp[1:]
 
 def r_repeat(regexp, minimum_repeats=0, maximum_repeats=None):
     out = ['and'] + [regexp] * minimum_repeats
     if(maximum_repeats is not None and maximum_repeats > minimum_repeats):
-        sub = ('or', regexp, '')
+        sub = ('or', regexp, '\x00')
         for i in range(maximum_repeats - minimum_repeats - 1):
-            sub = ('or', ('and', regexp, sub), '')
+            sub = ('or', ('and', regexp, sub), '\x00')
         out.append(sub)
     else:
         out.append(('repeat', regexp))
@@ -55,10 +55,9 @@ def r_repeat(regexp, minimum_repeats=0, maximum_repeats=None):
 def n_repeat(regexp, nfa):
     assert regexp[0] == 'repeat'
     assert type(regexp[1][1]) is tuple
-    loop_state = nfa.add_state()
-    nfa.add_transition(loop_state, '', regexp[1][1][0])
-    nfa.add_transition(regexp[1][1][1], '', loop_state)
-    return regexp[:1] + ((loop_state, loop_state),) + regexp[1:]
+    nfa.add_transition(regexp[1][1][1], '\x00', regexp[1][1][0])
+    # Start and end point are the same.
+    return regexp[:1] + ((regexp[1][1][0],) * 2,) + regexp[1:]
 
 def gen_range(min_char, max_char):
     return [chr(i) for i in range(ord(min_char), ord(max_char) + 1)]
@@ -69,7 +68,7 @@ SET_LETTERS = SET_LOWERCASE_LETTERS + SET_UPPERCASE_LETTERS
 SET_NUMBERS = gen_range('0', '9')
 SET_ALPHANUMERIC = SET_LETTERS + SET_NUMBERS
 
-def regexp_to_nfa(regexp, output_label=1):
+def regexp_to_nfa(regexp, output_label=0):
     nfa = NondeterminateFiniteAutomaton()
     def internal_recursor(regexp):
         # Make sure sub expressions have been converted to NFAs
@@ -85,12 +84,12 @@ def regexp_to_nfa(regexp, output_label=1):
             'repeat': n_repeat
         }[regexp[0]](converted, nfa)
     nfad = internal_recursor(regexp)[1]
-    nfa.set_state_label(nfad[0], 0) # Starting point.
-    nfa.set_state_label(nfad[1], output_label) # Exit point.
+    nfa.start_state = nfad[0]
+    nfa.add_state_label(nfad[1], output_label) # Exit point.
     return nfa
     
 if __name__ == '__main__':
-    exp = r_or('a', 'b', r_and('fgh', r_or(r_and('hello world'), r_and('how are you doing')))) # Regexp for numbers.
+    exp = r_repeat(r_or(r_and('9', r_repeat(r_and('abc'))), r_and('def')))
     print(exp)
     nfa = regexp_to_nfa(exp)
     print(nfa)
