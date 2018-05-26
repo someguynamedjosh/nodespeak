@@ -2,14 +2,14 @@ class DeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
         self.state_labels = {}
-        self.state_counter = -1
+        self.state_counter = 0
         self.start_state = None
     
     def add_state(self):
         self.state_counter += 1
         self.transitions[self.state_counter] = {}
         self.state_labels[self.state_counter] = set()
-        return self.state_counter
+        return self.state_counter - 1
     
     def add_state_label(self, state, label):
         self.state_labels[state].add(label)
@@ -20,16 +20,53 @@ class DeterminateFiniteAutomaton:
     def set_transition(self, start_state, trigger, end_state):
         assert trigger != '\x00' # empty string transitions not allowed in DFAs
         # Add extra states if they are not already part of the graph.
-        while(self.state_counter < start_state):
+        while(self.state_counter <= start_state):
             self.add_state()
-        while(self.state_counter < end_state):
+        while(self.state_counter <= end_state):
             self.add_state()
         self.transitions[start_state][trigger] = end_state
     
+    def test(self, input):
+        state = self.start_state
+        stacktrace = [(state,)]
+        for char in input:
+            try:
+                state = self.transitions[state][char]
+                stacktrace.append((char, state))
+            except:
+                print('Invalid transition from state', state, 'on trigger', char)
+                print('Stacktrace:', stacktrace)
+                return
+        print('DFA finished without errors.')
+        print('Stacktrace:', stacktrace)
+        return self.get_state_labels(state)
+    
+    def run(self, input):
+        state = self.start_state
+        for char in input:
+            try:
+                state = self.transitions[state][char]
+            except:
+                raise Exception('The input ' + input + ' is invalid for this DFA.')
+        return self.get_state_labels(state)
+    
+    def reset_run(self): # Get ready for calling step() repeatedly.
+        self.state = self.start_state
+    
+    def step(self, char):
+        try:
+            self.state = self.transitions[self.state][char]
+        except:
+            raise Exception('The character ' + char + ' is not a valid transition from state ' + str(self.state) + '.')
+        return self.get_state_labels(self.state)
+    
+    def get_current_states(self):
+        return self.get_state_labels(self.state) 
+    
     def __str__(self):
         out = '===== BEGIN DFA DESCRIPTION =====\n'
-        out += str(self.state_counter + 1) + ' state(s)\n'
-        for i in range(self.state_counter + 1):
+        out += str(self.state_counter) + ' state(s)\n'
+        for i in range(self.state_counter):
             if(len(self.get_state_labels(i))):
                 out += 'State ' + str(i) + ' has label(s) ' + ', '.join([str(i) for i in self.get_state_labels(i)]) + '\n'
             if(i == self.start_state):
@@ -43,14 +80,24 @@ class NondeterminateFiniteAutomaton:
     def __init__(self):
         self.transitions = {}
         self.state_labels = {}
-        self.state_counter = -1
+        self.state_counter = 0
         self.start_state = None
     
     def add_state(self):
-        self.state_counter += 1
         self.transitions[self.state_counter] = {}
         self.state_labels[self.state_counter] = set()
-        return self.state_counter
+        self.state_counter += 1
+        return self.state_counter - 1
+    
+    def add_states(self, source_nfa):
+        offset = self.state_counter
+        for state, transition_table in source_nfa.transitions.items():
+            self.transitions[state + offset] = dict(transition_table)
+            for trigger, to_states in self.transitions[state + offset].items():
+                self.transitions[state + offset][trigger] = set([i + offset for i in to_states])
+            self.state_labels[state + offset] = set(source_nfa.state_labels[state])
+        self.state_counter += source_nfa.state_counter
+        return offset
     
     def add_state_label(self, state, label):
         self.state_labels[state].add(label)
@@ -60,9 +107,9 @@ class NondeterminateFiniteAutomaton:
     
     def add_transition(self, start_state, trigger, end_state):
         # Add extra states if they are not already part of the graph.
-        while(self.state_counter < start_state):
+        while(self.state_counter <= start_state):
             self.add_state()
-        while(self.state_counter < end_state):
+        while(self.state_counter <= end_state):
             self.add_state()
         if(trigger not in self.transitions[start_state].keys()):
             self.transitions[start_state][trigger] = set()
@@ -70,8 +117,8 @@ class NondeterminateFiniteAutomaton:
     
     def __str__(self):
         out = '===== BEGIN NFA DESCRIPTION =====\n'
-        out += str(self.state_counter + 1) + ' state(s)\n'
-        for i in range(self.state_counter + 1):
+        out += str(self.state_counter) + ' state(s)\n'
+        for i in range(self.state_counter):
             if(len(self.get_state_labels(i))):
                 out += 'State ' + str(i) + ' has label(s) ' + ', '.join([str(i) for i in self.get_state_labels(i)]) + '\n'
             if(i == self.start_state):
@@ -93,7 +140,7 @@ class NondeterminateFiniteAutomaton:
                         for sub_state in traverse_epsilon_transitions(to_state, out):
                             out.add(sub_state)
             return out
-        for state in range(self.state_counter + 1):
+        for state in range(self.state_counter):
             epsilon_closures[state] = traverse_epsilon_transitions(state)
             
         # Compute a DFA structure using combinations of states.
