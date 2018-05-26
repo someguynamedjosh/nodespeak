@@ -3,7 +3,7 @@ from finite_automata import NondeterminateFiniteAutomaton
 def r_or(*options):
     if(type(options[0]) is list and len(options) is 1):
         options = options[0]
-    return ('or',) + options
+    return ('or', *options)
 
 def n_or(regexp, nfa): # Converts a regular expression to an NFA segment.
     assert regexp[0] == 'or'
@@ -22,7 +22,7 @@ def n_or(regexp, nfa): # Converts a regular expression to an NFA segment.
 def r_and(*sequence):
     if(type(sequence[0]) is tuple and len(sequence) == 1):
         sequence = sequence[0]
-    return ('and',) + sequence
+    return ('and', *sequence)
 
 def n_and(regexp, nfa):
     assert regexp[0] == 'and'
