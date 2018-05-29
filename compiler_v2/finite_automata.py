@@ -6,10 +6,13 @@ class DeterminateFiniteAutomaton:
         self.start_state = None
     
     def add_state(self):
-        self.state_counter += 1
         self.transitions[self.state_counter] = {}
         self.state_labels[self.state_counter] = set()
+        self.state_counter += 1
         return self.state_counter - 1
+    
+    def get_states(self):
+        return range(self.state_counter)
     
     def add_state_label(self, state, label):
         self.state_labels[state].add(label)
@@ -24,7 +27,12 @@ class DeterminateFiniteAutomaton:
             self.add_state()
         while(self.state_counter <= end_state):
             self.add_state()
+        if(trigger not in self.transitions[start_state].keys()):
+            self.transitions[start_state][trigger] = set()
         self.transitions[start_state][trigger] = end_state
+    
+    def get_transitions_from(self, start_state):
+        return self.transitions[start_state].items()
     
     def test(self, input):
         state = self.start_state
@@ -72,9 +80,9 @@ class DeterminateFiniteAutomaton:
             if(i == self.start_state):
                 out += 'State ' + str(i) + ' is the starting point.\n'
             for trigger in self.transitions[i].keys():
-                out += str(i) + ' -> "' + trigger + '" -> ' + str(self.transitions[i][trigger]) + '\n'
+                out += str(i) + ' -> ' + repr(trigger) + ' -> ' + str(self.transitions[i][trigger]) + '\n'
         out += '====== END DFA DESCRIPTION ======'
-        return out
+        return out    
 
 class NondeterminateFiniteAutomaton:
     def __init__(self):
@@ -99,6 +107,9 @@ class NondeterminateFiniteAutomaton:
         self.state_counter += source_nfa.state_counter
         return offset
     
+    def get_states(self):
+        return range(self.state_counter)
+    
     def add_state_label(self, state, label):
         self.state_labels[state].add(label)
         
@@ -115,6 +126,9 @@ class NondeterminateFiniteAutomaton:
             self.transitions[start_state][trigger] = set()
         self.transitions[start_state][trigger].add(end_state)
     
+    def get_transitions_from(self, start_state):
+        return self.transitions[start_state].items()
+    
     def __str__(self):
         out = '===== BEGIN NFA DESCRIPTION =====\n'
         out += str(self.state_counter) + ' state(s)\n'
@@ -124,7 +138,7 @@ class NondeterminateFiniteAutomaton:
             if(i == self.start_state):
                 out += 'State ' + str(i) + ' is the starting point.\n'
             for trigger in self.transitions[i].keys():
-                out += str(i) + ' -> "' + trigger + '" -> ' + str(self.transitions[i][trigger]) + '\n'
+                out += str(i) + ' -> ' + repr(trigger) + ' -> ' + str(self.transitions[i][trigger]) + '\n'
         out += '====== END NFA DESCRIPTION ======'
         return out
     
@@ -174,9 +188,6 @@ class NondeterminateFiniteAutomaton:
         for from_states, transitions in table.items():
             for trigger, to_states in transitions.items():
                 dfa.set_transition(dfa_map[from_states], trigger, dfa_map[frozenset(to_states)])
-        print(epsilon_closures)
-        print(table)
-        print(dfa_map)
         return dfa
 
 if __name__ == '__main__':
