@@ -118,14 +118,23 @@ class CFGFiniteAutomaton: # Like a DFA, but has a stack for generating ASTs as w
                 out += str(i) + ' -> ' + repr(trigger) + ': ' + human_readable[transition[0]] + str(transition[1]) + '\n'
         out += '====== END CFGFA DESCRIPTION ======'
         return out
+
+ASSOC_LEFT = 0
+ASSOC_RIGHT = 1
     
 class ContextFreeGrammar:
     def __init__(self):
         self.productions = []
+        self.operators = {}
     
-    def create_production(self, nonterminal, *pattern):
-        self.productions.append(Production(self, nonterminal, *pattern))
+    def create_production(self, nonterminal, *pattern, **kwargs):
+        self.productions.append(Production(self, nonterminal, *pattern, **kwargs))
         return self.productions[-1]
+    
+    def create_binary_operator_production(self, nonterminal, operator_pattern, **kwargs):
+        assert operator_pattern not in self.operators.keys()
+        self.operators[operator_pattern] = len(self.productions) # Pointer to the production for this operator.
+        self.create_production(nonterminal, nonterminal, operator_pattern, nonterminal, is_binary_operator=True, **kwargs)
     
     def follow(self, nonterminal):
         if(type(nonterminal) is not tuple):
@@ -178,17 +187,19 @@ class ContextFreeGrammar:
             for trigger, end_state in dfa.get_transitions_from(state):
                 # If it is a nonterminal, just go to another state. It is not reading a terminal off the input.
                 cfgfa.set_transition(state, trigger, [TRANSITION_SHIFT, TRANSITION_GO][type(trigger) is tuple], end_state)
-            if(len(dfa.get_state_labels(state)) > 0): # Labels are used to mark the completion of nonterminal replacements. If one of these occurs, reduce actions should occur when one of the symbols in FOLLOW(nonterminal) is found.
-                for i, production in [(i, self.productions[i]) for i in dfa.get_state_labels(state)]:
-                    for follow in self.follow(production.nonterminal):
-                        if(follow in cfgfa.transitions[state].keys()): # There is already another transition here. Need to figure out whether or not to override it (operator precedence and associativity)
-                            #print(cfgfa.transitions[state][follow][0])
-                            # If the operator is left-associated, only override shift transitions with replace transitions to make reduction happen early and on the left.
-                            if cfgfa.transitions[state][follow][0] == {ASSOC_LEFT: TRANSITION_SHIFT, ASSOC_RIGHT: TRANSITION_REDUCE}[production.assoc]:
-                                old_rule = cfgfa.transitions[state][follow] # What it used to transition to.
-                                cfgfa.transitions[state][follow] = (TRANSITION_REDUCE, min(old_rule[1], i)) # Rules defined earlier have higher precedence
-                        else:
-                            cfgfa.set_transition(state, follow, TRANSITION_REDUCE, i)
+            if(len(dfa.get_state_labels(state)) > 0): # Labels are used to indicate end points for productions. The label is the index of the production that the state completes.
+                assert len(dfa.get_state_labels(state)) == 1 # There should only be one production the state can resolve to.
+                production_index = list(dfa.get_state_labels(state))[0]
+                production = self.productions[production_index]
+                follows = self.follow(production.nonterminal)
+                for follow in follows: # When the DFA has reached the end of a production's pattern, and a terminal that follows that pattern is found, the pattern should be reduced to the production's nonterminal.
+                    previous_transition = cfgfa.transitions[state].get(follow) # .get() will return None if the key does not exist.
+                    # Figure out if the follow key is a stronger operator than what is in the current production.
+                    # If so, do not override it with a reduce. Keep the shift so that the stronger operator will reduce first and maintain proper order of operations.
+                    if not (previous_transition and previous_transition[0] == TRANSITION_SHIFT and production.is_binary_operator 
+                            and (self.productions[self.operators[follow]].tier < production.tier)): # Lower tier is more important (1st priority is more important than 2nd priority) 
+                        cfgfa.set_transition(state, follow, TRANSITION_REDUCE, production_index)
+                    print(previous_transition, '->', cfgfa.transitions[state].get(follow))
                         
         cfgfa.start_state = dfa.start_state
         cfgfa.set_transition(cfgfa.start_state, start_nonterminal, TRANSITION_ACCEPT, -1)
@@ -201,9 +212,6 @@ class ContextFreeGrammar:
     def __repr__(self):
         return str(self)
 
-ASSOC_LEFT = 0
-ASSOC_RIGHT = 1
-
 class Production:
     def __init__(self, grammar, nonterminal, *pattern, **kwargs):
         self.parent = grammar
@@ -211,7 +219,9 @@ class Production:
             nonterminal = (nonterminal,)
         self.nonterminal = nonterminal
         self.pattern = pattern
-        self.assoc = 'assoc' in kwargs.keys() and kwargs['assoc'] or ASSOC_LEFT
+        self.is_binary_operator = kwargs.get('is_binary_operator', False)
+        self.assoc = kwargs.get('assoc', ASSOC_LEFT)
+        self.tier = kwargs.get('tier', 0)
     
     def __str__(self):
         # ID -> name
