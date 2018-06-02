@@ -118,12 +118,13 @@ def convert_to_tokens(textual_program):
         try:
             master_dfa.step(char)
         except:
-            if(T.IGNORE.value not in master_dfa.get_current_states()): # #4 == whitespace
+            if(T.IGNORE.value not in master_dfa.get_current_states()): # Do not include whitespace in the outputted tokens.
                 tokens.append((T(max(master_dfa.get_current_states())), textual_program[index:i]))
             master_dfa.reset_run()
             master_dfa.step(char)
             index = i
-    return tokens
+    tokens.append((T(max(master_dfa.get_current_states())), textual_program[index:]))
+    return tokens + [(TokenType.EOF, '\x00')]
 
 if __name__ == '__main__':
     print(master_dfa)

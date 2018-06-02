@@ -46,3 +46,4 @@ class TokenType(Enum):
     IDENTIFIER = auto()
     
     IGNORE = auto()
+    EOF = auto()
