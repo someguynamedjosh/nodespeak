@@ -14,6 +14,7 @@ class TokenType(Enum):
     KEYWORD_TYPEDEF = auto()
     KEYWORD_BREAK = auto()
     KEYWORD_RETURN = auto()
+    KEYWORD_DEF = auto()
     
     OCTAL_NUMBER = auto()
     BINARY_NUMBER = auto()
@@ -42,6 +43,7 @@ class TokenType(Enum):
     COMPARISON_OPERATOR = auto()
     
     ASSIGNMENT_OPERATOR = auto()
+    ASSIGN_WITH_MATH_OPERATOR = auto()
     
     IDENTIFIER = auto()
     

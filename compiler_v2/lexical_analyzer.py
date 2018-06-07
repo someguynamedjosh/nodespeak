@@ -70,14 +70,15 @@ comparison_operators = ['!=', '==', '<=', '>=', '<', '>'] # Only apply to two nu
 res[T.COMPARISON_OPERATOR] = r_or([r_and(i) for i in comparison_operators])
 res[T.NOT_OPERATOR] = r_and('!') # Only applies to one boolean
 res[T.BITWISE_NOT_OPERATOR] = r_and('~!') # Only applies to one number.
-bitwise_operators = [i + '~' for i in boolean_operators + comparison_operators]
+bitwise_operators = [i + '~' for i in boolean_operators + ['!=', '==']]
 res[T.BITWISE_OPERATOR] = r_or([r_and(i) for i in bitwise_operators]) # Only applies to two numbers.
 
 # a = b; a [arithmetic operator]= b (equivalent to a = a [arithmetic operator] b); 
 # a [bitwise operator]= b (equivalent to a = a [bitwise operator] b); 
 # a [logical operator]= b (very restricted set of logical operators, because others require numbers and return booleans.)
-assignment_operators = ['='] + [i + '=' for i in arithmetic_operators] + [i + '=' for i in bitwise_operators] + [i + '=' for i in boolean_operators]
-res[T.ASSIGNMENT_OPERATOR] = r_or([r_and(i) for i in assignment_operators])
+assignment_operators = [i + '=' for i in arithmetic_operators] + [i + '=' for i in bitwise_operators] + [i + '=' for i in boolean_operators]
+res[T.ASSIGN_WITH_MATH_OPERATOR] = r_or([r_and(i) for i in assignment_operators])
+res[T.ASSIGNMENT_OPERATOR] = r_and('=')
 
 res[T.DOT_OPERATOR] = r_and('.')
 res[T.COLON] = r_and(':')
@@ -89,8 +90,11 @@ res[T.OPEN_BRACE] = r_and('{')
 res[T.CLOSE_BRACE] = r_and('}')
 res[T.OPEN_BRACKET] = r_and('[')
 res[T.CLOSE_BRACKET] = r_and(']')
-
-res[T.IGNORE] = r_or(' ', '\t', '\n', '\r')
+ 
+ignore = [' ', '\t', '\n', '\r']
+ignore += [r_and('#', r_repeat(r_or(gen_range(' ', '~'))),'\n')] # Any printable characters between # and a newline.
+#ignore += [r_and('/*', r_repeat(r_or(gen_range('\x01', '\xff'))),'*/')] # Any characters between /* and */
+res[T.IGNORE] = r_or(*ignore)
 
 res[T.KEYWORD_IF] = r_and('if')
 res[T.KEYWORD_ELIF] = r_and('elif')
@@ -101,6 +105,7 @@ res[T.KEYWORD_DO] = r_and('do')
 res[T.KEYWORD_TYPEDEF] = r_and('typedef')
 res[T.KEYWORD_BREAK] = r_and('break')
 res[T.KEYWORD_RETURN] = r_and('return')
+res[T.KEYWORD_DEF] = r_and('def')
 
 master_nfa = NondeterminateFiniteAutomaton()
 start = master_nfa.add_state()
@@ -124,6 +129,8 @@ def convert_to_tokens(textual_program):
             master_dfa.step(char)
             index = i
     tokens.append((T(max(master_dfa.get_current_states())), textual_program[index:]))
+    if(tokens[-1][0] == T.IGNORE): # If we accidentally added a space, newline, or tab...
+        tokens = tokens[:-1]
     return tokens + [(TokenType.EOF, '\x00')]
 
 if __name__ == '__main__':
