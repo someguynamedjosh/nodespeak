@@ -1,8 +1,9 @@
 from finite_automata import NondeterminateFiniteAutomaton
+from errors import SyntaxError
 
 class AbstractSyntaxTree:
-    def __init__(self, name):
-        self.children = []
+    def __init__(self, name, *children):
+        self.children = list(children)
         self.name = str(name)
     
     def add_child(self, child):
@@ -77,9 +78,11 @@ class CFGFiniteAutomaton: # Like a DFA, but has a stack for generating ASTs as w
                     production = self.cfg.productions[transition[1]]
                     size = len(production.pattern)
                     ast = AbstractSyntaxTree(production.nonterminal) # Create a new root.
+                    #print([ast_stack[-size:], []][size == 0])
+                    leaves = production.remap([ast_stack[-size:], []][size == 0]) # If it is 0, negative indexing will cause problems, so send an empty list instead.
+                    for leaf in leaves:
+                        ast.add_child(leaf)
                     if(size > 0): # Add some terminals / nonterminals as children, but if there are 0, then it will try to add everything as children, an undesirable effect.
-                        for t in ast_stack[-size:]:
-                            ast.add_child(t) # Add leaves to the root.
                         ast_stack = ast_stack[:-size] # Remove ASTs and DFT states for leaves that were added.
                         stack = stack[:-size]
                     ast_stack.append(ast) # Add it in to the stack, so that it will eventually either be the root state of the entire tree or will become a leaf of another larger root.
@@ -90,14 +93,17 @@ class CFGFiniteAutomaton: # Like a DFA, but has a stack for generating ASTs as w
                         # Any transition on a nonterminal cannot be reducing. Reduction transitions occur when one of the TERMINALS from FOLLOW(nonterminal) is encountered.
                         # Thus, no reduction transitions will occur on NONTERMINALS. This means no recursive headache.
                 elif(transition[0] == TRANSITION_SHIFT):
-                    ast_stack.append(AbstractSyntaxTree(input[index]))
+                    ast_stack.append(input[index])
                     index += 1
                     stack.append(transition[1])
                 elif(transition[0] == TRANSITION_ACCEPT):
                     return ast_stack[0]
-            except:
+                #print(stack)
+                #print(ast_stack)
+                #print(input[index:])
+            except KeyError:
+                raise SyntaxError(input[index], ', '.join([str(t) for t in self.transitions[stack[-1]].keys()]))
                 raise Exception('No valid transition from state ' + str(stack[-1]) + ' on trigger ' + str(input_transform(input[index])))
-            print(stack, ast_stack, input[index:])
     
     def __str__(self):
         out = '===== BEGIN CFGFA DESCRIPTION =====\n'
@@ -147,13 +153,15 @@ class ContextFreeGrammar:
             for production in self.productions:
                 for index in [index for index, item in enumerate(production.pattern) if item in nonterminals]:
                     if(index < len(production.pattern) - 1):
-                        starts = {production.pattern[index + 1]}  # Some of these might be terminals, which will be left as-is. 
+                        starts = {production.pattern[index + 1]}  # Some of these might be terminals, which will be left as-is.
+                        done_nonts = set() 
                         #Others will be nonterminals, which we need to figure out what possible terminals they could start with to find what possible terminals could follow the original query nonterminal. 
                         while True:
-                            nont_starts = [i for i in starts if type(i) is tuple] # All nonterminals from starts
+                            nont_starts = [i for i in starts if type(i) is tuple and i not in done_nonts] # All nonterminals from starts
                             starts = set([i for i in starts if type(i) is not tuple]) # Filter starts to only contain terminals.
                             for production in [p for p in self.productions if p.nonterminal in nont_starts and len(p.pattern) > 0]:
                                 starts.add(production.pattern[0])
+                            done_nonts = done_nonts.union(set(nont_starts))
                             if(len(nont_starts) is 0):
                                 break
                         follow = follow.union(starts)
@@ -161,7 +169,7 @@ class ContextFreeGrammar:
                         nonterminals.add(production.nonterminal)
         return follow
     
-    def create_dfa(self, start_nonterminal, eof_symbol = 'EOF'):
+    def create_dfa(self, start_nonterminal, eof_symbol = 'EOF', debug = False):
         self.create_production(('__TREE_ROOT__',), start_nonterminal, eof_symbol)
         nfa = NondeterminateFiniteAutomaton()
         prod_starts = []
@@ -178,8 +186,8 @@ class ContextFreeGrammar:
                     nfa.add_transition(state, '\x00', prod_starts[i])
         nfa.start_state = prod_starts[start_production]
         dfa = nfa.convert_to_dfa() # Now we have a DFA that will be satisfied whenever it reaches the end of a pattern.
-        print(nfa, dfa)
         # It now needs to be converted to a stack DFA so that once it is satisfied, it will collapse to a nonterminal once it reaches the end of a pattern.
+        debug and print(nfa, dfa)
         cfgfa = CFGFiniteAutomaton(self)
         [cfgfa.add_state() for i in dfa.get_states()]
         end_state = None
@@ -196,10 +204,9 @@ class ContextFreeGrammar:
                     previous_transition = cfgfa.transitions[state].get(follow) # .get() will return None if the key does not exist.
                     # Figure out if the follow key is a stronger operator than what is in the current production.
                     # If so, do not override it with a reduce. Keep the shift so that the stronger operator will reduce first and maintain proper order of operations.
-                    if not (previous_transition and previous_transition[0] == TRANSITION_SHIFT and production.is_binary_operator 
+                    if not (previous_transition and previous_transition[0] == TRANSITION_SHIFT and production.is_binary_operator and follow in self.operators.keys()
                             and (self.productions[self.operators[follow]].tier < production.tier)): # Lower tier is more important (1st priority is more important than 2nd priority) 
                         cfgfa.set_transition(state, follow, TRANSITION_REDUCE, production_index)
-                    print(previous_transition, '->', cfgfa.transitions[state].get(follow))
                         
         cfgfa.start_state = dfa.start_state
         cfgfa.set_transition(cfgfa.start_state, start_nonterminal, TRANSITION_ACCEPT, -1)
@@ -207,7 +214,7 @@ class ContextFreeGrammar:
         return cfgfa
     
     def __str__(self):
-        return '\n'.join([str(i) for i in self.productions])
+        return '\n'.join([str(i) + ':\t' + str(p) for i, p in enumerate(self.productions)])
     
     def __repr__(self):
         return str(self)
@@ -222,6 +229,7 @@ class Production:
         self.is_binary_operator = kwargs.get('is_binary_operator', False)
         self.assoc = kwargs.get('assoc', ASSOC_LEFT)
         self.tier = kwargs.get('tier', 0)
+        self.remap = kwargs.get('remap', lambda e: e)
     
     def __str__(self):
         # ID -> name
