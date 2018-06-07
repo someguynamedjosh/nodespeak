@@ -74,13 +74,18 @@ class DeterminateFiniteAutomaton:
     def __str__(self):
         out = '===== BEGIN DFA DESCRIPTION =====\n'
         out += str(self.state_counter) + ' state(s)\n'
+        reverse_transition_table = [[] for i in range(self.state_counter)]
+        for i in range(self.state_counter):
+            for trigger, destination in self.transitions[i].items():
+                reverse_transition_table[destination].append(i) # You can get to destination from i
         for i in range(self.state_counter):
             if(len(self.get_state_labels(i))):
                 out += 'State ' + str(i) + ' has label(s) ' + ', '.join([str(i) for i in self.get_state_labels(i)]) + '\n'
             if(i == self.start_state):
                 out += 'State ' + str(i) + ' is the starting point.\n'
-            for trigger in self.transitions[i].keys():
-                out += str(i) + ' -> ' + repr(trigger) + ' -> ' + str(self.transitions[i][trigger]) + '\n'
+            out += 'State ' + str(i) + ' can be reached from state(s) ' + ', '.join([str(i) for i in reverse_transition_table[i]]) + '\n'
+            for trigger, destination in self.transitions[i].items():
+                out += str(i) + ' -> ' + repr(trigger) + ' -> ' + str(destination) + '\n'
         out += '====== END DFA DESCRIPTION ======'
         return out    
 
