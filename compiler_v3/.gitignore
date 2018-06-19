@@ -1,0 +1,6 @@
+.*.swp
+.*.swo
+*.tab.*
+*.output
+waveguide
+lex.yy.c
