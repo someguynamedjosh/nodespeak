@@ -4,3 +4,5 @@
 *.output
 waveguide
 lex.yy.c
+.vim*
+a.out
