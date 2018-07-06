@@ -3,6 +3,7 @@
 #include<iostream>
 #include<vector>
 #include "tokens.h"
+#include "scope.h"
 using namespace std;
 
 extern "C" int yylex();
@@ -11,6 +12,7 @@ extern "C" FILE *yyin;
 
 void yyerror(const char *s);
 vector<VarDec*> inlineDefs;
+StatList *result;
 %}
 
 %glr-parser
@@ -69,7 +71,7 @@ vector<VarDec*> inlineDefs;
 %%
 
 root:
-	stats { $$ = new StatList($1); cout << $$->repr() << endl; }
+	stats { $$ = new StatList($1); result = $$; }
 
 stats:
 	stats stat { $$ = new StatList($1, $2); }
@@ -169,16 +171,15 @@ exp:
 %%
 
 int main(int, char**) {
-	for(int i = 0; i < 256; i++) {
-		FILE *input = fopen("sample.wg", "r");
-		if(!input) {
-			cerr << "Error opening sample.wg" << endl;
-			return -1;
-		}
-		yyin = input;
-		do { 
-			yyparse();
-		} while (!feof(yyin));
+	FILE *input = fopen("sample.wg", "r");
+	if(!input) {
+		cerr << "Error opening sample.wg" << endl;
+		return -1;
 	}
+	yyin = input;
+	do { 
+		yyparse();
+	} while (!feof(yyin));
+	Com::parseSyntaxTree(result);
 }
 
