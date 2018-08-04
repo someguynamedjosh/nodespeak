@@ -6,9 +6,9 @@
 namespace Com {
 
 FuncScope *Scope::lookupFunc(string name) {
-	if(funcs.count(name)) {
+	if (funcs.count(name)) {
 		return funcs[name];
-	} else if(parent != nullptr) {
+	} else if (parent != nullptr) {
 		return parent->lookupFunc(name);
 	} else {
 		return nullptr;
@@ -16,9 +16,9 @@ FuncScope *Scope::lookupFunc(string name) {
 }
 
 Variable *Scope::lookupVar(string name) {
-	if(vars.count(name)) {
+	if (vars.count(name)) {
 		return vars[name];
-	} else if(parent != nullptr) {
+	} else if (parent != nullptr) {
 		return parent->lookupVar(name);
 	} else {
 		return nullptr;
@@ -26,12 +26,113 @@ Variable *Scope::lookupVar(string name) {
 }
 
 DataType *Scope::lookupType(string name) {
-	if(types.count(name)) {
+	if (types.count(name)) {
 		return types[name];
-	} else if(parent != nullptr) {
+	} else if (parent != nullptr) {
 		return parent->lookupType(name);
 	} else {
 		return nullptr;
+	}
+}
+
+int getDataTypeIndex(DataType *t) {
+	if (t == DATA_TYPE_BOOL) return 10;
+	if (t == DATA_TYPE_INT) return 20;
+	if (t == DATA_TYPE_FLOAT) return 30;
+	if (t->getArrayDepth() > 0) // Guaranteed to be larger than a smaller depth array type.
+		return getDataTypeIndex(t->getBaseType()) * 10;
+	return 0;
+}
+
+DataType *pickBiggerType(DataType *a, DataType *b) {
+	int aindex = getDataTypeIndex(a), bindex = getDataTypeIndex(b);
+	return (aindex > bindex) ? a : b;
+}
+
+void Scope::castValue(FuncInput *from, Variable *to) {
+	DataType *tfrom = from->getType(), *tto = to->getType();
+	FuncScope *fs = (FuncScope*) 0xDEADBEEF;
+	std::cout << tfrom << " " << tto << std::endl;
+	if (tfrom == DATA_TYPE_BOOL) {
+		if (tto == DATA_TYPE_INT)
+			fs = BUILTIN_BTOI;
+		else if (tto == DATA_TYPE_FLOAT)
+			fs = BUILTIN_BTOF;
+	} else if (tfrom == DATA_TYPE_INT) {
+		if (tto == DATA_TYPE_BOOL)
+			fs = BUILTIN_ITOB;
+		else if (tto == DATA_TYPE_FLOAT) 
+			fs = BUILTIN_ITOF;
+	} else if (tfrom == DATA_TYPE_FLOAT) {
+		if (tto == DATA_TYPE_INT)
+			fs = BUILTIN_FTOI;
+		else if (tto == DATA_TYPE_BOOL)
+			fs = BUILTIN_FTOB;
+	}
+	// TODO: Complex array casts.
+	// Int[1] -> Int[5] should copy 5 times
+	// Int[2] -> Int[5] should make [a[0], a[1], a[0], a[1], a[0]]
+	// Int[3] -> Int[5] should make [a[0], a[1], a[2], a[0], a[1]]
+	// Int[5] -> Int[1] should throw an error
+	// Int[1] -> Bool[5] should convert and copy 5 times
+	// Int    -> Int[5] should be treated as Int[1] -> Int[5]
+	// Int[8] -> Int[5][8] should be treated as Int -> Int[5] for each of 8 elements.
+	// Int[5][1] -> Int[5][8] should be treated as Int[5] -> Int[5] for each of 8 elements.
+	// Int[5][99] -> Int[5][8] should throw an error, just like Int[99] -> Int[8]
+	Command *cc = new Command(fs);
+	cc->addInput(from);
+	cc->addOutput(to);
+	commands.push_back(cc);
+}
+
+void Scope::addCommand(Command *command) { 
+	std::vector<int> upcastIns, upcastOuts;
+	std::vector<Variable*> &ins = command->getFuncScope()->getIns(),
+		&outs = command->getFuncScope()->getOuts();
+	int i = 0;
+	for (auto input : command->getFuncScope()->getIns()) {
+		if (input->getType() == UPCAST_WILDCARD) {
+			upcastIns.push_back(i);
+		}
+		i++;
+	}
+	i = 0;
+	for (auto output : command->getFuncScope()->getOuts()) {
+		if (output->getType() == UPCAST_WILDCARD) {
+			upcastOuts.push_back(i);
+		}
+		i++;
+	}
+	if (upcastIns.size() > 0) { 
+		DataType *biggest = command->getIns()[upcastIns[0]]->getType();
+		std::cout << "Biggest: " << biggest << std::endl;
+		for (int i = 1; i < upcastIns.size(); i++) {
+			biggest = pickBiggerType(biggest, command->getIns()[upcastIns[i]]->getType());
+		}
+		for (int index : upcastIns) {
+			DataType *dtut = command->getIns()[index]->getType();
+			if (dtut->getArrayDepth() != biggest->getArrayDepth() 
+					|| dtut->getBaseType() != biggest->getBaseType()) {
+				Variable *tvar = new Variable(biggest);
+				declareTempVar(tvar);
+				castValue(command->getIns()[index], tvar);
+				command->getIns()[index] = new FuncInput(tvar);
+			}
+		}
+		commands.push_back(command); 
+		for (int index : upcastOuts) {
+			Variable *vut = command->getOuts()[index];
+			if (vut->getType() == UPCAST_WILDCARD) { // Only temp vars can be that type.
+				vut->setType(biggest);
+			} else if (vut->getType() != biggest) {
+				Variable *tvar = new Variable(biggest);
+				declareTempVar(tvar);
+				command->getOuts()[index] = tvar;
+				castValue(new FuncInput(tvar), vut);
+			}
+		}
+	} else {
+		commands.push_back(command); 
 	}
 }
 
@@ -42,6 +143,11 @@ void FuncScope::declareVar(string name, Variable *variable) {
 	} else if (autoAdd == 2) {
 		outs.push_back(variable);
 	}
+}
+
+Literal::Literal(DataType *type)
+	: type(type) {
+	data = malloc(type->getLength());
 }
 
 string Literal::repr(DataType *dtype, void *data) { 
@@ -84,9 +190,13 @@ string FuncInput::repr() {
 	} else {
 		return litIn->repr();
 	}
+} 
+
+vector<Command*> &Command::getCommands() { 
+	return call->getCommands(); 
 }
 
-string FuncCommand::repr() {
+string Command::repr() {
 	stringstream ss;
 	ss << "funcc " << (void*) call;
 	for (FuncInput *input : ins) {
@@ -99,7 +209,7 @@ string FuncCommand::repr() {
 	return ss.str();
 }
 
-DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL;
+DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD;
 FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
@@ -222,30 +332,176 @@ void parseStatList(Scope *scope, StatList *slist) {
 
 void parseSyntaxTree(StatList* slist) {
 	Scope *root = new Scope();
+
+	DATA_TYPE_INT = new DataType(4);
+	DATA_TYPE_FLOAT = new DataType(4);
+	DATA_TYPE_BOOL = new DataType(1);
+	UPCAST_WILDCARD = new DataType(4);
+	root->declareType("Int", DATA_TYPE_INT);
+	root->declareType("Float", DATA_TYPE_FLOAT);
+	root->declareType("Bool", DATA_TYPE_BOOL);
+	root->declareType("!UPCAST_WILDCARD", UPCAST_WILDCARD);
+
 	BUILTIN_ADD = new FuncScope(root);
+	BUILTIN_ADD->autoAddIns();
+	BUILTIN_ADD->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_ADD->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_ADD->autoAddOuts();
+	BUILTIN_ADD->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_MUL = new FuncScope(root);
+	BUILTIN_MUL->autoAddIns();
+	BUILTIN_MUL->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MUL->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MUL->autoAddOuts();
+	BUILTIN_MUL->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_RECIP = new FuncScope(root);
+	BUILTIN_RECIP->autoAddIns();
+	BUILTIN_RECIP->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_RECIP->autoAddOuts();
+	BUILTIN_RECIP->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_ITOF = new FuncScope(root);
+	BUILTIN_ITOF->autoAddIns();
+	BUILTIN_ITOF->declareVar("a", new Variable(DATA_TYPE_INT));
+	BUILTIN_ITOF->autoAddOuts();
+	BUILTIN_ITOF->declareVar("x", new Variable(DATA_TYPE_FLOAT));
+
 	BUILTIN_BTOF = new FuncScope(root);
+	BUILTIN_BTOF->autoAddIns();
+	BUILTIN_BTOF->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_BTOF->autoAddOuts();
+	BUILTIN_BTOF->declareVar("x", new Variable(DATA_TYPE_FLOAT));
+
 	BUILTIN_BTOI = new FuncScope(root);
+	BUILTIN_BTOI->autoAddIns();
+	BUILTIN_BTOI->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_BTOI->autoAddOuts();
+	BUILTIN_BTOI->declareVar("x", new Variable(DATA_TYPE_INT));
+
 	BUILTIN_ITOB = new FuncScope(root);
+	BUILTIN_ITOB->autoAddIns();
+	BUILTIN_ITOB->declareVar("a", new Variable(DATA_TYPE_INT));
+	BUILTIN_ITOB->autoAddOuts();
+	BUILTIN_ITOB->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_FTOI = new FuncScope(root);
+	BUILTIN_FTOI->autoAddIns();
+	BUILTIN_FTOI->declareVar("a", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_FTOI->autoAddOuts();
+	BUILTIN_FTOI->declareVar("x", new Variable(DATA_TYPE_INT));
+
 	BUILTIN_FTOB = new FuncScope(root);
+	BUILTIN_FTOB->autoAddIns();
+	BUILTIN_FTOB->declareVar("a", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_FTOB->autoAddOuts();
+	BUILTIN_FTOB->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_COPY = new FuncScope(root);
+	BUILTIN_COPY->autoAddIns();
+	BUILTIN_COPY->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_COPY->autoAddOuts();
+	BUILTIN_COPY->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_MOD = new FuncScope(root);
+	BUILTIN_MOD->autoAddIns();
+	BUILTIN_MOD->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MOD->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MOD->autoAddOuts();
+	BUILTIN_MOD->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_EQ = new FuncScope(root);
+	BUILTIN_EQ->autoAddIns();
+	BUILTIN_EQ->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_EQ->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_EQ->autoAddOuts();
+	BUILTIN_EQ->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_NEQ = new FuncScope(root);
+	BUILTIN_NEQ->autoAddIns();
+	BUILTIN_NEQ->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_NEQ->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_NEQ->autoAddOuts();
+	BUILTIN_NEQ->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_LTE = new FuncScope(root);
+	BUILTIN_LTE->autoAddIns();
+	BUILTIN_LTE->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LTE->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LTE->autoAddOuts();
+	BUILTIN_LTE->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_GTE = new FuncScope(root);
+	BUILTIN_GTE->autoAddIns();
+	BUILTIN_GTE->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GTE->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GTE->autoAddOuts();
+	BUILTIN_GTE->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_LT = new FuncScope(root);
+	BUILTIN_LT->autoAddIns();
+	BUILTIN_LT->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LT->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LT->autoAddOuts();
+	BUILTIN_LT->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_GT = new FuncScope(root);
+	BUILTIN_GT->autoAddIns();
+	BUILTIN_GT->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GT->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GT->autoAddOuts();
+	BUILTIN_GT->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_AND = new FuncScope(root);
+	BUILTIN_AND->autoAddIns();
+	BUILTIN_AND->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_AND->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_AND->autoAddOuts();
+	BUILTIN_AND->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_OR = new FuncScope(root);
+	BUILTIN_OR->autoAddIns();
+	BUILTIN_OR->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_OR->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_OR->autoAddOuts();
+	BUILTIN_OR->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_XOR = new FuncScope(root);
+	BUILTIN_XOR->autoAddIns();
+	BUILTIN_XOR->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_XOR->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_XOR->autoAddOuts();
+	BUILTIN_XOR->declareVar("x", new Variable(DATA_TYPE_BOOL));
+
 	BUILTIN_BAND = new FuncScope(root);
+	BUILTIN_BAND->autoAddIns();
+	BUILTIN_BAND->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BAND->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BAND->autoAddOuts();
+	BUILTIN_BAND->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_BOR = new FuncScope(root);
+	BUILTIN_BOR->autoAddIns();
+	BUILTIN_BOR->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BOR->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BOR->autoAddOuts();
+	BUILTIN_BOR->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_BXOR = new FuncScope(root);
+	BUILTIN_BXOR->autoAddIns();
+	BUILTIN_BXOR->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BXOR->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BXOR->autoAddOuts();
+	BUILTIN_BXOR->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	BUILTIN_INDEX = new FuncScope(root);
+	BUILTIN_INDEX->autoAddIns();
+	BUILTIN_INDEX->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_INDEX->declareVar("b", new Variable(DATA_TYPE_INT));
+	BUILTIN_INDEX->autoAddOuts();
+	BUILTIN_INDEX->declareVar("x", new Variable(UPCAST_WILDCARD));
+
 	root->declareFunc("!ADD", BUILTIN_ADD);
 	root->declareFunc("!MUL", BUILTIN_MUL);
 	root->declareFunc("!RECIP", BUILTIN_RECIP);
@@ -270,12 +526,7 @@ void parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!BOR", BUILTIN_BOR);
 	root->declareFunc("!BXOR", BUILTIN_BXOR);
 	root->declareFunc("!INDEX", BUILTIN_INDEX);
-	DATA_TYPE_INT = new DataType(4);
-	DATA_TYPE_FLOAT = new DataType(4);
-	DATA_TYPE_BOOL = new DataType(1);
-	root->declareType("Int", DATA_TYPE_INT);
-	root->declareType("Float", DATA_TYPE_FLOAT);
-	root->declareType("Bool", DATA_TYPE_BOOL);
+
 	parseStatList(root, slist);
 }
 

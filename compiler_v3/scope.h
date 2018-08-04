@@ -20,8 +20,9 @@ public:
 	DataType(int length): length(length) { }
 	int getLength() { return length; }
 	virtual int getArrayDepth() { return 0; }
+	virtual DataType *getBaseType() { return this; }
 };
-extern DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL;
+extern DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD;
 
 class ElementaryDataType: public DataType { 
 public:
@@ -43,6 +44,7 @@ private:
 	DataType *type;
 	void *data;
 public:
+	Literal(DataType *type);
 	Literal(DataType *type, void *data): type(type), data(data) { }
 	DataType *getType() { return type; }
 	void *getData() { return data; }
@@ -56,10 +58,14 @@ public:
 class Variable { 
 private:
 	DataType *type;
+	Literal *currentValue = nullptr;
 public:
 	Variable(DataType *type): type(type) { }
+	void setType(DataType *type) { this->type = type; }
 	DataType *getType() { return type; }
 	virtual string repr();
+	void initCurrentValue() { currentValue = new Literal(type); }
+	Literal *getCurrentValue() { return currentValue; }
 };
 
 class FuncInput {
@@ -74,28 +80,23 @@ public:
 	Variable *getVariable() { return varIn; }
 	Literal *getLiteral() { return litIn; }
 	DataType *getType() { return (varIn) ? varIn->getType() : litIn->getType(); }
+	Literal *getCurrentValue() { return (varIn) ? varIn->getCurrentValue() : litIn; }
 	virtual string repr();
 };
 
 class Command {
-public:
-	virtual string repr() { return ""; }
-};
-
-class ReturnCommand: public Command { 
-public:
-	virtual string repr() { return "returnc"; }
-};
-
-class FuncCommand: public Command {
 private:
 	vector<FuncInput*> ins;
 	vector<Variable*> outs;
 	FuncScope *call;
 public:
-	FuncCommand(FuncScope *call): call(call) { }
+	Command(FuncScope *call): call(call) { }
 	void addInput(FuncInput *input) { ins.push_back(input); }
 	void addOutput(Variable *output) { outs.push_back(output); }
+	vector<FuncInput*> &getIns() { return ins; }
+	vector<Variable*> &getOuts() { return outs; }
+	FuncScope *getFuncScope() { return call; }
+	vector<Command*> &getCommands();
 	virtual string repr();
 };
 
@@ -108,6 +109,7 @@ private:
 	map<string, DataType*> types;
 	vector<Command*> commands;
 	Scope *parent;
+	void castValue(FuncInput *from, Variable *to);
 public:
 	Scope(): parent(nullptr) { };
 	Scope(Scope *parent): parent(parent) { }
@@ -120,7 +122,8 @@ public:
 	virtual void declareVar(string name, Variable *variable) { vars.emplace(name, variable); }
 	void declareTempVar(Variable *variable) { tempVars.push_back(variable); }
 	void declareType(string name, DataType *type) { types.emplace(name, type); }
-	void addCommand(Command *command) { commands.push_back(command); }
+	void addCommand(Command *command);
+	vector<Command*> &getCommands() { return commands; }
 	virtual string repr();
 };
 

@@ -20,100 +20,43 @@ FuncInput *FloatExp::getValue(Scope *scope) {
 }
 
 FuncInput *OperatorExp::getValue(Scope *scope) {
-	std::vector<FuncInput*> cargs;
-	int dtypeIndex = -1;
-	bool allLiterals = true;
+	FuncScope *opFunc = getComFunc();
+	Command *c = new Command(opFunc);
 	for (Expression *ex : args) {
-		FuncInput *val = ex->getValue(scope);
-		cargs.push_back(val);
-		allLiterals &= val->isLiteral();
-		DataType *type = (val->isVariable()) 
-			? val->getVariable()->getType()
-			: val->getLiteral()->getType();
-		if (type == DATA_TYPE_FLOAT && dtypeIndex < 2) {
-			dtypeIndex = 2;
-		} else if (type == DATA_TYPE_INT && dtypeIndex < 1) {
-			dtypeIndex = 1;
-		} else if (type == DATA_TYPE_BOOL && dtypeIndex < 0) {
-			dtypeIndex = 0;
-		}
+		c->addInput(ex->getValue(scope));
 	}
-	DataType *expType;
-	switch(dtypeIndex) {
-		case 2:
-			expType = DATA_TYPE_FLOAT;
-			break;
-		case 1:
-			expType = DATA_TYPE_INT;
-			break;
-		case 0:
-			expType = DATA_TYPE_BOOL;
-			break;
-	}
-	if(allLiterals) { // Compute a raw value rather than computing it at runtime.
-		Literal *currentValue = cargs[0]->getLiteral();
-		for (int i = 1; i < cargs.size(); i++) {
-			currentValue = evalBuiltinFunc(getComFunc(), currentValue, cargs[i]->getLiteral());
-		}
-		return new FuncInput(currentValue);
-	} else {
-		FuncCommand *c = new FuncCommand(getComFunc());
-		for (FuncInput *a : cargs) {
-			DataType *type = (a->isVariable()) 
-				? a->getVariable()->getType()
-				: a->getLiteral()->getType();
-			if (type == expType) {
-				c->addInput(a);
-			} else {
-				Variable *tvar = new Variable(expType);
-				scope->declareTempVar(tvar);
-				FuncCommand *com;
-				if (expType == DATA_TYPE_FLOAT && type == DATA_TYPE_INT) {
-					com = new FuncCommand(BUILTIN_ITOF);
-				} else if (expType == DATA_TYPE_FLOAT && type == DATA_TYPE_BOOL) {
-					com = new FuncCommand(BUILTIN_BTOF);
-				} else if (expType == DATA_TYPE_INT && type == DATA_TYPE_BOOL) {
-					com = new FuncCommand(BUILTIN_BTOI);
-				}
-				com->addInput(a);
-				com->addOutput(tvar);
-				scope->addCommand(com);
-				c->addInput(new FuncInput(tvar));
-			}
-		}
-		
-		Variable *tvar = new Variable(expType);
-		scope->declareTempVar(tvar);
-		c->addOutput(tvar);
-		scope->addCommand(c);
-		return new FuncInput(tvar);
-	}
+	
+	Variable *tvar = new Variable(opFunc->getOuts()[0]->getType());
+	scope->declareTempVar(tvar);
+	c->addOutput(tvar);
+	scope->addCommand(c);
+	return new FuncInput(tvar);
 }
-
+/*
 FuncInput *convert(Scope *scope, FuncInput *value, DataType *to, Variable *dest = nullptr) {
-	FuncCommand *cc;
+	Command *cc;
 	Variable *tvar;
 	DataType *itype = value->getType();
 	if (to == DATA_TYPE_FLOAT) {
 		tvar = new Variable(DATA_TYPE_FLOAT);
 		if (itype == DATA_TYPE_INT) {
-			cc = new FuncCommand(BUILTIN_ITOF);
+			cc = new Command(BUILTIN_ITOF);
 		} else if (itype == DATA_TYPE_BOOL) {
-			cc = new FuncCommand(BUILTIN_BTOF);
+			cc = new Command(BUILTIN_BTOF);
 		}
 	} else if (to == DATA_TYPE_INT) {
 		tvar = new Variable(DATA_TYPE_INT);
 		if (itype == DATA_TYPE_FLOAT) {
-			cc = new FuncCommand(BUILTIN_FTOI);
+			cc = new Command(BUILTIN_FTOI);
 		} else if (itype == DATA_TYPE_BOOL) {
-			cc = new FuncCommand(BUILTIN_BTOI);
+			cc = new Command(BUILTIN_BTOI);
 		}
 	} else if (to == DATA_TYPE_BOOL) {
 		tvar = new Variable(DATA_TYPE_BOOL);
 		if (itype == DATA_TYPE_FLOAT) {
-			cc = new FuncCommand(BUILTIN_FTOB);
+			cc = new Command(BUILTIN_FTOB);
 		} else if (itype == DATA_TYPE_INT) {
-			cc = new FuncCommand(BUILTIN_ITOB);
+			cc = new Command(BUILTIN_ITOB);
 		}
 	}
 	scope->declareTempVar(tvar);
@@ -125,20 +68,17 @@ FuncInput *convert(Scope *scope, FuncInput *value, DataType *to, Variable *dest 
 	}
 	return new FuncInput(tvar);
 }
+*/
 
 FuncInput *FuncCall::getValue(Scope *scope) {
 	FuncScope *func = scope->lookupFunc(name);
-	FuncCommand *fc = new FuncCommand(func);
+	Command *fc = new Command(func);
 	std::vector<Variable*> fins = func->getIns();
 	if (ins->getExps().size() != fins.size()) return nullptr;
 	for (int i = 0; i < ins->getExps().size(); i++) {
 		FuncInput *rval = ins->getExps()[i]->getValue(scope);
 		DataType *ftype = fins[i]->getType();
-		if (rval->getType() == ftype) {
-			fc->addInput(rval);
-		} else {
-			fc->addInput(convert(scope, rval, ftype));
-		}
+		fc->addInput(rval);
 	}
 	std::vector<Variable*> fouts = func->getOuts();
 	if (outs->getOuts().size() != fouts.size()) return nullptr;
@@ -157,14 +97,7 @@ FuncInput *FuncCall::getValue(Scope *scope) {
 		case VarAccessOut::TYPE_CONST:
 			if (IdentifierExp *sexp = dynamic_cast<IdentifierExp*>(rval->getExp())) {
 				Variable *target = scope->lookupVar(sexp->getName());
-				if (target->getType() == fouts[i]->getType()) {
-					fc->addOutput(target);
-				} else {
-					Variable *temp = new Variable(fouts[i]->getType());
-					scope->declareTempVar(temp);
-					fc->addOutput(temp);
-					convert(scope, new FuncInput(temp), target->getType(), target);
-				}
+				fc->addOutput(target);
 			}
 			break;
 		}
@@ -192,22 +125,10 @@ FuncScope *BxorExp::getComFunc() { return BUILTIN_BXOR; }
 
 void AssignStat::convert(Scope *scope) {
 	if (IdentifierExp* sexp = dynamic_cast<IdentifierExp*>(to)) {
-		FuncCommand *c;
+		Command *c;
 		FuncInput *right = value->getValue(scope);
-		DataType *rtype = (right->isVariable())
-			? right->getVariable()->getType()
-			: right->getLiteral()->getType();
 		Variable *left = scope->lookupVar(sexp->getName());
-		DataType *ltype = left->getType();
-		if (ltype == rtype) {
-			c = new FuncCommand(BUILTIN_COPY);
-		} else if (ltype == DATA_TYPE_FLOAT && rtype == DATA_TYPE_INT) {
-			c = new FuncCommand(BUILTIN_ITOF);
-		} else if (ltype == DATA_TYPE_FLOAT && rtype == DATA_TYPE_BOOL) {
-			c = new FuncCommand(BUILTIN_BTOF);
-		} else if (ltype == DATA_TYPE_INT && rtype == DATA_TYPE_BOOL) {
-			c = new FuncCommand(BUILTIN_BTOI);
-		}
+		c = new Command(BUILTIN_COPY);
 		c->addInput(right);
 		c->addOutput(left);
 		scope->addCommand(c);
@@ -311,7 +232,7 @@ FuncInput *Range::getValue(Scope *scope) {
 }
 
 void addLoopCall(FuncScope *loopScope, FuncInput *counterInput) {
-	FuncCommand *com = new FuncCommand(loopScope);
+	Command *com = new Command(loopScope);
 	com->addInput(counterInput);
 	loopScope->getParent()->addCommand(com);
 }
@@ -333,7 +254,7 @@ void ForLoop::convert(Scope *scope) {
 			if (lval->getType()->getArrayDepth() > 0) {
 				ArrayDataType *atype = dynamic_cast<ArrayDataType*>(lval->getType());
 				for (int i = 0; i < atype->getArrayLength(); i++) {
-					FuncCommand *iter = new FuncCommand(s);
+					Command *iter = new Command(s);
 					char *addr = ((char*) lval->getData());
 					addr += i * atype->getBaseType()->getLength();
 					cinput = new FuncInput(new Literal(atype->getBaseType(), (void*) addr));
@@ -347,9 +268,9 @@ void ForLoop::convert(Scope *scope) {
 			if (vval->getType()->getArrayDepth() > 0) {
 				ArrayDataType *atype = dynamic_cast<ArrayDataType*>(vval->getType());
 				for (int i = 0; i < atype->getArrayLength(); i++) {
-					FuncCommand *iter = new FuncCommand(s);
+					Command *iter = new Command(s);
 					Variable *temp = new Variable(atype->getBaseType());
-					FuncCommand *cop = new FuncCommand(BUILTIN_INDEX);
+					Command *cop = new Command(BUILTIN_INDEX);
 					cop->addInput(new FuncInput(vval));
 					cop->addInput(new FuncInput(new Literal(DATA_TYPE_INT, new int(i))));
 					cop->addOutput(temp);
