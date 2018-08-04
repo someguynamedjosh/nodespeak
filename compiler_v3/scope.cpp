@@ -15,7 +15,7 @@ FuncScope *Scope::lookupFunc(string name) {
 	}
 }
 
-Variable *Scope::lookupVar(string name) {
+Value *Scope::lookupVar(string name) {
 	if (vars.count(name)) {
 		return vars[name];
 	} else if (parent != nullptr) {
@@ -40,7 +40,7 @@ int getDataTypeIndex(DataType *t) {
 	if (t == DATA_TYPE_INT) return 20;
 	if (t == DATA_TYPE_FLOAT) return 30;
 	if (t->getArrayDepth() > 0) // Guaranteed to be larger than a smaller depth array type.
-		return getDataTypeIndex(t->getBaseType()) * 10;
+		return getDataTypeIndex(t->getLowestType()) * 10;
 	return 0;
 }
 
@@ -49,7 +49,7 @@ DataType *pickBiggerType(DataType *a, DataType *b) {
 	return (aindex > bindex) ? a : b;
 }
 
-void Scope::castValue(FuncInput *from, Variable *to) {
+void Scope::castValue(Value *from, Value *to) {
 	DataType *tfrom = from->getType(), *tto = to->getType();
 	FuncScope *fs = (FuncScope*) 0xDEADBEEF;
 	std::cout << tfrom << " " << tto << std::endl;
@@ -87,7 +87,7 @@ void Scope::castValue(FuncInput *from, Variable *to) {
 
 void Scope::addCommand(Command *command) { 
 	std::vector<int> upcastIns, upcastOuts;
-	std::vector<Variable*> &ins = command->getFuncScope()->getIns(),
+	std::vector<Value*> &ins = command->getFuncScope()->getIns(),
 		&outs = command->getFuncScope()->getOuts();
 	int i = 0;
 	for (auto input : command->getFuncScope()->getIns()) {
@@ -112,23 +112,23 @@ void Scope::addCommand(Command *command) {
 		for (int index : upcastIns) {
 			DataType *dtut = command->getIns()[index]->getType();
 			if (dtut->getArrayDepth() != biggest->getArrayDepth() 
-					|| dtut->getBaseType() != biggest->getBaseType()) {
-				Variable *tvar = new Variable(biggest);
+					|| dtut->getLowestType() != biggest->getLowestType()) {
+				Value *tvar = new Value(biggest);
 				declareTempVar(tvar);
 				castValue(command->getIns()[index], tvar);
-				command->getIns()[index] = new FuncInput(tvar);
+				command->getIns()[index] = tvar;
 			}
 		}
 		commands.push_back(command); 
 		for (int index : upcastOuts) {
-			Variable *vut = command->getOuts()[index];
+			Value *vut = command->getOuts()[index];
 			if (vut->getType() == UPCAST_WILDCARD) { // Only temp vars can be that type.
 				vut->setType(biggest);
 			} else if (vut->getType() != biggest) {
-				Variable *tvar = new Variable(biggest);
+				Value *tvar = new Value(biggest);
 				declareTempVar(tvar);
 				command->getOuts()[index] = tvar;
-				castValue(new FuncInput(tvar), vut);
+				castValue(tvar, vut);
 			}
 		}
 	} else {
@@ -136,7 +136,7 @@ void Scope::addCommand(Command *command) {
 	}
 }
 
-void FuncScope::declareVar(string name, Variable *variable) {
+void FuncScope::declareVar(string name, Value *variable) {
 	Scope::declareVar(name, variable);
 	if (autoAdd == 1) {
 		ins.push_back(variable);
@@ -145,12 +145,12 @@ void FuncScope::declareVar(string name, Variable *variable) {
 	}
 }
 
-Literal::Literal(DataType *type)
+Value::Value(DataType *type)
 	: type(type) {
 	data = malloc(type->getLength());
 }
 
-string Literal::repr(DataType *dtype, void *data) { 
+string Value::repr(DataType *dtype, void *data) { 
 	stringstream ss;
 	ss << "lit " << (void*) dtype << " ";
 	if (dtype == DATA_TYPE_FLOAT) {
@@ -173,24 +173,23 @@ string Literal::repr(DataType *dtype, void *data) {
 	return ss.str();
 }
 
-string Literal::repr() {
-	return repr(type, data);
-}
-
-string Variable::repr() {
-	stringstream ss;
-	ss << "var " << (void*) type;
-	ss << " " << (void*) this;
-	return ss.str();
-}
-
-string FuncInput::repr() {
-	if (varIn) {
-		return varIn->repr();
+string Value::repr() {
+	if (constant) {
+		return repr(type, data);
 	} else {
-		return litIn->repr();
+		stringstream ss;
+		ss << "var " << (void*) type << " " << this;
+		return ss.str();
 	}
-} 
+}
+
+void Value::setType(DataType *newType) {
+	type = newType;
+	if (data != nullptr) {
+		free(data);
+		data = malloc(type->getLength());
+	}
+}
 
 vector<Command*> &Command::getCommands() { 
 	return call->getCommands(); 
@@ -199,11 +198,11 @@ vector<Command*> &Command::getCommands() {
 string Command::repr() {
 	stringstream ss;
 	ss << "funcc " << (void*) call;
-	for (FuncInput *input : ins) {
+	for (Value *input : ins) {
 		ss << " " << input->repr();
 	}
 	ss << ",";
-	for (Variable *output : outs) {
+	for (Value *output : outs) {
 		ss << " " << output->repr();
 	}
 	return ss.str();
@@ -215,25 +214,25 @@ FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_F
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
 FuncScope *BUILTIN_COPY, *BUILTIN_INDEX;
-Literal *evalBuiltinFunc(FuncScope *func, Literal *a, Literal *b) {
+Value *evalBuiltinFunc(FuncScope *func, Value *a, Value *b) {
 	if (b == nullptr) { // There is no second argument, don't do any type conversions.
 	} else if (a->getType() == DATA_TYPE_FLOAT) {
 		if (b->getType() == DATA_TYPE_INT) {
-			b = new Literal(DATA_TYPE_FLOAT, new float(*b->interpretAsFloat()));
+			b = new Value(DATA_TYPE_FLOAT, new float(*b->interpretAsFloat()));
 		} else if (b->getType() == DATA_TYPE_BOOL) {
-			b = new Literal(DATA_TYPE_FLOAT, new float((*b->interpretAsBool()) ? 1.0f : 0.0f));
+			b = new Value(DATA_TYPE_FLOAT, new float((*b->interpretAsBool()) ? 1.0f : 0.0f));
 		}
 	} else if (a->getType() == DATA_TYPE_INT) {
 		if (b->getType() == DATA_TYPE_FLOAT) {
-			a = new Literal(DATA_TYPE_FLOAT, new float(*a->interpretAsInt()));
+			a = new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsInt()));
 		} else if (b->getType() == DATA_TYPE_BOOL) {
-			b = new Literal(DATA_TYPE_INT, new int((*b->interpretAsBool()) ? 1 : 0));
+			b = new Value(DATA_TYPE_INT, new int((*b->interpretAsBool()) ? 1 : 0));
 		}
 	} else if (a->getType() == DATA_TYPE_BOOL) {
 		if (b->getType() == DATA_TYPE_FLOAT) {
-			a = new Literal(DATA_TYPE_FLOAT, new float((*a->interpretAsBool()) ? 1.0f : 0.0f));
+			a = new Value(DATA_TYPE_FLOAT, new float((*a->interpretAsBool()) ? 1.0f : 0.0f));
 		} else if (b->getType() == DATA_TYPE_INT) {
-			a = new Literal(DATA_TYPE_INT, new int((*a->interpretAsBool()) ? 1 : 0));
+			a = new Value(DATA_TYPE_INT, new int((*a->interpretAsBool()) ? 1 : 0));
 		}
 	}
 
@@ -241,27 +240,27 @@ Literal *evalBuiltinFunc(FuncScope *func, Literal *a, Literal *b) {
 	FuncScope *f = func;
 	if (d == DATA_TYPE_FLOAT) {
 		if (f == BUILTIN_ADD) {
-			return new Literal(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() + *b->interpretAsFloat()));
+			return new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() + *b->interpretAsFloat()));
 		} else if (f == BUILTIN_MUL) {
-			return new Literal(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() * *b->interpretAsFloat()));
+			return new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() * *b->interpretAsFloat()));
 		} else if (f == BUILTIN_RECIP) {
-			return new Literal(DATA_TYPE_FLOAT, new float(1.0f / *a->interpretAsFloat()));
+			return new Value(DATA_TYPE_FLOAT, new float(1.0f / *a->interpretAsFloat()));
 		}
 	} else if (d == DATA_TYPE_INT) {
 		if (f == BUILTIN_ADD) {
-			return new Literal(DATA_TYPE_INT, new int(*a->interpretAsInt() + *b->interpretAsInt()));
+			return new Value(DATA_TYPE_INT, new int(*a->interpretAsInt() + *b->interpretAsInt()));
 		} else if (f == BUILTIN_MUL) {
-			return new Literal(DATA_TYPE_INT, new int(*a->interpretAsInt() * *b->interpretAsInt()));
+			return new Value(DATA_TYPE_INT, new int(*a->interpretAsInt() * *b->interpretAsInt()));
 		} else if (f == BUILTIN_RECIP) {
-			return new Literal(DATA_TYPE_INT, new int(1.0f / *a->interpretAsInt()));
+			return new Value(DATA_TYPE_INT, new int(1.0f / *a->interpretAsInt()));
 		}
 	} else if (d == DATA_TYPE_BOOL) {
 		if (f == BUILTIN_ADD) {
-			return new Literal(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() ^ *b->interpretAsBool()));
+			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() ^ *b->interpretAsBool()));
 		} else if (f == BUILTIN_MUL) {
-			return new Literal(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() && *b->interpretAsBool()));
+			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() && *b->interpretAsBool()));
 		} else if (f == BUILTIN_RECIP) {
-			return new Literal(DATA_TYPE_BOOL, new bool(*a->interpretAsBool()));
+			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool()));
 		}
 	}
 	return nullptr;
@@ -280,7 +279,7 @@ string Scope::repr() {
 		ss << "func " << func.first << ": " << func.second << endl;
 	}
 	ss << "Vars:" << endl;
-	for (std::pair<string, Variable*> var : vars) {
+	for (std::pair<string, Value*> var : vars) {
 		ss << "var " << var.first << ": " << var.second << endl;
 	}
 	for (int i = 0; i < tempVars.size(); i++) {
@@ -305,11 +304,11 @@ string FuncScope::repr() {
 	stringstream ss;
 	ss << "=== FUNC SCOPE ===\n";
 	ss << "Inputs: ";
-	for (Variable *input : ins) {
+	for (Value *input : ins) {
 		ss << (void*) input << ", ";
 	}
 	ss << "\nOutputs: ";
-	for (Variable *output: outs) {
+	for (Value *output: outs) {
 		ss << (void*) output << ", ";
 	}
 	ss << "\n" << Scope::repr();
@@ -344,163 +343,163 @@ void parseSyntaxTree(StatList* slist) {
 
 	BUILTIN_ADD = new FuncScope(root);
 	BUILTIN_ADD->autoAddIns();
-	BUILTIN_ADD->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_ADD->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_ADD->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_ADD->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_ADD->autoAddOuts();
-	BUILTIN_ADD->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_ADD->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_MUL = new FuncScope(root);
 	BUILTIN_MUL->autoAddIns();
-	BUILTIN_MUL->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_MUL->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MUL->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_MUL->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_MUL->autoAddOuts();
-	BUILTIN_MUL->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MUL->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_RECIP = new FuncScope(root);
 	BUILTIN_RECIP->autoAddIns();
-	BUILTIN_RECIP->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_RECIP->declareVar("a", new Value(UPCAST_WILDCARD));
 	BUILTIN_RECIP->autoAddOuts();
-	BUILTIN_RECIP->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_RECIP->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_ITOF = new FuncScope(root);
 	BUILTIN_ITOF->autoAddIns();
-	BUILTIN_ITOF->declareVar("a", new Variable(DATA_TYPE_INT));
+	BUILTIN_ITOF->declareVar("a", new Value(DATA_TYPE_INT));
 	BUILTIN_ITOF->autoAddOuts();
-	BUILTIN_ITOF->declareVar("x", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_ITOF->declareVar("x", new Value(DATA_TYPE_FLOAT));
 
 	BUILTIN_BTOF = new FuncScope(root);
 	BUILTIN_BTOF->autoAddIns();
-	BUILTIN_BTOF->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_BTOF->declareVar("a", new Value(DATA_TYPE_BOOL));
 	BUILTIN_BTOF->autoAddOuts();
-	BUILTIN_BTOF->declareVar("x", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_BTOF->declareVar("x", new Value(DATA_TYPE_FLOAT));
 
 	BUILTIN_BTOI = new FuncScope(root);
 	BUILTIN_BTOI->autoAddIns();
-	BUILTIN_BTOI->declareVar("a", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_BTOI->declareVar("a", new Value(DATA_TYPE_BOOL));
 	BUILTIN_BTOI->autoAddOuts();
-	BUILTIN_BTOI->declareVar("x", new Variable(DATA_TYPE_INT));
+	BUILTIN_BTOI->declareVar("x", new Value(DATA_TYPE_INT));
 
 	BUILTIN_ITOB = new FuncScope(root);
 	BUILTIN_ITOB->autoAddIns();
-	BUILTIN_ITOB->declareVar("a", new Variable(DATA_TYPE_INT));
+	BUILTIN_ITOB->declareVar("a", new Value(DATA_TYPE_INT));
 	BUILTIN_ITOB->autoAddOuts();
-	BUILTIN_ITOB->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_ITOB->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_FTOI = new FuncScope(root);
 	BUILTIN_FTOI->autoAddIns();
-	BUILTIN_FTOI->declareVar("a", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_FTOI->declareVar("a", new Value(DATA_TYPE_FLOAT));
 	BUILTIN_FTOI->autoAddOuts();
-	BUILTIN_FTOI->declareVar("x", new Variable(DATA_TYPE_INT));
+	BUILTIN_FTOI->declareVar("x", new Value(DATA_TYPE_INT));
 
 	BUILTIN_FTOB = new FuncScope(root);
 	BUILTIN_FTOB->autoAddIns();
-	BUILTIN_FTOB->declareVar("a", new Variable(DATA_TYPE_FLOAT));
+	BUILTIN_FTOB->declareVar("a", new Value(DATA_TYPE_FLOAT));
 	BUILTIN_FTOB->autoAddOuts();
-	BUILTIN_FTOB->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_FTOB->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_COPY = new FuncScope(root);
 	BUILTIN_COPY->autoAddIns();
-	BUILTIN_COPY->declareVar("a", new Variable(UPCAST_WILDCARD));
+	BUILTIN_COPY->declareVar("a", new Value(UPCAST_WILDCARD));
 	BUILTIN_COPY->autoAddOuts();
-	BUILTIN_COPY->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_COPY->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_MOD = new FuncScope(root);
 	BUILTIN_MOD->autoAddIns();
-	BUILTIN_MOD->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_MOD->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MOD->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_MOD->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_MOD->autoAddOuts();
-	BUILTIN_MOD->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_MOD->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_EQ = new FuncScope(root);
 	BUILTIN_EQ->autoAddIns();
-	BUILTIN_EQ->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_EQ->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_EQ->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_EQ->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_EQ->autoAddOuts();
-	BUILTIN_EQ->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_EQ->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_NEQ = new FuncScope(root);
 	BUILTIN_NEQ->autoAddIns();
-	BUILTIN_NEQ->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_NEQ->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_NEQ->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_NEQ->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_NEQ->autoAddOuts();
-	BUILTIN_NEQ->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_NEQ->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_LTE = new FuncScope(root);
 	BUILTIN_LTE->autoAddIns();
-	BUILTIN_LTE->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_LTE->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LTE->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_LTE->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_LTE->autoAddOuts();
-	BUILTIN_LTE->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_LTE->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_GTE = new FuncScope(root);
 	BUILTIN_GTE->autoAddIns();
-	BUILTIN_GTE->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_GTE->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GTE->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_GTE->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_GTE->autoAddOuts();
-	BUILTIN_GTE->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_GTE->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_LT = new FuncScope(root);
 	BUILTIN_LT->autoAddIns();
-	BUILTIN_LT->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_LT->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_LT->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_LT->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_LT->autoAddOuts();
-	BUILTIN_LT->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_LT->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_GT = new FuncScope(root);
 	BUILTIN_GT->autoAddIns();
-	BUILTIN_GT->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_GT->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_GT->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_GT->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_GT->autoAddOuts();
-	BUILTIN_GT->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_GT->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_AND = new FuncScope(root);
 	BUILTIN_AND->autoAddIns();
-	BUILTIN_AND->declareVar("a", new Variable(DATA_TYPE_BOOL));
-	BUILTIN_AND->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_AND->declareVar("a", new Value(DATA_TYPE_BOOL));
+	BUILTIN_AND->declareVar("b", new Value(DATA_TYPE_BOOL));
 	BUILTIN_AND->autoAddOuts();
-	BUILTIN_AND->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_AND->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_OR = new FuncScope(root);
 	BUILTIN_OR->autoAddIns();
-	BUILTIN_OR->declareVar("a", new Variable(DATA_TYPE_BOOL));
-	BUILTIN_OR->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_OR->declareVar("a", new Value(DATA_TYPE_BOOL));
+	BUILTIN_OR->declareVar("b", new Value(DATA_TYPE_BOOL));
 	BUILTIN_OR->autoAddOuts();
-	BUILTIN_OR->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_OR->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_XOR = new FuncScope(root);
 	BUILTIN_XOR->autoAddIns();
-	BUILTIN_XOR->declareVar("a", new Variable(DATA_TYPE_BOOL));
-	BUILTIN_XOR->declareVar("b", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_XOR->declareVar("a", new Value(DATA_TYPE_BOOL));
+	BUILTIN_XOR->declareVar("b", new Value(DATA_TYPE_BOOL));
 	BUILTIN_XOR->autoAddOuts();
-	BUILTIN_XOR->declareVar("x", new Variable(DATA_TYPE_BOOL));
+	BUILTIN_XOR->declareVar("x", new Value(DATA_TYPE_BOOL));
 
 	BUILTIN_BAND = new FuncScope(root);
 	BUILTIN_BAND->autoAddIns();
-	BUILTIN_BAND->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_BAND->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BAND->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_BAND->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_BAND->autoAddOuts();
-	BUILTIN_BAND->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BAND->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_BOR = new FuncScope(root);
 	BUILTIN_BOR->autoAddIns();
-	BUILTIN_BOR->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_BOR->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BOR->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_BOR->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_BOR->autoAddOuts();
-	BUILTIN_BOR->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BOR->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_BXOR = new FuncScope(root);
 	BUILTIN_BXOR->autoAddIns();
-	BUILTIN_BXOR->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_BXOR->declareVar("b", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BXOR->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_BXOR->declareVar("b", new Value(UPCAST_WILDCARD));
 	BUILTIN_BXOR->autoAddOuts();
-	BUILTIN_BXOR->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_BXOR->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	BUILTIN_INDEX = new FuncScope(root);
 	BUILTIN_INDEX->autoAddIns();
-	BUILTIN_INDEX->declareVar("a", new Variable(UPCAST_WILDCARD));
-	BUILTIN_INDEX->declareVar("b", new Variable(DATA_TYPE_INT));
+	BUILTIN_INDEX->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_INDEX->declareVar("b", new Value(DATA_TYPE_INT));
 	BUILTIN_INDEX->autoAddOuts();
-	BUILTIN_INDEX->declareVar("x", new Variable(UPCAST_WILDCARD));
+	BUILTIN_INDEX->declareVar("x", new Value(UPCAST_WILDCARD));
 
 	root->declareFunc("!ADD", BUILTIN_ADD);
 	root->declareFunc("!MUL", BUILTIN_MUL);

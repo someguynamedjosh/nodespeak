@@ -7,10 +7,10 @@ using namespace std;
 
 namespace Com {
 
-class FuncInput;
 class FuncScope;
 class Scope;
 class DataType;
+class Value;
 
 }
 
@@ -22,7 +22,7 @@ class Root: public Token {};
 class Expression: public Token {
 public:
 	virtual string repr() { return "Exp"; }
-	virtual Com::FuncInput *getValue(Com::Scope *scope) { return nullptr; }
+	virtual Com::Value *getValue(Com::Scope *scope) { return nullptr; }
 };
 class IdentifierExp: public Expression {
 protected:
@@ -31,7 +31,7 @@ public:
 	IdentifierExp(string name): name(name) {}
 	string repr() { return "[Identifier " + string(name) + "]"; }
 	string getName() { return name; }
-	virtual Com::FuncInput *getValue(Com::Scope *scope);
+	virtual Com::Value *getValue(Com::Scope *scope);
 };
 class IntExp: public Expression {
 protected:
@@ -39,7 +39,7 @@ protected:
 public:
 	IntExp(int value): value(value) {}
 	string repr() { return to_string(value); }
-	virtual Com::FuncInput *getValue(Com::Scope *scope);
+	virtual Com::Value *getValue(Com::Scope *scope);
 };
 class FloatExp: public Expression {
 protected:
@@ -47,7 +47,7 @@ protected:
 public:
 	FloatExp(float value) : value(value) {}
 	string repr() { return to_string(value); }
-	virtual Com::FuncInput *getValue(Com::Scope *scope);
+	virtual Com::Value *getValue(Com::Scope *scope);
 };
 class OperatorExp: public Expression {
 protected:
@@ -72,7 +72,7 @@ public:
 			args.push_back(arg);
 		}
 	}
-	virtual Com::FuncInput *getValue(Com::Scope *scope);
+	virtual Com::Value *getValue(Com::Scope *scope);
 };
 class AddExp: public OperatorExp {
 protected:
@@ -198,7 +198,7 @@ public:
 	Range(Expression *start, Expression *end): start(start), end(end) { }
 	Range(Expression *start, Expression *end, Expression *step): start(start), end(end), step(step) { }
 	string repr() { return "{" + start->repr() + ", " + end->repr() + ((step == 0) ? "" : ", " + step->repr()) + "}"; }
-	Com::FuncInput *getValue(Com::Scope *scope);
+	Com::Value *getValue(Com::Scope *scope);
 };
 class Output: public Token {
 public:
@@ -254,7 +254,7 @@ protected:
 public:
 	FuncCall(string name, ExpList *ins, OutList *outs): name(name), ins(ins), outs(outs) { }
 	string repr() { return name + "(" + ins->repr() + "):(" + outs->repr() + ")"; }
-	virtual Com::FuncInput *getValue(Com::Scope *scope);
+	virtual Com::Value *getValue(Com::Scope *scope);
 };
 
 class Statement: public Token {
