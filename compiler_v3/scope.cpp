@@ -329,7 +329,7 @@ void parseStatList(Scope *scope, StatList *slist) {
 	cout << scope->repr() << endl;
 }
 
-void parseSyntaxTree(StatList* slist) {
+Scope *parseSyntaxTree(StatList* slist) {
 	Scope *root = new Scope();
 
 	DATA_TYPE_INT = new DataType(4);
@@ -357,9 +357,9 @@ void parseSyntaxTree(StatList* slist) {
 
 	BUILTIN_RECIP = new FuncScope(root);
 	BUILTIN_RECIP->autoAddIns();
-	BUILTIN_RECIP->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_RECIP->declareVar("a", new Value(DATA_TYPE_FLOAT));
 	BUILTIN_RECIP->autoAddOuts();
-	BUILTIN_RECIP->declareVar("x", new Value(UPCAST_WILDCARD));
+	BUILTIN_RECIP->declareVar("x", new Value(DATA_TYPE_FLOAT));
 
 	BUILTIN_ITOF = new FuncScope(root);
 	BUILTIN_ITOF->autoAddIns();
@@ -527,6 +527,7 @@ void parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!INDEX", BUILTIN_INDEX);
 
 	parseStatList(root, slist);
+	return root;
 }
 
 }

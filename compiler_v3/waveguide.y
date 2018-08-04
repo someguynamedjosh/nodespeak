@@ -180,6 +180,6 @@ int main(int, char**) {
 	do { 
 		yyparse();
 	} while (!feof(yyin));
-	Com::parseSyntaxTree(result);
+	Com::Scope *root = Com::parseSyntaxTree(result);
 }
 

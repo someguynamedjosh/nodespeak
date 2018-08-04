@@ -126,9 +126,7 @@ extern FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN
 extern FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
 extern FuncScope *BUILTIN_INDEX;
 
-Value *evalBuiltinFunc(FuncScope *func, Value *a, Value *b);
-
-void parseSyntaxTree(StatList* list);
+Scope *parseSyntaxTree(StatList* list);
 
 }
 
