@@ -189,6 +189,7 @@ protected:
 	ExpList *elements;
 public:
 	ArrayLiteral(ExpList *elements): elements(elements) { }
+	Com::Value *getValue(Com::Scope *scope);
 	string repr() { return "Array [" + elements->repr() + "]"; }
 };
 class Range: public Expression {
