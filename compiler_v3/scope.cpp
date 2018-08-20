@@ -52,7 +52,6 @@ DataType *pickBiggerType(DataType *a, DataType *b) {
 void Scope::castValue(Value *from, Value *to) {
 	DataType *tfrom = from->getType(), *tto = to->getType();
 	FuncScope *fs = (FuncScope*) 0xDEADBEEF;
-	std::cout << tfrom << " " << tto << std::endl;
 	if (tfrom == DATA_TYPE_BOOL) {
 		if (tto == DATA_TYPE_INT)
 			fs = BUILTIN_BTOI;
@@ -105,7 +104,6 @@ void Scope::addCommand(Command *command) {
 	}
 	if (upcastIns.size() > 0) { 
 		DataType *biggest = command->getIns()[upcastIns[0]]->getType();
-		std::cout << "Biggest: " << biggest << std::endl;
 		for (int i = 1; i < upcastIns.size(); i++) {
 			biggest = pickBiggerType(biggest, command->getIns()[upcastIns[i]]->getType());
 		}
@@ -326,7 +324,6 @@ void parseStatList(Scope *scope, StatList *slist) {
 			parseStatList(scope->lookupFunc(fdec->getName()), fdec->getBody());
 		}
 	}
-	cout << scope->repr() << endl;
 }
 
 Scope *parseSyntaxTree(StatList* slist) {
