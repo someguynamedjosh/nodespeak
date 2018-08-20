@@ -4,6 +4,7 @@
 #include<vector>
 #include "tokens.h"
 #include "scope.h"
+#include "interpreter.h"
 using namespace std;
 
 extern "C" int yylex();
@@ -51,6 +52,7 @@ StatList *result;
 %type <statlist> vardec
 %type <statlist> mstat
 %type <statlist> indec
+%type <statlist> indec2
 %type <statlist> outdec
 %type <explist> explist
 %type <outlist> outlist
@@ -99,6 +101,10 @@ indec:
 	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
 	| indec ',' indec { $$ = new StatList($1, $3); }
 
+indec2:
+	indec { $$ = $1; }
+	| %empty { $$ = new StatList(); }
+
 outdec:
 	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
 	| type RETURN { $$ = new StatList(new VarDec($1, "return")); }
@@ -116,9 +122,9 @@ outlist:
 	| outlist ',' outlist { $$ = new OutList($1, $3); }
 
 stat:
-	IDENTIFIER '(' indec ')' '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(), $6); }
-	| IDENTIFIER '(' indec ')' ':' IDENTIFIER '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(new VarDec(new TypeName($6), "return")), $8); }
-	| IDENTIFIER '(' indec ')' ':' '(' outdec ')' '{' stats '}' { $$ = new FuncDec($1, $3, $7, $10); }
+	IDENTIFIER '(' indec2 ')' '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(), $6); }
+	| IDENTIFIER '(' indec2 ')' ':' IDENTIFIER '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(new VarDec(new TypeName($6), "return")), $8); }
+	| IDENTIFIER '(' indec2 ')' ':' '(' outdec ')' '{' stats '}' { $$ = new FuncDec($1, $3, $7, $10); }
 	| branch { $$ = $1; }
 	| branch ELSE '{' stats '}' { $1->addElse($4); $$ = $1; } 
 	| FOR '(' type IDENTIFIER OF explist ')' '{' stats '}' { $$ = new ForLoop(new VarDec($3, $4), $6, $9); }
@@ -181,5 +187,6 @@ int main(int, char**) {
 		yyparse();
 	} while (!feof(yyin));
 	Com::Scope *root = Com::parseSyntaxTree(result);
+	Com::interpret(root);
 }
 
