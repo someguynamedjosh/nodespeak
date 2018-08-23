@@ -203,6 +203,26 @@ string Command::repr() {
 	for (Value *output : outs) {
 		ss << " " << output->repr();
 	}
+	if (aug != nullptr) {
+		ss << " AUG ";
+		switch (aug->getType()) {
+		case AugmentationType::DO_IF:
+			ss << "DO_IF ";
+			break;
+		case AugmentationType::DO_IF_NOT:
+			ss << "DO_IF_NOT ";
+			break;
+		case AugmentationType::LOOP_FOR:
+			ss << "LOOP_FOR ";
+			break;
+		case AugmentationType::LOOP_RANGE:
+			ss << "LOOP_RANGE ";
+			break;
+		}
+		for (auto param : aug->getParams()) {
+			ss << param->repr() << " ";
+		}
+	}
 	return ss.str();
 }
 
