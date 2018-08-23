@@ -35,11 +35,11 @@ void forkCommand(Command *command) {
 		switch (command->getAugmentation()->getType()) {
 		case AugmentationType::DO_IF:
 			trigger = command->getAugmentation()->getParams()[0];
-			if (trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			if (*trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
 			break;
 		case AugmentationType::DO_IF_NOT:
 			trigger = command->getAugmentation()->getParams()[0];
-			if (!trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			if (!*trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
 			break;
 		}
 	}
