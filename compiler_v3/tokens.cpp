@@ -32,6 +32,11 @@ Value *OperatorExp::getValue(Scope *scope) {
 	scope->addCommand(c);
 	return tvar;
 }
+
+Value *ArrayLiteral::getValue(Scope *scope) {
+	return new Value(DATA_TYPE_INT, new int(0)); // TODO: Make this work.
+}
+
 /*
 Value *convert(Scope *scope, Value *value, DataType *to, Value *dest = nullptr) {
 	Command *cc;
@@ -147,6 +152,30 @@ void FuncDec::convert(Scope *scope) {
 	}
 	s->autoAddNone();
 	scope->declareFunc(name, s);
+}
+
+void StatList::convert(Scope *scope) {
+	for (auto stat : stats) {
+		stat->convert(scope);
+	}
+}
+
+void Branch::convert(Scope *scope) {
+	Value *factor = con->getValue(scope);
+	FuncScope *ifTrueFunc = new FuncScope(scope);
+	scope->declareTempFunc(ifTrueFunc);
+	ifTrue->convert(ifTrueFunc);
+	scope->addCommand(new Command(ifTrueFunc,
+		new Augmentation(AugmentationType::DO_IF, factor)));
+
+	if (ifFalse != nullptr) {
+		FuncScope *ifFalseFunc = new FuncScope(scope);
+		scope->declareTempFunc(ifFalseFunc);
+		ifFalse->convert(ifFalseFunc);
+		scope->addCommand(new Command(ifFalseFunc,
+			new Augmentation(AugmentationType::DO_IF_NOT, factor)));
+	}
+
 }
 
 DataType *TypeName::convert(Scope *scope) {

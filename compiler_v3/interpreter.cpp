@@ -27,6 +27,24 @@ void interpret(Scope *root) {
 	std::cout << "Interpretation complete!" << std::endl;
 }
 
+void forkCommand(Command *command) {
+	if (command->getAugmentation() == nullptr) {
+		runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+	} else {
+		Value *trigger;
+		switch (command->getAugmentation()->getType()) {
+		case AugmentationType::DO_IF:
+			trigger = command->getAugmentation()->getParams()[0];
+			if (trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			break;
+		case AugmentationType::DO_IF_NOT:
+			trigger = command->getAugmentation()->getParams()[0];
+			if (!trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			break;
+		}
+	}
+}
+
 void runFuncScope(FuncScope *fs, std::vector<Value*> inputs, std::vector<Value*> outputs) {
 	if (fs == BUILTIN_ADD) {
 		if (inputs[0]->getType() == DATA_TYPE_INT)
@@ -53,8 +71,14 @@ void runFuncScope(FuncScope *fs, std::vector<Value*> inputs, std::vector<Value*>
 	} else if (fs == BUILTIN_COPY) {
 		memcpy(outputs[0]->getData(), inputs[0]->getData(), inputs[0]->getType()->getLength());
 	} else {
-		for (Command* command : fs->getCommands()) {
-			runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+		for (int i = 0; i < fs->getIns().size(); i++) {
+			memcpy(fs->getIns()[i]->getData(), inputs[i]->getData(), inputs[i]->getType()->getLength());
+		}
+		for (int i = 0; i < fs->getOuts().size(); i++) {
+			memcpy(fs->getOuts()[i]->getData(), outputs[i]->getData(), outputs[i]->getType()->getLength());
+		}
+		for (Command *command : fs->getCommands()) {
+			forkCommand(command);
 		}
 		for (int i = 0; i < outputs.size(); i++) {
 			memcpy(outputs[i]->getData(), fs->getOuts()[i]->getData(), 
