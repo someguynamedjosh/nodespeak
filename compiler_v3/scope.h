@@ -22,7 +22,7 @@ public:
 	virtual int getArrayDepth() { return 0; }
 	virtual DataType *getLowestType() { return this; }
 };
-extern DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD;
+extern DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD, *ANY_WILDCARD;
 
 class ElementaryDataType: public DataType { 
 public:
@@ -121,10 +121,12 @@ public:
 
 extern FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 extern FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
-extern FuncScope *BUILTIN_COPY;
+extern FuncScope *BUILTIN_COPY, *BUILTIN_COPY_OFFSET;
 extern FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 extern FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
 extern FuncScope *BUILTIN_INDEX;
+
+DataType *pickBiggerType(DataType *a, DataType *b);
 
 Scope *parseSyntaxTree(StatList* list);
 

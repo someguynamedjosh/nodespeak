@@ -171,6 +171,27 @@ void VarDec::convert(Scope *scope) {
 	scope->declareVar(name, new Value(type->convert(scope)));
 }
 
+Value *ArrayLiteral::getValue(Com::Scope *scope) {
+	DataType *type = nullptr;
+	vector<Value*> values;
+	for (Expression *exp : elements->getExps()) {
+		Value *value = exp->getValue(scope);
+		values.push_back(value);
+		type = pickBiggerType(type, value->getType());
+	}
+	Value *output = new Value(new ArrayDataType(type, elements->getExps().size()));
+	int i = 0;
+	for (Value *value : values) {
+		Command* c = new Command(BUILTIN_COPY_OFFSET);
+		c->addInput(value);
+		c->addInput(new Value(DATA_TYPE_INT, new int(i)));
+		c->addOutput(output);
+		scope->addCommand(c);
+		i += type->getLength();
+	}
+	return output;
+}
+
 Value *Range::getValue(Scope *scope) {
 	Value *starti = start->getValue(scope), *endi = end->getValue(scope);
 	Value *stepi = (step) ? step->getValue(scope) : new Value(DATA_TYPE_INT, new int(1));

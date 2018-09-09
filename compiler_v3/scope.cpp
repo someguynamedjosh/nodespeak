@@ -36,6 +36,7 @@ DataType *Scope::lookupType(string name) {
 }
 
 int getDataTypeIndex(DataType *t) {
+	if (t == nullptr) return 0;
 	if (t == DATA_TYPE_BOOL) return 10;
 	if (t == DATA_TYPE_INT) return 20;
 	if (t == DATA_TYPE_FLOAT) return 30;
@@ -206,12 +207,12 @@ string Command::repr() {
 	return ss.str();
 }
 
-DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD;
+DataType *DATA_TYPE_INT, *DATA_TYPE_FLOAT, *DATA_TYPE_BOOL, *UPCAST_WILDCARD, *ANY_WILDCARD;
 FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
-FuncScope *BUILTIN_COPY, *BUILTIN_INDEX;
+FuncScope *BUILTIN_COPY, *BUILTIN_COPY_OFFSET, *BUILTIN_INDEX;
 Value *evalBuiltinFunc(FuncScope *func, Value *a, Value *b) {
 	if (b == nullptr) { // There is no second argument, don't do any type conversions.
 	} else if (a->getType() == DATA_TYPE_FLOAT) {
@@ -332,11 +333,13 @@ Scope *parseSyntaxTree(StatList* slist) {
 	DATA_TYPE_INT = new DataType(4);
 	DATA_TYPE_FLOAT = new DataType(4);
 	DATA_TYPE_BOOL = new DataType(1);
-	UPCAST_WILDCARD = new DataType(4);
+	UPCAST_WILDCARD = new DataType(1);
+	ANY_WILDCARD = new DataType(1);
 	root->declareType("Int", DATA_TYPE_INT);
 	root->declareType("Float", DATA_TYPE_FLOAT);
 	root->declareType("Bool", DATA_TYPE_BOOL);
 	root->declareType("!UPCAST_WILDCARD", UPCAST_WILDCARD);
+	root->declareType("!ANY_WILDCARD", ANY_WILDCARD);
 
 	BUILTIN_ADD = new FuncScope(root);
 	BUILTIN_ADD->autoAddIns();
@@ -399,6 +402,13 @@ Scope *parseSyntaxTree(StatList* slist) {
 	BUILTIN_COPY->declareVar("a", new Value(UPCAST_WILDCARD));
 	BUILTIN_COPY->autoAddOuts();
 	BUILTIN_COPY->declareVar("x", new Value(UPCAST_WILDCARD));
+
+	BUILTIN_COPY_OFFSET = new FuncScope(root);
+	BUILTIN_COPY_OFFSET->autoAddIns();
+	BUILTIN_COPY_OFFSET->declareVar("a", new Value(ANY_WILDCARD));
+	BUILTIN_COPY_OFFSET->autoAddOuts();
+	BUILTIN_COPY_OFFSET->declareVar("x", new Value(ANY_WILDCARD));
+	BUILTIN_COPY_OFFSET->declareVar("offset", new Value(DATA_TYPE_INT));
 
 	BUILTIN_MOD = new FuncScope(root);
 	BUILTIN_MOD->autoAddIns();
@@ -508,6 +518,7 @@ Scope *parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!FTOI", BUILTIN_FTOI);
 	root->declareFunc("!FTOB", BUILTIN_FTOB);
 	root->declareFunc("!COPY", BUILTIN_COPY);
+	root->declareFunc("!COPY_OFFSET", BUILTIN_COPY_OFFSET);
 	root->declareFunc("!MOD", BUILTIN_MOD);
 	root->declareFunc("!EQ", BUILTIN_EQ);
 	root->declareFunc("!NEQ", BUILTIN_NEQ);
