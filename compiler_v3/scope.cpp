@@ -50,24 +50,38 @@ DataType *pickBiggerType(DataType *a, DataType *b) {
 	return (aindex > bindex) ? a : b;
 }
 
+FuncScope *builtinCastFunc(DataType *from, DataType *to) {
+	if (from == DATA_TYPE_BOOL) {
+		if (to == DATA_TYPE_INT)
+			return BUILTIN_BTOI;
+		else if (to == DATA_TYPE_FLOAT)
+			return BUILTIN_BTOF;
+	} else if (from == DATA_TYPE_INT) {
+		if (to == DATA_TYPE_BOOL)
+			return BUILTIN_ITOB;
+		else if (to == DATA_TYPE_FLOAT) 
+			return BUILTIN_ITOF;
+	} else if (from == DATA_TYPE_FLOAT) {
+		if (to == DATA_TYPE_INT)
+			return BUILTIN_FTOI;
+		else if (to == DATA_TYPE_BOOL)
+			return BUILTIN_FTOB;
+	} 
+	if (from == to) {
+		return BUILTIN_COPY;
+	}
+	return (FuncScope*) 0xDEADBEEF;
+}
+
 void Scope::castValue(Value *from, Value *to) {
 	DataType *tfrom = from->getType(), *tto = to->getType();
 	FuncScope *fs = (FuncScope*) 0xDEADBEEF;
-	if (tfrom == DATA_TYPE_BOOL) {
-		if (tto == DATA_TYPE_INT)
-			fs = BUILTIN_BTOI;
-		else if (tto == DATA_TYPE_FLOAT)
-			fs = BUILTIN_BTOF;
-	} else if (tfrom == DATA_TYPE_INT) {
-		if (tto == DATA_TYPE_BOOL)
-			fs = BUILTIN_ITOB;
-		else if (tto == DATA_TYPE_FLOAT) 
-			fs = BUILTIN_ITOF;
-	} else if (tfrom == DATA_TYPE_FLOAT) {
-		if (tto == DATA_TYPE_INT)
-			fs = BUILTIN_FTOI;
-		else if (tto == DATA_TYPE_BOOL)
-			fs = BUILTIN_FTOB;
+	if (tfrom->getArrayDepth() == 0 && tto->getArrayDepth()) {
+		fs = builtinCastFunc(tfrom, tto);
+	} else {
+		if (tto->getArrayDepth() == tfrom->getArrayDepth()) {
+			fs = builtinCastFunc(tfrom->getLowestType(), tto->getLowestType());
+		}
 	}
 	// TODO: Complex array casts.
 	// Int[1] -> Int[5] should copy 5 times
