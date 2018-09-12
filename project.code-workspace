@@ -7,7 +7,11 @@
 	"settings": {
 		"files.associations": {
 			"typeindex": "cpp",
-			"typeinfo": "cpp"
+			"typeinfo": "cpp",
+			"istream": "cpp",
+			"ostream": "cpp",
+			"ratio": "cpp",
+			"type_traits": "cpp"
 		}
 	}
 }
