@@ -11,7 +11,10 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
         },
         {
             "label": "debug",
@@ -35,7 +38,21 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run w/ readable code output",
+            "type": "shell",
+            "options": {
+                "cwd": "./compiler_v3"
+            },
+            "command": "./run.sh | python3 out_parse.py",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
         },
         {
             "label": "build and run",
