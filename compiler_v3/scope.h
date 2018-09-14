@@ -51,6 +51,7 @@ public:
 	DataType *getType() { return type; }
 	void *getData() { return data; }
 	bool isConstant() { return constant; }
+	void setConstant(bool is) { constant = is; }
 	float *interpretAsFloat() { return static_cast<float*>(data); }
 	int *interpretAsInt() { return static_cast<int*>(data); }
 	bool *interpretAsBool() { return static_cast<bool*>(data); }
@@ -121,10 +122,9 @@ public:
 
 extern FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 extern FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
-extern FuncScope *BUILTIN_COPY, *BUILTIN_COPY_OFFSET;
+extern FuncScope *BUILTIN_COPY;
 extern FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 extern FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
-extern FuncScope *BUILTIN_INDEX;
 
 DataType *pickBiggerType(DataType *a, DataType *b);
 

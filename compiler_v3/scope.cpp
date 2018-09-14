@@ -411,18 +411,15 @@ Scope *parseSyntaxTree(StatList* slist) {
 	BUILTIN_FTOB->autoAddOuts();
 	BUILTIN_FTOB->declareVar("x", new Value(DATA_TYPE_BOOL));
 
+	// The way this one works is a bit weird. If the input and output are the same size, OFFSET should be zero. The
+	// entire value will be copied. If one is bigger than the other, a chunk of data the size of the smaller one will
+	// be transferred. OFFSET will be used as the byte index to start copying from from the larger data type.
 	BUILTIN_COPY = new FuncScope(root);
 	BUILTIN_COPY->autoAddIns();
-	BUILTIN_COPY->declareVar("a", new Value(UPCAST_WILDCARD));
+	BUILTIN_COPY->declareVar("a", new Value(ANY_WILDCARD));
+	BUILTIN_COPY->declareVar("offset", new Value(DATA_TYPE_INT));
 	BUILTIN_COPY->autoAddOuts();
-	BUILTIN_COPY->declareVar("x", new Value(UPCAST_WILDCARD));
-
-	BUILTIN_COPY_OFFSET = new FuncScope(root);
-	BUILTIN_COPY_OFFSET->autoAddIns();
-	BUILTIN_COPY_OFFSET->declareVar("a", new Value(ANY_WILDCARD));
-	BUILTIN_COPY_OFFSET->autoAddOuts();
-	BUILTIN_COPY_OFFSET->declareVar("x", new Value(ANY_WILDCARD));
-	BUILTIN_COPY_OFFSET->declareVar("offset", new Value(DATA_TYPE_INT));
+	BUILTIN_COPY->declareVar("x", new Value(ANY_WILDCARD));
 
 	BUILTIN_MOD = new FuncScope(root);
 	BUILTIN_MOD->autoAddIns();
@@ -515,13 +512,6 @@ Scope *parseSyntaxTree(StatList* slist) {
 	BUILTIN_BXOR->autoAddOuts();
 	BUILTIN_BXOR->declareVar("x", new Value(UPCAST_WILDCARD));
 
-	BUILTIN_INDEX = new FuncScope(root);
-	BUILTIN_INDEX->autoAddIns();
-	BUILTIN_INDEX->declareVar("a", new Value(UPCAST_WILDCARD));
-	BUILTIN_INDEX->declareVar("b", new Value(DATA_TYPE_INT));
-	BUILTIN_INDEX->autoAddOuts();
-	BUILTIN_INDEX->declareVar("x", new Value(UPCAST_WILDCARD));
-
 	root->declareFunc("!ADD", BUILTIN_ADD);
 	root->declareFunc("!MUL", BUILTIN_MUL);
 	root->declareFunc("!RECIP", BUILTIN_RECIP);
@@ -532,7 +522,6 @@ Scope *parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!FTOI", BUILTIN_FTOI);
 	root->declareFunc("!FTOB", BUILTIN_FTOB);
 	root->declareFunc("!COPY", BUILTIN_COPY);
-	root->declareFunc("!COPY_OFFSET", BUILTIN_COPY_OFFSET);
 	root->declareFunc("!MOD", BUILTIN_MOD);
 	root->declareFunc("!EQ", BUILTIN_EQ);
 	root->declareFunc("!NEQ", BUILTIN_NEQ);
@@ -546,7 +535,6 @@ Scope *parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!BAND", BUILTIN_BAND);
 	root->declareFunc("!BOR", BUILTIN_BOR);
 	root->declareFunc("!BXOR", BUILTIN_BXOR);
-	root->declareFunc("!INDEX", BUILTIN_INDEX);
 
 	parseStatList(root, slist);
 	return root;
