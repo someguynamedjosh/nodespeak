@@ -27,6 +27,7 @@ StatList *result;
 	char cval;
 	char *sval;
 	Expression *expression;
+	AccessExp *accessexp;
 	Statement *statement;
 	StatList *statlist;
 	Type *type;
@@ -45,7 +46,7 @@ StatList *result;
 
 %type <expression> exp
 %type <statement> stat
-%type <expression> aleft
+%type <accessexp> accessexp
 %type <statlist> stats
 %type <statlist> root
 %type <type> type
@@ -83,19 +84,32 @@ stats:
 
 mstat:
 	vardec ';' { $$ = $1; }
-	| RETURN exp ';' { $$ = new StatList(new AssignStat(new IdentifierExp("return"), $2), new ReturnStat()); }
-	| aleft A exp ';' { $$ = new StatList(); for(VarDec* v : inlineDefs) $$->append(v); inlineDefs.clear(); $$->append(new AssignStat($1, $3)); } 
+	| RETURN exp ';' { 
+		$$ = new StatList(new AssignStat(new AccessExp(new IdentifierExp("return")), $2), new ReturnStat()); }
+	| accessexp A exp ';' { 
+		$$ = new StatList(); 
+		for(VarDec* v : inlineDefs) 
+			$$->append(v); 
+		inlineDefs.clear(); 
+		$$->append(new AssignStat($1, $3)); } 
 	| IDENTIFIER '(' explist ')' ':' '(' outlist ')' ';' { 
-		$$ = new StatList(); for(VarDec* v : inlineDefs) $$->append(v); inlineDefs.clear(); $$->append(new FuncCallStat(new FuncCall($1, $3, $7))); }
+		$$ = new StatList(); 
+		for(VarDec* v : inlineDefs) 
+			$$->append(v); 
+		inlineDefs.clear(); 
+		$$->append(new FuncCallStat(new FuncCall($1, $3, $7))); }
 
 vardec:
 	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
 	| type IDENTIFIER A exp { 
-		$$ = new StatList(new VarDec($1, $2)); for(VarDec* v : inlineDefs) $$->append(v); inlineDefs.clear(); 
-		$$->append(new AssignStat(new IdentifierExp($2), $4)); }
+		$$ = new StatList(new VarDec($1, $2)); 
+		for(VarDec* v : inlineDefs) 
+			$$->append(v); inlineDefs.clear(); 
+		$$->append(new AssignStat(new AccessExp(new IdentifierExp($2)), $4)); }
 	| vardec ',' IDENTIFIER { $$ = new StatList($1, new VarDec(((VarDec*) $1->getStatements()[0])->getType(), $3)); }
-	| vardec ',' IDENTIFIER A exp { $$ = new StatList($1, new VarDec(((VarDec*) $1->getStatements()[0])->getType(), $3));
-	                                $$->append(new AssignStat(new IdentifierExp($3), $5)); } 
+	| vardec ',' IDENTIFIER A exp { 
+		$$ = new StatList($1, new VarDec(((VarDec*) $1->getStatements()[0])->getType(), $3));
+		$$->append(new AssignStat(new AccessExp(new IdentifierExp($3)), $5)); } 
 
 indec:
 	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
@@ -117,13 +131,16 @@ explist:
 outlist:
 	RETURN { $$ = new OutList(new RetOut()); }
 	| NONE { $$ = new OutList(new NoneOut()); }
-	| aleft { $$ = new OutList(new VarAccessOut($1)); }
-	| type IDENTIFIER { $$ = new OutList(new VarAccessOut(new IdentifierExp($2))); inlineDefs.push_back(new VarDec($1, $2)); }
+	| accessexp { $$ = new OutList(new VarAccessOut($1)); }
+	| type IDENTIFIER { 
+		$$ = new OutList(new VarAccessOut(new IdentifierExp($2))); 
+		inlineDefs.push_back(new VarDec($1, $2)); }
 	| outlist ',' outlist { $$ = new OutList($1, $3); }
 
 stat:
 	IDENTIFIER '(' indec2 ')' '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(), $6); }
-	| IDENTIFIER '(' indec2 ')' ':' IDENTIFIER '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(new VarDec(new TypeName($6), "return")), $8); }
+	| IDENTIFIER '(' indec2 ')' ':' IDENTIFIER '{' stats '}' { 
+		$$ = new FuncDec($1, $3, new StatList(new VarDec(new TypeName($6), "return")), $8); }
 	| IDENTIFIER '(' indec2 ')' ':' '(' outdec ')' '{' stats '}' { $$ = new FuncDec($1, $3, $7, $10); }
 	| branch { $$ = $1; }
 	| branch ELSE '{' stats '}' { $1->addElse($4); $$ = $1; } 
@@ -135,14 +152,13 @@ branch:
 	IF '(' exp ')' '{' stats '}' { $$ = new Branch($3, $6); }
 	| branch ELIF '(' exp ')' '{' stats '}' { $$ = $1; $1->addElif(new Branch($4, $7)); }
 
-aleft:
-	IDENTIFIER { $$ = new IdentifierExp($1); }
-	| aleft '[' exp ']' { $$ = new ArrayAccessExp($1, $3); }
-	| aleft '.' IDENTIFIER { $$ = new MemberAccessExp($1, $3); }
-
 type:
 	IDENTIFIER { $$ = new TypeName($1); }
 	| type '[' exp ']' { $$ = new ArrayType($1, $3); }
+
+accessexp:
+	IDENTIFIER { $$ = new AccessExp(new IdentifierExp($1)); }
+	| accessexp '[' exp ']' { $$ = $1; $$->addIndexAccessor($3); }
 
 exp:
 	exp '+' exp { $$ = new AddExp($1, $3); }
