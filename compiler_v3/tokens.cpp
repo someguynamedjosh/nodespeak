@@ -32,6 +32,80 @@ Value *OperatorExp::getValue(Scope *scope) {
 	scope->addCommand(c);
 	return tvar;
 }
+
+AccessExp::AccessResult AccessExp::getOffsetValue(Scope *scope) {
+	Value *rootVal = rootVar->getValue(scope);
+	Value *offset = new Value(DATA_TYPE_INT);
+	DataType *dataType = rootVal->getType();
+	if (accessors.size() == 0) {
+		(*offset->interpretAsInt()) = 0;
+		offset->setConstant(true);
+	} else {
+		Command *set = new Command(BUILTIN_COPY);
+		set->addInput(new Value(DATA_TYPE_INT, new int(0)));
+		set->addInput(new Value(DATA_TYPE_INT, new int(0)));
+		set->addOutput(offset);
+		scope->addCommand(set);
+	}
+	// TODO: Optimize this for multiple sucessive array indexing operations
+	// TODO: Add in member access operations once objects are a thing
+	// TODO: Add errors if array access or member access is used on an unsupported data type.
+	for (auto accessor : accessors) {
+		if (accessor->type == AccessType::INDEX) {
+			DataType *baseType = ((ArrayDataType*) dataType)->getBaseType();
+			Value *index = accessor->ptr.index->getValue(scope);
+			Command *mul = new Command(BUILTIN_MUL);
+			mul->addInput(index);
+			mul->addInput(new Value(DATA_TYPE_INT, new int(baseType->getLength())));
+			mul->addOutput(index);
+			Command *add = new Command(BUILTIN_ADD);
+			add->addInput(offset);
+			add->addInput(index);
+			add->addOutput(offset);
+			dataType = baseType;
+		}
+	}
+	AccessResult tr;
+	tr.finalType = dataType;
+	tr.rootVal = rootVal;
+	tr.offset = offset;
+	return tr;
+}
+
+Value *AccessExp::getValue(Scope *scope) {
+	AccessResult access = getOffsetValue(scope);
+	Command *copy = new Command(BUILTIN_COPY);
+	copy->addInput(access.rootVal);
+	copy->addInput(access.offset);
+	Value *tr = new Value(access.finalType);
+	copy->addOutput(tr);
+	return tr;
+}
+
+void AccessExp::setFromValue(Scope *scope, Value *copyFrom) {
+	AccessResult access = getOffsetValue(scope);
+	Command *copy = new Command(BUILTIN_COPY);
+	// TODO: Check copyFrom is correct type.
+	copy->addInput(copyFrom);
+	copy->addInput(access.offset);
+	copy->addOutput(access.rootVal);
+	scope->addCommand(copy);
+}
+
+void AccessExp::addIndexAccessor(Expression *index) {
+	Accessor *accessor = new Accessor();
+	accessor->type = AccessType::INDEX;
+	accessor->ptr.index = index;
+	accessors.push_back(accessor);
+}
+
+void AccessExp::addMemberAccessor(string *member) {
+	Accessor *accessor = new Accessor();
+	accessor->type = AccessType::INDEX;
+	accessor->ptr.member = member;
+	accessors.push_back(accessor);
+}
+
 /*
 Value *convert(Scope *scope, Value *value, DataType *to, Value *dest = nullptr) {
 	Command *cc;
@@ -124,15 +198,9 @@ FuncScope *BorExp::getComFunc() { return BUILTIN_BOR; }
 FuncScope *BxorExp::getComFunc() { return BUILTIN_BXOR; }
 
 void AssignStat::convert(Scope *scope) {
-	if (IdentifierExp* sexp = dynamic_cast<IdentifierExp*>(to)) {
-		Command *c;
-		Value *right = value->getValue(scope);
-		Value *left = scope->lookupVar(sexp->getName());
-		c = new Command(BUILTIN_COPY);
-		c->addInput(right);
-		c->addOutput(left);
-		scope->addCommand(c);
-	}
+	Command *c;
+	Value *right = value->getValue(scope);
+	to->setFromValue(scope, right);
 }
 
 void FuncDec::convert(Scope *scope) {
@@ -180,9 +248,10 @@ Value *ArrayLiteral::getValue(Com::Scope *scope) {
 		type = pickBiggerType(type, value->getType());
 	}
 	Value *output = new Value(new ArrayDataType(type, elements->getExps().size()));
+	scope->declareTempVar(output);
 	int i = 0;
 	for (Value *value : values) {
-		Command* c = new Command(BUILTIN_COPY_OFFSET);
+		Command* c = new Command(BUILTIN_COPY);
 		c->addInput(value);
 		c->addInput(new Value(DATA_TYPE_INT, new int(i)));
 		c->addOutput(output);
@@ -281,12 +350,13 @@ void ForLoop::convert(Scope *scope) {
 		} else {
 			if (cval->getType()->getArrayDepth() > 0) {
 				ArrayDataType *atype = dynamic_cast<ArrayDataType*>(cval->getType());
+				int size = atype->getBaseType()->getLength();
 				for (int i = 0; i < atype->getArrayLength(); i++) {
 					Command *iter = new Command(s);
 					Value *temp = new Value(atype->getBaseType());
-					Command *cop = new Command(BUILTIN_INDEX);
+					Command *cop = new Command(BUILTIN_COPY);
 					cop->addInput(cval);
-					cop->addInput(new Value(DATA_TYPE_INT, new int(i)));
+					cop->addInput(new Value(DATA_TYPE_INT, new int(i * size)));
 					cop->addOutput(temp);
 					scope->declareTempVar(temp);
 					scope->addCommand(cop);

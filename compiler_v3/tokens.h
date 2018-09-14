@@ -138,17 +138,22 @@ OP_EXP_HELP(BxorExp, "bxor")
 class AccessExp: public Expression {
 public:
 	enum AccessType { INDEX, MEMBER };
-	union AccessPointer { unsigned int index; string *member; };
+	union AccessPointer { Expression *index; string *member; };
 	struct Accessor { AccessType type; AccessPointer ptr; };
+private:
+	struct AccessResult { Com::Value *rootVal, *offset; Com::DataType *finalType; };
+	AccessResult getOffsetValue(Com::Scope *scope);
 protected:
 	IdentifierExp *rootVar;
 	vector<Accessor*> accessors;
 public:
 	AccessExp(IdentifierExp *rootVar): rootVar(rootVar) { }
 	void addAccessor(Accessor *accessor) { accessors.push_back(accessor); }
-	void addIndexAccessor(unsigned int index);
-	void addMemberAccessor(string* member);
+	void addIndexAccessor(Expression *index);
+	void addMemberAccessor(string *member);
 	vector<Accessor*>& getAccessors() { return accessors; }
+	Com::Value *getValue(Com::Scope *scope);
+	void setFromValue(Com::Scope *scope, Com::Value *copyFrom);
 };
 	
 class ArrayAccessExp: public Expression {
@@ -272,9 +277,10 @@ public:
 };
 class AssignStat: public Statement {
 protected:
-	Expression *value, *to;
+	Expression *value;
+	AccessExp *to;
 public:
-	AssignStat(Expression *to, Expression *value): value(value), to(to) { }
+	AssignStat(AccessExp *to, Expression *value): value(value), to(to) { }
 	string repr() { return to->repr() + " = " + value->repr(); }
 	Expression *getLeft() { return to; }
 	Expression *getRight() { return value; }
