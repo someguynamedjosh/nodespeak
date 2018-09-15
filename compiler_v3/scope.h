@@ -60,17 +60,37 @@ public:
 	virtual string repr();
 };
 
+enum AugmentationType {
+	DO_IF, DO_IF_NOT, LOOP_FOR, LOOP_RANGE
+};
+
+class Augmentation {
+private:
+	AugmentationType type;
+	vector<Value*> params;
+public:
+	Augmentation(AugmentationType type): type(type) { }
+	Augmentation(AugmentationType type, Value *param1): type(type) { params.push_back(param1); }
+	Augmentation(AugmentationType type, Value *param1, Value *param2): type(type) { 
+		params.push_back(param1); params.push_back(param2); }
+	AugmentationType getType() { return type; }
+	vector<Value*>& getParams() { return params; }
+};
+
 class Command {
 private:
 	vector<Value*> ins;
 	vector<Value*> outs;
+	Augmentation *aug = nullptr;
 	FuncScope *call;
 public:
 	Command(FuncScope *call): call(call) { }
+	Command(FuncScope *call, Augmentation *aug): call(call), aug(aug) { }
 	void addInput(Value *input) { ins.push_back(input); }
 	void addOutput(Value *output) { outs.push_back(output); }
 	vector<Value*> &getIns() { return ins; }
 	vector<Value*> &getOuts() { return outs; }
+	Augmentation *getAugmentation() { return aug; }
 	FuncScope *getFuncScope() { return call; }
 	vector<Command*> &getCommands();
 	virtual string repr();
