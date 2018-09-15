@@ -246,7 +246,7 @@ FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
-FuncScope *BUILTIN_COPY, *BUILTIN_COPY_OFFSET, *BUILTIN_INDEX;
+FuncScope *BUILTIN_COPY;
 Value *evalBuiltinFunc(FuncScope *func, Value *a, Value *b) {
 	if (b == nullptr) { // There is no second argument, don't do any type conversions.
 	} else if (a->getType() == DATA_TYPE_FLOAT) {
