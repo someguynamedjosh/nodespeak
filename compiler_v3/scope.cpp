@@ -247,57 +247,6 @@ FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_F
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
 FuncScope *BUILTIN_COPY;
-Value *evalBuiltinFunc(FuncScope *func, Value *a, Value *b) {
-	if (b == nullptr) { // There is no second argument, don't do any type conversions.
-	} else if (a->getType() == DATA_TYPE_FLOAT) {
-		if (b->getType() == DATA_TYPE_INT) {
-			b = new Value(DATA_TYPE_FLOAT, new float(*b->interpretAsFloat()));
-		} else if (b->getType() == DATA_TYPE_BOOL) {
-			b = new Value(DATA_TYPE_FLOAT, new float((*b->interpretAsBool()) ? 1.0f : 0.0f));
-		}
-	} else if (a->getType() == DATA_TYPE_INT) {
-		if (b->getType() == DATA_TYPE_FLOAT) {
-			a = new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsInt()));
-		} else if (b->getType() == DATA_TYPE_BOOL) {
-			b = new Value(DATA_TYPE_INT, new int((*b->interpretAsBool()) ? 1 : 0));
-		}
-	} else if (a->getType() == DATA_TYPE_BOOL) {
-		if (b->getType() == DATA_TYPE_FLOAT) {
-			a = new Value(DATA_TYPE_FLOAT, new float((*a->interpretAsBool()) ? 1.0f : 0.0f));
-		} else if (b->getType() == DATA_TYPE_INT) {
-			a = new Value(DATA_TYPE_INT, new int((*a->interpretAsBool()) ? 1 : 0));
-		}
-	}
-
-	DataType *d = a->getType();
-	FuncScope *f = func;
-	if (d == DATA_TYPE_FLOAT) {
-		if (f == BUILTIN_ADD) {
-			return new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() + *b->interpretAsFloat()));
-		} else if (f == BUILTIN_MUL) {
-			return new Value(DATA_TYPE_FLOAT, new float(*a->interpretAsFloat() * *b->interpretAsFloat()));
-		} else if (f == BUILTIN_RECIP) {
-			return new Value(DATA_TYPE_FLOAT, new float(1.0f / *a->interpretAsFloat()));
-		}
-	} else if (d == DATA_TYPE_INT) {
-		if (f == BUILTIN_ADD) {
-			return new Value(DATA_TYPE_INT, new int(*a->interpretAsInt() + *b->interpretAsInt()));
-		} else if (f == BUILTIN_MUL) {
-			return new Value(DATA_TYPE_INT, new int(*a->interpretAsInt() * *b->interpretAsInt()));
-		} else if (f == BUILTIN_RECIP) {
-			return new Value(DATA_TYPE_INT, new int(1.0f / *a->interpretAsInt()));
-		}
-	} else if (d == DATA_TYPE_BOOL) {
-		if (f == BUILTIN_ADD) {
-			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() ^ *b->interpretAsBool()));
-		} else if (f == BUILTIN_MUL) {
-			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool() && *b->interpretAsBool()));
-		} else if (f == BUILTIN_RECIP) {
-			return new Value(DATA_TYPE_BOOL, new bool(*a->interpretAsBool()));
-		}
-	}
-	return nullptr;
-}
 
 string Scope::repr() {
 	stringstream ss;
