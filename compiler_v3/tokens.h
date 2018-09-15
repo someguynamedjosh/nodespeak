@@ -156,21 +156,6 @@ public:
 	void setFromValue(Com::Scope *scope, Com::Value *copyFrom);
 };
 	
-class ArrayAccessExp: public Expression {
-protected:
-	Expression *from, *index;
-public:
-	ArrayAccessExp(Expression *from, Expression *index): from(from), index(index) { }
-	string repr() { return from->repr() + "[" + index->repr() + "]"; }
-};
-class MemberAccessExp: public Expression {
-protected:
-	Expression *from;
-	string name;
-public:
-	MemberAccessExp(Expression *from, string memberName): from(from), name(memberName) { }
-	string repr() { return from->repr() + "." + name; }
-};
 class ExpList: public Token {
 protected:
 	vector<Expression*> exps;
