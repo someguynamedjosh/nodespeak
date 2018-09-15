@@ -308,6 +308,7 @@ public:
 		return tr;
 	}
 	vector<Statement*>& getStatements() { return stats; }
+	void convert(Com::Scope *scope);
 };
 class FuncDec: public Statement {
 protected:
@@ -323,17 +324,18 @@ public:
 class Branch: public Statement {
 protected:
 	Expression *con;
-	StatList *ifTrue, *ifFalse = 0;
-	Branch *elseClause = 0;
+	StatList *ifTrue, *ifFalse = nullptr;
+	Branch *elseClause = nullptr;
 public:
 	Branch(Expression *con, StatList *ifTrue): con(con), ifTrue(ifTrue) { }
 	void addElse(StatList *contents) {
-		if(elseClause == 0) ifFalse = contents; else elseClause->addElse(contents);
+		if(elseClause == nullptr) ifFalse = contents; else elseClause->addElse(contents);
 	}
 	void addElif(Branch *branch) {
-		if(elseClause == 0) { ifFalse = new StatList(branch); elseClause = branch; } else elseClause->addElif(branch);
+		if(elseClause == nullptr) { ifFalse = new StatList(branch); elseClause = branch; } else elseClause->addElif(branch);
 	}
 	string repr() { return "Branch on " + con->repr() + "\nIf true:\n" + ifTrue->repr() + ((ifFalse == 0) ? "" : "If false:\n" + ifFalse->repr()); }
+	virtual void convert(Com::Scope *scope);
 };
 
 class Type: public Token { 
