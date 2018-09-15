@@ -179,11 +179,9 @@ exp:
 	| exp BAND exp { $$ = new BandExp($1, $3); }
 	| exp BOR exp { $$ = new BorExp($1, $3); }
 	| exp BXOR exp { $$ = new BxorExp($1, $3); }
-	| exp '[' exp ']' { $$ = new ArrayAccessExp($1, $3); }
-	| exp '.' IDENTIFIER { $$ = new MemberAccessExp($1, $3); }
+	| accessexp { $$ = $1; }
 	| INT { $$ = new IntExp($1); } 
 	| FLOAT { $$ = new FloatExp($1); }
-	| IDENTIFIER { $$ = new IdentifierExp($1); }
 	| IDENTIFIER '(' explist ')' { $$ = new FuncCall($1, $3, new OutList(new RetOut())); } 
 	| IDENTIFIER '(' explist ')' ':' '(' outlist ')' { $$ = new FuncCall($1, $3, $7); }
 	| '[' explist ']' { $$ = new ArrayLiteral($2); }
