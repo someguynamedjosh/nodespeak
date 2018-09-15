@@ -36,7 +36,6 @@ Value *OperatorExp::getValue(Scope *scope) {
 AccessExp::AccessResult AccessExp::getOffsetValue(Scope *scope) {
 	Value *rootVal = rootVar->getValue(scope);
 	Value *offset = new Value(DATA_TYPE_INT);
-	DataType *dataType = rootVal->getType();
 	if (accessors.size() == 0) {
 		(*offset->interpretAsInt()) = 0;
 		offset->setConstant(true);
@@ -46,7 +45,9 @@ AccessExp::AccessResult AccessExp::getOffsetValue(Scope *scope) {
 		set->addInput(new Value(DATA_TYPE_INT, new int(0)));
 		set->addOutput(offset);
 		scope->addCommand(set);
+		scope->declareTempVar(offset);
 	}
+	DataType *dataType = rootVal->getType();
 	// TODO: Optimize this for multiple sucessive array indexing operations
 	// TODO: Add in member access operations once objects are a thing
 	// TODO: Add errors if array access or member access is used on an unsupported data type.
@@ -54,15 +55,22 @@ AccessExp::AccessResult AccessExp::getOffsetValue(Scope *scope) {
 		if (accessor->type == AccessType::INDEX) {
 			DataType *baseType = ((ArrayDataType*) dataType)->getBaseType();
 			Value *index = accessor->ptr.index->getValue(scope);
+			scope->declareTempVar(index);
+
 			Command *mul = new Command(BUILTIN_MUL);
 			mul->addInput(index);
 			mul->addInput(new Value(DATA_TYPE_INT, new int(baseType->getLength())));
-			mul->addOutput(index);
+			Value *mindex = new Value(DATA_TYPE_INT);
+			scope->declareTempVar(mindex);
+			mul->addOutput(mindex);
+			scope->addCommand(mul);
+
 			Command *add = new Command(BUILTIN_ADD);
 			add->addInput(offset);
-			add->addInput(index);
+			add->addInput(mindex);
 			add->addOutput(offset);
 			dataType = baseType;
+			scope->addCommand(add);
 		}
 	}
 	AccessResult tr;
@@ -78,7 +86,9 @@ Value *AccessExp::getValue(Scope *scope) {
 	copy->addInput(access.rootVal);
 	copy->addInput(access.offset);
 	Value *tr = new Value(access.finalType);
+	scope->declareTempVar(tr);
 	copy->addOutput(tr);
+	scope->addCommand(copy);
 	return tr;
 }
 
