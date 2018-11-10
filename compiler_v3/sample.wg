@@ -1,5 +1,70 @@
 main():(Int return) {
-	Int[3][3] matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
-	log(matrix[2][2]);
-	return matrix[2][2];
+	log(3 + 3); log(6);
+	log(5 - 2); log(3);
+	log(10 * 8); log(80);
+	log(10.0 / 5.0); log(2.0);
+	log(10 / 8); log(1.25);
+
+	Int[4] arr = [1, 2, 3, 4];
+	log(arr);
+	log([1, 2, 3, 4]);
+
+	arr[0] = 5;
+	arr[2] = 6;
+	log(arr);
+	log([5, 2, 6, 4]);
+
+	if (1) {
+		log(1);
+	} else {
+		log (0);
+	}
+	log(1);
+
+	if (0) {
+		log(1);
+	} else {
+		log(0);
+	}
+	log(0);
+
+	if (12 == 11 + 1) {
+		log(1);
+	} else {
+		log(0);
+	}
+	log(1);
+
+	if (1.0 == 1) {
+		log(1);
+	} else {
+		log(0);
+	}
+	log(1);
+
+	if (1 && 1) {
+		log(2);
+	} else {
+		log(0);
+	}
+	log(2);
+
+	if (1 || 0) {
+		log(3);
+	} else {
+		log(0);
+	}
+	log(3);
+
+	if (1 ^^ 0) {
+		log(4);
+	} else {
+		log(0);
+	}
+	log(4);
+
+	Int test = 4 ^ 1;
+	log(test);
+
+	return 0;
 }
