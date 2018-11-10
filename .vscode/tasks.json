@@ -7,7 +7,7 @@
             "options": {
                 "cwd": "./"
             },
-            "command": "./build.sh",
+            "command": "make",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -19,7 +19,7 @@
         {
             "label": "debug",
             "type": "shell",
-            "command": "./debug.sh",
+            "command": "gdb build/bin/waveguide.x86_64",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -28,7 +28,7 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "./run.sh",
+            "command": "./build/bin/waveguide.x86_64",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -38,7 +38,7 @@
         {
             "label": "run w/ readable code output",
             "type": "shell",
-            "command": "./run.sh | python3 out_parse.py",
+            "command": "./build/bin/waveguide.x86_64 | python3 out_parse.py",
             "group": {
                 "kind": "build",
                 "isDefault": true
