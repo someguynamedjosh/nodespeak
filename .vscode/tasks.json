@@ -5,7 +5,7 @@
             "label": "build",
             "type": "shell",
             "options": {
-                "cwd": "./compiler_v3"
+                "cwd": "./"
             },
             "command": "./build.sh",
             "group": {
@@ -19,9 +19,6 @@
         {
             "label": "debug",
             "type": "shell",
-            "options": {
-                "cwd": "./compiler_v3"
-            },
             "command": "./debug.sh",
             "group": {
                 "kind": "build",
@@ -31,9 +28,6 @@
         {
             "label": "run",
             "type": "shell",
-            "options": {
-                "cwd": "./compiler_v3"
-            },
             "command": "./run.sh",
             "group": {
                 "kind": "build",
@@ -44,9 +38,6 @@
         {
             "label": "run w/ readable code output",
             "type": "shell",
-            "options": {
-                "cwd": "./compiler_v3"
-            },
             "command": "./run.sh | python3 out_parse.py",
             "group": {
                 "kind": "build",
