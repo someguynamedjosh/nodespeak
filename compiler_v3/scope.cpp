@@ -246,7 +246,7 @@ FuncScope *BUILTIN_ADD, *BUILTIN_MUL, *BUILTIN_RECIP, *BUILTIN_MOD;
 FuncScope *BUILTIN_ITOF, *BUILTIN_BTOF, *BUILTIN_BTOI, *BUILTIN_ITOB, *BUILTIN_FTOI, *BUILTIN_FTOB;
 FuncScope *BUILTIN_EQ, *BUILTIN_NEQ, *BUILTIN_LTE, *BUILTIN_GTE, *BUILTIN_LT, *BUILTIN_GT;
 FuncScope *BUILTIN_AND, *BUILTIN_OR, *BUILTIN_XOR, *BUILTIN_BAND, *BUILTIN_BOR, *BUILTIN_BXOR;
-FuncScope *BUILTIN_COPY;
+FuncScope *BUILTIN_COPY, *BUILTIN_LOG;
 
 string Scope::repr() {
 	stringstream ss;
@@ -382,13 +382,18 @@ Scope *parseSyntaxTree(StatList* slist) {
 
 	// The way this one works is a bit weird. If the input and output are the same size, OFFSET should be zero. The
 	// entire value will be copied. If one is bigger than the other, a chunk of data the size of the smaller one will
-	// be transferred. OFFSET will be used as the byte index to start copying from from the larger data type.
+	// be transferred. OFFSET will be used as the byte index to start copying from or to the larger data type.
 	BUILTIN_COPY = new FuncScope(root);
 	BUILTIN_COPY->autoAddIns();
 	BUILTIN_COPY->declareVar("a", new Value(ANY_WILDCARD));
 	BUILTIN_COPY->declareVar("offset", new Value(DATA_TYPE_INT));
 	BUILTIN_COPY->autoAddOuts();
 	BUILTIN_COPY->declareVar("x", new Value(ANY_WILDCARD));
+
+	BUILTIN_LOG = new FuncScope(root);
+	BUILTIN_LOG->autoAddIns();
+	BUILTIN_LOG->declareVar("a", new Value(ANY_WILDCARD));
+	BUILTIN_LOG->autoAddOuts();
 
 	BUILTIN_MOD = new FuncScope(root);
 	BUILTIN_MOD->autoAddIns();
@@ -491,6 +496,7 @@ Scope *parseSyntaxTree(StatList* slist) {
 	root->declareFunc("!FTOI", BUILTIN_FTOI);
 	root->declareFunc("!FTOB", BUILTIN_FTOB);
 	root->declareFunc("!COPY", BUILTIN_COPY);
+	root->declareFunc("log", BUILTIN_LOG);
 	root->declareFunc("!MOD", BUILTIN_MOD);
 	root->declareFunc("!EQ", BUILTIN_EQ);
 	root->declareFunc("!NEQ", BUILTIN_NEQ);

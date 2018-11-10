@@ -224,6 +224,7 @@ class OutList: public Token {
 protected:
 	vector<Output*> outputs;
 public:
+	OutList() { }
 	OutList(Output *a) { append(a); }
 	OutList(OutList *a, OutList *b) { append(a); append(b); }
 	void append(Output *a) { outputs.push_back(a); }

@@ -18,10 +18,11 @@ void interpret(Scope *root) {
 		inputs.push_back(new Value(fin->getType()));
 	}
 	for (Value* fout : main->getOuts()) {
-		outputs.push_back(new Value(fout->getType(), malloc(fout->getType()->getLength())));
+		outputs.push_back(new Value(fout->getType()));
 	}
 	runFuncScope(main, inputs, outputs);
 	for (auto out : outputs) {
+		out->setConstant(true);
 		std::cout << out->repr() << std::endl;
 	}
 	std::cout << "Interpretation complete!" << std::endl;
@@ -35,11 +36,13 @@ void forkCommand(Command *command) {
 		switch (command->getAugmentation()->getType()) {
 		case AugmentationType::DO_IF:
 			trigger = command->getAugmentation()->getParams()[0];
-			if (*trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			if (*trigger->interpretAsBool()) 
+				runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
 			break;
 		case AugmentationType::DO_IF_NOT:
 			trigger = command->getAugmentation()->getParams()[0];
-			if (!*trigger->interpretAsBool()) runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
+			if (!*trigger->interpretAsBool()) 
+				runFuncScope(command->getFuncScope(), command->getIns(), command->getOuts());
 			break;
 		}
 	}
@@ -69,7 +72,19 @@ void runFuncScope(FuncScope *fs, std::vector<Value*> inputs, std::vector<Value*>
 	} else if (fs == BUILTIN_RECIP) {
 		*outputs[0]->interpretAsFloat() = 1.0f / *inputs[0]->interpretAsFloat();
 	} else if (fs == BUILTIN_COPY) {
-		memcpy(outputs[0]->getData(), inputs[0]->getData(), inputs[0]->getType()->getLength());
+		int offset = *inputs[1]->interpretAsInt();
+		if (inputs[0]->getType()->getLength() > outputs[0]->getType()->getLength()) {
+			// Copying from a bigger type.
+			memcpy(outputs[0]->getData(), (char*) inputs[0]->getData() + offset, outputs[0]->getType()->getLength());
+		} else {
+			// Copying to a bigger type.
+			memcpy((char*) outputs[0]->getData() + offset, inputs[0]->getData(), inputs[0]->getType()->getLength());
+		}
+	} else if (fs == BUILTIN_LOG) {
+		bool wasConstant = inputs[0]->isConstant();
+		inputs[0]->setConstant(true);
+		std::cout << inputs[0]->repr() << std::endl;
+		inputs[0]->setConstant(wasConstant);
 	} else {
 		for (int i = 0; i < fs->getIns().size(); i++) {
 			memcpy(fs->getIns()[i]->getData(), inputs[i]->getData(), inputs[i]->getType()->getLength());

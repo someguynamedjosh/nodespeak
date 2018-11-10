@@ -98,6 +98,9 @@ mstat:
 			$$->append(v); 
 		inlineDefs.clear(); 
 		$$->append(new FuncCallStat(new FuncCall($1, $3, $7))); }
+	| IDENTIFIER '(' explist ')' ';' { 
+		$$ = new StatList(); 
+		$$->append(new FuncCallStat(new FuncCall($1, $3, new OutList()))); }
 
 vardec:
 	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
