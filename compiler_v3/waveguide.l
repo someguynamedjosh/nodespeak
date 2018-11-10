@@ -26,17 +26,15 @@ def { return DEF; }
 \*\= { return AMUL; }
 \/\= { return ADIV; }
 \%\= { return AMOD; }
-\@\= { return AXOR; }
-\/\@\= { return ABXOR; }
-\|\= { return AOR; }
-\/\|\= { return ABOR; }
-\&\= { return AAND; }
-\/\&\= { return ABAND; }
-\=\! { return ANOT; }
-\=\/\! { return ABNOT; }
-\/\@ { return BXOR; }
-\/\| { return BOR; }
-\/\& { return BAND; }
+\^\^\= { return AXOR; }
+\^\= { return ABXOR; }
+\|\|\= { return AOR; }
+\|\= { return ABOR; }
+\&\&\= { return AAND; }
+\&\= { return ABAND; }
+\&\& { return AND; }
+\|\| { return OR; }
+\^\^ { return XOR; }
 \=\= { return EQ; }
 \!\= { return NEQ; }
 \<\= { return LTE; }
@@ -44,11 +42,16 @@ def { return DEF; }
 \< { return LT; }
 \> { return GT; }
 \= { return A; }
+\! { return NOT; }
+\^ { return BXOR; }
+\| { return BOR; }
+\& { return BAND; }
+\~ { return BNOT; }
 ((([0-9]+)?\.[0-9]+)|([0-9]+\.))(([eE][+-]?[0-9]+)|([0-9]+[eE][+-]?[0-9]+))?  { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+  { yylval.ival = atoi(yytext); return INT; }
 [a-zA-Z_][a-zA-Z0-9_]*  { yylval.sval = strdup(yytext); return IDENTIFIER; }
 [\.\:\;\,\(\)\{\}\[\]] { return yytext[0]; }
-[\%\/\*\+\-\=\@\|\&\=] { return yytext[0]; }
+[\%\/\*\+\-] { return yytext[0]; }
 . ;
 
 %%

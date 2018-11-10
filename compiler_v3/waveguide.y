@@ -39,10 +39,12 @@ StatList *result;
 %token <ival> INT
 %token <fval> FLOAT
 %token <sval> IDENTIFIER
-%token IF ELSE FOR WHILE DO TYPEDEF BREAK RETURN DEF
-%token ASUB AADD AMUL ADIV AMOD AXOR ABXOR AOR ABOR
-%token AAND ABAND ANOT ABNOT BXOR BOR BAND EQ NEQ
-%token LTE GTE LT GT A NONE ELIF OF INC DEC
+%token IF ELIF ELSE FOR WHILE DO
+%token BREAK RETURN A OF TYPEDEF NONE DEF
+%token AND OR XOR NOT BAND BOR BXOR BNOT
+%token AAND AOR AXOR ABAND ABOR ABXOR
+%token AADD ASUB AMUL ADIV AMOD
+%token GT LT GTE LTE EQ NEQ
 
 %type <expression> exp
 %type <statement> stat
@@ -59,17 +61,11 @@ StatList *result;
 %type <outlist> outlist
 %type <branch> branch
 
-%left A ASUB AADD AMUL ADIV AMOD AXOR ABXOR AOR ABOR AAND ABAND ANOT ABNOT
+%left A ASUB AADD AMUL ADIV AMOD AXOR ABXOR AOR ABOR AAND ABAND
 %left ','
-%left OR
-%left XOR
-%left AND
+%left OR XOR AND BOR BXOR BAND
 %left EQ NEQ LTE GTE LT GT
-%left BOR
-%left BXOR
-%left BAND
-%left '+' '-'
-%left '*' '/' '%'
+%left '+' '-' '*' '/' '%'
 %left '.' '['
 %%
 
