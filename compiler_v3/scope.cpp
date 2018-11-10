@@ -101,12 +101,17 @@ void Scope::castValue(Value *from, Value *to) {
 
 void Scope::addCommand(Command *command) { 
 	std::vector<int> upcastIns, upcastOuts;
-	std::vector<Value*> &ins = command->getFuncScope()->getIns(),
-		&outs = command->getFuncScope()->getOuts();
+	std::vector<Value*> &ins = command->getFuncScope()->getIns(), &outs = command->getFuncScope()->getOuts(), 
+		&realIns = command->getIns(), &realOuts = command->getOuts();
 	int i = 0;
 	for (auto input : command->getFuncScope()->getIns()) {
 		if (input->getType() == UPCAST_WILDCARD) {
 			upcastIns.push_back(i);
+		} else if (input->getType() != ANY_WILDCARD && input->getType() != realIns[i]->getType()) {
+			Value *tvar = new Value(input->getType());
+			declareTempVar(tvar);
+			castValue(realIns[i], tvar);
+			command->getIns()[i] = tvar;
 		}
 		i++;
 	}
@@ -124,6 +129,7 @@ void Scope::addCommand(Command *command) {
 		}
 		for (int index : upcastIns) {
 			DataType *dtut = command->getIns()[index]->getType();
+			// TODO: this will not cast arrays of similar depths with different sizes.
 			if (dtut->getArrayDepth() != biggest->getArrayDepth() 
 					|| dtut->getLowestType() != biggest->getLowestType()) {
 				Value *tvar = new Value(biggest);
@@ -135,7 +141,7 @@ void Scope::addCommand(Command *command) {
 		commands.push_back(command); 
 		for (int index : upcastOuts) {
 			Value *vut = command->getOuts()[index];
-			if (vut->getType() == UPCAST_WILDCARD) { // Only temp vars can be that type.
+			if (vut->getType() == UPCAST_WILDCARD || vut->getType() == ANY_WILDCARD) { // Only temp vars can be that type.
 				vut->setType(biggest);
 			} else if (vut->getType() != biggest) {
 				Value *tvar = new Value(biggest);
@@ -146,6 +152,17 @@ void Scope::addCommand(Command *command) {
 		}
 	} else {
 		commands.push_back(command); 
+	}
+	i = 0;
+	for (auto output : command->getFuncScope()->getOuts()) {
+		if (output->getType() != ANY_WILDCARD && output->getType() != UPCAST_WILDCARD
+			&& output->getType() != realOuts[i]->getType()) {
+			Value *tvar = new Value(output->getType());
+			declareTempVar(tvar);
+			castValue(tvar, realOuts[i]);
+			command->getOuts()[i] = tvar;
+		}
+		i++;
 	}
 }
 
