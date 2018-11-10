@@ -1,0 +1,41 @@
+sort(Int a,Int b):(Int c, Int d) {
+    if(a > b) {
+        c = a;
+        d = b;
+    } else {
+        c = b;
+        d = a;
+    }
+}
+fibbonacci(Int index):Int {
+	Int a = 1, b = 1, c;
+	for(Int i of {2, index}) {
+		c = b;
+		b = a + b;
+		a = c;
+	}
+	return b;
+}
+useless(Int a, Int b):(Int c, Int d) {
+	c = a; d = b;
+	while(c > a) {
+		c = c - 1;
+		a = a + 1;
+	}
+}
+Int a = 5, b = 2;
+Int d = sort(a, b):(Int c, return); 
+# TODO: Implement var defs inside function outputs
+#typedef {Float[256][2] left, right=2} Buffer;
+#Buffer buf = {left=0, right=0};
+Int[12] array = [1, 2, 3, 4, a, b, c, d, (1 + (2))], array2 = 0;
+Float e = cos(12.0), f = sin(array[8] + 1), g = pow(4.0, 5.0 + 6.0 * 0.7);
+add(Int a, Int b):(Int return) {
+    return a + b;
+}
+sub(Int a, Int b):Int {
+    return a - b;
+}
+Int n = add(sub(add(1, 2), add(3, 4)), sub(5, 2));
+Int o = 1 + 2 * (3 * 4 + (5 + 6 * (7 + 8)));
+add(n, o):(Int p);
