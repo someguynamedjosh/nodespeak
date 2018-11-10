@@ -1,7 +1,7 @@
 %{
 #include <iostream>
 #include "tokens.h"
-#include "waveguide.tab.h"
+#include "waveguideGrammar.h"
 using namespace std;
 #define YY_DECL extern "C" int yylex()
 %}
