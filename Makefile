@@ -1,46 +1,70 @@
-INCLUDE = -I . -I build/gen/
+INCLUDE = -I $(SRC) -I $(GEN)
 CXX = g++
-CXXFLAGS = -g ${INCLUDE}
+CXXFLAGS = -g $(INCLUDE)
 
 BIN = build/bin/
 GEN = build/gen/
 OBJ = build/obj/
-OBJS = ${OBJ}parser.o ${OBJ}lexer.o ${OBJ}interpreter.o ${OBJ}scope.o ${OBJ}tokens.o
-GRAMMAR_C = ${GEN}waveguideGrammar.c
-GRAMMAR_H = ${GEN}waveguideGrammar.h
-LEXER = ${GEN}waveguideLexer.c
-OUTPUT = ${BIN}waveguide.x86_64
+DEP = build/deps/
+SRC = source/
 
-all: base ${OUTPUT} 
+GRAMMAR_C = $(GEN)parser.gen.c
+GRAMMAR_H = $(GEN)parser.gen.h
+LEXER_C = $(GEN)lexer.gen.c
+OUTPUT = $(BIN)waveguide.x86_64
 
-${OUTPUT}: ${OBJS}
-	${CXX} ${CXXFLAGS} -o $@ ${OBJS} -lfl
-	chmod +x ${BIN}waveguide.x86_64
+SRCS = $(wildcard $(SRC)*.cpp)
+OBJS = $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(SRCS))
+DEPS = $(patsubst $(SRC)%.cpp,$(DEP)%.dep,$(SRCS))
 
-${OBJ}parser.o: ${GRAMMAR_C} ${GRAMMAR_H} tokens.h scope.h interpreter.h
-	${CXX} ${CXXFLAGS} -c ${GRAMMAR_C} -o $@
-${OBJ}lexer.o: ${LEXER} ${GRAMMAR_H} tokens.h
-	${CXX} ${CXXFLAGS} -c ${LEXER} -o $@
-${OBJ}interpreter.o: interpreter.cpp interpreter.h scope.h
-	${CXX} ${CXXFLAGS} -c interpreter.cpp -o $@
-${OBJ}scope.o: scope.cpp scope.h tokens.h
-	${CXX} ${CXXFLAGS} -c scope.cpp -o $@
-${OBJ}tokens.o: tokens.cpp tokens.h scope.h
-	${CXX} ${CXXFLAGS} -c tokens.cpp -o $@
+GSRCS = $(GRAMMAR_C) $(LEXER_C)
+$(info $(GSRCS))
+$(info $(patsubst %.c,%.o,$(GSRCS)))
+GOBJS = $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(GSRCS))
+GDEPS = $(patsubst $(GEN)%.gen.c,$(DEP)%.gen.dep,$(GSRCS))
 
-grammar: ${GRAMMAR_C} ${GRAMMAR_H} ${LEXER}
-${GRAMMAR_C} ${GRAMMAR_H}: waveguide.y
-	bison -v --defines="build/gen/waveguideGrammar.h" --output="build/gen/waveguideGrammar.c" waveguide.y;
-${LEXER}: waveguide.l
-	flex --outfile="build/gen/waveguideLexer.c" waveguide.l;
+all: base $(OUTPUT) 
 
-base: build ${BIN} ${GEN} ${OBJ}
-${BIN}: build
-	mkdir -p ${BIN}
-${GEN}: build
-	mkdir -p ${GEN}
-${OBJ}: build
-	mkdir -p ${OBJ}
+# Build final executable from all object files.
+$(OUTPUT): $(OBJS) $(GOBJS)
+	$(info $(GOBS))
+	$(CXX) $(CXXFLAGS) $(OBJS) -lfl -o $@
+	chmod +x $(BIN)waveguide.x86_64
+
+# Generate dependency files (lists of headers that are included) for each file, to automate dependency tracking.
+# Note that this method does not include the most recent changes, but this is not necessary. If a file has modified its
+# dependencies, it will already be rebuilt anyway because the code might have changed too.
+-include $(GDEPS)
+$(DEP)%.gen.dep: grammar $(GEN)%.gen.cpp
+	@$(CXX) $(CXXFLAGS) $< -MM -MT $(OBJ)$*.gen.o -o $@
+-include $(DEPS)
+$(DEP)%.dep: $(SRC)%.cpp
+	@$(CXX) $(CXXFLAGS) $< -MM -MT $(OBJ)$*.o -o $@
+
+# Build auto-generated sources.
+$(OBJ)%.gen.o: grammar # Dependencies are added automatically.
+	$(CXX) $(CXXFLAGS) -c $(patsubst $(OBJ)%.gen.o,$(GEN)%.gen.c,$@) -o $@
+# Build regular sources.
+$(OBJ)%.o: # Dependencies are added automatically.
+	$(CXX) $(CXXFLAGS) -c $(patsubst $(OBJ)%.o,$(SRC)%.cpp,$@) -o $@
+
+# Generate files for lexer and parser from their .l and .y files.
+grammar: $(GRAMMAR_C) $(GRAMMAR_H) $(LEXER_C)
+$(GRAMMAR_C) $(GRAMMAR_H): $(SRC)waveguide.y
+	bison -v --defines="$(GRAMMAR_H)" --output="$(GRAMMAR_C)" $(SRC)waveguide.y;
+$(LEXER_C): $(SRC)waveguide.l
+	flex --outfile="$(LEXER_C)" $(SRC)waveguide.l;
+
+# Generate the output tree structure.
+base: build $(BIN) $(DEP) $(GEN) $(OBJ)
+$(BIN): build
+	mkdir -p $(BIN)
+$(DEP): build
+	mkdir -p $(DEP)
+$(GEN): build
+	mkdir -p $(GEN)
+$(OBJ): build
+	mkdir -p $(OBJ)
 build:
 	mkdir -p build
 
