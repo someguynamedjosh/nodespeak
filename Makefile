@@ -7,6 +7,13 @@ GEN = build/gen/
 OBJ = build/obj/
 DEP = build/deps/
 SRC = source/
+# Create the build folders. Do it now, unconditionally, so that if Make decides to generate and import the .dep files,
+# they will have a folder to be written to.
+$(shell mkdir -p build)
+$(shell mkdir -p $(BIN))
+$(shell mkdir -p $(DEP))
+$(shell mkdir -p $(GEN))
+$(shell mkdir -p $(OBJ))
 
 GRAMMAR_C = $(GEN)parser.gen.c
 GRAMMAR_H = $(GEN)parser.gen.h
@@ -25,44 +32,49 @@ all: base $(OUTPUT)
 
 # Build final executable from all object files.
 $(OUTPUT): $(OBJS) $(GOBJS)
+	$(info >>> Linking executable.)
 	$(CXX) $(CXXFLAGS) $(OBJS) $(GOBJS) -lfl -o $@
 	chmod +x $(BIN)waveguide.x86_64
+	@echo Build completed sucessfully!
 
 # Generate dependency files (lists of headers that are included) for each file, to automate dependency tracking.
 # Note that this method does not include the most recent changes, but this is not necessary. If a file has modified its
 # dependencies, it will already be rebuilt anyway because the code might have changed too.
 -include $(GDEPS)
-$(DEP)%.gen.dep: grammar $(GEN)%.gen.cpp
-	@$(CXX) $(CXXFLAGS) $< -MM -MT $(OBJ)$*.gen.o -o $@
 -include $(DEPS)
 $(DEP)%.dep: $(SRC)%.cpp
+	$(info >>> Generating dependencies for $<.)
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(OBJ)$*.o -o $@
 
 # Build auto-generated sources.
-$(OBJ)%.gen.o: grammar # Dependencies are added automatically.
-	$(CXX) $(CXXFLAGS) -c $(patsubst $(OBJ)%.gen.o,$(GEN)%.gen.c,$@) -o $@
+$(OBJ)%.gen.o: $(GEN)%.gen.c # Other dependencies are added automatically.
+	$(eval SOURCE := $(patsubst $(OBJ)%.gen.o,$(GEN)%.gen.c,$@))
+	$(info >>> Building generated file $(SOURCE).)
+	$(CXX) $(CXXFLAGS) -c $(SOURCE) -o $@
 # Build regular sources.
 $(OBJ)%.o: # Dependencies are added automatically.
-	$(CXX) $(CXXFLAGS) -c $(patsubst $(OBJ)%.o,$(SRC)%.cpp,$@) -o $@
+	$(eval SOURCE := $(patsubst $(OBJ)%.o,$(SRC)%.cpp,$@))
+	$(info >>> Building file $(SOURCE).)
+	$(CXX) $(CXXFLAGS) -c $(SOURCE) -o $@
 
 # Generate files for lexer and parser from their .l and .y files.
-grammar: $(GRAMMAR_C) $(GRAMMAR_H) $(LEXER_C)
 $(GRAMMAR_C) $(GRAMMAR_H): $(SRC)waveguide.y
+	$(info >>> Generating parser with bison.)
 	bison -v --defines="$(GRAMMAR_H)" --output="$(GRAMMAR_C)" $(SRC)waveguide.y;
+	# Generate dependency file.
+	@$(CXX) $(CXXFLAGS) $(GRAMMAR_C) -MM -MT $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(GRAMMAR_C)) \
+		-o $(patsubst $(GEN)%.gen.c,$(DEP)%.gen.dep,$(GRAMMAR_C))
 $(LEXER_C): $(SRC)waveguide.l
+	$(info >>> Generating lexer with flex.)
 	flex --outfile="$(LEXER_C)" $(SRC)waveguide.l;
+	# Generate dependency file.
+	@$(CXX) $(CXXFLAGS) $(GRAMMAR_C) -MM -MT $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(LEXER_C)) \
+		-o $(patsubst $(GEN)%.gen.c,$(DEP)%.gen.dep,$(LEXER_C))
 
-# Generate the output tree structure.
-base: build $(BIN) $(DEP) $(GEN) $(OBJ)
-$(BIN): build
-	mkdir -p $(BIN)
-$(DEP): build
-	mkdir -p $(DEP)
-$(GEN): build
-	mkdir -p $(GEN)
-$(OBJ): build
-	mkdir -p $(OBJ)
-build:
-	mkdir -p build
+clean:
+	@rm ${BIN}*
+	@rm ${GEN}*
+	@rm ${OBJ}*
+	@rm ${DEP}*
 
-.PHONY: all grammar base
+.PHONY: all clean
