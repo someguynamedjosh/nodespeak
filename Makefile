@@ -18,8 +18,6 @@ OBJS = $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(SRCS))
 DEPS = $(patsubst $(SRC)%.cpp,$(DEP)%.dep,$(SRCS))
 
 GSRCS = $(GRAMMAR_C) $(LEXER_C)
-$(info $(GSRCS))
-$(info $(patsubst %.c,%.o,$(GSRCS)))
 GOBJS = $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(GSRCS))
 GDEPS = $(patsubst $(GEN)%.gen.c,$(DEP)%.gen.dep,$(GSRCS))
 
@@ -27,8 +25,7 @@ all: base $(OUTPUT)
 
 # Build final executable from all object files.
 $(OUTPUT): $(OBJS) $(GOBJS)
-	$(info $(GOBS))
-	$(CXX) $(CXXFLAGS) $(OBJS) -lfl -o $@
+	$(CXX) $(CXXFLAGS) $(OBJS) $(GOBJS) -lfl -o $@
 	chmod +x $(BIN)waveguide.x86_64
 
 # Generate dependency files (lists of headers that are included) for each file, to automate dependency tracking.
