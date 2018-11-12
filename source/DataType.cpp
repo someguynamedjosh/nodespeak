@@ -52,8 +52,7 @@ std::string BoolDataType::format(void *data) {
 // Com::ArrayDataType
 ////////////////////////////////////////////////////////////////////////////////
 ArrayDataType::ArrayDataType(DataType &elementType, int length)
-    : elementType(elementType),
-      length(length) { }
+    : elementType{elementType}, length{length} { }
 
 int ArrayDataType::getLength() {
     return elementType.getLength() * length;
@@ -86,7 +85,7 @@ std::string ArrayDataType::format(void *data) {
 // Com::CopyArrayDataProxy
 ////////////////////////////////////////////////////////////////////////////////
 CopyArrayDataProxy::CopyArrayDataProxy(DataType &sourceType, int length)
-    : ArrayDataType(sourceType, length) { }
+    : ArrayDataType{sourceType, length} { }
 
 bool CopyArrayDataProxy::isProxy() {
     return true;
