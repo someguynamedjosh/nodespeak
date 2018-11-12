@@ -22,6 +22,10 @@ int IntDataType::getLength() {
     return 4;
 }
 
+std::string IntDataType::repr() {
+    return "Int";
+}
+
 std::string IntDataType::format(void *data) {
     return std::to_string(*((int *) data));
 }
@@ -33,6 +37,10 @@ int FloatDataType::getLength() {
     return 4;
 }
 
+std::string FloatDataType::repr() {
+    return "Float";
+}
+
 std::string FloatDataType::format(void *data) {
     return std::to_string(*((float *) data));
 }
@@ -42,6 +50,10 @@ std::string FloatDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 int BoolDataType::getLength() {
     return 1;
+}
+
+std::string BoolDataType::repr() {
+    return "Bool";
 }
 
 std::string BoolDataType::format(void *data) {
@@ -68,6 +80,10 @@ int ArrayDataType::getArrayLength() {
 
 DataType &ArrayDataType::getElementType() {
     return elementType;
+}
+
+std::string ArrayDataType::repr() {
+    return elementType.repr() + "[" + std::to_string(length) + "]";
 }
 
 std::string ArrayDataType::format(void *data) {
@@ -100,6 +116,11 @@ std::string CopyArrayDataProxy::format(void *data) {
         }
     }
     return tr + "]";
+}
+
+std::string CopyArrayDataProxy::repr() {
+    return getElementType().repr() + "[" + std::to_string(getArrayLength()) 
+        + " copied from 1]";
 }
 
 }
