@@ -12,7 +12,7 @@ class DataType {
 public:
     DataType();
     virtual int getLength() = 0;
-    virtual DataType *getBaseType();
+    virtual DataType &getBaseType();
     virtual bool isProxyType();
     virtual std::string format(void *data);
 };
@@ -37,26 +37,26 @@ public:
 
 class ArrayDataType: public DataType {
 private:
-    DataType *elementType;
+    DataType &elementType;
     int length;
 public:
-    ArrayDataType(DataType *elementType, int length);
+    ArrayDataType(DataType &elementType, int length);
     virtual int getLength();
-    virtual DataType *getBaseType();
+    virtual DataType &getBaseType();
     virtual std::string format(void *data);
 
     virtual int getArrayLength();
-    DataType *getElementType();
-    virtual Value* getDataOffset(Value *index);
+    DataType &getElementType();
+    virtual Value &getDataOffset(Value &index);
 };
 
 class CopyArrayDataProxy: public ArrayDataType {
 public:
-    CopyArrayDataProxy(DataType *sourceType, int length);
+    CopyArrayDataProxy(DataType &sourceType, int length);
     virtual bool isProxy();
     virtual std::string format(void *data);
 
-    virtual Value* getDataOffset(Value *index);
+    virtual Value &getDataOffset(Value &index);
 };
 
 }

@@ -7,8 +7,8 @@ namespace Com {
 ////////////////////////////////////////////////////////////////////////////////
 DataType::DataType() { }
 
-DataType *DataType::getBaseType() {
-    return this;
+DataType &DataType::getBaseType() {
+    return *this;
 }
 
 bool DataType::isProxyType() {
@@ -51,30 +51,30 @@ std::string BoolDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 // Com::ArrayDataType
 ////////////////////////////////////////////////////////////////////////////////
-ArrayDataType::ArrayDataType(DataType *elementType, int length)
+ArrayDataType::ArrayDataType(DataType &elementType, int length)
     : elementType(elementType),
       length(length) { }
 
 int ArrayDataType::getLength() {
-    return elementType->getLength() * length;
+    return elementType.getLength() * length;
 }
 
-DataType *ArrayDataType::getBaseType() {
-    return elementType->getBaseType();
+DataType &ArrayDataType::getBaseType() {
+    return elementType.getBaseType();
 }
 
 int ArrayDataType::getArrayLength() {
     return length;
 }
 
-DataType *ArrayDataType::getElementType() {
+DataType &ArrayDataType::getElementType() {
     return elementType;
 }
 
 std::string ArrayDataType::format(void *data) {
     std::string tr = "[";
     for (int i = 0; i < length; i++) {
-        tr += elementType->format(data + i * elementType->getLength());
+        tr += elementType.format(data + i * elementType.getLength());
         if (i != length - 1) {
             tr += ", ";
         }
@@ -85,7 +85,7 @@ std::string ArrayDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 // Com::CopyArrayDataProxy
 ////////////////////////////////////////////////////////////////////////////////
-CopyArrayDataProxy::CopyArrayDataProxy(DataType *sourceType, int length)
+CopyArrayDataProxy::CopyArrayDataProxy(DataType &sourceType, int length)
     : ArrayDataType(sourceType, length) { }
 
 bool CopyArrayDataProxy::isProxy() {
@@ -95,7 +95,7 @@ bool CopyArrayDataProxy::isProxy() {
 std::string CopyArrayDataProxy::format(void *data) {
     std::string tr = "[";
     for (int i = 0; i < getArrayLength(); i++) {
-        tr += getElementType()->format(data);
+        tr += getElementType().format(data);
         if (i != getArrayLength() - 1) {
             tr += ", ";
         }
