@@ -16,7 +16,7 @@ public:
     Value(DataType &type);
     Value(DataType &type, void *data);
     ~Value();
-    std::string format();
+    std::string repr();
 
     DataType &getType();
     void setType(DataType &newType);

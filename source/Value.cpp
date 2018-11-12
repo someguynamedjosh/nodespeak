@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 #include "DataType.h"
@@ -28,8 +29,15 @@ Value::~Value() {
     }
 }
 
-std::string Value::format() {
-    return type.format(getRealValue().getData());
+std::string Value::repr() {
+    std::stringstream ss;
+    ss << isValueKnown() ? "C" : "V";
+    ss << "@" << (void*) this;
+    ss << " T=" << type.repr();
+    if (isValueKnown()) {
+        ss << " V=" << type.format(getRealValue().getData());
+    }
+    return ss.str();
 }
 
 DataType &Value::getType() {
