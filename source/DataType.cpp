@@ -22,6 +22,10 @@ int IntDataType::getLength() {
     return 4;
 }
 
+std::string IntDataType::format(void *data) {
+    return std::to_string(*((int *) data));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::FloatDataType
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,11 +33,19 @@ int FloatDataType::getLength() {
     return 4;
 }
 
+std::string FloatDataType::format(void *data) {
+    return std::to_string(*((float *) data));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::BoolDataType
 ////////////////////////////////////////////////////////////////////////////////
 int BoolDataType::getLength() {
     return 1;
+}
+
+std::string BoolDataType::format(void *data) {
+    return (char *) data != 0 ? "true" : "false";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,6 +71,17 @@ DataType *ArrayDataType::getElementType() {
     return elementType;
 }
 
+std::string ArrayDataType::format(void *data) {
+    std::string tr = "[";
+    for (int i = 0; i < length; i++) {
+        tr += elementType->format(data + i * elementType->getLength());
+        if (i != length - 1) {
+            tr += ", ";
+        }
+    }
+    return tr + "]";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::CopyArrayDataProxy
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +90,17 @@ CopyArrayDataProxy::CopyArrayDataProxy(DataType *sourceType, int length)
 
 bool CopyArrayDataProxy::isProxy() {
     return true;
+}
+
+std::string CopyArrayDataProxy::format(void *data) {
+    std::string tr = "[";
+    for (int i = 0; i < getArrayLength(); i++) {
+        tr += getElementType()->format(data);
+        if (i != getArrayLength() - 1) {
+            tr += ", ";
+        }
+    }
+    return tr + "]";
 }
 
 }
