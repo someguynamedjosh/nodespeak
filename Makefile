@@ -28,7 +28,7 @@ GSRCS = $(GRAMMAR_C) $(LEXER_C)
 GOBJS = $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(GSRCS))
 GDEPS = $(patsubst $(GEN)%.gen.c,$(DEP)%.gen.dep,$(GSRCS))
 
-all: base $(OUTPUT) 
+all: $(OUTPUT) 
 
 # Build final executable from all object files.
 $(OUTPUT): $(OBJS) $(GOBJS)

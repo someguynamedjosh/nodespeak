@@ -28,7 +28,10 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "./build/bin/waveguide.x86_64",
+            "command": "../build/bin/waveguide.x86_64",
+            "options": {
+                "cwd": "./samples/"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -38,7 +41,10 @@
         {
             "label": "run w/ readable code output",
             "type": "shell",
-            "command": "./build/bin/waveguide.x86_64 | python3 out_parse.py",
+            "command": "../build/bin/waveguide.x86_64 | python3 ../out_parse.py",
+            "options": {
+                "cwd": "./samples/"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
