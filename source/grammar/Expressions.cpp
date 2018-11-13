@@ -116,7 +116,7 @@ std::vector<std::shared_ptr<Output>> &OutList::getOutputs() {
 ////////////////////////////////////////////////////////////////////////////////
 FuncCall::FuncCall(std::string name, std::shared_ptr<ExpList> ins, 
     std::shared_ptr<OutList> outs)
-    : name(name), ins(ins), outs(outs) { }
+    : name{name}, ins{ins}, outs{outs} { }
 
 }
 }
