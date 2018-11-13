@@ -12,7 +12,6 @@ namespace grammar {
 class Token {
 public:
     Token();
-    virtual std::string repr() = 0;
 };
 
 }
