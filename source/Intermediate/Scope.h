@@ -87,7 +87,7 @@ public:
     void autoAddNone();
     void autoAddIns();
     void autoAddOuts();
-}
+};
 
 }
 }
