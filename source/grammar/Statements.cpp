@@ -33,5 +33,44 @@ WhileLoop::WhileLoop(std::shared_ptr<Expression> condition,
     std::shared_ptr<StatList> body)
     : condition{condition}, body{body} { }
 
+////////////////////////////////////////////////////////////////////////////////
+// StatList
+////////////////////////////////////////////////////////////////////////////////
+StatList::StatList() { }
+
+StatList::StatList(std::shared_ptr<Statement> a)
+    : stats{a} { }
+
+StatList::StatList(std::shared_ptr<StatList> a) {
+    append(a);
+}
+
+StatList::StatList(std::shared_ptr<Statement> a, std::shared_ptr<Statement> b)
+    : stats{a, b} { }
+
+StatList::StatList(std::shared_ptr<StatList> a, std::shared_ptr<Statement> b) {
+    append(a);
+    append(b);
+}
+
+StatList::StatList(std::shared_ptr<StatList> a, std::shared_ptr<StatList> b) {
+    append(a);
+    append(b);
+}
+
+void StatList::append(std::shared_ptr<Statement> a) {
+    stats.push_back(a);
+}
+
+void StatList::append(std::shared_ptr<StatList> a) {
+    for (auto stat : a->stats) {
+        stats.push_back(stat);
+    }
+}
+
+std::vector<std::shared_ptr<Statement>> &StatList::getStatements() {
+    return stats;
+}
+
 }
 }

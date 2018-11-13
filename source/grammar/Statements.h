@@ -100,6 +100,7 @@ public:
     StatList(std::shared_ptr<StatList> a, std::shared_ptr<StatList> b);
     void append(std::shared_ptr<Statement> a);
     void append(std::shared_ptr<StatList> a);
+    std::vector<std::shared_ptr<Statement>> &getStatements();
     virtual void convert(convert::ScopeSP constext);
 };
 
