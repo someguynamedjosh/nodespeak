@@ -10,9 +10,17 @@
 namespace waveguide {
 namespace convert{
 
-typedef std::shared_ptr<intermediate::DataType> DTypeSP;
-typedef std::shared_ptr<intermediate::Scope> ScopeSP;
-typedef std::shared_ptr<intermediate::Value> ValueSP;
+typedef intermediate::DataType DataType;
+typedef intermediate::Scope Scope;
+typedef intermediate::Value Value;
+typedef intermediate::Command Command;
+
+typedef std::shared_ptr<DataType> DTypeSP;
+typedef std::shared_ptr<Scope> ScopeSP;
+typedef std::shared_ptr<Value> ValueSP;
+typedef std::shared_ptr<Command> CommandSP;
+
+DTypeSP pickBiggerType(DTypeSP a, DTypeSP b);
 
 }
 }
