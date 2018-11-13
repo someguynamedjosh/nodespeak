@@ -32,6 +32,8 @@ void grammar::FuncDec::convert(ScopeSP context) {
     }
     func->autoAddNone();
     context->declareFunc(name, func);
+    // Do not convert the body. Body conversion will be done later, manually, by
+    // the master conversion function.
 }
 
 void grammar::Branch::convert(ScopeSP context) {

@@ -55,6 +55,8 @@ private:
 public:
     FuncDec(std::string name, std::shared_ptr<StatList> ins,
         std::shared_ptr<StatList> outs, std::shared_ptr<StatList> body);
+    std::string getName();
+    std::shared_ptr<StatList> getBody();
     virtual void convert(convert::ScopeSP context);
 };
 

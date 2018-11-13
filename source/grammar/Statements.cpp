@@ -29,6 +29,14 @@ FuncDec::FuncDec(std::string name, std::shared_ptr<StatList> ins,
     std::shared_ptr<StatList> outs, std::shared_ptr<StatList> body)
     : name{name}, ins{ins}, outs{outs}, body{body} { }
 
+std::string FuncDec::getName() {
+    return name;
+}
+
+std::shared_ptr<StatList> FuncDec::getBody() {
+    return body;
+}
+
 Branch::Branch(std::shared_ptr<Expression> con,
     std::shared_ptr<StatList> ifTrue)
     : con{con}, ifTrue{ifTrue} { }
