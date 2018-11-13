@@ -1,6 +1,7 @@
 #ifndef _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
 #define _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
 
+#include <memory>
 #include <string>
 
 namespace waveguide {
@@ -13,7 +14,7 @@ class DataType {
 public:
     DataType();
     virtual int getLength() = 0;
-    virtual DataType &getBaseType();
+    virtual std::shared_ptr<DataType> getBaseType();
     virtual bool isProxyType();
     virtual std::string repr() = 0;
     virtual std::string format(void *data) = 0;
@@ -52,28 +53,28 @@ public:
 
 class ArrayDataType: public DataType {
 private:
-    DataType &elementType;
+    std::shared_ptr<DataType> elementType;
     int length;
 public:
-    ArrayDataType(DataType &elementType, int length);
+    ArrayDataType(std::shared_ptr<DataType> elementType, int length);
     virtual int getLength();
-    virtual DataType &getBaseType();
+    virtual std::shared_ptr<DataType> getBaseType();
     virtual std::string repr();
     virtual std::string format(void *data);
 
     virtual int getArrayLength();
-    DataType &getElementType();
-    virtual Value &getDataOffset(Value &index);
+    std::shared_ptr<DataType> getElementType();
+    virtual std::shared_ptr<Value> getDataOffset(std::shared_ptr<Value> index);
 };
 
 class CopyArrayDataProxy: public ArrayDataType {
 public:
-    CopyArrayDataProxy(DataType &sourceType, int length);
+    CopyArrayDataProxy(std::shared_ptr<DataType> sourceType, int length);
     virtual bool isProxy();
     virtual std::string repr();
     virtual std::string format(void *data);
 
-    virtual Value &getDataOffset(Value &index);
+    virtual std::shared_ptr<Value> getDataOffset(std::shared_ptr<Value> index);
 };
 
 }
