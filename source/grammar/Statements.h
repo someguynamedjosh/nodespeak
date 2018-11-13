@@ -1,5 +1,5 @@
-#ifndef _WAVEGUIDE_GRAMMAR_EXPRESSIONS_H_
-#define _WAVEGUIDE_GRAMMAR_EXPRESSIONS_H_
+#ifndef _WAVEGUIDE_GRAMMAR_STATEMENTS_H_
+#define _WAVEGUIDE_GRAMMAR_STATEMENTS_H_
 
 #include "Token.h"
 
@@ -14,7 +14,7 @@ class FuncCall;
 
 class Statement: public Token {
 public:
-    virtual void convert(convert::ScopeSP context);
+    virtual void convert(convert::ScopeSP context) = 0;
 };
 
 class FuncCallStat: public Statement {
@@ -106,4 +106,4 @@ public:
 }
 }
 
-#endif /* _WAVEGUIDE_GRAMMAR_EXPRESSIONS_H_ */
+#endif /* _WAVEGUIDE_GRAMMAR_STATEMENTS_H_ */
