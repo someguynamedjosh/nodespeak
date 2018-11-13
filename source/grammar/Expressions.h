@@ -56,6 +56,7 @@ private:
         convert::ValueSP rootVal, offset; 
         convert::DTypeSP finalType;
     };
+    AccessResult getAccessResult(convert::ScopeSP context);
 public:
     AccessExp(std::shared_ptr<IdentifierExp> rootVar);
     void addIndexAccessor(std::shared_ptr<Expression> index);
@@ -142,7 +143,7 @@ protected:
 public:
     FuncCall(std::string name, std::shared_ptr<ExpList> ins, 
         std::shared_ptr<OutList> outs);
-    virtual std::shared_ptr<Expression> getExp();
+    virtual convert::ValueSP getValue(convert::ScopeSP context);
 };
 
 }
