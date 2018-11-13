@@ -208,7 +208,7 @@ std::shared_ptr<Value> Scope::lookupVar(std::string name) {
     }
 }
 
-void Scope::declareType(std::string name, std::shared_ptr<Value> type) {
+void Scope::declareType(std::string name, std::shared_ptr<DataType> type) {
     types.emplace(name, type);
 }
 

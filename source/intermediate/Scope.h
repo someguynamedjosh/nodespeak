@@ -74,7 +74,7 @@ public:
     void declareVar(std::string name, std::shared_ptr<Value> value);
     void declareTempVar(std::shared_ptr<Value> value);
     std::shared_ptr<Value> lookupVar(std::string name);
-    void declareType(std::string name, std::shared_ptr<Value> type);
+    void declareType(std::string name, std::shared_ptr<DataType> type);
     std::shared_ptr<DataType> lookupType(std::string name);
     void addCommand(std::shared_ptr<Command> command);
     std::vector<std::shared_ptr<Command>> &getCommands();
