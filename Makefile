@@ -1,6 +1,6 @@
 INCLUDE = -I $(SRC) -I $(GEN)
 CXX = g++
-CXXFLAGS = -g $(INCLUDE)
+CXXFLAGS = -g $(INCLUDE) -std=gnu++17
 
 BIN = build/bin/
 GEN = build/gen/
@@ -20,9 +20,12 @@ GRAMMAR_H = $(GEN)parser.gen.h
 LEXER_C = $(GEN)lexer.gen.c
 OUTPUT = $(BIN)waveguide.x86_64
 
-SRCS = $(wildcard $(SRC)*.cpp)
+SRCS = $(wildcard $(SRC)**.cpp)
 OBJS = $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(SRCS))
 DEPS = $(patsubst $(SRC)%.cpp,$(DEP)%.dep,$(SRCS))
+$(info SRCS)
+$(info OBJS)
+$(info DEPS)
 
 GSRCS = $(GRAMMAR_C) $(LEXER_C)
 GOBJS = $(patsubst $(GEN)%.gen.c,$(OBJ)%.gen.o,$(GSRCS))

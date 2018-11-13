@@ -11,6 +11,7 @@ class DataType;
 class ExpList;
 class Expression;
 class FuncCall;
+class StatList;
 
 class Statement: public Token {
 public:
