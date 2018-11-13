@@ -94,6 +94,57 @@ public:
     virtual convert::ValueSP getValue(convert::ScopeSP context);
 };
 
+class Output: public Token {
+public: 
+    virtual int getType() = 0;
+    virtual std::shared_ptr<Expression> getExp();
+};
+
+class RetOut: public Output {
+public:
+    static const int TYPE_CONST = 0;
+    virtual int getType();
+};
+
+class NoneOut: public Output {
+public:
+    static const int TYPE_CONST = 1;
+    virtual int getType();
+};
+
+class VarAccessOut: public Output {
+private:
+    std::shared_ptr<Expression> exp;
+public:
+    static const int TYPE_CONST = 2;
+    VarAccessOut(std::shared_ptr<Expression> exp);
+    virtual int getType();
+    virtual std::shared_ptr<Expression> getExp();
+};
+
+class OutList: public Token {
+private:
+    std::vector<std::shared_ptr<Output>> outputs;
+public:
+    OutList();
+    OutList(std::shared_ptr<Output> a);
+    OutList(std::shared_ptr<Output> a, std::shared_ptr<Output> b);
+    void append(std::shared_ptr<Output> a);
+    void append(std::shared_ptr<OutList> a);
+    std::vector<std::shared_ptr<Output>> &getOutputs();
+};
+
+class FuncCall: public Expression {
+protected:
+    std::string name;
+    std::shared_ptr<ExpList> ins;
+    std::shared_ptr<OutList> outs;
+public:
+    FuncCall(std::string name, std::shared_ptr<ExpList> ins, 
+        std::shared_ptr<OutList> outs);
+    virtual std::shared_ptr<Expression> getExp();
+};
+
 }
 }
 

@@ -4,26 +4,17 @@ namespace waveguide {
 namespace grammar {
 
 ////////////////////////////////////////////////////////////////////////////////
-// IdentifierExp
+// IdentifierExp, IntExp, FloatExp, BoolExp
 ////////////////////////////////////////////////////////////////////////////////
 IdentifierExp::IdentifierExp(std::string name)
     : name{name} { }
 
-////////////////////////////////////////////////////////////////////////////////
-// IntExp
-////////////////////////////////////////////////////////////////////////////////
 IntExp::IntExp(int value)
     : value{value} { }
 
-////////////////////////////////////////////////////////////////////////////////
-// FloatExp
-////////////////////////////////////////////////////////////////////////////////
 FloatExp::FloatExp(float value)
     : value{value} { }
 
-////////////////////////////////////////////////////////////////////////////////
-// BoolExp
-////////////////////////////////////////////////////////////////////////////////
 BoolExp::BoolExp(bool value)
     : value{value} { }
 
@@ -72,6 +63,60 @@ Range::Range(std::shared_ptr<Expression> start, std::shared_ptr<Expression> end)
 Range::Range(std::shared_ptr<Expression> start, std::shared_ptr<Expression> end,
     std::shared_ptr<Expression> step)
     : start{start}, end{end}, step{step} { }
+
+////////////////////////////////////////////////////////////////////////////////
+// Output, RetOut, NoneOut, VarAccessOut
+////////////////////////////////////////////////////////////////////////////////
+std::shared_ptr<Expression> Output::getExp() {
+    return nullptr;
+}
+
+int RetOut::getType() {
+    return TYPE_CONST;
+}
+
+int NoneOut::getType() {
+    return TYPE_CONST;
+}
+
+VarAccessOut::VarAccessOut(std::shared_ptr<Expression> exp)
+    : exp(exp) { }
+
+int VarAccessOut::getType() {
+    return TYPE_CONST;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// OutList
+////////////////////////////////////////////////////////////////////////////////
+OutList::OutList() { }
+
+OutList::OutList(std::shared_ptr<Output> a)
+    : outputs{a} { }
+
+OutList::OutList(std::shared_ptr<Output> a, std::shared_ptr<Output> b)
+    : outputs{a, b} { }
+
+void OutList::append(std::shared_ptr<Output> a) {
+    outputs.push_back(a);
+}
+
+void OutList::append(std::shared_ptr<OutList> a) {
+    for (auto output : a->getOutputs()) {
+        outputs.push_back(output);
+    }
+}
+
+std::vector<std::shared_ptr<Output>> &OutList::getOutputs() {
+    return outputs;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FuncCall
+////////////////////////////////////////////////////////////////////////////////
+FuncCall::FuncCall(std::string name, std::shared_ptr<ExpList> ins, 
+    std::shared_ptr<OutList> outs)
+    : name(name), ins(ins), outs(outs) { }
 
 }
 }
