@@ -37,10 +37,10 @@ std::vector<std::shared_ptr<Value>> &Augmentation::getParams() {
 ////////////////////////////////////////////////////////////////////////////////
 // Com::Command
 ////////////////////////////////////////////////////////////////////////////////
-Command::Command(Scope &call)
+Command::Command(std::shared_ptr<Scope> call)
     : call{call} { }
 
-Command::Command(Scope &call, std::shared_ptr<Augmentation> aug)
+Command::Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug)
     : call{call}, aug{aug} { }
 
 std::string Command::repr() {
@@ -99,7 +99,7 @@ std::shared_ptr<Augmentation> Command::getAugmentation() {
     return aug;
 }
 
-Scope &Command::getCalledScope() {
+std::shared_ptr<Scope> Command::getCalledScope() {
     return call;
 }
 

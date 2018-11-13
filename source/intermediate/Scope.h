@@ -33,10 +33,10 @@ class Command {
     private:
     std::vector<std::shared_ptr<Value>> ins, outs;
     std::shared_ptr<Augmentation> aug{nullptr};
-    Scope &call;
+    std::shared_ptr<Scope> call;
 public:
-    Command(Scope &call);
-    Command(Scope &call, std::shared_ptr<Augmentation> aug);
+    Command(std::shared_ptr<Scope> call);
+    Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug);
     std::string repr();
 
     void addInput(std::shared_ptr<Value> input);
@@ -44,7 +44,7 @@ public:
     std::vector<std::shared_ptr<Value>> &getInputs();
     std::vector<std::shared_ptr<Value>> &getOutputs();
     std::shared_ptr<Augmentation> getAugmentation();
-    Scope &getCalledScope();
+    std::shared_ptr<Scope> getCalledScope();
 };
 
 class Scope {
