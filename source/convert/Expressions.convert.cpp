@@ -8,10 +8,6 @@
 namespace waveguide {
 namespace convert {
 
-std::shared_ptr<intermediate::Builtins> blt() {
-    return intermediate::Builtins::getInstance();
-}
-
 ValueSP grammar::IdentifierExp::getValue(ScopeSP context) {
     // TODO: Error for undefined identifier.
     return context->lookupVar(name);

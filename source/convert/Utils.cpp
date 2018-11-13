@@ -17,5 +17,9 @@ DTypeSP pickBiggerType(DTypeSP a, DTypeSP b) {
     return getDataTypeIndex(a) > getDataTypeIndex(b) ? a : b;
 }
 
+std::shared_ptr<intermediate::Builtins> blt() {
+    return intermediate::Builtins::getInstance();
+}
+
 }
 }

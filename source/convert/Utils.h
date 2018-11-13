@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "intermediate/Builtins.h"
 #include "intermediate/DataType.h"
 #include "intermediate/Scope.h"
 #include "intermediate/Value.h"
@@ -21,6 +22,8 @@ typedef std::shared_ptr<Value> ValueSP;
 typedef std::shared_ptr<Command> CommandSP;
 
 DTypeSP pickBiggerType(DTypeSP a, DTypeSP b);
+
+std::shared_ptr<intermediate::Builtins> blt();
 
 }
 }
