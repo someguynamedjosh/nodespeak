@@ -19,6 +19,16 @@ public:
     virtual std::string format(void *data) = 0;
 };
 
+class AbstractDataType: public DataType {
+private:
+    std::string label;
+public:
+    AbstractDataType(std::string label);
+    virtual int getLength();
+    virtual std::string repr();
+    virtual std::string format(void *data);
+};
+
 class IntDataType: public DataType {
 public:
     virtual int getLength();
