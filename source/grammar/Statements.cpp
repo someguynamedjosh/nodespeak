@@ -13,6 +13,14 @@ FuncCallStat::FuncCallStat(std::shared_ptr<FuncCall> call)
 VarDec::VarDec(std::shared_ptr<DataType> type, std::string name)
     : type{type}, name{name} { }
 
+std::shared_ptr<DataType> VarDec::getType() {
+    return type;
+}
+
+std::string VarDec::getName() {
+    return name;
+}
+
 AssignStat::AssignStat(std::shared_ptr<AccessExp> to,
     std::shared_ptr<Expression> value)
     : to{to}, value{value} { }

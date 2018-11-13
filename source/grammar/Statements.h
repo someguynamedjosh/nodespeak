@@ -31,6 +31,8 @@ private:
     std::string name;
 public:
     VarDec(std::shared_ptr<DataType> type, std::string name);
+    std::shared_ptr<DataType> getType();
+    std::string getName();
     virtual void convert(convert::ScopeSP context);
 };
 
