@@ -14,18 +14,18 @@ namespace intermediate {
 // Com::Value
 ////////////////////////////////////////////////////////////////////////////////
 
-Value::Value(DataType &type)
+Value::Value(std::shared_ptr<DataType> type)
     : type{type} {
-    if (!type.isProxyType()) {
-        data = malloc(type.getLength());
+    if (!type->isProxyType()) {
+        data = malloc(type->getLength());
     }
 }
 
-Value::Value(DataType &type, void *data)
+Value::Value(std::shared_ptr<DataType> type, void *data)
     : type{type}, data{data}, valueKnown{true} { }
 
 Value::~Value() {
-    if (!type.isProxyType()) {
+    if (!type->isProxyType()) {
         free(data);
     }
 }
@@ -34,25 +34,25 @@ std::string Value::repr() {
     std::stringstream ss;
     ss << isValueKnown() ? "C" : "V";
     ss << "@" << (void*) this;
-    ss << " T=" << type.repr();
+    ss << " T=" << type->repr();
     if (isValueKnown()) {
-        ss << " V=" << type.format(getRealValue().getData());
+        ss << " V=" << type->format(getRealValue().getData());
     }
     return ss.str();
 }
 
-DataType &Value::getType() {
+std::shared_ptr<DataType> Value::getType() {
     return type;
 }
 
-void Value::setType(DataType &newType) {
-    assert(newType.getLength() == type.getLength());
-    assert(newType.isProxyType() == type.isProxyType());
+void Value::setType(std::shared_ptr<DataType> newType) {
+    assert(newType->getLength() == type->getLength());
+    assert(newType->isProxyType() == type->isProxyType());
     type = newType;
 }
 
 bool Value::isProxy() {
-    return type.isProxyType();
+    return type->isProxyType();
 }
 
 Value &Value::getRealValue() {
@@ -74,7 +74,7 @@ void Value::setValueKnown(bool isKnown) {
 Value Value::createKnownCopy() {
     assert(valueKnown);
     Value tr{type};
-    memcpy(tr.getData(), data, type.getLength());
+    memcpy(tr.getData(), data, type->getLength());
     tr.setValueKnown(true);
     return tr;
 }
@@ -86,19 +86,19 @@ void *Value::getData() {
 
 float *Value::dataAsFloat() {
     assert(!isProxy());
-    assert(dynamic_cast<FloatDataType*>(&type));
+    assert(std::dynamic_pointer_cast<FloatDataType>(type));
     return static_cast<float*>(data);
 }
 
 int *Value::dataAsInt() {
     assert(!isProxy());
-    assert(dynamic_cast<IntDataType*>(&type));
+    assert(std::dynamic_pointer_cast<IntDataType>(type));
     return static_cast<int*>(data);
 }
 
 bool *Value::dataAsBool() {
     assert(!isProxy());
-    assert(dynamic_cast<BoolDataType*>(&type));
+    assert(std::dynamic_pointer_cast<BoolDataType>(type));
     return static_cast<bool*>(data);
 }
 

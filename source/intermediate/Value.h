@@ -1,6 +1,7 @@
 #ifndef _WAVEGUIDE_INTERMEDIATE_VALUE_H_
 #define _WAVEGUIDE_INTERMEDIATE_VALUE_H_
 
+#include <memory>
 #include <string>
 
 namespace waveguide {
@@ -10,17 +11,17 @@ class DataType;
 
 class Value {
 private:
-    DataType &type;
+    std::shared_ptr<DataType> type;
     void *data;
     bool valueKnown{false};
 public:
-    Value(DataType &type);
-    Value(DataType &type, void *data);
+    Value(std::shared_ptr<DataType> type);
+    Value(std::shared_ptr<DataType> type, void *data);
     ~Value();
     std::string repr();
 
-    DataType &getType();
-    void setType(DataType &newType);
+    std::shared_ptr<DataType> getType();
+    void setType(std::shared_ptr<DataType> newType);
     bool isProxy();
     Value &getRealValue();
 
