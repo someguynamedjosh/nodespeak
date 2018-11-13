@@ -68,16 +68,16 @@ public: \
 
 OP_EXP_HELP(EqExp);
 OP_EXP_HELP(NeqExp);
-OP_EXP_HELP(Lte);
-OP_EXP_HELP(Gte);
-OP_EXP_HELP(Lt);
-OP_EXP_HELP(Gt);
-OP_EXP_HELP(And);
-OP_EXP_HELP(Or);
-OP_EXP_HELP(Xor);
-OP_EXP_HELP(Band);
-OP_EXP_HELP(Bor);
-OP_EXP_HELP(Bxor);
+OP_EXP_HELP(LteExp);
+OP_EXP_HELP(GteExp);
+OP_EXP_HELP(LtExp);
+OP_EXP_HELP(GtExp);
+OP_EXP_HELP(AndExp);
+OP_EXP_HELP(OrExp);
+OP_EXP_HELP(XorExp);
+OP_EXP_HELP(BandExp);
+OP_EXP_HELP(BorExp);
+OP_EXP_HELP(BxorExp);
 
 #undef OP_EXP_HELP
 
