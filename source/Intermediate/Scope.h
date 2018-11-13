@@ -1,12 +1,13 @@
-#ifndef _SCOPE_H_
-#define _SCOPE_H_
+#ifndef _WAVEGUIDE_INTERMEDIATE_SCOPE_H_
+#define _WAVEGUIDE_INTERMEDIATE_SCOPE_H_
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 class Scope;
 class Value;
@@ -89,5 +90,6 @@ public:
 }
 
 }
+}
 
-#endif /* _SCOPE_H_ */
+#endif /* _WAVEGUIDE_INTERMEDIATE_SCOPE_H_ */

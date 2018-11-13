@@ -1,9 +1,10 @@
-#ifndef _DATA_TYPE_H_
-#define _DATA_TYPE_H_
+#ifndef _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
+#define _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
 
 #include <string>
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 class Scope;
 class Value;
@@ -66,5 +67,6 @@ public:
 };
 
 }
+}
 
-#endif /* _DATA_TYPE_H_ */
+#endif /* _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_ */

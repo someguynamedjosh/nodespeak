@@ -7,7 +7,8 @@
 
 #include "DataType.h"
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::Value
@@ -101,4 +102,5 @@ bool *Value::dataAsBool() {
     return static_cast<bool*>(data);
 }
 
+}
 }

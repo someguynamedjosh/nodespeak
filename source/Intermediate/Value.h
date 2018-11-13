@@ -1,9 +1,10 @@
-#ifndef _VALUE_H_
-#define _VALUE_H_
+#ifndef _WAVEGUIDE_INTERMEDIATE_VALUE_H_
+#define _WAVEGUIDE_INTERMEDIATE_VALUE_H_
 
 #include <string>
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 class DataType;
 
@@ -34,5 +35,6 @@ public:
 };
 
 }
+}
 
-#endif /* _VALUE_H_ */
+#endif /* _WAVEGUIDE_INTERMEDIATE_VALUE_H_ */

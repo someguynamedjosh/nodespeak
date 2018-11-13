@@ -1,6 +1,7 @@
 #include "DataType.h"
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::DataType
@@ -123,4 +124,5 @@ std::string CopyArrayDataProxy::repr() {
         + " copied from 1]";
 }
 
+}
 }

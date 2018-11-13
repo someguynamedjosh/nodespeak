@@ -5,7 +5,8 @@
 #include "DataType.h"
 #include "Value.h"
 
-namespace Com {
+namespace waveguide {
+namespace intermediate {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::Augmentation
@@ -259,4 +260,5 @@ void Scope::autoAddOuts() {
     autoAdd = AutoAdd::OUTS;
 }
 
+}
 }
