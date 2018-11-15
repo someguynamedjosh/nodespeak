@@ -20,6 +20,8 @@ void grammar::AssignStat::convert(ScopeSP context) {
     to->setFromValue(context, value->getValue(context));
 }
 
+void grammar::ReturnStat::convert(ScopeSP context) { }
+
 void grammar::FuncDec::convert(ScopeSP context) {
     ScopeSP func{new Scope{context}};
     func->autoAddIns();

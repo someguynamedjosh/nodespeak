@@ -47,7 +47,10 @@ public:
     virtual void convert(convert::ScopeSP context);
 };
 
-class ReturnStat: public Statement { };
+class ReturnStat: public Statement {
+public:
+    void convert(convert::ScopeSP context);
+};
 
 class FuncDec: public Statement {
 private:
