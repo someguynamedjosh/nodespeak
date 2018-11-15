@@ -41,11 +41,9 @@ ExpList::ExpList(std::shared_ptr<Expression> a)
 ExpList::ExpList(std::shared_ptr<Expression> a, std::shared_ptr<Expression> b)
     : exps{a, b} { }
 
-ExpList::ExpList(std::shared_ptr<Expression> a, std::shared_ptr<ExpList> b)
-    : exps{a} {
-    for (auto expression : b->getExps()) {
-        exps.push_back(expression);
-    }
+ExpList::ExpList(std::shared_ptr<ExpList> a, std::shared_ptr<Expression> b) {
+    append(a);
+    append(b);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +94,16 @@ OutList::OutList(std::shared_ptr<Output> a)
 
 OutList::OutList(std::shared_ptr<Output> a, std::shared_ptr<Output> b)
     : outputs{a, b} { }
+
+OutList::OutList(std::shared_ptr<OutList> a, std::shared_ptr<Output> b) {
+    append(a);
+    append(b);
+}
+
+OutList::OutList(std::shared_ptr<OutList> a, std::shared_ptr<OutList> b) {
+    append(a);
+    append(b);
+}
 
 void OutList::append(std::shared_ptr<Output> a) {
     outputs.push_back(a);

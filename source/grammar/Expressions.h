@@ -71,7 +71,7 @@ private:
 public:
     ExpList(std::shared_ptr<Expression> a);
     ExpList(std::shared_ptr<Expression> a, std::shared_ptr<Expression> b);
-    ExpList(std::shared_ptr<Expression> a, std::shared_ptr<ExpList> b);
+    ExpList(std::shared_ptr<ExpList> a, std::shared_ptr<Expression> b);
     void append(std::shared_ptr<Expression> a);
     void append(std::shared_ptr<ExpList> a);
     std::vector<std::shared_ptr<Expression>> &getExps();
@@ -130,6 +130,8 @@ public:
     OutList();
     OutList(std::shared_ptr<Output> a);
     OutList(std::shared_ptr<Output> a, std::shared_ptr<Output> b);
+    OutList(std::shared_ptr<OutList> a, std::shared_ptr<Output> b);
+    OutList(std::shared_ptr<OutList> a, std::shared_ptr<OutList> b);
     void append(std::shared_ptr<Output> a);
     void append(std::shared_ptr<OutList> a);
     std::vector<std::shared_ptr<Output>> &getOutputs();

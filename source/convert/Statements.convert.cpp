@@ -112,5 +112,9 @@ void grammar::ForLoop::convert(ScopeSP context) {
     }
 }
 
+void grammar::WhileLoop::convert(ScopeSP context) {
+    // TODO: Implement.
+}
+
 }
 }

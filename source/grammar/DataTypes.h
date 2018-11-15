@@ -18,7 +18,7 @@ private:
     std::string name;
 public:
     NamedDataType(std::string name);
-    virtual convert::DTypeSP convert(convert::ScopeSP context) = 0;
+    virtual convert::DTypeSP convert(convert::ScopeSP context);
 };
 
 class ArrayDataType: public DataType {
@@ -28,7 +28,7 @@ private:
 public:
     ArrayDataType(std::shared_ptr<DataType> baseType,
         std::shared_ptr<Expression> size);
-    virtual convert::DTypeSP convert(convert::ScopeSP context) = 0;
+    virtual convert::DTypeSP convert(convert::ScopeSP context);
 };
 
 }

@@ -94,6 +94,7 @@ private:
 public:
     WhileLoop(std::shared_ptr<Expression> condition,
         std::shared_ptr<StatList> body);
+    virtual void convert(convert::ScopeSP context);
 };
 
 class StatList: public Token {
