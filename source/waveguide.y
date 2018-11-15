@@ -1,19 +1,23 @@
 %{
-#include<cstdio>
-#include<iostream>
-#include<vector>
-#include "tokens.h"
-#include "scope.h"
-#include "interpreter.h"
-using namespace std;
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <vector>
+
+#include "grammar/All.h"
+#include "intermediate/Scope.h"
+
+using namespace waveguide::grammar;
+template<class T>
+using sp=std::shared_ptr<T>;
 
 extern "C" int yylex();
 extern "C" int yyparse();
 extern "C" FILE *yyin;
 
 void yyerror(const char *s);
-vector<VarDec*> inlineDefs;
-StatList *result;
+std::vector<VarDec*> inlineDefs;
+sp<StatList> result;
 %}
 
 %glr-parser
@@ -26,14 +30,18 @@ StatList *result;
 	float fval;
 	char cval;
 	char *sval;
-	Expression *expression;
-	AccessExp *accessexp;
-	Statement *statement;
-	StatList *statlist;
-	Type *type;
-	ExpList *explist;
-	OutList *outlist;
-	Branch *branch;
+	sp<Expression> expression;
+	sp<AccessExp> accessexp;
+	sp<Statement> statement;
+	sp<StatList> statlist;
+	sp<DataType> type;
+	sp<ExpList> explist;
+	sp<OutList> outlist;
+	sp<Branch> branch;
+	YYSTYPE() { }
+	YYSTYPE(YYSTYPE &other) { }
+	~YYSTYPE() { }
+	YYSTYPE &operator=(YYSTYPE &other) { }
 }
 
 %token <ival> INT
@@ -70,18 +78,18 @@ StatList *result;
 %%
 
 root:
-	stats { $$ = new StatList($1); result = $$; }
+	stats { $$ = sp<StatList>{new StatList($1)}; result = $$; }
 
 stats:
-	stats stat { $$ = new StatList($1, $2); }
-	| stat { $$ = new StatList($1); }
-	| stats mstat { $$ = new StatList($1, $2); }
-	| mstat { $$ = new StatList($1); }
+	stats stat { $$ = sp<StatList>{new StatList($1, $2)}; }
+	| stat { $$ = sp<StatList>{new StatList($1)}; }
+	| stats mstat { $$ = sp<StatList>{new StatList($1, $2)}; }
+	| mstat { $$ = sp<StatList>{new StatList($1)}; }
 
 mstat:
 	vardec ';' { $$ = $1; }
-	| RETURN exp ';' { 
-		$$ = new StatList(new AssignStat(new AccessExp(new IdentifierExp("return")), $2), new ReturnStat()); }
+	| RETURN exp ';' { $$ = new StatList{new AssignStat{new AccessExp{
+		sp<IdentifierExp>{new IdentifierExp{"return"}}}, $2}, sp<ReturnStat>{new ReturnStat{}}}; }
 	| accessexp A exp ';' { 
 		$$ = new StatList(); 
 		for(VarDec* v : inlineDefs) 
