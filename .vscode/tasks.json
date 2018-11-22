@@ -5,16 +5,17 @@
             "label": "build",
             "type": "shell",
             "options": {
-                "cwd": "./"
+                "cwd": "./build"
             },
-            "command": "make",
+            "command": "cmake ..; make",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": "absolute"
+            }
         },
         {
             "label": "debug",

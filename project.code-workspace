@@ -11,7 +11,8 @@
 			"istream": "cpp",
 			"ostream": "cpp",
 			"ratio": "cpp",
-			"type_traits": "cpp"
+			"type_traits": "cpp",
+			"string": "cpp"
 		}
 	}
 }
