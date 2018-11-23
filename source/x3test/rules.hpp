@@ -32,8 +32,12 @@ RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
 auto expr = logic_expr; // Top-level expression.
-RULE(identifier, std::string);
 
+RULE(data_type, ast::DataType);
+RULE(array_data_type, ast::ArrayDataType);
+RULE(plain_data_type, ast::PlainDataType);
+
+RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
 
 #undef RULE
@@ -127,6 +131,19 @@ auto const basic_expr_def =
     | as<ast::FunctionExpression>(identifier >> '(' >> (expr % ',') >> ')')
     | as<ast::VariableExpression>(identifier);
 
+
+
+auto const data_type_def = 
+    plain_data_type | array_data_type;
+
+auto const array_data_type_def =
+    data_type >> '[' >> expr >> ']';
+
+auto const plain_data_type_def =
+    identifier;
+
+
+
 auto const identifier_def =
     lexeme[(alpha | '_') >> *(alnum | '_')];
 
@@ -134,8 +151,12 @@ auto const root_rule_def =
    expr;
 
 
-BOOST_SPIRIT_DEFINE(root_rule, logic_expr, blogic_expr, equal_expr, 
-    compare_expr, add_expr, multiply_expr, signed_expr, basic_expr, identifier)
+BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
+    multiply_expr, signed_expr, basic_expr)
+
+BOOST_SPIRIT_DEFINE(data_type, array_data_type, plain_data_type)
+
+BOOST_SPIRIT_DEFINE(identifier, root_rule)
 
 }
 }
