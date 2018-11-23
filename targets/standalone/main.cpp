@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
 
-#include "parser/parser.hpp"
-#include "parser/util.hpp"
+#include "waveguide/parser.hpp"
+#include "waveguide/ast_util.hpp"
 
 int main() {
     std::string code = "Int a, b, c;";
