@@ -11,7 +11,7 @@ namespace parser {
 using boost::spirit::x3::rule;
 
 struct root_class;
-using root_type = ast::Expression;
+using root_type = ast::Statement;
 using root_rule_type = rule<root_class, root_type>;
 BOOST_SPIRIT_DECLARE(root_rule_type)
 
