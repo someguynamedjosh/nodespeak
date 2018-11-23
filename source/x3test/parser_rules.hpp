@@ -160,7 +160,7 @@ auto const plain_data_type_def =
 
 
 auto const statement_def =
-    function_statement | assign_statement;
+    function_statement | assign_statement | var_dec_statement;
 
 auto const function_statement_def =
     function_expr >> ';';
@@ -169,9 +169,10 @@ auto const assign_statement_def =
     variable_expr >> '=' >> expr >> ';';
 
 auto const var_dec_statement_def =
-    data_type >> +as<ast::VarDec>(
-        identifier >> -('=' >> expr)
-    );
+    data_type >> as<ast::VarDec>(
+        as<ast::InitVarDec>(identifier >> '=' >> expr)
+        | as<ast::PlainVarDec>(identifier)
+    ) % ',' >> ';';
 
 
 
