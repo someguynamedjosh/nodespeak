@@ -8,14 +8,25 @@
 #include "intermediate/Value.h"
 
 namespace waveguide {
-namespace convert {
+namespace grammar {
 
-DTypeSP grammar::NamedDataType::convert(ScopeSP context) {
+using convert::Augmentation;
+using convert::AugmentationSP;
+using convert::Command;
+using convert::CommandSP;
+using convert::DataType;
+using convert::DTypeSP;
+using convert::Scope;
+using convert::ScopeSP;
+using convert::Value;
+using convert::ValueSP;
+
+DTypeSP waveguide::grammar::NamedDataType::convert(ScopeSP context) {
     assert(context->lookupType(name));
     return context->lookupType(name);
 }
 
-DTypeSP grammar::ArrayDataType::convert(ScopeSP context) {
+DTypeSP waveguide::grammar::ArrayDataType::convert(ScopeSP context) {
     assert(baseType);
     assert(size);
     ValueSP sizec = size->getValue(context);

@@ -7,16 +7,17 @@
 #include "grammar/All.h"
 #include "intermediate/Scope.h"
 
-using namespace waveguide::grammar;
-template<class T>
-using sp=std::shared_ptr<T>;
-
 extern "C" int yylex();
 extern "C" int yyparse();
 extern "C" FILE *yyin;
 
+#define SPN(TYPE, ...) std::shared_ptr<TYPE>{new TYPE(__VA_ARGS__)}
+using namespace waveguide::grammar;
+template<class T> using sp=std::shared_ptr<T>;
+#define dpc std::dynamic_pointer_cast
+
 void yyerror(const char *s);
-std::vector<VarDec*> inlineDefs;
+std::vector<sp<VarDec>> inlineDefs;
 sp<StatList> result;
 %}
 
@@ -78,136 +79,162 @@ sp<StatList> result;
 %%
 
 root:
-	stats { $$ = sp<StatList>{new StatList($1)}; result = $$; }
+	stats { $$ = SPN(StatList, $1); result = $$;}
 
 stats:
-	stats stat { $$ = sp<StatList>{new StatList($1, $2)}; }
-	| stat { $$ = sp<StatList>{new StatList($1)}; }
-	| stats mstat { $$ = sp<StatList>{new StatList($1, $2)}; }
-	| mstat { $$ = sp<StatList>{new StatList($1)}; }
+	stats stat { $$ = SPN(StatList, $1, $2); }
+	| stat { $$ = SPN(StatList, $1); }
+	| stats mstat { $$ = SPN(StatList, $1, $2); }
+	| mstat { $$ = SPN(StatList, $1); }
 
 mstat:
 	vardec ';' { $$ = $1; }
-	| RETURN exp ';' { $$ = new StatList{new AssignStat{new AccessExp{
-		sp<IdentifierExp>{new IdentifierExp{"return"}}}, $2}, sp<ReturnStat>{new ReturnStat{}}}; }
+	| RETURN exp ';' { 
+		$$ = SPN(StatList, 
+			SPN(AssignStat, 
+				SPN(AccessExp, SPN(IdentifierExp, "return")), 
+				$2
+			), 
+			SPN(ReturnStat)
+		); 
+	}
 	| accessexp A exp ';' { 
-		$$ = new StatList(); 
-		for(VarDec* v : inlineDefs) 
+		$$ = SPN(StatList);
+		for(auto v : inlineDefs) 
 			$$->append(v); 
 		inlineDefs.clear(); 
-		$$->append(new AssignStat($1, $3)); } 
+		$$->append(SPN(AssignStat, $1, $3));
+	} 
 	| IDENTIFIER '(' explist ')' ':' '(' outlist ')' ';' { 
-		$$ = new StatList(); 
-		for(VarDec* v : inlineDefs) 
+		$$ = new StatList()); 
+		for(auto v : inlineDefs) 
 			$$->append(v); 
 		inlineDefs.clear(); 
-		$$->append(new FuncCallStat(new FuncCall($1, $3, $7))); }
+		$$->append(new FuncCallStat(new FuncCall($1, $3, $7)));
+	}
 	| IDENTIFIER '(' explist ')' ';' { 
-		$$ = new StatList(); 
-		$$->append(new FuncCallStat(new FuncCall($1, $3, new OutList()))); }
+		$$ = SPN(StatList); 
+		$$->append(SPN(FuncCallStat, SPN(FuncCall, $1, $3, SPN(OutList))));
+	}
 
 vardec:
-	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
+	type IDENTIFIER { $$ = SPN(StatList, SPN(VarDec, $1, $2)); }
 	| type IDENTIFIER A exp { 
-		$$ = new StatList(new VarDec($1, $2)); 
-		for(VarDec* v : inlineDefs) 
-			$$->append(v); inlineDefs.clear(); 
-		$$->append(new AssignStat(new AccessExp(new IdentifierExp($2)), $4)); }
-	| vardec ',' IDENTIFIER { $$ = new StatList($1, new VarDec(((VarDec*) $1->getStatements()[0])->getType(), $3)); }
+		$$ = SPN(StatList, SPN(VarDec, $1, $2)); 
+		for(auto v : inlineDefs) 
+			$$->append(v);
+		inlineDefs.clear(); 
+		$$->append(SPN(AssignStat, SPN(AccessExp, SPN(IdentifierExp, $2)), $4));
+	}
+	| vardec ',' IDENTIFIER { 
+		$$ = SPN(StatList, $1, 
+			SPN(VarDec, 
+				dpc<VarDec>($1->getStatements()[0])->getType(), 
+				$3
+			)
+		);
+	}
 	| vardec ',' IDENTIFIER A exp { 
-		$$ = new StatList($1, new VarDec(((VarDec*) $1->getStatements()[0])->getType(), $3));
-		$$->append(new AssignStat(new AccessExp(new IdentifierExp($3)), $5)); } 
+		$$ = SPN(StatList, 
+			$1, 
+			SPN(VarDec, 
+				dpc<VarDec>($1->getStatements()[0])->getType(), 
+				$3
+			)
+		);
+		$$->append(SPN(AssignStat, SPN(AccessExp, SPN(IdentifierExp, $3)), $5));
+	} 
 
 indec:
-	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
-	| indec ',' indec { $$ = new StatList($1, $3); }
+	type IDENTIFIER { $$ = SPN(StatList, SPN(VarDec, $1, $2)); }
+	| indec ',' indec { $$ = SPN(StatList, $1, $3); }
 
 indec2:
 	indec { $$ = $1; }
-	| %empty { $$ = new StatList(); }
+	| %empty { $$ = SPN(StatList); }
 
 outdec:
-	type IDENTIFIER { $$ = new StatList(new VarDec($1, $2)); }
-	| type RETURN { $$ = new StatList(new VarDec($1, "return")); }
-	| outdec ',' outdec { $$ = new StatList($1, $3); }
+	type IDENTIFIER { $$ = SPN(StatList, SPN(VarDec, $1, $2)); }
+	| type RETURN { $$ = SPN(StatList, SPN(VarDec, $1, "return")); }
+	| outdec ',' outdec { $$ = SPN(StatList, $1, $3); }
 
 explist:
-	exp { $$ = new ExpList($1); }
-	| explist ',' exp { $$ = new ExpList($1, $3); }
+	exp { $$ = SPN(ExpList, $1); }
+	| explist ',' exp { $$ = SPN(ExpList, $1, $3); }
 
 outlist:
-	RETURN { $$ = new OutList(new RetOut()); }
-	| NONE { $$ = new OutList(new NoneOut()); }
-	| accessexp { $$ = new OutList(new VarAccessOut($1)); }
+	RETURN { $$ = SPN(OutList, SPN(RetOut)); }
+	| NONE { $$ = SPN(OutList, SPN(NoneOut)); }
+	| accessexp { $$ = SPN(OutList, SPN(VarAccessOut, $1)); }
 	| type IDENTIFIER { 
-		$$ = new OutList(new VarAccessOut(new IdentifierExp($2))); 
-		inlineDefs.push_back(new VarDec($1, $2)); }
-	| outlist ',' outlist { $$ = new OutList($1, $3); }
+		$$ = SPN(OutList, SPN(VarAccessOut, SPN(IdentifierExp, $2))); 
+		inlineDefs.push_back(SPN(VarDec, $1, $2)); }
+	| outlist ',' outlist { $$ = SPN(OutList, $1, $3); }
 
 stat:
-	IDENTIFIER '(' indec2 ')' '{' stats '}' { $$ = new FuncDec($1, $3, new StatList(), $6); }
+	IDENTIFIER '(' indec2 ')' '{' stats '}' { $$ = SPN(FuncDec, $1, $3, SPN(StatList), $6); }
 	| IDENTIFIER '(' indec2 ')' ':' IDENTIFIER '{' stats '}' { 
-		$$ = new FuncDec($1, $3, new StatList(new VarDec(new TypeName($6), "return")), $8); }
-	| IDENTIFIER '(' indec2 ')' ':' '(' outdec ')' '{' stats '}' { $$ = new FuncDec($1, $3, $7, $10); }
+		$$ = SPN(FuncDec, $1, $3, SPN(StatList, SPN(VarDec, SPN(NamedDataType, $6), "return")), $8); }
+	| IDENTIFIER '(' indec2 ')' ':' '(' outdec ')' '{' stats '}' { $$ = SPN(FuncDec, $1, $3, $7, $10); }
 	| branch { $$ = $1; }
 	| branch ELSE '{' stats '}' { $1->addElse($4); $$ = $1; } 
-	| FOR '(' type IDENTIFIER OF explist ')' '{' stats '}' { $$ = new ForLoop(new VarDec($3, $4), $6, $9); }
-	| WHILE '(' exp ')' '{' stats '}' { $$ = new WhileLoop($3, $6); }
-	| RETURN ';' { $$ = new ReturnStat(); }
+	| FOR '(' type IDENTIFIER OF explist ')' '{' stats '}' { $$ = SPN(ForLoop, SPN(VarDec, $3, $4), $6, $9); }
+	| WHILE '(' exp ')' '{' stats '}' { $$ = SPN(WhileLoop, $3, $6); }
+	| RETURN ';' { $$ = SPN(ReturnStat); }
 
 branch:
-	IF '(' exp ')' '{' stats '}' { $$ = new Branch($3, $6); }
-	| branch ELIF '(' exp ')' '{' stats '}' { $$ = $1; $1->addElif(new Branch($4, $7)); }
+	IF '(' exp ')' '{' stats '}' { $$ = SPN(Branch, $3, $6); }
+	| branch ELIF '(' exp ')' '{' stats '}' { $$ = $1; $1->addElif(SPN(Branch, $4, $7)); }
 
 type:
-	IDENTIFIER { $$ = new TypeName($1); }
-	| type '[' exp ']' { $$ = new ArrayType($1, $3); }
+	IDENTIFIER { $$ = SPN(NamedDataType, $1); }
+	| type '[' exp ']' { $$ = SPN(ArrayDataType, $1, $3); }
 
 accessexp:
-	IDENTIFIER { $$ = new AccessExp(new IdentifierExp($1)); }
+	IDENTIFIER { $$ = SPN(AccessExp, SPN(IdentifierExp, $1)); }
 	| accessexp '[' exp ']' { $$ = $1; $$->addIndexAccessor($3); }
 
 exp:
-	exp '+' exp { $$ = new AddExp($1, $3); }
-	| exp '-' exp { $$ = new AddExp($1, new MulExp($3, new IntExp(-1))); }
-	| exp '*' exp { $$ = new MulExp($1, $3); }
-	| exp '/' exp { $$ = new MulExp($1, new RecipExp($3)); }
-	| exp '%' exp { $$ = new ModExp($1, $3); }
+	exp '+' exp { $$ = SPN(AddExp, $1, $3); }
+	| exp '-' exp { $$ = SPN(AddExp, $1, SPN(MulExp, $3, SPN(IntExp, -1))); }
+	| exp '*' exp { $$ = SPN(MulExp, $1, $3); }
+	| exp '/' exp { $$ = SPN(MulExp, $1, SPN(RecipExp, $3)); }
+	| exp '%' exp { $$ = SPN(ModExp, $1, $3); }
 	| '(' exp ')' { $$ = $2; }
-	| exp EQ exp { $$ = new EqExp($1, $3); }
-	| exp NEQ exp { $$ = new NeqExp($1, $3); }
-	| exp LTE exp { $$ = new LteExp($1, $3); }
-	| exp GTE exp { $$ = new GteExp($1, $3); }
-	| exp LT exp { $$ = new LtExp($1, $3); }
-	| exp GT exp { $$ = new GtExp($1, $3); }
-	| exp AND exp { $$ = new AndExp($1, $3); }
-	| exp OR exp { $$ = new OrExp($1, $3); }
-	| exp XOR exp { $$ = new XorExp($1, $3); }
-	| exp BAND exp { $$ = new BandExp($1, $3); }
-	| exp BOR exp { $$ = new BorExp($1, $3); }
-	| exp BXOR exp { $$ = new BxorExp($1, $3); }
+	| exp EQ exp { $$ = SPN(EqExp, $1, $3); }
+	| exp NEQ exp { $$ = SPN(NeqExp, $1, $3); }
+	| exp LTE exp { $$ = SPN(LteExp, $1, $3); }
+	| exp GTE exp { $$ = SPN(GteExp, $1, $3); }
+	| exp LT exp { $$ = SPN(LtExp, $1, $3); }
+	| exp GT exp { $$ = SPN(GtExp, $1, $3); }
+	| exp AND exp { $$ = SPN(AndExp, $1, $3); }
+	| exp OR exp { $$ = SPN(OrExp, $1, $3); }
+	| exp XOR exp { $$ = SPN(XorExp, $1, $3); }
+	| exp BAND exp { $$ = SPN(BandExp, $1, $3); }
+	| exp BOR exp { $$ = SPN(BorExp, $1, $3); }
+	| exp BXOR exp { $$ = SPN(BxorExp, $1, $3); }
 	| accessexp { $$ = $1; }
-	| INT { $$ = new IntExp($1); } 
-	| FLOAT { $$ = new FloatExp($1); }
-	| IDENTIFIER '(' explist ')' { $$ = new FuncCall($1, $3, new OutList(new RetOut())); } 
-	| IDENTIFIER '(' explist ')' ':' '(' outlist ')' { $$ = new FuncCall($1, $3, $7); }
-	| '[' explist ']' { $$ = new ArrayLiteral($2); }
-	| '{' exp ',' exp '}' { $$ = new Range($2, $4); }
-	| '{' exp ',' exp ',' exp '}' { $$ = new Range($2, $4, $6); }
+	| INT { $$ = SPN(IntExp, $1); } 
+	| FLOAT { $$ = SPN(FloatExp, $1); }
+	| IDENTIFIER '(' explist ')' { $$ = SPN(FuncCall, $1, $3, SPN(OutList, SPN(RetOut))); } 
+	| IDENTIFIER '(' explist ')' ':' '(' outlist ')' { $$ = SPN(FuncCall, $1, $3, $7); }
+	| '[' explist ']' { $$ = SPN(ArrayLiteral, $2); }
+	| '{' exp ',' exp '}' { $$ = SPN(Range, $2, $4); }
+	| '{' exp ',' exp ',' exp '}' { $$ = SPN(Range, $2, $4, $6); }
 
 %%
 
 int main(int, char**) {
 	FILE *input = fopen("sample.wg", "r");
 	if(!input) {
-		cerr << "Error opening sample.wg" << endl;
+		std::cerr << "Error opening sample.wg" << std::endl;
 		return -1;
 	}
 	yyin = input;
 	do { 
 		yyparse();
 	} while (!feof(yyin));
-	Com::Scope *root = Com::parseSyntaxTree(result);
-	Com::interpret(root);
+	sp<waveguide::intermediate::Scope> root = waveguide::convert::parseSyntaxTree(result);
+	//Com::interpret(root);
 }
 

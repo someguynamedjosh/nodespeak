@@ -6,7 +6,19 @@
 #include "intermediate/Scope.h"
 
 namespace waveguide {
-namespace convert {
+namespace grammar {
+
+using convert::Augmentation;
+using convert::AugmentationSP;
+using convert::Command;
+using convert::CommandSP;
+using convert::DataType;
+using convert::DTypeSP;
+using convert::Scope;
+using convert::ScopeSP;
+using convert::Value;
+using convert::ValueSP;
+using waveguide::convert;
 
 ValueSP grammar::IdentifierExp::getValue(ScopeSP context) {
     // TODO: Error for undefined identifier.
