@@ -23,10 +23,10 @@ using x3::rule;
     rule<struct RULE_NAME##_class, ATTRIBUTE_TYPE> const \
         RULE_NAME = #RULE_NAME
 
-RULE(basic_expr, ast::Expression);
-RULE(signed_expr, ast::Expression);
-RULE(multiply_expr, ast::Expression);
 RULE(add_expr, ast::Expression);
+RULE(multiply_expr, ast::Expression);
+RULE(signed_expr, ast::Expression);
+RULE(basic_expr, ast::Expression);
 
 root_rule_type const root_rule = "root_rule";
 
@@ -40,27 +40,29 @@ using x3::double_;
 using x3::int_;
 using x3::bool_;
 using x3::char_;
+using x3::string;
 using x3::attr;
-using x3::lit;
+using x3::string;
 using x3::repeat;
 
 // Used to 'cast' an attribute of a rule.
 template <typename T> 
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 
+
 // Addition expressions: a + b - c + d etc.
 auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
-        char_('+') >> basic_expr
-        | char_('/') >> basic_expr
+        string("+") >> basic_expr
+        | string("/") >> basic_expr
     )
 );
 
 // Multiplication expressions: a * b / c * d etc.
 auto const multiply_expr_def = as<ast::OperatorListExpression>(
     signed_expr >> *(
-        char_('*') >> basic_expr
-        | char_('/') >> basic_expr
+        string("*") >> basic_expr
+        | string("/") >> basic_expr
     )
 );
 
@@ -72,7 +74,9 @@ auto const signed_expr_def =
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
-    double_
+    int_
+    | double_
+    | bool_
     | '(' >> add_expr >> ')';
 
 auto const root_rule_def =

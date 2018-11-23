@@ -18,7 +18,7 @@ struct FunctionExpression {
 };
 
 struct OperatorExpression {
-    char op_char;
+    std::string op_char;
     x3::forward_ast<Expression> value;
 };
 
