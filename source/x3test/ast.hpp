@@ -10,36 +10,43 @@ namespace ast {
 
 namespace x3 = boost::spirit::x3;
 
-struct Expression;
+struct FunctionExpression;
+struct OperatorListExpression;
+struct SignedExpression;
+struct VariableExpression;
+
+struct Expression: x3::variant<
+    int, double, bool, 
+    x3::forward_ast<FunctionExpression>, 
+    x3::forward_ast<VariableExpression>,
+    x3::forward_ast<OperatorListExpression>, 
+    x3::forward_ast<SignedExpression>> {
+    using base_type::base_type;
+    using base_type::operator=;
+};
 
 struct FunctionExpression {
     std::string functionName;
-    std::vector<x3::forward_ast<Expression>> inputs;
+    std::vector<Expression> inputs;
 };
 
 struct OperatorExpression {
     std::string op_char;
-    x3::forward_ast<Expression> value;
+    Expression value;
 };
 
 struct OperatorListExpression {
-    x3::forward_ast<Expression> start_value;
+    Expression start_value;
     std::vector<OperatorExpression> operations;
 };
 
 struct SignedExpression {
     char sign;
-    x3::forward_ast<Expression> value;
+    Expression value;
 };
 
 struct VariableExpression {
     std::string name;
-};
-
-struct Expression: x3::variant<int, double, bool, FunctionExpression, 
-    OperatorListExpression, SignedExpression, VariableExpression> {
-    using base_type::base_type;
-    using base_type::operator=;
 };
 
 }
