@@ -100,7 +100,6 @@ auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
         string("+") >> multiply_expr
         | string("/") >> multiply_expr
-        | string("%") >> multiply_expr
     )
 );
 
@@ -109,6 +108,7 @@ auto const multiply_expr_def = as<ast::OperatorListExpression>(
     signed_expr >> *(
         string("*") >> signed_expr
         | string("/") >> signed_expr 
+        | string("%") >> signed_expr
     )
 );
 
