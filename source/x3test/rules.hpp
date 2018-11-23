@@ -31,11 +31,18 @@ RULE(add_expr, ast::Expression);
 RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
+RULE(variable_expr, ast::VariableExpression);
+RULE(function_expr, ast::FunctionExpression);
 auto expr = logic_expr; // Top-level expression.
 
 RULE(data_type, ast::DataType);
 RULE(array_data_type, ast::ArrayDataType);
 RULE(plain_data_type, ast::PlainDataType);
+
+RULE(statement, ast::Statement);
+RULE(function_statement, ast::FunctionStatement);
+RULE(assign_statement, ast::AssignStatement);
+//RULE(var_dec_statement, ast::VarDecStatement);
 
 RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
@@ -128,8 +135,16 @@ auto const basic_expr_def =
     | double_
     | bool_
     | '(' >> expr >> ')'
-    | as<ast::FunctionExpression>(identifier >> '(' >> (expr % ',') >> ')')
-    | as<ast::VariableExpression>(identifier);
+    | function_expr
+    | variable_expr;
+
+// Variable access
+auto const variable_expr_def =
+    as<ast::VariableExpression>(identifier);
+
+// Function calls.
+auto const function_expr_def =
+    as<ast::FunctionExpression>(identifier >> '(' >> (expr % ',') >> ')');
 
 
 
@@ -144,18 +159,36 @@ auto const plain_data_type_def =
 
 
 
+auto const statement_def =
+    function_statement | assign_statement;
+
+auto const function_statement_def =
+    function_expr >> ';';
+
+auto const assign_statement_def =
+    variable_expr >> '=' >> expr >> ';';
+
+/*
+auto const var_dec_statement_def =
+    data_type >> +as<ast::VarDec>(
+        identifier >> -('=' >> expr)
+    );
+    */
+
+
+
 auto const identifier_def =
     lexeme[(alpha | '_') >> *(alnum | '_')];
 
 auto const root_rule_def =
-   expr;
+   statement;
+
 
 
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
-    multiply_expr, signed_expr, basic_expr)
-
+    multiply_expr, signed_expr, basic_expr, variable_expr, function_expr)
 BOOST_SPIRIT_DEFINE(data_type, array_data_type, plain_data_type)
-
+BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)
 
 }
