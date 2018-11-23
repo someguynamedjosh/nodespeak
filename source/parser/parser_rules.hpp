@@ -110,7 +110,7 @@ auto const compare_expr_def = as<ast::OperatorListExpression>(
 auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
         string("+") >> multiply_expr
-        | string("/") >> multiply_expr
+        | string("-") >> multiply_expr
     )
 );
 
@@ -131,8 +131,8 @@ auto const signed_expr_def =
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
-    int_
-    | double_
+    double_
+    | int_
     | bool_
     | '(' >> expr >> ')'
     | function_expr
@@ -149,7 +149,7 @@ auto const function_expr_def =
 
 
 auto const data_type_def = 
-    plain_data_type | array_data_type;
+    array_data_type | plain_data_type;
 
 auto const array_data_type_def =
     data_type >> '[' >> expr >> ']';
@@ -160,7 +160,7 @@ auto const plain_data_type_def =
 
 
 auto const statement_def =
-    function_statement | assign_statement | var_dec_statement;
+    var_dec_statement | function_statement | assign_statement;
 
 auto const function_statement_def =
     function_expr >> ';';

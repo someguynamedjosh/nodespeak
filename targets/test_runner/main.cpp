@@ -8,7 +8,7 @@
 int main() {
     std::vector<std::string> tests{
         "Int a;", "Int a, b;", "Int a = 1, b;", "Int a, b = 1;", 
-        "Int a, b = 1, c;", "test_func(1);", "f(1.0);", "f(0.1);", "f(.1);",
+        "Int a, b = 1, c;", "test_func(1);", "func(1.0);", "f(0.1);", "f(.1);",
         "f(true);", "f(false);", "f(test_var);", "f(1 + 1);", "f(1 - 1);", 
         "f(1 * 1);", "f(1 / 1);", "f(1 % 1);", "f(1 * 1 / 1 % 1);", 
         "f(1 + 1 - 1);", "f(1 + 1 * 1 + 1);", "f(1 == 1 and 1 != 1);", 
