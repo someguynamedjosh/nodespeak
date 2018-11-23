@@ -23,12 +23,15 @@ using x3::rule;
     rule<struct RULE_NAME##_class, ATTRIBUTE_TYPE> const \
         RULE_NAME = #RULE_NAME
 
+RULE(logic_expr, ast::Expression);
+RULE(blogic_expr, ast::Expression);
 RULE(equal_expr, ast::Expression);
 RULE(compare_expr, ast::Expression);
 RULE(add_expr, ast::Expression);
 RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
+auto expr = logic_expr; // Top-level expression.
 
 root_rule_type const root_rule = "root_rule";
 
@@ -50,6 +53,24 @@ using x3::repeat;
 // Used to 'cast' an attribute of a rule.
 template <typename T> 
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
+
+// Logic expressions
+auto const logic_expr_def = as<ast::OperatorListExpression>(
+    blogic_expr >> *(
+        string("and") >> blogic_expr
+        | string("or") >> blogic_expr
+        | string("xor") >> blogic_expr
+    )
+);
+
+// Bitwise logic expression
+auto const blogic_expr_def = as<ast::OperatorListExpression>(
+    equal_expr >> *(
+        string("band") >> equal_expr
+        | string("bor") >> equal_expr
+        | string("bxor") >> equal_expr
+    )
+);
 
 // Equality expression: ==, !=
 auto const equal_expr_def = as<ast::OperatorListExpression>(
@@ -100,11 +121,11 @@ auto const basic_expr_def =
     | '(' >> add_expr >> ')';
 
 auto const root_rule_def =
-    equal_expr;
+   expr;
 
 
-BOOST_SPIRIT_DEFINE(equal_expr, compare_expr, add_expr, multiply_expr, 
-    signed_expr, basic_expr, root_rule)
+BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
+    multiply_expr, signed_expr, basic_expr, root_rule)
 
 }
 }
