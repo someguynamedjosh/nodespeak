@@ -32,6 +32,7 @@ RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
 auto expr = logic_expr; // Top-level expression.
+RULE(identifier, std::string);
 
 root_rule_type const root_rule = "root_rule";
 
@@ -46,9 +47,13 @@ using x3::int_;
 using x3::bool_;
 using x3::char_;
 using x3::string;
+using x3::alpha;
+using x3::alnum;
+
 using x3::attr;
 using x3::string;
 using x3::repeat;
+using x3::lexeme;
 
 // Used to 'cast' an attribute of a rule.
 template <typename T> 
@@ -118,14 +123,19 @@ auto const basic_expr_def =
     int_
     | double_
     | bool_
-    | '(' >> add_expr >> ')';
+    | '(' >> expr >> ')'
+    | as<ast::FunctionExpression>(identifier >> '(' >> (expr % ',') >> ')')
+    | as<ast::VariableExpression>(identifier);
+
+auto const identifier_def =
+    lexeme[(alpha | '_') >> *(alnum | '_')];
 
 auto const root_rule_def =
    expr;
 
 
-BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
-    multiply_expr, signed_expr, basic_expr, root_rule)
+BOOST_SPIRIT_DEFINE(root_rule, logic_expr, blogic_expr, equal_expr, 
+    compare_expr, add_expr, multiply_expr, signed_expr, basic_expr, identifier)
 
 }
 }

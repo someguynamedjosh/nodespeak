@@ -20,6 +20,11 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::VariableExpression,
+    name
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::OperatorListExpression,
     start_value, operations
 )

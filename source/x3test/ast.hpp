@@ -32,8 +32,12 @@ struct SignedExpression {
     x3::forward_ast<Expression> value;
 };
 
+struct VariableExpression {
+    std::string name;
+};
+
 struct Expression: x3::variant<int, double, bool, FunctionExpression, 
-    OperatorListExpression, SignedExpression> {
+    OperatorListExpression, SignedExpression, VariableExpression> {
     using base_type::base_type;
     using base_type::operator=;
 };
