@@ -53,16 +53,16 @@ static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 // Addition expressions: a + b - c + d etc.
 auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
-        string("+") >> basic_expr
-        | string("/") >> basic_expr
+        string("+") >> multiply_expr
+        | string("/") >> multiply_expr
     )
 );
 
 // Multiplication expressions: a * b / c * d etc.
 auto const multiply_expr_def = as<ast::OperatorListExpression>(
     signed_expr >> *(
-        string("*") >> basic_expr
-        | string("/") >> basic_expr
+        string("*") >> signed_expr
+        | string("/") >> signed_expr 
     )
 );
 
