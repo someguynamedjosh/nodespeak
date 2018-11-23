@@ -34,7 +34,10 @@ struct AstPrinter: boost::static_visitor<> {
 
     void operator()(FunctionExpression const&expr) const {
         std::cout << expr.functionName << '(';
+        bool first = true;
         for (auto const&input : expr.inputs) {
+            if (!first) std::cout << ", ";
+            first = false;
             recurse(input);
         }
         std::cout << ')';
