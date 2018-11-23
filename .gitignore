@@ -3,7 +3,6 @@ __pycache__
 .*.swo
 *.tab.*
 *.output
-waveguide
 lex.yy.c
 .vim*
 a.out
