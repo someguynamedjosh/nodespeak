@@ -42,7 +42,7 @@ RULE(plain_data_type, ast::PlainDataType);
 RULE(statement, ast::Statement);
 RULE(function_statement, ast::FunctionStatement);
 RULE(assign_statement, ast::AssignStatement);
-//RULE(var_dec_statement, ast::VarDecStatement);
+RULE(var_dec_statement, ast::VarDecStatement);
 
 RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
@@ -168,12 +168,10 @@ auto const function_statement_def =
 auto const assign_statement_def =
     variable_expr >> '=' >> expr >> ';';
 
-/*
 auto const var_dec_statement_def =
     data_type >> +as<ast::VarDec>(
         identifier >> -('=' >> expr)
     );
-    */
 
 
 
@@ -188,7 +186,7 @@ auto const root_rule_def =
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
     multiply_expr, signed_expr, basic_expr, variable_expr, function_expr)
 BOOST_SPIRIT_DEFINE(data_type, array_data_type, plain_data_type)
-BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement)
+BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, var_dec_statement)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)
 
 }
