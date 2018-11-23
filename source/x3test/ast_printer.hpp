@@ -67,7 +67,7 @@ struct AstPrinter: boost::static_visitor<> {
     }
 
     void operator()(PlainDataType const&type) const {
-        std::cout << "type:" << type.name << std::endl;
+        std::cout << "type:" << type.name;
     }
 
     void operator()(ArrayDataType const&type) const {
@@ -104,6 +104,7 @@ struct AstPrinter: boost::static_visitor<> {
         print_indent();
         std::cout << "declare, ";
         recurse(stat.type);
+        std::cout << " ";
         bool first = true;
         for (auto const&dec : stat.var_decs) {
             if (!first) std::cout << ", ";
