@@ -23,6 +23,8 @@ using x3::rule;
     rule<struct RULE_NAME##_class, ATTRIBUTE_TYPE> const \
         RULE_NAME = #RULE_NAME
 
+RULE(equal_expr, ast::Expression);
+RULE(compare_expr, ast::Expression);
 RULE(add_expr, ast::Expression);
 RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
@@ -49,12 +51,30 @@ using x3::repeat;
 template <typename T> 
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 
+// Equality expression: ==, !=
+auto const equal_expr_def = as<ast::OperatorListExpression>(
+    compare_expr >> *(
+        string("==") >> compare_expr
+        | string("!=") >> compare_expr
+    )
+);
+
+// Comparison expression: >=, <, etc.
+auto const compare_expr_def = as<ast::OperatorListExpression>(
+    add_expr >> *(
+        string(">") >> add_expr
+        | string("<") >> add_expr
+        | string(">=") >> add_expr
+        | string("<=") >> add_expr
+    )
+);
 
 // Addition expressions: a + b - c + d etc.
 auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
         string("+") >> multiply_expr
         | string("/") >> multiply_expr
+        | string("%") >> multiply_expr
     )
 );
 
@@ -80,11 +100,11 @@ auto const basic_expr_def =
     | '(' >> add_expr >> ')';
 
 auto const root_rule_def =
-    add_expr;
+    equal_expr;
 
 
-BOOST_SPIRIT_DEFINE(add_expr, multiply_expr, signed_expr, basic_expr, 
-    root_rule)
+BOOST_SPIRIT_DEFINE(equal_expr, compare_expr, add_expr, multiply_expr, 
+    signed_expr, basic_expr, root_rule)
 
 }
 }
