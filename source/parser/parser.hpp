@@ -15,7 +15,12 @@ using root_type = ast::Statement;
 using root_rule_type = rule<root_class, root_type>;
 BOOST_SPIRIT_DECLARE(root_rule_type)
 
-root_type parse(std::string input);
+struct ParseResult {
+    root_type ast;
+    int error = 0;
+};
+
+ParseResult parse(std::string input);
 
 }
 }

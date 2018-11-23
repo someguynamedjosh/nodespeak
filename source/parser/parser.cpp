@@ -16,15 +16,15 @@ BOOST_SPIRIT_INSTANTIATE(
     iterator_type,
     context_type)
 
-root_type parse(std::string input) {
-    root_type result;
+ParseResult parse(std::string input) {
+    ParseResult result;
     iterator_type start = input.begin(), end = input.end();
     
     bool success = phrase_parse(start, end, root_rule, x3::ascii::space, 
-        result);
+        result.ast);
 
     success &= start == end;
-    std::cout << success << std::endl;
+    result.error = success ? 0 : 1;
     return result;
 }
 

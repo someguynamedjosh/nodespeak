@@ -7,6 +7,8 @@
 int main() {
     std::string code = "Int a, b, c;";
     auto result = waveguide::parser::parse(code);
-    waveguide::ast::print_ast(result);
+    std::cout << 
+        (result.error ? "Compile failed!" : "Compile suceeded!") << std::endl;
+    waveguide::ast::print_ast(result.ast);
     return 0;
 }
