@@ -36,8 +36,6 @@ RULE(function_expr, ast::FunctionExpression);
 auto expr = logic_expr; // Top-level expression.
 
 RULE(data_type, ast::DataType);
-RULE(array_data_type, ast::ArrayDataType);
-RULE(plain_data_type, ast::PlainDataType);
 
 RULE(statement, ast::Statement);
 RULE(function_statement, ast::FunctionStatement);
@@ -149,13 +147,7 @@ auto const function_expr_def =
 
 
 auto const data_type_def = 
-    array_data_type | plain_data_type;
-
-auto const array_data_type_def =
-    data_type >> '[' >> expr >> ']';
-
-auto const plain_data_type_def =
-    identifier;
+    identifier >> *('[' >> expr >> ']');
 
 
 
@@ -186,7 +178,7 @@ auto const root_rule_def =
 
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
     multiply_expr, signed_expr, basic_expr, variable_expr, function_expr)
-BOOST_SPIRIT_DEFINE(data_type, array_data_type, plain_data_type)
+BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, var_dec_statement)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)
 

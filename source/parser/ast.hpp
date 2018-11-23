@@ -51,23 +51,9 @@ struct VariableExpression {
 
 
 
-struct PlainDataType;
-struct ArrayDataType;
-
-struct DataType: x3::variant<
-    x3::forward_ast<PlainDataType>,
-    x3::forward_ast<ArrayDataType>> {
-    using base_type::base_type;
-    using base_type::operator=;
-};
-
-struct PlainDataType {
+struct DataType {
     std::string name;
-};
-
-struct ArrayDataType {
-    DataType base;
-    Expression size;
+    std::vector<Expression> array_sizes;
 };
 
 

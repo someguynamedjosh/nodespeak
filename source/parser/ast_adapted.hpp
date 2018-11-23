@@ -32,13 +32,8 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::PlainDataType,
-    name
-)
-
-BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::ArrayDataType,
-    base, size
+    waveguide::ast::DataType,
+    name, array_sizes
 )
 
 

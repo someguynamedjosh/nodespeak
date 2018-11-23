@@ -66,15 +66,13 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << expr.name;
     }
 
-    void operator()(PlainDataType const&type) const {
-        std::cout << "type:" << type.name;
-    }
-
-    void operator()(ArrayDataType const&type) const {
-        recurse(type.base);
-        std::cout << '[';
-        recurse(type.size);
-        std::cout << ']';
+    void operator()(DataType const&type) const {
+        std::cout << type.name;
+        for (auto &size : type.array_sizes) {
+            std::cout << '[';
+            recurse(size);
+            std::cout << ']';
+        }
     }
 
     void operator()(FunctionStatement const&stat) const {
@@ -103,7 +101,7 @@ struct AstPrinter: boost::static_visitor<> {
     void operator()(VarDecStatement const&stat) const {
         print_indent();
         std::cout << "declare, ";
-        recurse(stat.type);
+        (*this)(stat.type);
         std::cout << " ";
         bool first = true;
         for (auto const&dec : stat.var_decs) {
