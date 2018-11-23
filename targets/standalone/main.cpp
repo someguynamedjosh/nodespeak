@@ -1,10 +1,8 @@
 #include <iostream>
 #include <string>
 
-#include "ast.hpp"
-#include "ast_adapted.hpp"
-#include "ast_printer.hpp"
-#include "parser.hpp"
+#include "parser/parser.hpp"
+#include "parser/util.hpp"
 
 int main() {
     std::string code = "Int a, b, c;";
