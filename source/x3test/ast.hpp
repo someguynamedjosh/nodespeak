@@ -49,5 +49,68 @@ struct VariableExpression {
     std::string name;
 };
 
+
+
+struct PlainDataType;
+struct ArrayDataType;
+
+struct DataType: x3::variant<
+    x3::forward_ast<PlainDataType>,
+    x3::forward_ast<ArrayDataType>> {
+    using base_type::base_type;
+    using base_type::operator=;
+};
+
+struct PlainDataType {
+    std::string name;
+};
+
+struct ArrayDataType {
+    DataType base;
+    Expression size;
+};
+
+
+
+struct FunctionStatement;
+struct AssignStatement;
+struct VarDecStatement;
+
+struct Statement: x3::variant<
+    x3::forward_ast<FunctionStatement>,
+    x3::forward_ast<AssignStatement>,
+    x3::forward_ast<VarDecStatement>> {
+    using base_type::base_type;
+    using base_type::operator=;
+};
+
+struct FunctionStatement {
+    FunctionExpression func_call;
+};
+
+struct AssignStatement {
+    VariableExpression assign_to;
+    Expression value;
+};
+
+struct PlainVarDec {
+    std::string name;
+};
+
+struct InitVarDec {
+    std::string name;
+    Expression value;
+};
+
+struct VarDec: x3::variant<PlainVarDec, InitVarDec> {
+    using base_type::base_type;
+    using base_type::operator=;
+};
+
+struct VarDecStatement {
+    DataType type;
+    std::vector<VarDec> var_decs;
+};
+
 }
 }
