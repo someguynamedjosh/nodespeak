@@ -9,7 +9,7 @@ namespace parser {
 
 namespace x3 = boost::spirit::x3;
 
-BOOST_SPIRIT_INSTANTIATE(root_rule_type, iterator_type, context_type);
+BOOST_SPIRIT_INSTANTIATE(root_rule_type, iterator_type, context_type)
 
 root_type parse(std::string input) {
     ast::Expression result;

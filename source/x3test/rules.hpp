@@ -21,7 +21,7 @@ using x3::rule;
 
 #define RULE(RULE_NAME, ATTRIBUTE_TYPE) \
     rule<struct RULE_NAME##_class, ATTRIBUTE_TYPE> const \
-        RULE_NAME = #RULE_NAME;
+        RULE_NAME = #RULE_NAME
 
 RULE(basic_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
@@ -90,7 +90,7 @@ auto const root_rule_def =
 
 
 BOOST_SPIRIT_DEFINE(add_expr, multiply_expr, signed_expr, basic_expr, 
-    root_rule);
+    root_rule)
 
 }
 }
