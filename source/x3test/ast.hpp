@@ -105,6 +105,8 @@ struct InitVarDec {
 struct VarDec: x3::variant<PlainVarDec, InitVarDec> {
     using base_type::base_type;
     using base_type::operator=;
+    void operator=(VarDec const&dec) { base_type::operator=(dec); }
+    VarDec(VarDec &dec) : x3::variant<PlainVarDec, InitVarDec>(dec) { }
     VarDec(VarDec const&dec) : x3::variant<PlainVarDec, InitVarDec>(dec) { }
 };
 
