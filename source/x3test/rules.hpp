@@ -28,7 +28,7 @@ RULE(signed_expr, ast::Expression);
 RULE(multiply_expr, ast::Expression);
 RULE(add_expr, ast::Expression);
 
-root_type const root = "root";
+root_rule_type const root_rule = "root_rule";
 
 #undef RULE
 
@@ -85,16 +85,12 @@ auto const basic_expr_def =
     double_
     | '(' >> add_expr >> ')';
 
-auto const root_def =
+auto const root_rule_def =
     add_expr;
 
 
-BOOST_SPIRIT_DEFINE(add_expr, multiply_expr, signed_expr, basic_expr, root);
+BOOST_SPIRIT_DEFINE(add_expr, multiply_expr, signed_expr, basic_expr, 
+    root_rule);
 
 }
-
-parser::root_type root() {
-    return parser::root;
-}
-
 }
