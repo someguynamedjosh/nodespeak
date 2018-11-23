@@ -15,7 +15,9 @@ int main() {
         "f(1 and 1 or 1 xor 1);", "f(1 band 1 bor 1 bxor 1);", 
         "f(1 > 1 and 1 < 1 and 1 >= 1 and 1 <= 1);", "f(g(h(test_var)));",
         "Int a = 1;", "Int[12] b;", "Int[12][12] c;", "Int[12+4][4] d;",
-        "a = 1;", "b = 123 + 456;", "c = f(g(d + 12 / 34));"
+        "a = 1;", "b = 123 + 456;", "c = f(g(d + 12 / 34));",
+        "a[1] = 1;", "a[1][2] = 12;", "a[1] = b[1];", "a[1][2] = b[1][2];",
+        "test_func(a[1]);", "test_func(a):(b);", "test_func(sin(12)):(a[12]);"
     };
 
     uint successes = 0;

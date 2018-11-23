@@ -25,11 +25,6 @@ struct Expression: x3::variant<
     using base_type::operator=;
 };
 
-struct FunctionExpression {
-    std::string functionName;
-    std::vector<Expression> inputs;
-};
-
 struct OperatorExpression {
     std::string op_char;
     Expression value;
@@ -47,6 +42,13 @@ struct SignedExpression {
 
 struct VariableExpression {
     std::string name;
+    std::vector<Expression> array_accesses;
+};
+
+struct FunctionExpression {
+    std::string functionName;
+    std::vector<Expression> inputs;
+    std::vector<VariableExpression> outputs;
 };
 
 

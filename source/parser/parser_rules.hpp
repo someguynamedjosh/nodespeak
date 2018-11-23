@@ -63,6 +63,7 @@ using x3::attr;
 using x3::string;
 using x3::repeat;
 using x3::lexeme;
+using x3::lit;
 
 // Used to 'cast' an attribute of a rule.
 template <typename T> 
@@ -138,11 +139,13 @@ auto const basic_expr_def =
 
 // Variable access
 auto const variable_expr_def =
-    as<ast::VariableExpression>(identifier);
+    identifier >> *('[' >> expr >> ']');
 
 // Function calls.
-auto const function_expr_def =
-    as<ast::FunctionExpression>(identifier >> '(' >> (expr % ',') >> ')');
+auto const function_expr_def = as<ast::FunctionExpression>(
+    identifier >> '(' >> (expr % ',') >> ')' 
+        >> -(lit(':') >> '(' >> (variable_expr % ',') >> ')')
+);
 
 
 

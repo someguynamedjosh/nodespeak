@@ -6,7 +6,7 @@
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::FunctionExpression,
-    functionName, inputs
+    functionName, inputs, outputs
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -21,7 +21,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::VariableExpression,
-    name
+    name, array_accesses
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
