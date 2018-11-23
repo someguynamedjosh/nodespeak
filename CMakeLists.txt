@@ -15,6 +15,7 @@ set(SPIRIT_DIR spirit)
 
 set(STATIC_LIB_TARGET waveguide)
 set(STANDALONE_TARGET waveguide_standalone)
+set(TEST_RUNNER_TARGET waveguide_test_runner)
 
 set(TARGET ${STATIC_LIB_TARGET})
 file(GLOB_RECURSE SRC_FILES ${SOURCE_DIR}/*.cpp)
@@ -25,6 +26,14 @@ target_link_libraries(${TARGET} boost_system)
 
 set(TARGET ${STANDALONE_TARGET})
 set(TARGET_SOURCE_DIR targets/standalone/)
+file(GLOB_RECURSE SRC_FILES ${TARGET_SOURCE_DIR}/*.cpp)
+add_executable(${TARGET} ${SRC_FILES})
+add_dependencies(${TARGET} ${STATIC_LIB_TARGET})
+target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIR})
+target_link_libraries(${TARGET} ${STATIC_LIB_TARGET})
+
+set(TARGET ${TEST_RUNNER_TARGET})
+set(TARGET_SOURCE_DIR targets/test_runner/)
 file(GLOB_RECURSE SRC_FILES ${TARGET_SOURCE_DIR}/*.cpp)
 add_executable(${TARGET} ${SRC_FILES})
 add_dependencies(${TARGET} ${STATIC_LIB_TARGET})
