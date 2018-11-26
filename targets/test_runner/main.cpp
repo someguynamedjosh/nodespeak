@@ -18,8 +18,8 @@ int main() {
         "a = 1;", "b = 123 + 456;", "c = f(g(d + 12 / 34));",
         "a[1] = 1;", "a[1][2] = 12;", "a[1] = b[1];", "a[1][2] = b[1][2];",
         "test_func(a[1]);", "test_func(a):(b);", "test_func(sin(12)):(a[12]);",
-        "if(a) { b = 1; } else { b = 2;};", "test(a):(b) { c = 1; };", 
-        "func { d = 1; };", "if(a):(b) (Int c){};"
+        "if (a) then { b = 1; } else { b = 2;};", "test(a):(b) l { c = 1; };", 
+        "func l { d = 1; };", "if(a):(b) then (Int c){};"
     };
 
     uint successes = 0;
