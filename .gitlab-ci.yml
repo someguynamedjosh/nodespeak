@@ -1,14 +1,14 @@
 before_script:
-	- apt update -qq && apt install libboost-system-dev
+  - apt update -qq && apt install libboost-system-dev
 
 build:
-	script:
-		- mkdir build
-		- cd build
-		- cmake ..
-		- make
+  script:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
 
 test:
-	script:
-		- cd build
-		- ./waveguide_test_runner
+  script:
+    - cd build
+    - ./waveguide_test_runner
