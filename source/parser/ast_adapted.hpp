@@ -5,9 +5,23 @@
 #include "ast.hpp"
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionExpression,
-    functionName, inputs, outputs
+    waveguide::ast::DataType,
+    name, array_sizes
 )
+
+
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::FunctionInputDec,
+    type, name
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::FunctionDec,
+    name, inputs, outputs, body
+)
+
+
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::OperatorExpression,
@@ -29,11 +43,9 @@ BOOST_FUSION_ADAPT_STRUCT(
     start_value, operations
 )
 
-
-
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::DataType,
-    name, array_sizes
+    waveguide::ast::FunctionExpression,
+    functionName, inputs, outputs, lambdas
 )
 
 

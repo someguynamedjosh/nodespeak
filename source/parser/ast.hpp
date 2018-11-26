@@ -10,6 +10,22 @@ namespace ast {
 
 namespace x3 = boost::spirit::x3;
 
+struct FunctionStatement;
+struct AssignStatement;
+struct VarDecStatement;
+
+using StatementVariant = x3::variant<
+    x3::forward_ast<FunctionStatement>,
+    x3::forward_ast<AssignStatement>,
+    x3::forward_ast<VarDecStatement>>;
+struct Statement: StatementVariant {
+    using base_type::base_type;
+    using base_type::operator=;
+    void operator=(Statement const&stat) { base_type::operator=(stat); }
+    Statement(Statement &stat) : StatementVariant(stat) { }
+    Statement(Statement const&stat) : StatementVariant(stat) { }
+};
+
 struct FunctionExpression;
 struct OperatorListExpression;
 struct SignedExpression;
@@ -24,6 +40,28 @@ struct Expression: x3::variant<
     using base_type::base_type;
     using base_type::operator=;
 };
+
+
+
+struct DataType {
+    std::string name;
+    std::vector<Expression> array_sizes;
+};
+
+
+
+struct FunctionInputDec {
+    DataType type;
+    std::string name;
+};
+
+struct FunctionDec {
+    std::string name;
+    std::vector<FunctionInputDec> inputs, outputs;
+    std::vector<Statement> body;
+};
+
+
 
 struct OperatorExpression {
     std::string op_char;
@@ -49,28 +87,10 @@ struct FunctionExpression {
     std::string functionName;
     std::vector<Expression> inputs;
     std::vector<VariableExpression> outputs;
+    std::vector<FunctionDec> lambdas;
 };
 
 
-
-struct DataType {
-    std::string name;
-    std::vector<Expression> array_sizes;
-};
-
-
-
-struct FunctionStatement;
-struct AssignStatement;
-struct VarDecStatement;
-
-struct Statement: x3::variant<
-    x3::forward_ast<FunctionStatement>,
-    x3::forward_ast<AssignStatement>,
-    x3::forward_ast<VarDecStatement>> {
-    using base_type::base_type;
-    using base_type::operator=;
-};
 
 struct FunctionStatement {
     FunctionExpression func_call;

@@ -33,6 +33,9 @@ RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
 RULE(variable_expr, ast::VariableExpression);
 RULE(function_expr, ast::FunctionExpression);
+RULE(noin_function_expr, ast::FunctionExpression);
+RULE(justl_function_expr, ast::FunctionExpression);
+RULE(default_function_expr, ast::FunctionExpression);
 auto expr = logic_expr; // Top-level expression.
 
 RULE(data_type, ast::DataType);
@@ -41,6 +44,9 @@ RULE(statement, ast::Statement);
 RULE(function_statement, ast::FunctionStatement);
 RULE(assign_statement, ast::AssignStatement);
 RULE(var_dec_statement, ast::VarDecStatement);
+
+RULE(function_input_dec, ast::FunctionInputDec);
+RULE(function_dec, ast::FunctionDec);
 
 RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
@@ -142,9 +148,28 @@ auto const variable_expr_def =
     identifier >> *('[' >> expr >> ']');
 
 // Function calls.
-auto const function_expr_def = as<ast::FunctionExpression>(
-    identifier >> '(' >> (expr % ',') >> ')' 
+auto const function_expr_def = 
+    justl_function_expr | noin_function_expr | default_function_expr;
+
+auto const justl_function_expr_def = as<ast::FunctionExpression>(
+    identifier
+        >> repeat(0)[expr]
+        >> repeat(0)[variable_expr]
+        >> +function_dec
+);
+
+auto const noin_function_expr_def = as<ast::FunctionExpression>(
+    identifier
+        >> repeat(0)[expr]
+        >> (lit(':') >> '(' >> (variable_expr % ',') >> ')')
+        >> *function_dec
+);
+
+auto const default_function_expr_def = as<ast::FunctionExpression>(
+    identifier
+        >> ('(' >> (expr % ',') >> ')')
         >> -(lit(':') >> '(' >> (variable_expr % ',') >> ')')
+        >> *function_dec
 );
 
 
@@ -171,6 +196,17 @@ auto const var_dec_statement_def =
 
 
 
+auto const function_input_dec_def =
+    data_type >> identifier;
+
+auto const function_dec_def = 
+    identifier 
+        >> -('(' >> function_input_dec % ',' >> ')') 
+        >> -(lit(':') >> '(' >> function_input_dec % ',' >> ')') 
+        >> ('{' >> *statement >> '}');
+
+
+
 auto const identifier_def =
     lexeme[(alpha | '_') >> *(alnum | '_')];
 
@@ -180,9 +216,11 @@ auto const root_rule_def =
 
 
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
-    multiply_expr, signed_expr, basic_expr, variable_expr, function_expr)
+    multiply_expr, signed_expr, basic_expr, variable_expr, function_expr,
+    noin_function_expr, justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, var_dec_statement)
+BOOST_SPIRIT_DEFINE(function_input_dec, function_dec)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)
 
 }
