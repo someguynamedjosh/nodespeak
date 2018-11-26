@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7.0)
+cmake_minimum_required(VERSION 3.8.2)
 project(Waveguide)
 
 if(MSVC)
