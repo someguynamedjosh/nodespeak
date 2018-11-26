@@ -151,21 +151,21 @@ auto const variable_expr_def =
 auto const function_expr_def = 
     justl_function_expr | noin_function_expr | default_function_expr;
 
-auto const justl_function_expr_def = as<ast::FunctionExpression>(
+auto const justl_function_expr_def = (
     identifier
         >> repeat(0)[expr]
         >> repeat(0)[variable_expr]
         >> +function_dec
 );
 
-auto const noin_function_expr_def = as<ast::FunctionExpression>(
+auto const noin_function_expr_def = (
     identifier
         >> repeat(0)[expr]
         >> (lit(':') >> '(' >> (variable_expr % ',') >> ')')
         >> *function_dec
 );
 
-auto const default_function_expr_def = as<ast::FunctionExpression>(
+auto const default_function_expr_def = (
     identifier
         >> ('(' >> (expr % ',') >> ')')
         >> -(lit(':') >> '(' >> (variable_expr % ',') >> ')')
