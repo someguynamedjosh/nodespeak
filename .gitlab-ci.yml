@@ -1,9 +1,4 @@
 image: gcc:7.3
-before_script:
-  - apt update -qq && apt install -y make libboost-system-dev
-  - wget https://github.com/Kitware/CMake/releases/download/v3.13.0/cmake-3.13.0-Linux-x86_64.sh
-  - chmod +x cmake-3.13.0-Linux-x86_64.sh
-  - ./cmake-3.13.0-Linux-x86_64.sh --skip-license
 
 build:
   stage: "build"
@@ -12,6 +7,10 @@ build:
       - build/waveguide*
       - build/libwaveguide*
   script:
+    - apt update -qq && apt install -y make libboost-system-dev
+    - wget https://github.com/Kitware/CMake/releases/download/v3.13.0/cmake-3.13.0-Linux-x86_64.sh
+    - chmod +x cmake-3.13.0-Linux-x86_64.sh
+    - ./cmake-3.13.0-Linux-x86_64.sh --skip-license
     - mkdir build
     - cd build
     - ../bin/cmake ..
