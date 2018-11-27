@@ -81,74 +81,74 @@ static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 // Logic expressions
 auto const logic_expr_def = as<ast::OperatorListExpression>(
     blogic_expr >> *(
-        string("and") >> blogic_expr
-        | string("or") >> blogic_expr
-        | string("xor") >> blogic_expr
+        (string("and") > blogic_expr)
+        | (string("or") > blogic_expr)
+        | (string("xor") > blogic_expr)
     )
 );
 
 // Bitwise logic expression
 auto const blogic_expr_def = as<ast::OperatorListExpression>(
     equal_expr >> *(
-        string("band") >> equal_expr
-        | string("bor") >> equal_expr
-        | string("bxor") >> equal_expr
+        (string("band") > equal_expr)
+        | (string("bor") > equal_expr)
+        | (string("bxor") > equal_expr)
     )
 );
 
 // Equality expression: ==, !=
 auto const equal_expr_def = as<ast::OperatorListExpression>(
     compare_expr >> *(
-        string("==") >> compare_expr
-        | string("!=") >> compare_expr
+        (string("==") > compare_expr)
+        | (string("!=") > compare_expr)
     )
 );
 
 // Comparison expression: >=, <, etc.
 auto const compare_expr_def = as<ast::OperatorListExpression>(
     add_expr >> *(
-        string(">") >> add_expr
-        | string("<") >> add_expr
-        | string(">=") >> add_expr
-        | string("<=") >> add_expr
+        (string(">=") > add_expr)
+        | (string("<=") > add_expr)
+        | (string(">") > add_expr)
+        | (string("<") > add_expr)
     )
 );
 
 // Addition expressions: a + b - c + d etc.
 auto const add_expr_def = as<ast::OperatorListExpression>(
     multiply_expr >> *(
-        string("+") >> multiply_expr
-        | string("-") >> multiply_expr
+        (string("+") > multiply_expr)
+        | (string("-") > multiply_expr)
     )
 );
 
 // Multiplication expressions: a * b / c * d etc.
 auto const multiply_expr_def = as<ast::OperatorListExpression>(
     signed_expr >> *(
-        string("*") >> signed_expr
-        | string("/") >> signed_expr 
-        | string("%") >> signed_expr
+        (string("*") > signed_expr)
+        | (string("/") > signed_expr)
+        | (string("%") > signed_expr)
     )
 );
 
 // Expressions with +/- signs.
 auto const signed_expr_def =
     basic_expr
-    | as<ast::SignedExpression>(char_('+') >> basic_expr)
-    | as<ast::SignedExpression>(char_('-') >> basic_expr);
+    | as<ast::SignedExpression>(char_('+') > basic_expr)
+    | as<ast::SignedExpression>(char_('-') > basic_expr);
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
     double_
     | int_
     | bool_
-    | '(' >> expr >> ')'
+    | ('(' > expr > ')')
     | function_expr
     | variable_expr;
 
 // Variable access
 auto const variable_expr_def =
-    identifier >> *('[' >> expr >> ']');
+    identifier >> *('[' > expr > ']');
 
 // Function calls.
 auto const function_expr_def = 
@@ -164,21 +164,21 @@ auto const justl_function_expr_def = (
 auto const noin_function_expr_def = (
     identifier
         >> repeat(0)[expr]
-        >> (lit(':') >> '(' >> -(variable_expr % ',') >> ')')
+        >> (lit(':') > '(' > -(variable_expr % ',') > ')')
         >> *function_dec
 );
 
 auto const default_function_expr_def = (
     identifier
-        >> ('(' >> -(expr % ',') >> ')')
-        >> -(lit(':') >> '(' >> -(variable_expr % ',') >> ')')
+        >> ('(' > -(expr % ',') > ')')
+        >> -(lit(':') > '(' > -(variable_expr % ',') > ')')
         >> *function_dec
 );
 
 
 
 auto const data_type_def = 
-    identifier >> *('[' >> expr >> ']');
+    identifier >> *('[' > expr > ']');
 
 
 
@@ -189,25 +189,25 @@ auto const function_statement_def =
     function_expr >> ';';
 
 auto const assign_statement_def =
-    variable_expr >> '=' >> expr >> ';';
+    variable_expr >> '=' > expr > ';';
 
 auto const var_dec_statement_def =
     data_type >> as<ast::VarDec>(
-        as<ast::InitVarDec>(identifier >> '=' >> expr)
+        as<ast::InitVarDec>(identifier >> '=' > expr)
         | as<ast::PlainVarDec>(identifier)
     ) % ',' >> ';';
 
 
 
 auto const function_input_dec_def =
-    data_type >> identifier;
+    data_type > identifier;
 
 auto const function_dec_def = 
     identifier 
-        >> -('(' >> -(function_input_dec % ',') >> ')') 
-        >> -(lit(':') >> '(' >> -(function_input_dec % ',') >> ')') 
-        >> -('[' >> -(function_dec % ',') >> ']')
-        >> ('{' >> *statement >> '}');
+        >> -('(' > -(function_input_dec % ',') > ')') 
+        >> -(lit(':') > '(' > -(function_input_dec % ',') > ')') 
+        >> -('[' > -(function_dec % ',') > ']')
+        >> ('{' > *statement > '}');
 
 
 
