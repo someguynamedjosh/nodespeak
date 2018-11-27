@@ -6,6 +6,7 @@
 #include "ast.hpp"
 #include "ast_adapted.hpp"
 #include "parser.hpp"
+#include "parser_error.hpp"
 
 namespace waveguide {
 namespace parser {
