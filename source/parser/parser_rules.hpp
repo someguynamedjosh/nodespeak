@@ -161,14 +161,14 @@ auto const justl_function_expr_def = (
 auto const noin_function_expr_def = (
     identifier
         >> repeat(0)[expr]
-        >> (lit(':') >> '(' >> (variable_expr % ',') >> ')')
+        >> (lit(':') >> '(' >> -(variable_expr % ',') >> ')')
         >> *function_dec
 );
 
 auto const default_function_expr_def = (
     identifier
-        >> ('(' >> (expr % ',') >> ')')
-        >> -(lit(':') >> '(' >> (variable_expr % ',') >> ')')
+        >> ('(' >> -(expr % ',') >> ')')
+        >> -(lit(':') >> '(' >> -(variable_expr % ',') >> ')')
         >> *function_dec
 );
 
@@ -201,8 +201,9 @@ auto const function_input_dec_def =
 
 auto const function_dec_def = 
     identifier 
-        >> -('(' >> function_input_dec % ',' >> ')') 
-        >> -(lit(':') >> '(' >> function_input_dec % ',' >> ')') 
+        >> -('(' >> -(function_input_dec % ',') >> ')') 
+        >> -(lit(':') >> '(' >> -(function_input_dec % ',') >> ')') 
+        >> -('[' >> -(function_dec % ',') >> ']')
         >> ('{' >> *statement >> '}');
 
 

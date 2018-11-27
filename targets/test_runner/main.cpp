@@ -9,6 +9,8 @@ int main() {
     std::vector<std::string> tests{
         "Int a;", "Int a, b;", "Int a = 1, b;", "Int a, b = 1;", 
         "Int a, b = 1, c;", "test_func(1);", "func(1.0);", "f(0.1);", "f(.1);",
+        "f();", "f():();", "f:();", "a b() { };", "a b:() { };", 
+        "a b():() { };",
         "f(true);", "f(false);", "f(test_var);", "f(1 + 1);", "f(1 - 1);", 
         "f(1 * 1);", "f(1 / 1);", "f(1 % 1);", "f(1 * 1 / 1 % 1);", 
         "f(1 + 1 - 1);", "f(1 + 1 * 1 + 1);", "f(1 == 1 and 1 != 1);", 
@@ -19,7 +21,10 @@ int main() {
         "a[1] = 1;", "a[1][2] = 12;", "a[1] = b[1];", "a[1][2] = b[1][2];",
         "test_func(a[1]);", "test_func(a):(b);", "test_func(sin(12)):(a[12]);",
         "if (a) then { b = 1; } else { b = 2;};", "test(a):(b) l { c = 1; };", 
-        "func l { d = 1; };", "if(a):(b) then (Int c){};"
+        "func l { d = 1; };", "if(a):(b) then (Int c){};",
+        "def func(Int a) [] { };", "def f():() [sub{}] { };", 
+        "def f [sub(Int a){}] { };", "def f [sub:(Int b){}] { };",
+        "def f [sub(Int a):(Int b){}] { };", "def f [a{}, b(Int c){}] { };"
     };
 
     uint successes = 0;

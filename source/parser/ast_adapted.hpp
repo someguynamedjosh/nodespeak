@@ -18,7 +18,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::FunctionDec,
-    name, inputs, outputs, body
+    name, inputs, outputs, lambdas, body
 )
 
 

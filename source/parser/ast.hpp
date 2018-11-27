@@ -58,6 +58,7 @@ struct FunctionInputDec {
 struct FunctionDec {
     std::string name;
     std::vector<FunctionInputDec> inputs, outputs;
+    std::vector<x3::forward_ast<FunctionDec>> lambdas;
     std::vector<Statement> body;
 };
 
