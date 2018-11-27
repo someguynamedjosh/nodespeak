@@ -7,6 +7,10 @@ before_script:
 
 build:
   stage: "build"
+  artifacts:
+    paths:
+      - build/waveguide*
+      - build/libwaveguide*
   script:
     - mkdir build
     - cd build
@@ -15,6 +19,8 @@ build:
 
 test:
   stage: "test"
+  dependencies:
+    - build
   script:
     - cd build
     - ./waveguide_test_runner
