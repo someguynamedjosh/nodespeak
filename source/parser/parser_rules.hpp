@@ -17,19 +17,6 @@ namespace ascii = boost::spirit::x3::ascii;
 using x3::rule;
 
 ////////////////////////////////////////////////////////////////////////////////
-// Util stuff.
-////////////////////////////////////////////////////////////////////////////////
-
-struct AnnotatePosition {
-    template<typename T, typename Iterator, typename Context>
-    inline void on_success(Iterator const&first, Iterator const&last, 
-        T &ast, Context const&context) {
-        auto &position_cache = x3::get<position_cache_tag>(context).get();
-        position_cache.annotate(ast, first, last);
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////
 // Rule declarations
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -37,13 +24,7 @@ struct AnnotatePosition {
     struct RULE_NAME##_class; \
     rule<RULE_NAME##_class, ATTRIBUTE_TYPE> const \
         RULE_NAME = #RULE_NAME; \
-    struct RULE_NAME##_class : AnnotatePosition { }
-
-#define UNMARKED_RULE(RULE_NAME, ATTRIBUTE_TYPE) \
-    struct RULE_NAME##_class; \
-    rule<RULE_NAME##_class, ATTRIBUTE_TYPE> const \
-        RULE_NAME = #RULE_NAME; \
-    struct RULE_NAME##_class { }
+    struct RULE_NAME##_class : x3::position_tagged { }
 
 RULE(logic_expr, ast::Expression);
 RULE(blogic_expr, ast::Expression);

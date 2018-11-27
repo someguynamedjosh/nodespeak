@@ -24,9 +24,11 @@ BOOST_SPIRIT_INSTANTIATE(
 ParseResult parse(std::string input) {
     ParseResult result;
     iterator_type start = input.begin(), end = input.end();
-    position_cache positions{start, end};
+    error_handler_type error_handler(start, end, std::cerr);
 
-    auto parser = x3::with<position_cache_tag>(positions)[root_rule];
+    auto parser = x3::with<x3::error_handler_tag>(std::ref(error_handler))[
+        root_rule
+    ];
     
     bool success = phrase_parse(start, end, parser, x3::ascii::space, 
         result.ast);

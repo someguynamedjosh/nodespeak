@@ -8,6 +8,7 @@ namespace parser {
 namespace x3 = boost::spirit::x3;
 
 struct error_handler {
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
     template<typename Iterator, typename Exception, typename Context>
     x3::error_handler_result on_error(Iterator &first, Iterator const& last,
         Exception const&error, Context const&context) {
@@ -16,6 +17,7 @@ struct error_handler {
         error_handler(error.where(), message);
         return x3::error_handler_result::fail;
     }
+    #pragma GCC diagnostic warning "-Wunused-parameter"
 };
 
 struct root_class: error_handler { };

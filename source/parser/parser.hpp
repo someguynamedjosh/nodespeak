@@ -20,7 +20,7 @@ struct ParseResult {
     int error = 0;
 };
 
-struct position_cache_tag;
+struct error_handler_tag;
 
 ParseResult parse(std::string input);
 
