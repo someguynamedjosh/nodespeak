@@ -9,6 +9,7 @@ namespace parser {
 namespace x3 = boost::spirit::x3;
 
 using iterator_type = std::string::const_iterator;
+using position_cache = x3::position_cache<std::vector<iterator_type>>;
 using context_type = x3::phrase_parse_context<x3::ascii::space_type>::type;
 
 BOOST_SPIRIT_INSTANTIATE(
@@ -19,8 +20,11 @@ BOOST_SPIRIT_INSTANTIATE(
 ParseResult parse(std::string input) {
     ParseResult result;
     iterator_type start = input.begin(), end = input.end();
+    position_cache positions{start, end};
+
+    auto parser = x3::with<position_cache_tag>(positions)[root_rule];
     
-    bool success = phrase_parse(start, end, root_rule, x3::ascii::space, 
+    bool success = phrase_parse(start, end, parser, x3::ascii::space, 
         result.ast);
 
     success &= start == end;
