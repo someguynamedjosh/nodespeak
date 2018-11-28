@@ -215,7 +215,7 @@ auto const identifier_def =
     lexeme[(alpha | '_') >> *(alnum | '_')];
 
 auto const root_rule_def =
-   statement;
+   *statement;
 
 
 
