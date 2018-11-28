@@ -20,6 +20,42 @@ struct AstPrinter: boost::static_visitor<> {
         }
     }
 
+    void operator()(FunctionInputDec const&dec) const {
+        (*this)(dec.type);
+        std::cout << " " << dec.name;
+    }
+
+    void operator()(FunctionDec const&dec) const {
+        std::cout << dec.name << "(";
+        bool first = true;
+        for (auto const&input : dec.inputs) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(input);
+        }
+        std::cout << "):(";
+        first = true;
+        for (auto const&output : dec.outputs) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(output);
+        }
+        std::cout << ") [";
+        first = true;
+        for (auto const&lambda : dec.lambdas) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(lambda);
+        }
+        std::cout << "] { ";
+        if (dec.body.size() > 0) std::cout << std::endl;
+        for (auto const&stat : dec.body) {
+            recurse(stat);
+        }
+        if (dec.body.size() > 0) print_indent();
+        std::cout << "}";
+    }
+
     void operator()(int const&expr) const {
         std::cout << expr;
     }
@@ -40,7 +76,21 @@ struct AstPrinter: boost::static_visitor<> {
             first = false;
             recurse(input);
         }
-        std::cout << ')';
+        std::cout << "):(";
+        first = true;
+        for (auto const&output : expr.outputs) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(output);
+        }
+        std::cout << ") [";
+        first = true;
+        for (auto const&lambda : expr.lambdas) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(lambda);
+        }
+        std::cout << "]";
     }
 
     void operator()(OperatorListExpression const&expr) const {
@@ -72,6 +122,12 @@ struct AstPrinter: boost::static_visitor<> {
             std::cout << '[';
             recurse(size);
             std::cout << ']';
+        }
+    }
+
+    void operator()(std::vector<Statement> const&stats) const {
+        for (auto const&stat : stats) {
+            recurse(stat);
         }
     }
 
@@ -119,8 +175,13 @@ struct AstPrinter: boost::static_visitor<> {
 };
 
 template<typename Visitable>
-inline void print_ast(Visitable const& expr) {
+inline void print_ast(Visitable const&expr) {
     boost::apply_visitor(AstPrinter{0}, expr);
+}
+
+template<>
+inline void print_ast(std::vector<ast::Statement> const&root) {
+    AstPrinter{0}(root);
 }
 
 }
