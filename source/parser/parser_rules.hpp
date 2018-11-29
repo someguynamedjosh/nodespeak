@@ -49,6 +49,7 @@ RULE(assign_statement, ast::AssignStatement);
 RULE(var_dec_statement, ast::VarDecStatement);
 
 RULE(function_input_dec, ast::FunctionInputDec);
+RULE(function_single_output_dec, ast::FunctionInputDec);
 RULE(function_dec, ast::FunctionDec);
 
 RULE(identifier, std::string);
@@ -69,6 +70,7 @@ using x3::alpha;
 using x3::alnum;
 
 using x3::attr;
+using x3::eol;
 using x3::string;
 using x3::repeat;
 using x3::lexeme;
@@ -202,10 +204,16 @@ auto const var_dec_statement_def =
 auto const function_input_dec_def =
     data_type > identifier;
 
+auto const function_single_output_dec_def =
+    (data_type >> attr("return"));
+
 auto const function_dec_def = 
     identifier 
         >> -('(' > -(function_input_dec % ',') > ')') 
-        >> -(lit(':') > '(' > -(function_input_dec % ',') > ')') 
+        >> -(lit(':') > (
+            ('(' > -(function_input_dec % ',') > ')')
+            | repeat(1)[function_single_output_dec]
+        ))
         >> -('[' > -(function_dec % ',') > ']')
         >> ('{' > *statement > '}');
 
@@ -213,6 +221,9 @@ auto const function_dec_def =
 
 auto const identifier_def =
     lexeme[(alpha | '_') >> *(alnum | '_')];
+
+auto const skipper =
+    lit(' ') | '\t' | '\n' | lexeme['#' > *(char_ - eol) >> eol];
 
 auto const root_rule_def =
    *statement;
@@ -223,8 +234,10 @@ BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr,
     multiply_expr, signed_expr, basic_expr, variable_expr, function_expr,
     noin_function_expr, justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
-BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, var_dec_statement)
-BOOST_SPIRIT_DEFINE(function_input_dec, function_dec)
+BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
+    var_dec_statement)
+BOOST_SPIRIT_DEFINE(function_input_dec, function_single_output_dec, 
+    function_dec)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)
 
 }
