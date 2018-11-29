@@ -30,9 +30,16 @@ ParseResult parse(std::string input) {
         root_rule
     ];
     
-    bool success = phrase_parse(start, end, parser, x3::ascii::space, 
-        result.ast);
+    bool success = phrase_parse(start, end, parser, skipper, result.ast);
 
+    if (start != end) {
+        std::cerr << "Parser exited prematurely, the following code was not "
+            << "parsed:" << std::endl;
+        for (auto i = start; i != end; i++) {
+            std::cerr << *i;
+        }
+        std::cerr << std::endl;
+    }
     success &= start == end;
     result.error = success ? 0 : 1;
     return result;
