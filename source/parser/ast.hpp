@@ -84,10 +84,22 @@ struct VariableExpression: x3::position_tagged {
     std::vector<Expression> array_accesses;
 };
 
+struct SingleVarDec: x3::position_tagged {
+    DataType type;
+    std::string name;
+};
+
+struct FunctionExpressionOutput: x3::variant<
+    SingleVarDec,
+    VariableExpression> {
+    using base_type::base_type;
+    using base_type::operator=;
+};
+
 struct FunctionExpression: x3::position_tagged {
     std::string functionName;
     std::vector<Expression> inputs;
-    std::vector<VariableExpression> outputs;
+    std::vector<FunctionExpressionOutput> outputs;
     std::vector<FunctionDec> lambdas;
 };
 

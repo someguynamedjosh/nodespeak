@@ -68,6 +68,12 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << (expr ? "true" : "false");
     }
 
+    void operator()(SingleVarDec const&dec) const {
+        std::cout << "declare, ";
+        (*this)(dec.type);
+        std::cout << " " << dec.name << " ";
+    }
+
     void operator()(FunctionExpression const&expr) const {
         std::cout << expr.functionName << '(';
         bool first = true;
@@ -81,7 +87,7 @@ struct AstPrinter: boost::static_visitor<> {
         for (auto const&output : expr.outputs) {
             if (!first) std::cout << ", ";
             first = false;
-            (*this)(output);
+            recurse(output);
         }
         std::cout << ") [";
         first = true;

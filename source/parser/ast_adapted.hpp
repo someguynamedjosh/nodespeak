@@ -44,6 +44,11 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::SingleVarDec,
+    type, name
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::FunctionExpression,
     functionName, inputs, outputs, lambdas
 )
