@@ -20,7 +20,7 @@ struct AstPrinter: boost::static_visitor<> {
         }
     }
 
-    void operator()(FunctionInputDec const&dec) const {
+    void operator()(FunctionParameterDec const&dec) const {
         (*this)(dec.type);
         std::cout << " " << dec.name;
     }

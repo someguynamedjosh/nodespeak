@@ -48,8 +48,8 @@ RULE(function_statement, ast::FunctionStatement);
 RULE(assign_statement, ast::AssignStatement);
 RULE(var_dec_statement, ast::VarDecStatement);
 
-RULE(function_input_dec, ast::FunctionInputDec);
-RULE(function_single_output_dec, ast::FunctionInputDec);
+RULE(function_input_dec, ast::FunctionParameterDec);
+RULE(function_single_output_dec, ast::FunctionParameterDec);
 RULE(function_dec, ast::FunctionDec);
 
 RULE(identifier, std::string);

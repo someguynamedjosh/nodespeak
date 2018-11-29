@@ -12,7 +12,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionInputDec,
+    waveguide::ast::FunctionParameterDec,
     type, name
 )
 

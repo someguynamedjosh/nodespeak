@@ -50,14 +50,14 @@ struct DataType: x3::position_tagged {
 
 
 
-struct FunctionInputDec: x3::position_tagged {
+struct FunctionParameterDec: x3::position_tagged {
     DataType type;
     std::string name;
 };
 
 struct FunctionDec: x3::position_tagged {
     std::string name;
-    std::vector<FunctionInputDec> inputs, outputs;
+    std::vector<FunctionParameterDec> inputs, outputs;
     std::vector<x3::forward_ast<FunctionDec>> lambdas;
     std::vector<Statement> body;
 };
