@@ -1,5 +1,4 @@
-#ifndef _WAVEGUIDE_INTERMEDIATE_SCOPE_H_
-#define _WAVEGUIDE_INTERMEDIATE_SCOPE_H_
+#pragma once
 
 #include <map>
 #include <memory>
@@ -91,5 +90,3 @@ public:
 
 }
 }
-
-#endif /* _WAVEGUIDE_INTERMEDIATE_SCOPE_H_ */

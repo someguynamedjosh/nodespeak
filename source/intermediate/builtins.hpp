@@ -1,5 +1,4 @@
-#ifndef _INTERMEDIATE_BUILTINS_H_
-#define _INTERMEDIATE_BUILTINS_H_
+#pragma once
 
 #include <memory>
 
@@ -25,5 +24,3 @@ public:
 
 }
 }
-
-#endif /* _INTERMEDIATE_BUILTINS_H_ */

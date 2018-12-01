@@ -1,5 +1,4 @@
-#ifndef _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
-#define _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_
+#pragma once
 
 #include <memory>
 #include <string>
@@ -79,5 +78,3 @@ public:
 
 }
 }
-
-#endif /* _WAVEGUIDE_INTERMEDIATE_DATA_TYPE_H_ */
