@@ -17,6 +17,10 @@ set(STATIC_LIB_TARGET waveguide)
 set(STANDALONE_TARGET waveguide_standalone)
 set(TEST_RUNNER_TARGET waveguide_test_runner)
 
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_RUNTIME ON)
+find_package(Boost REQUIRED system)
+
 set(TARGET ${STATIC_LIB_TARGET})
 file(GLOB_RECURSE SRC_FILES ${SOURCE_DIR}/*.cpp)
 add_library(${TARGET} STATIC ${SRC_FILES})
