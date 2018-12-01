@@ -1,8 +1,8 @@
-#include "Builtins.h"
+#include "builtins.hpp"
 
-#include "DataType.h"
-#include "Scope.h"
-#include "Value.h"
+#include "data_type.hpp"
+#include "scope.hpp"
+#include "value.hpp"
 
 namespace waveguide {
 namespace intermediate {

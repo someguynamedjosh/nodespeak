@@ -1,4 +1,4 @@
-#include "DataType.h"
+#include "data_type.hpp"
 
 namespace waveguide {
 namespace intermediate {
