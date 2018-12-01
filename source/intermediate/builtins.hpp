@@ -13,8 +13,8 @@ private:
     Builtins();
     static std::shared_ptr<Builtins> instance;
 public:
-    static std::shared_ptr<Builtins> getInstance();
-    void addToScope(std::shared_ptr<Scope> scope);
+    static std::shared_ptr<Builtins> get_instance();
+    void add_to_scope(std::shared_ptr<Scope> scope);
     std::shared_ptr<DataType> INT, FLOAT, BOOL, UPCAST_WILDCARD, ANY_WILDCARD;
     std::shared_ptr<Scope> ADD, MUL, RECIP, MOD, BAND, BOR, BXOR,
         ITOF, BTOF, BTOI, ITOB, FTOI, FTOB,

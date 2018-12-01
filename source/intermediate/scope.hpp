@@ -24,8 +24,8 @@ public:
     Augmentation(AugmentationType type, std::shared_ptr<Value> param1);
     Augmentation(AugmentationType type, std::shared_ptr<Value> param1,
         std::shared_ptr<Value> param2);
-    AugmentationType getType();
-    std::vector<std::shared_ptr<Value>> &getParams();
+    AugmentationType get_type();
+    std::vector<std::shared_ptr<Value>> &get_params();
 };
 
 class Command {
@@ -38,12 +38,12 @@ public:
     Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug);
     std::string repr();
 
-    void addInput(std::shared_ptr<Value> input);
-    void addOutput(std::shared_ptr<Value> output);
-    std::vector<std::shared_ptr<Value>> &getInputs();
-    std::vector<std::shared_ptr<Value>> &getOutputs();
-    std::shared_ptr<Augmentation> getAugmentation();
-    std::shared_ptr<Scope> getCalledScope();
+    void add_input(std::shared_ptr<Value> input);
+    void add_output(std::shared_ptr<Value> output);
+    std::vector<std::shared_ptr<Value>> &get_inputs();
+    std::vector<std::shared_ptr<Value>> &get_outputs();
+    std::shared_ptr<Augmentation> get_augmentation();
+    std::shared_ptr<Scope> get_called_scope();
 };
 
 class Scope {
@@ -67,25 +67,25 @@ public:
     std::shared_ptr<Scope> getParent();
     std::string repr();
 
-    void declareFunc(std::string name, std::shared_ptr<Scope> body);
-    void declareTempFunc(std::shared_ptr<Scope> body);
-    std::shared_ptr<Scope> lookupFunc(std::string name);
-    void declareVar(std::string name, std::shared_ptr<Value> value);
-    void declareTempVar(std::shared_ptr<Value> value);
-    std::shared_ptr<Value> lookupVar(std::string name);
-    void declareType(std::string name, std::shared_ptr<DataType> type);
-    std::shared_ptr<DataType> lookupType(std::string name);
-    void addCommand(std::shared_ptr<Command> command);
-    std::vector<std::shared_ptr<Command>> &getCommands();
+    void declare_func(std::string name, std::shared_ptr<Scope> body);
+    void declare_temp_func(std::shared_ptr<Scope> body);
+    std::shared_ptr<Scope> lookup_func(std::string name);
+    void declare_var(std::string name, std::shared_ptr<Value> value);
+    void declare_temp_var(std::shared_ptr<Value> value);
+    std::shared_ptr<Value> lookup_var(std::string name);
+    void declare_type(std::string name, std::shared_ptr<DataType> type);
+    std::shared_ptr<DataType> lookup_type(std::string name);
+    void add_command(std::shared_ptr<Command> command);
+    std::vector<std::shared_ptr<Command>> &get_commands();
 
-    void addIn(std::shared_ptr<Value> in);
-    std::vector<std::shared_ptr<Value>> &getIns();
-    void addOut(std::shared_ptr<Value> out);
-    std::vector<std::shared_ptr<Value>> &getOuts();
+    void add_input(std::shared_ptr<Value> in);
+    std::vector<std::shared_ptr<Value>> &get_inputs();
+    void add_output(std::shared_ptr<Value> out);
+    std::vector<std::shared_ptr<Value>> &get_outputs();
 
-    void autoAddNone();
-    void autoAddIns();
-    void autoAddOuts();
+    void auto_add_none();
+    void auto_add_inputs();
+    void auto_add_outputs();
 };
 
 }

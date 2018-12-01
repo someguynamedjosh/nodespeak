@@ -19,19 +19,19 @@ public:
     ~Value();
     std::string repr();
 
-    std::shared_ptr<DataType> getType();
-    void setType(std::shared_ptr<DataType> newType);
-    bool isProxy();
-    Value &getRealValue();
+    std::shared_ptr<DataType> get_type();
+    void set_type(std::shared_ptr<DataType> newType);
+    bool is_proxy();
+    Value &get_real_value();
 
-    bool isValueKnown();
-    void setValueKnown(bool isKnown);
-    Value createKnownCopy();
-    void *getData();
+    bool is_value_known();
+    void set_value_known(bool isKnown);
+    Value create_known_copy();
+    void *get_data();
 
-    float *dataAsFloat();
-    int *dataAsInt();
-    bool *dataAsBool();
+    float *data_as_float();
+    int *data_as_int();
+    bool *data_as_bool();
 };
 
 }

@@ -26,11 +26,11 @@ Augmentation::Augmentation(AugmentationType type, std::shared_ptr<Value> param1,
     params.push_back(param2);
 }
 
-AugmentationType Augmentation::getType() {
+AugmentationType Augmentation::get_type() {
     return type;
 }
 
-std::vector<std::shared_ptr<Value>> &Augmentation::getParams() {
+std::vector<std::shared_ptr<Value>> &Augmentation::get_params() {
     return params;
 }
 
@@ -56,7 +56,7 @@ std::string Command::repr() {
     ss << " }";
     if (aug) {
         ss << " A=(";
-        switch (aug->getType()) {
+        switch (aug->get_type()) {
         case AugmentationType::DO_IF:
             ss << "DO_IF";
             break;
@@ -71,7 +71,7 @@ std::string Command::repr() {
             break;
         }
         ss << " {";
-        for (auto param : aug->getParams()) {
+        for (auto param : aug->get_params()) {
             ss << " " << param->repr();
         }
         ss << " })";
@@ -79,27 +79,27 @@ std::string Command::repr() {
     return ss.str();
 }
 
-void Command::addInput(std::shared_ptr<Value> input) {
+void Command::add_input(std::shared_ptr<Value> input) {
     ins.push_back(input);
 }
 
-void Command::addOutput(std::shared_ptr<Value> output) {
+void Command::add_output(std::shared_ptr<Value> output) {
     outs.push_back(output);
 }
 
-std::vector<std::shared_ptr<Value>> &Command::getInputs() {
+std::vector<std::shared_ptr<Value>> &Command::get_inputs() {
     return ins;
 }
 
-std::vector<std::shared_ptr<Value>> &Command::getOutputs() {
+std::vector<std::shared_ptr<Value>> &Command::get_outputs() {
     return outs;
 }
 
-std::shared_ptr<Augmentation> Command::getAugmentation() {
+std::shared_ptr<Augmentation> Command::get_augmentation() {
     return aug;
 }
 
-std::shared_ptr<Scope> Command::getCalledScope() {
+std::shared_ptr<Scope> Command::get_called_scope() {
     return call;
 }
 
@@ -159,7 +159,7 @@ std::string Scope::repr() {
         ss << func->repr() << "\n";
     }
     for (auto func : funcs) {
-        if (func.second->getCommands().size > 0) {
+        if (func.second->get_commands().size > 0) {
             ss << func.second->repr() << "\n";
         }
     }
@@ -167,96 +167,96 @@ std::string Scope::repr() {
     return ss.str();
 }
 
-void Scope::declareFunc(std::string name, std::shared_ptr<Scope> body) {
+void Scope::declare_func(std::string name, std::shared_ptr<Scope> body) {
     funcs.emplace(name, body);
 }
 
-void Scope::declareTempFunc(std::shared_ptr<Scope> body) {
+void Scope::declare_temp_func(std::shared_ptr<Scope> body) {
     tempFuncs.push_back(body);
 }
 
-std::shared_ptr<Scope> Scope::lookupFunc(std::string name) {
+std::shared_ptr<Scope> Scope::lookup_func(std::string name) {
     if (funcs.count(name)) {
         return funcs[name];
     } else if (parent) {
-        return parent->lookupFunc(name);
+        return parent->lookup_func(name);
     } else {
         return nullptr;
     }
 }
 
-void Scope::declareVar(std::string name, std::shared_ptr<Value> value) {
+void Scope::declare_var(std::string name, std::shared_ptr<Value> value) {
     vars.emplace(name, value);
     if (autoAdd == AutoAdd::INS) {
-        addIn(value);
+        add_input(value);
     } else if (autoAdd == AutoAdd::OUTS) {
-        addOut(value);
+        add_output(value);
     }
 }
 
-void Scope::declareTempVar(std::shared_ptr<Value> value) {
+void Scope::declare_temp_var(std::shared_ptr<Value> value) {
     tempVars.push_back(value);
 }
 
-std::shared_ptr<Value> Scope::lookupVar(std::string name) {
+std::shared_ptr<Value> Scope::lookup_var(std::string name) {
     if (vars.count(name)) {
         return vars[name];
     } else if (parent) {
-        return parent->lookupVar(name);
+        return parent->lookup_var(name);
     } else {
         return nullptr;
     }
 }
 
-void Scope::declareType(std::string name, std::shared_ptr<DataType> type) {
+void Scope::declare_type(std::string name, std::shared_ptr<DataType> type) {
     types.emplace(name, type);
 }
 
-std::shared_ptr<DataType> Scope::lookupType(std::string name) {
+std::shared_ptr<DataType> Scope::lookup_type(std::string name) {
     if (types.count(name)) {
         return types[name];
     } else if (parent) {
-        return parent->lookupType(name);
+        return parent->lookup_type(name);
     } else {
         return nullptr;
     }
 }
 
-void Scope::addCommand(std::shared_ptr<Command> command) {
+void Scope::add_command(std::shared_ptr<Command> command) {
     commands.push_back(command);
 }
 
-std::vector<std::shared_ptr<Command>> &Scope::getCommands() {
+std::vector<std::shared_ptr<Command>> &Scope::get_commands() {
     return commands;
 }
 
 
-void Scope::addIn(std::shared_ptr<Value> in) {
+void Scope::add_input(std::shared_ptr<Value> in) {
     ins.push_back(in);
 }
 
-std::vector<std::shared_ptr<Value>> &Scope::getIns() {
+std::vector<std::shared_ptr<Value>> &Scope::get_inputs() {
     return ins;
 }
 
-void Scope::addOut(std::shared_ptr<Value> out) {
+void Scope::add_output(std::shared_ptr<Value> out) {
     outs.push_back(out);
 }
 
-std::vector<std::shared_ptr<Value>> &Scope::getOuts() {
+std::vector<std::shared_ptr<Value>> &Scope::get_outputs() {
     return outs;
 }
 
 
-void Scope::autoAddNone() {
+void Scope::auto_add_none() {
     autoAdd = AutoAdd::NONE;
 }
 
-void Scope::autoAddIns() {
+void Scope::auto_add_inputs() {
     autoAdd = AutoAdd::INS;
 }
 
-void Scope::autoAddOuts() {
+void Scope::auto_add_outputs() {
     autoAdd = AutoAdd::OUTS;
 }
 

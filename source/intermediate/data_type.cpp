@@ -8,11 +8,11 @@ namespace intermediate {
 ////////////////////////////////////////////////////////////////////////////////
 DataType::DataType() { }
 
-std::shared_ptr<DataType> DataType::getBaseType() {
+std::shared_ptr<DataType> DataType::get_base_type() {
     return std::shared_ptr<DataType>(this);
 }
 
-bool DataType::isProxyType() {
+bool DataType::is_proxy_type() {
     return false;
 }
 
@@ -22,7 +22,7 @@ bool DataType::isProxyType() {
 AbstractDataType::AbstractDataType(std::string label)
     : label{label} { }
 
-int AbstractDataType::getLength() {
+int AbstractDataType::get_length() {
     return 0;
 }
 
@@ -37,7 +37,7 @@ std::string AbstractDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 // IntDataType
 ////////////////////////////////////////////////////////////////////////////////
-int IntDataType::getLength() {
+int IntDataType::get_length() {
     return 4;
 }
 
@@ -52,7 +52,7 @@ std::string IntDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 // FloatDataType
 ////////////////////////////////////////////////////////////////////////////////
-int FloatDataType::getLength() {
+int FloatDataType::get_length() {
     return 4;
 }
 
@@ -67,7 +67,7 @@ std::string FloatDataType::format(void *data) {
 ////////////////////////////////////////////////////////////////////////////////
 // BoolDataType
 ////////////////////////////////////////////////////////////////////////////////
-int BoolDataType::getLength() {
+int BoolDataType::get_length() {
     return 1;
 }
 
@@ -85,19 +85,19 @@ std::string BoolDataType::format(void *data) {
 ArrayDataType::ArrayDataType(std::shared_ptr<DataType> elementType, int length)
     : elementType{elementType}, length{length} { }
 
-int ArrayDataType::getLength() {
-    return elementType->getLength() * length;
+int ArrayDataType::get_length() {
+    return elementType->get_length() * length;
 }
 
-std::shared_ptr<DataType> ArrayDataType::getBaseType() {
-    return elementType->getBaseType();
+std::shared_ptr<DataType> ArrayDataType::get_base_type() {
+    return elementType->get_base_type();
 }
 
 int ArrayDataType::getArrayLength() {
     return length;
 }
 
-std::shared_ptr<DataType> ArrayDataType::getElementType() {
+std::shared_ptr<DataType> ArrayDataType::get_element_type() {
     return elementType;
 }
 
@@ -108,7 +108,7 @@ std::string ArrayDataType::repr() {
 std::string ArrayDataType::format(void *data) {
     std::string tr = "[";
     for (int i = 0; i < length; i++) {
-        tr += elementType->format(data + i * elementType->getLength());
+        tr += elementType->format(data + i * elementType->get_length());
         if (i != length - 1) {
             tr += ", ";
         }
@@ -122,14 +122,14 @@ std::string ArrayDataType::format(void *data) {
 CopyArrayDataProxy::CopyArrayDataProxy(std::shared_ptr<DataType> sourceType, int length)
     : ArrayDataType{sourceType, length} { }
 
-bool CopyArrayDataProxy::isProxy() {
+bool CopyArrayDataProxy::is_proxy() {
     return true;
 }
 
 std::string CopyArrayDataProxy::format(void *data) {
     std::string tr = "[";
     for (int i = 0; i < getArrayLength(); i++) {
-        tr += getElementType()->format(data);
+        tr += get_element_type()->format(data);
         if (i != getArrayLength() - 1) {
             tr += ", ";
         }
@@ -138,7 +138,7 @@ std::string CopyArrayDataProxy::format(void *data) {
 }
 
 std::string CopyArrayDataProxy::repr() {
-    return getElementType()->repr() + "[" + std::to_string(getArrayLength()) 
+    return get_element_type()->repr() + "[" + std::to_string(getArrayLength()) 
         + " copied from 1]";
 }
 

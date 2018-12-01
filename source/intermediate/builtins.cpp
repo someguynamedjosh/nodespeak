@@ -9,7 +9,7 @@ namespace intermediate {
 
 std::shared_ptr<Builtins> Builtins::instance{nullptr};
 
-std::shared_ptr<Builtins> Builtins::getInstance() {
+std::shared_ptr<Builtins> Builtins::get_instance() {
     if (!instance) {
         instance = std::shared_ptr<Builtins>(new Builtins());
     }
@@ -31,177 +31,177 @@ Builtins::Builtins()
     XOR{new Scope()} {
     
     #define NEW_VALUE(TYPE) std::shared_ptr<Value>(new Value(TYPE))
-	ADD->autoAddIns();
-	ADD->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	ADD->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	ADD->autoAddOuts();
-	ADD->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	ADD->auto_add_inputs();
+	ADD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	ADD->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	ADD->auto_add_outputs();
+	ADD->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
 
-	MUL->autoAddIns();
-	MUL->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	MUL->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	MUL->autoAddOuts();
-	MUL->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	MUL->auto_add_inputs();
+	MUL->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	MUL->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	MUL->auto_add_outputs();
+	MUL->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
 
-	RECIP->autoAddIns();
-	RECIP->declareVar("a", NEW_VALUE(FLOAT));
-	RECIP->autoAddOuts();
-	RECIP->declareVar("x", NEW_VALUE(FLOAT));
+	RECIP->auto_add_inputs();
+	RECIP->declare_var("a", NEW_VALUE(FLOAT));
+	RECIP->auto_add_outputs();
+	RECIP->declare_var("x", NEW_VALUE(FLOAT));
 
-	ITOF->autoAddIns();
-	ITOF->declareVar("a", NEW_VALUE(INT));
-	ITOF->autoAddOuts();
-	ITOF->declareVar("x", NEW_VALUE(FLOAT));
+	ITOF->auto_add_inputs();
+	ITOF->declare_var("a", NEW_VALUE(INT));
+	ITOF->auto_add_outputs();
+	ITOF->declare_var("x", NEW_VALUE(FLOAT));
 
-	BTOF->autoAddIns();
-	BTOF->declareVar("a", NEW_VALUE(BOOL));
-	BTOF->autoAddOuts();
-	BTOF->declareVar("x", NEW_VALUE(FLOAT));
+	BTOF->auto_add_inputs();
+	BTOF->declare_var("a", NEW_VALUE(BOOL));
+	BTOF->auto_add_outputs();
+	BTOF->declare_var("x", NEW_VALUE(FLOAT));
 
-	BTOI->autoAddIns();
-	BTOI->declareVar("a", NEW_VALUE(BOOL));
-	BTOI->autoAddOuts();
-	BTOI->declareVar("x", NEW_VALUE(INT));
+	BTOI->auto_add_inputs();
+	BTOI->declare_var("a", NEW_VALUE(BOOL));
+	BTOI->auto_add_outputs();
+	BTOI->declare_var("x", NEW_VALUE(INT));
 
-	ITOB->autoAddIns();
-	ITOB->declareVar("a", NEW_VALUE(INT));
-	ITOB->autoAddOuts();
-	ITOB->declareVar("x", NEW_VALUE(BOOL));
+	ITOB->auto_add_inputs();
+	ITOB->declare_var("a", NEW_VALUE(INT));
+	ITOB->auto_add_outputs();
+	ITOB->declare_var("x", NEW_VALUE(BOOL));
 
-	FTOI->autoAddIns();
-	FTOI->declareVar("a", NEW_VALUE(FLOAT));
-	FTOI->autoAddOuts();
-	FTOI->declareVar("x", NEW_VALUE(INT));
+	FTOI->auto_add_inputs();
+	FTOI->declare_var("a", NEW_VALUE(FLOAT));
+	FTOI->auto_add_outputs();
+	FTOI->declare_var("x", NEW_VALUE(INT));
 
-	FTOB->autoAddIns();
-	FTOB->declareVar("a", NEW_VALUE(FLOAT));
-	FTOB->autoAddOuts();
-	FTOB->declareVar("x", NEW_VALUE(BOOL));
+	FTOB->auto_add_inputs();
+	FTOB->declare_var("a", NEW_VALUE(FLOAT));
+	FTOB->auto_add_outputs();
+	FTOB->declare_var("x", NEW_VALUE(BOOL));
 
 	// The way this one works is a bit weird. If the input and output are the same size, OFFSET should be zero. The
 	// entire value will be copied. If one is bigger than the other, a chunk of data the size of the smaller one will
 	// be transferred. OFFSET will be used as the byte index to start copying from or to the larger data type.
-	COPY->autoAddIns();
-	COPY->declareVar("a", NEW_VALUE(ANY_WILDCARD));
-	COPY->declareVar("offset", NEW_VALUE(INT));
-	COPY->autoAddOuts();
-	COPY->declareVar("x", NEW_VALUE(ANY_WILDCARD));
+	COPY->auto_add_inputs();
+	COPY->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY->declare_var("offset", NEW_VALUE(INT));
+	COPY->auto_add_outputs();
+	COPY->declare_var("x", NEW_VALUE(ANY_WILDCARD));
 
-	LOG->autoAddIns();
-	LOG->declareVar("a", NEW_VALUE(ANY_WILDCARD));
-	LOG->autoAddOuts();
+	LOG->auto_add_inputs();
+	LOG->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	LOG->auto_add_outputs();
 
-	MOD->autoAddIns();
-	MOD->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	MOD->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	MOD->autoAddOuts();
-	MOD->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	MOD->auto_add_inputs();
+	MOD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	MOD->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	MOD->auto_add_outputs();
+	MOD->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
 
-	EQ->autoAddIns();
-	EQ->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	EQ->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	EQ->autoAddOuts();
-	EQ->declareVar("x", NEW_VALUE(BOOL));
+	EQ->auto_add_inputs();
+	EQ->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	EQ->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	EQ->auto_add_outputs();
+	EQ->declare_var("x", NEW_VALUE(BOOL));
 
-	NEQ->autoAddIns();
-	NEQ->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	NEQ->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	NEQ->autoAddOuts();
-	NEQ->declareVar("x", NEW_VALUE(BOOL));
+	NEQ->auto_add_inputs();
+	NEQ->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	NEQ->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	NEQ->auto_add_outputs();
+	NEQ->declare_var("x", NEW_VALUE(BOOL));
 
-	LTE->autoAddIns();
-	LTE->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	LTE->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	LTE->autoAddOuts();
-	LTE->declareVar("x", NEW_VALUE(BOOL));
+	LTE->auto_add_inputs();
+	LTE->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	LTE->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	LTE->auto_add_outputs();
+	LTE->declare_var("x", NEW_VALUE(BOOL));
 
-	GTE->autoAddIns();
-	GTE->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	GTE->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	GTE->autoAddOuts();
-	GTE->declareVar("x", NEW_VALUE(BOOL));
+	GTE->auto_add_inputs();
+	GTE->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	GTE->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	GTE->auto_add_outputs();
+	GTE->declare_var("x", NEW_VALUE(BOOL));
 
-	LT->autoAddIns();
-	LT->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	LT->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	LT->autoAddOuts();
-	LT->declareVar("x", NEW_VALUE(BOOL));
+	LT->auto_add_inputs();
+	LT->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	LT->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	LT->auto_add_outputs();
+	LT->declare_var("x", NEW_VALUE(BOOL));
 
-	GT->autoAddIns();
-	GT->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	GT->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	GT->autoAddOuts();
-	GT->declareVar("x", NEW_VALUE(BOOL));
+	GT->auto_add_inputs();
+	GT->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	GT->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	GT->auto_add_outputs();
+	GT->declare_var("x", NEW_VALUE(BOOL));
 
-	AND->autoAddIns();
-	AND->declareVar("a", NEW_VALUE(BOOL));
-	AND->declareVar("b", NEW_VALUE(BOOL));
-	AND->autoAddOuts();
-	AND->declareVar("x", NEW_VALUE(BOOL));
+	AND->auto_add_inputs();
+	AND->declare_var("a", NEW_VALUE(BOOL));
+	AND->declare_var("b", NEW_VALUE(BOOL));
+	AND->auto_add_outputs();
+	AND->declare_var("x", NEW_VALUE(BOOL));
 
-	OR->autoAddIns();
-	OR->declareVar("a", NEW_VALUE(BOOL));
-	OR->declareVar("b", NEW_VALUE(BOOL));
-	OR->autoAddOuts();
-	OR->declareVar("x", NEW_VALUE(BOOL));
+	OR->auto_add_inputs();
+	OR->declare_var("a", NEW_VALUE(BOOL));
+	OR->declare_var("b", NEW_VALUE(BOOL));
+	OR->auto_add_outputs();
+	OR->declare_var("x", NEW_VALUE(BOOL));
 
-	XOR->autoAddIns();
-	XOR->declareVar("a", NEW_VALUE(BOOL));
-	XOR->declareVar("b", NEW_VALUE(BOOL));
-	XOR->autoAddOuts();
-	XOR->declareVar("x", NEW_VALUE(BOOL));
+	XOR->auto_add_inputs();
+	XOR->declare_var("a", NEW_VALUE(BOOL));
+	XOR->declare_var("b", NEW_VALUE(BOOL));
+	XOR->auto_add_outputs();
+	XOR->declare_var("x", NEW_VALUE(BOOL));
 
-	BAND->autoAddIns();
-	BAND->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	BAND->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	BAND->autoAddOuts();
-	BAND->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	BAND->auto_add_inputs();
+	BAND->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	BAND->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BAND->auto_add_outputs();
+	BAND->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
 
-	BOR->autoAddIns();
-	BOR->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	BOR->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	BOR->autoAddOuts();
-	BOR->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	BOR->auto_add_inputs();
+	BOR->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	BOR->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BOR->auto_add_outputs();
+	BOR->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
 
-	BXOR->autoAddIns();
-	BXOR->declareVar("a", NEW_VALUE(UPCAST_WILDCARD));
-	BXOR->declareVar("b", NEW_VALUE(UPCAST_WILDCARD));
-	BXOR->autoAddOuts();
-	BXOR->declareVar("x", NEW_VALUE(UPCAST_WILDCARD));
+	BXOR->auto_add_inputs();
+	BXOR->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
+	BXOR->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BXOR->auto_add_outputs();
+	BXOR->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
     #undef NEW_VALUE
 }
 
-void Builtins::addToScope(std::shared_ptr<Scope> scope) {
-    scope->declareType("Int", INT);
-    scope->declareType("Float", FLOAT);
-    scope->declareType("Bool", BOOL);
-    scope->declareType("!UPCAST_WILDCARD", UPCAST_WILDCARD);
-    scope->declareType("!ANY_WILDCARD", ANY_WILDCARD);
+void Builtins::add_to_scope(std::shared_ptr<Scope> scope) {
+    scope->declare_type("Int", INT);
+    scope->declare_type("Float", FLOAT);
+    scope->declare_type("Bool", BOOL);
+    scope->declare_type("!UPCAST_WILDCARD", UPCAST_WILDCARD);
+    scope->declare_type("!ANY_WILDCARD", ANY_WILDCARD);
 
-	scope->declareFunc("!ADD", ADD);
-	scope->declareFunc("!MUL", MUL);
-	scope->declareFunc("!RECIP", RECIP);
-	scope->declareFunc("!ITOF", ITOF);
-	scope->declareFunc("!BTOF", BTOF);
-	scope->declareFunc("!BTOI", BTOI);
-	scope->declareFunc("!ITOB", ITOB);
-	scope->declareFunc("!FTOI", FTOI);
-	scope->declareFunc("!FTOB", FTOB);
-	scope->declareFunc("!COPY", COPY);
-	scope->declareFunc("log", LOG);
-	scope->declareFunc("!MOD", MOD);
-	scope->declareFunc("!EQ", EQ);
-	scope->declareFunc("!NEQ", NEQ);
-	scope->declareFunc("!LTE", LTE);
-	scope->declareFunc("!GTE", GTE);
-	scope->declareFunc("!LT", LT);
-	scope->declareFunc("!GT", GT);
-	scope->declareFunc("!AND", AND);
-	scope->declareFunc("!OR", OR);
-	scope->declareFunc("!XOR", XOR);
-	scope->declareFunc("!BAND", BAND);
-	scope->declareFunc("!BOR", BOR);
-	scope->declareFunc("!BXOR", BXOR);
+	scope->declare_func("!ADD", ADD);
+	scope->declare_func("!MUL", MUL);
+	scope->declare_func("!RECIP", RECIP);
+	scope->declare_func("!ITOF", ITOF);
+	scope->declare_func("!BTOF", BTOF);
+	scope->declare_func("!BTOI", BTOI);
+	scope->declare_func("!ITOB", ITOB);
+	scope->declare_func("!FTOI", FTOI);
+	scope->declare_func("!FTOB", FTOB);
+	scope->declare_func("!COPY", COPY);
+	scope->declare_func("log", LOG);
+	scope->declare_func("!MOD", MOD);
+	scope->declare_func("!EQ", EQ);
+	scope->declare_func("!NEQ", NEQ);
+	scope->declare_func("!LTE", LTE);
+	scope->declare_func("!GTE", GTE);
+	scope->declare_func("!LT", LT);
+	scope->declare_func("!GT", GT);
+	scope->declare_func("!AND", AND);
+	scope->declare_func("!OR", OR);
+	scope->declare_func("!XOR", XOR);
+	scope->declare_func("!BAND", BAND);
+	scope->declare_func("!BOR", BOR);
+	scope->declare_func("!BXOR", BXOR);
 }
 
 }
