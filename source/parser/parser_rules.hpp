@@ -49,6 +49,7 @@ RULE(statement, ast::Statement);
 RULE(function_statement, ast::FunctionStatement);
 RULE(assign_statement, ast::AssignStatement);
 RULE(var_dec_statement, ast::VarDecStatement);
+RULE(return_statement, ast::ReturnStatement);
 
 RULE(function_input_dec, ast::FunctionParameterDec);
 RULE(function_single_output_dec, ast::FunctionParameterDec);
@@ -197,7 +198,8 @@ auto const data_type_def =
 
 
 auto const statement_def =
-    var_dec_statement | function_statement | assign_statement;
+    return_statement | var_dec_statement | function_statement 
+    | assign_statement;
 
 auto const function_statement_def =
     function_expr >> ';';
@@ -210,6 +212,9 @@ auto const var_dec_statement_def =
         as<ast::InitVarDec>(identifier >> '=' > expr)
         | as<ast::PlainVarDec>(identifier)
     ) % ',' >> ';';
+
+auto const return_statement_def =
+    "return" > expr > ';';
 
 
 
@@ -248,7 +253,7 @@ BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr,
     justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
-    var_dec_statement)
+    var_dec_statement, return_statement)
 BOOST_SPIRIT_DEFINE(function_input_dec, function_single_output_dec, 
     function_dec)
 BOOST_SPIRIT_DEFINE(identifier, root_rule)

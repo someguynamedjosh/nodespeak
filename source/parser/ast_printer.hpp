@@ -185,6 +185,13 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << ';' << std::endl;
     }
 
+    void operator()(ReturnStatement const&stat) const {
+        print_indent();
+        std::cout << "return ";
+        recurse(stat.value);
+        std::cout << ";" << std::endl;
+    }
+
     template<typename Visitable>
     void recurse(Visitable &to_print) const {
         boost::apply_visitor(AstPrinter{indent + INDENT_WIDTH}, to_print);

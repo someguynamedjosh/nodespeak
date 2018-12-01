@@ -13,11 +13,13 @@ namespace x3 = boost::spirit::x3;
 struct FunctionStatement;
 struct AssignStatement;
 struct VarDecStatement;
+struct ReturnStatement;
 
 using StatementVariant = x3::variant<
     x3::forward_ast<FunctionStatement>,
     x3::forward_ast<AssignStatement>,
-    x3::forward_ast<VarDecStatement>>;
+    x3::forward_ast<VarDecStatement>,
+    x3::forward_ast<ReturnStatement>>;
 struct Statement: StatementVariant, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
@@ -140,6 +142,10 @@ struct VarDec: x3::variant<PlainVarDec, InitVarDec>, x3::position_tagged {
 struct VarDecStatement: x3::position_tagged {
     DataType type;
     std::vector<VarDec> var_decs;
+};
+
+struct ReturnStatement: x3::position_tagged {
+    Expression value;
 };
 
 }

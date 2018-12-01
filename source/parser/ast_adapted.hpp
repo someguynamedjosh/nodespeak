@@ -79,3 +79,8 @@ BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::VarDecStatement,
     type, var_decs
 )
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::ReturnStatement,
+    value
+)
