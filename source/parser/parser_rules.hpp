@@ -35,6 +35,7 @@ RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
 RULE(variable_expr, ast::VariableExpression);
+RULE(function_expression_output, ast::FunctionExpressionOutput);
 RULE(function_expr, ast::FunctionExpression);
 RULE(noin_function_expr, ast::FunctionExpression);
 RULE(justl_function_expr, ast::FunctionExpression);
@@ -152,6 +153,11 @@ auto const basic_expr_def =
 auto const variable_expr_def =
     identifier >> *('[' > expr > ']');
 
+// Output of a function expression
+auto const function_expression_output_def = 
+    data_type >> identifier
+    | variable_expr;
+
 // Function calls.
 auto const function_expr_def = 
     justl_function_expr | noin_function_expr | default_function_expr;
@@ -159,21 +165,21 @@ auto const function_expr_def =
 auto const justl_function_expr_def = (
     identifier
         >> repeat(0)[expr]
-        >> repeat(0)[variable_expr]
+        >> repeat(0)[function_expression_output]
         >> +function_dec
 );
 
 auto const noin_function_expr_def = (
     identifier
         >> repeat(0)[expr]
-        >> (lit(':') > '(' > -(variable_expr % ',') > ')')
+        >> (lit(':') > '(' > -(function_expression_output % ',') > ')')
         >> *function_dec
 );
 
 auto const default_function_expr_def = (
     identifier
         >> ('(' > -(expr % ',') > ')')
-        >> -(lit(':') > '(' > -(variable_expr % ',') > ')')
+        >> -(lit(':') > '(' > -(function_expression_output % ',') > ')')
         >> *function_dec
 );
 
@@ -232,7 +238,8 @@ auto const root_rule_def =
 
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
     multiply_expr, signed_expr, basic_expr, variable_expr, function_expr,
-    noin_function_expr, justl_function_expr, default_function_expr)
+    function_expression_output, noin_function_expr, justl_function_expr, 
+    default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
     var_dec_statement)
