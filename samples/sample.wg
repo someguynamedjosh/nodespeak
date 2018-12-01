@@ -1,4 +1,4 @@
-main():(Int return) {
+def main():(Int return) {
 	log(3 + 3); log(6);
 	log(5 - 2); log(3);
 	log(10 * 8); log(80);
@@ -14,49 +14,49 @@ main():(Int return) {
 	log(arr);
 	log([5, 2, 6, 4]);
 
-	if (1) {
+	if (1) then {
 		log(1);
 	} else {
 		log (0);
 	}
 	log(1);
 
-	if (0) {
+	if (0) then {
 		log(1);
 	} else {
 		log(0);
 	}
 	log(0);
 
-	if (12 == 11 + 1) {
+	if (12 == 11 + 1) then {
 		log(1);
 	} else {
 		log(0);
 	}
 	log(1);
 
-	if (1.0 == 1) {
+	if (1.0 == 1) then {
 		log(1);
 	} else {
 		log(0);
 	}
 	log(1);
 
-	if (1 && 1) {
+	if (1 && 1) then {
 		log(2);
 	} else {
 		log(0);
 	}
 	log(2);
 
-	if (1 || 0) {
+	if (1 || 0) then {
 		log(3);
 	} else {
 		log(0);
 	}
 	log(3);
 
-	if (1 ^^ 0) {
+	if (1 ^^ 0) then {
 		log(4);
 	} else {
 		log(0);
