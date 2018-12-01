@@ -26,8 +26,12 @@ using x3::rule;
         RULE_NAME = #RULE_NAME; \
     struct RULE_NAME##_class : x3::position_tagged { }
 
-RULE(logic_expr, ast::Expression);
-RULE(blogic_expr, ast::Expression);
+RULE(logic1_expr, ast::Expression);
+RULE(logic2_expr, ast::Expression);
+RULE(logic3_expr, ast::Expression);
+RULE(blogic1_expr, ast::Expression);
+RULE(blogic2_expr, ast::Expression);
+RULE(blogic3_expr, ast::Expression);
 RULE(equal_expr, ast::Expression);
 RULE(compare_expr, ast::Expression);
 RULE(add_expr, ast::Expression);
@@ -41,7 +45,7 @@ RULE(function_expr, ast::FunctionExpression);
 RULE(noin_function_expr, ast::FunctionExpression);
 RULE(justl_function_expr, ast::FunctionExpression);
 RULE(default_function_expr, ast::FunctionExpression);
-auto expr = logic_expr; // Top-level expression.
+auto expr = logic1_expr; // Top-level expression.
 
 RULE(data_type, ast::DataType);
 
@@ -84,20 +88,40 @@ template <typename T>
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 
 // Logic expressions
-auto const logic_expr_def = as<ast::OperatorListExpression>(
-    blogic_expr >> *(
-        (string("and") > blogic_expr)
-        | (string("or") > blogic_expr)
-        | (string("xor") > blogic_expr)
+auto const logic1_expr_def = as<ast::OperatorListExpression>(
+    logic2_expr >> *(
+        (string("or") > logic2_expr)
+    )
+);
+
+auto const logic2_expr_def = as<ast::OperatorListExpression>(
+    logic3_expr >> *(
+        (string("xor") > logic3_expr)
+    )
+);
+
+auto const logic3_expr_def = as<ast::OperatorListExpression>(
+    blogic1_expr >> *(
+        (string("and") > blogic1_expr)
     )
 );
 
 // Bitwise logic expression
-auto const blogic_expr_def = as<ast::OperatorListExpression>(
+auto const blogic1_expr_def = as<ast::OperatorListExpression>(
+    blogic2_expr >> *(
+        (string("bor") > blogic2_expr)
+    )
+);
+
+auto const blogic2_expr_def = as<ast::OperatorListExpression>(
+    blogic3_expr >> *(
+        (string("bxor") > blogic3_expr)
+    )
+);
+
+auto const blogic3_expr_def = as<ast::OperatorListExpression>(
     equal_expr >> *(
         (string("band") > equal_expr)
-        | (string("bor") > equal_expr)
-        | (string("bxor") > equal_expr)
     )
 );
 
@@ -247,7 +271,8 @@ auto const root_rule_def =
 
 
 
-BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
+BOOST_SPIRIT_DEFINE(logic1_expr, logic2_expr, logic3_expr, blogic1_expr, 
+    blogic2_expr, blogic3_expr, equal_expr, compare_expr, add_expr, 
     multiply_expr, signed_expr, basic_expr, array_expr, variable_expr, 
     function_expr, function_expression_output, noin_function_expr, 
     justl_function_expr, default_function_expr)
