@@ -89,11 +89,16 @@ struct SingleVarDec: x3::position_tagged {
     std::string name;
 };
 
-struct FunctionExpressionOutput: x3::variant<
-    SingleVarDec,
-    VariableExpression> {
+using FSOVariant = x3::variant<SingleVarDec, VariableExpression>;
+struct FunctionExpressionOutput: FSOVariant {
     using base_type::base_type;
     using base_type::operator=;
+    void operator=(FunctionExpressionOutput const&expr) 
+        { base_type::operator=(expr); }
+    FunctionExpressionOutput(FunctionExpressionOutput &expr): 
+        FSOVariant(expr) { }
+    FunctionExpressionOutput(FunctionExpressionOutput const&expr): 
+        FSOVariant(expr) { }
 };
 
 struct FunctionExpression: x3::position_tagged {
