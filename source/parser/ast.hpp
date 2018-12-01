@@ -33,6 +33,7 @@ struct VariableExpression;
 
 struct Expression: x3::variant<
     int, double, bool, 
+    x3::forward_ast<std::vector<Expression>>,
     x3::forward_ast<FunctionExpression>, 
     x3::forward_ast<VariableExpression>,
     x3::forward_ast<OperatorListExpression>, 

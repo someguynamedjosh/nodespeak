@@ -34,6 +34,7 @@ RULE(add_expr, ast::Expression);
 RULE(multiply_expr, ast::Expression);
 RULE(signed_expr, ast::Expression);
 RULE(basic_expr, ast::Expression);
+RULE(array_expr, std::vector<ast::Expression>);
 RULE(variable_expr, ast::VariableExpression);
 RULE(function_expression_output, ast::FunctionExpressionOutput);
 RULE(function_expr, ast::FunctionExpression);
@@ -146,8 +147,13 @@ auto const basic_expr_def =
     | int_
     | bool_
     | ('(' > expr > ')')
+    | array_expr
     | function_expr
     | variable_expr;
+
+// Array expression
+auto const array_expr_def =
+    '[' > expr % ',' > ']';
 
 // Variable access
 auto const variable_expr_def =
@@ -237,9 +243,9 @@ auto const root_rule_def =
 
 
 BOOST_SPIRIT_DEFINE(logic_expr, blogic_expr, equal_expr, compare_expr, add_expr, 
-    multiply_expr, signed_expr, basic_expr, variable_expr, function_expr,
-    function_expression_output, noin_function_expr, justl_function_expr, 
-    default_function_expr)
+    multiply_expr, signed_expr, basic_expr, array_expr, variable_expr, 
+    function_expr, function_expression_output, noin_function_expr, 
+    justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
     var_dec_statement)
