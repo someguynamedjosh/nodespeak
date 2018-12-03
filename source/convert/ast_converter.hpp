@@ -20,6 +20,14 @@ inline SP<intr::Value> int_literal(const int value) {
     return SP<intr::Value>{new intr::Value(blt()->INT, new int{value})};
 }
 
+inline SP<intr::Value> float_literal(const double value) {
+    return SP<intr::Value>{new intr::Value(blt()->FLOAT, new double{value})};
+}
+
+inline SP<intr::Value> bool_literal(const bool value) {
+    return SP<intr::Value>{new intr::Value(blt()->BOOL, new bool{value})};
+}
+
 struct AccessResult {
     SP<intr::Value> root_val, offset;
     SP<intr::DataType> final_type;
@@ -60,17 +68,18 @@ struct AstConverter: boost::static_visitor<> {
     void operator()(InitVarDec const&dec) const;
     void operator()(ReturnStatement const&stat) const;
 
-    void operator()(FunctionParameterDec const&dec) const;
-    void operator()(FunctionDec const&dec) const;
     void operator()(int const&expr) const;
     void operator()(double const&expr) const;
     void operator()(bool const&expr) const;
+    void operator()(SignedExpression const&expr) const;
+    void operator()(VariableExpression const&expr) const;
     void operator()(std::vector<Expression> const&expr) const;
     void operator()(SingleVarDec const&dec) const;
     void operator()(FunctionExpression const&expr) const;
     void operator()(OperatorListExpression const&expr) const;
-    void operator()(SignedExpression const&expr) const;
-    void operator()(VariableExpression const&expr) const;
+
+    void operator()(FunctionParameterDec const&dec) const;
+    void operator()(FunctionDec const&dec) const;
     void operator()(DataType const&type) const;
 
     template<typename Visitable>
