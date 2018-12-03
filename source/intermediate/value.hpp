@@ -12,7 +12,7 @@ class Value {
 private:
     std::shared_ptr<DataType> type;
     void *data;
-    bool valueKnown{false};
+    bool value_known{false};
 public:
     Value(std::shared_ptr<DataType> type);
     Value(std::shared_ptr<DataType> type, void *data);
@@ -20,12 +20,12 @@ public:
     std::string repr();
 
     std::shared_ptr<DataType> get_type();
-    void set_type(std::shared_ptr<DataType> newType);
+    void set_type(std::shared_ptr<DataType> new_type);
     bool is_proxy();
     Value &get_real_value();
 
     bool is_value_known();
-    void set_value_known(bool isKnown);
+    void set_value_known(bool is_known);
     Value create_known_copy();
     void *get_data();
 
