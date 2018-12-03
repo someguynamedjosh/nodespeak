@@ -25,7 +25,7 @@ Builtins::Builtins()
     BAND{new Scope()}, BOR{new Scope()}, BXOR{new Scope()},
     ITOF{new Scope()}, BTOF{new Scope()}, BTOI{new Scope()}, 
     ITOB{new Scope()}, FTOI{new Scope()}, FTOB{new Scope()},
-    COPY{new Scope()}, LOG{new Scope()},
+    COPY{new Scope()}, LOG{new Scope()}, RETURN{new Scope()},
     EQ{new Scope()}, NEQ{new Scope()}, LTE{new Scope()}, GTE{new Scope()},
     LT{new Scope()}, GT{new Scope()}, AND{new Scope()}, OR{new Scope()},
     XOR{new Scope()} {
@@ -90,6 +90,8 @@ Builtins::Builtins()
 	LOG->auto_add_inputs();
 	LOG->declare_var("a", NEW_VALUE(ANY_WILDCARD));
 	LOG->auto_add_outputs();
+
+	// RETURN has no inputs, no outputs.
 
 	MOD->auto_add_inputs();
 	MOD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
