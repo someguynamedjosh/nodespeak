@@ -135,7 +135,7 @@ std::string Scope::repr() {
     }
 
     ss << "}\nFUNCS={ ";
-    for (int i = 0; i < tempFuncs.size(); i++) {
+    for (uint i = 0; i < tempFuncs.size(); i++) {
         ss << "\n\"!TEMP" << i << "\"=" << tempFuncs[i]->repr();
     }
     for (auto func : funcs) {
@@ -143,7 +143,7 @@ std::string Scope::repr() {
     }
 
     ss << "}\nVARS={ ";
-    for (int i = 0; i < tempVars.size(); i++) {
+    for (uint i = 0; i < tempVars.size(); i++) {
         ss << "\n\"!TEMP" << i << "\"=" << tempVars[i]->repr();
     }
     for (auto var : vars) {
@@ -159,7 +159,7 @@ std::string Scope::repr() {
         ss << func->repr() << "\n";
     }
     for (auto func : funcs) {
-        if (func.second->get_commands().size > 0) {
+        if (func.second->get_commands().size() > 0) {
             ss << func.second->repr() << "\n";
         }
     }

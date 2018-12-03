@@ -8,6 +8,7 @@
 namespace waveguide {
 namespace intermediate {
 
+class DataType;
 class Scope;
 class Value;
 
@@ -31,8 +32,8 @@ public:
 class Command {
     private:
     std::vector<std::shared_ptr<Value>> ins, outs;
+    std::shared_ptr<Scope> call{nullptr};
     std::shared_ptr<Augmentation> aug{nullptr};
-    std::shared_ptr<Scope> call;
 public:
     Command(std::shared_ptr<Scope> call);
     Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug);
