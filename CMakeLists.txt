@@ -9,7 +9,7 @@ endif(MSVC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-set(SOURCE_DIR source/parser)
+set(SOURCE_DIR source)
 set(INCLUDE_DIR include)
 set(SPIRIT_DIR spirit)
 
