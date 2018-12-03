@@ -20,7 +20,7 @@ inline SP<intr::Value> int_literal(const int value) {
     return SP<intr::Value>{new intr::Value(blt()->INT, new int{value})};
 }
 
-inline SP<intr::Value> float_literal(const double value) {
+inline SP<intr::Value> double_literal(const double value) {
     return SP<intr::Value>{new intr::Value(blt()->FLOAT, new double{value})};
 }
 
