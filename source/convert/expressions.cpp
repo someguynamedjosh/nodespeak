@@ -1,6 +1,6 @@
 #include "ast_converter.hpp"
 
-namespace waveguie {
+namespace waveguide {
 namespace ast {
 
 void AstConverter::operator()(int const&expr) const {
@@ -19,12 +19,12 @@ void AstConverter::operator()(SignedExpression const&expr) const {
     recurse(expr.value);
     if (expr.sign == '-') {
         SP<intr::Command> negate{new intr::Command(blt()->MUL)};
-        negate.add_input(data->current_value);
-        negate.add_input(int_literal(-1));
+        negate->add_input(data->current_value);
+        negate->add_input(int_literal(-1));
         SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
         declare_temp_var(output);
         data->current_value = output;
-        negate.add_output(output);
+        negate->add_output(output);
         add_command(negate);
     }
 }
@@ -47,11 +47,11 @@ void AstConverter::operator()(FunctionExpression const&expr) const {
     SP<intr::Command> command{new intr::Command(func)};
     for (auto const&input : expr.inputs) {
         recurse(input);
-        command.add_input(data->current_value);
+        command->add_input(data->current_value);
     }
     for (auto const&output : expr.outputs) {
         recurse(output);
-        command.add_output(data->current_value);
+        command->add_output(data->current_value);
     }
     // TODO: Add lambda logic.
     add_command(command);
@@ -68,7 +68,7 @@ void AstConverter::operator()(OperatorListExpression const&expr) const {
                 SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
                 declare_temp_var(output);
                 last_command->add_output(output);
-                add_command(last_command);
+                add_command(SP<intr::Command>{last_command});
                 data->current_value = output;
             }
             SP<intr::Scope> func{nullptr};
@@ -119,7 +119,7 @@ void AstConverter::operator()(OperatorListExpression const&expr) const {
                 func = blt()->XOR;
                 join = false;
             }
-            last_command = SP<intr::Command>{new intr::Command(func)};
+            last_command = new intr::Command(func);
             last_command->add_input(data->current_value);
         }
         recurse(operation.value);
@@ -129,7 +129,7 @@ void AstConverter::operator()(OperatorListExpression const&expr) const {
         SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
         declare_temp_var(output);
         last_command->add_output(output);
-        add_command(last_command);
+        add_command(SP<intr::Command>{last_command});
         data->current_value = output;
     }
 }
