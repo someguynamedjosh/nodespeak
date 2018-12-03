@@ -105,7 +105,7 @@ struct FunctionExpressionOutput: FSOVariant {
 };
 
 struct FunctionExpression: x3::position_tagged {
-    std::string functionName;
+    std::string function_name;
     std::vector<Expression> inputs;
     std::vector<FunctionExpressionOutput> outputs;
     std::vector<FunctionDec> lambdas;

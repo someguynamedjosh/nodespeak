@@ -50,7 +50,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::FunctionExpression,
-    functionName, inputs, outputs, lambdas
+    function_name, inputs, outputs, lambdas
 )
 
 
