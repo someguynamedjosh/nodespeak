@@ -102,16 +102,14 @@ struct AstConverter: boost::static_visitor<> {
 
     #pragma GCC diagnostic ignored "-Wunused-parameter"
     template<typename Visitable>
-    void recurse(Visitable &to_convert, 
-        typename boost::enable_if<has_visit_method<Visitable>, int>::type guard 
-        = 0) const {
+    typename boost::enable_if<has_visit_method<Visitable>, void>::type
+    recurse(Visitable &to_convert) const {
         boost::apply_visitor(AstConverter{data}, to_convert);
     }
 
     template<typename Visitable>
-    void recurse(Visitable &to_convert, 
-        typename boost::disable_if<has_visit_method<Visitable>, int>::type guard 
-        = 0) const {
+    typename boost::disable_if<has_visit_method<Visitable>, void>::type
+    recurse(Visitable &to_convert) const {
         (*this)(to_convert);
     }
     #pragma GCC diagnostic pop // Restore command-line options.
