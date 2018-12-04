@@ -93,14 +93,6 @@ std::shared_ptr<DataType> ArrayDataType::get_base_type() {
     return elementType->get_base_type();
 }
 
-int ArrayDataType::getArrayLength() {
-    return length;
-}
-
-std::shared_ptr<DataType> ArrayDataType::get_element_type() {
-    return elementType;
-}
-
 std::string ArrayDataType::repr() {
     return elementType->repr() + "[" + std::to_string(length) + "]";
 }
@@ -114,6 +106,19 @@ std::string ArrayDataType::format(void *data) {
         }
     }
     return tr + "]";
+}
+
+int ArrayDataType::getArrayLength() {
+    return length;
+}
+
+std::shared_ptr<DataType> ArrayDataType::get_element_type() {
+    return elementType;
+}
+
+std::shared_ptr<Value> ArrayDataType::get_data_offset(std::shared_ptr<Value> index) {
+    // TODO: Implementation
+    return std::shared_ptr<Value>{nullptr};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -140,6 +145,11 @@ std::string CopyArrayDataProxy::format(void *data) {
 std::string CopyArrayDataProxy::repr() {
     return get_element_type()->repr() + "[" + std::to_string(getArrayLength()) 
         + " copied from 1]";
+}
+
+std::shared_ptr<Value> CopyArrayDataProxy::get_data_offset(std::shared_ptr<Value> index) {
+    // TODO: Implementation
+    return std::shared_ptr<Value>{nullptr};
 }
 
 }

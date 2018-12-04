@@ -34,5 +34,6 @@ int main(int argc, char **argv) {
     std::cout << 
         (result.error ? "Compile failed!" : "Compile suceeded!") << std::endl;
     waveguide::ast::print_ast(result.ast);
+    waveguide::convert::convert_ast(result.ast);
     return 0;
 }
