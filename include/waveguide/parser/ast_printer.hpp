@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "ast.hpp"
+#include <waveguide/parser/ast.hpp>
 
 namespace waveguide {
 namespace ast {

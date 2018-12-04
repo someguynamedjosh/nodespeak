@@ -25,6 +25,7 @@ set(TARGET ${STATIC_LIB_TARGET})
 file(GLOB_RECURSE SRC_FILES ${SOURCE_DIR}/*.cpp)
 add_library(${TARGET} STATIC ${SRC_FILES})
 target_include_directories(${TARGET} PRIVATE ${SOURCE_DIR})
+target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIR})
 target_include_directories(${TARGET} PRIVATE ${SPIRIT_DIR}/include)
 target_link_libraries(${TARGET} PRIVATE boost_system.a)
 

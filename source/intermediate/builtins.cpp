@@ -1,8 +1,8 @@
-#include "builtins.hpp"
+#include <waveguide/intermediate/builtins.hpp>
 
-#include "data_type.hpp"
-#include "scope.hpp"
-#include "value.hpp"
+#include <waveguide/intermediate/data_type.hpp>
+#include <waveguide/intermediate/scope.hpp>
+#include <waveguide/intermediate/value.hpp>
 
 namespace waveguide {
 namespace intermediate {

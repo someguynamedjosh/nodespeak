@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "ast.hpp"
+#include <waveguide/parser/parser.hpp>
 
 namespace waveguide {
 namespace parser {
@@ -12,18 +12,12 @@ namespace parser {
 using boost::spirit::x3::rule;
 
 struct root_class;
-using root_type = std::vector<ast::Statement>;
-using root_rule_type = rule<root_class, root_type>;
+using root_rule_type = rule<root_class, ast::root_type>;
 BOOST_SPIRIT_DECLARE(root_rule_type)
-
-struct ParseResult {
-    root_type ast;
-    int error = 0;
-};
 
 struct error_handler_tag;
 
-ParseResult parse(std::string input);
+parse_result parse(std::string input);
 
 }
 }

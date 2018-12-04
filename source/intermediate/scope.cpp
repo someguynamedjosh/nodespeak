@@ -1,9 +1,9 @@
-#include "scope.hpp"
+#include <waveguide/intermediate/scope.hpp>
 
 #include <sstream>
 
-#include "data_type.hpp"
-#include "value.hpp"
+#include <waveguide/intermediate/data_type.hpp>
+#include <waveguide/intermediate/value.hpp>
 
 namespace waveguide {
 namespace intermediate {

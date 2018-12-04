@@ -21,8 +21,8 @@ BOOST_SPIRIT_INSTANTIATE(
     iterator_type,
     context_type)
 
-ParseResult parse(std::string input) {
-    ParseResult result;
+parse_result parse(std::string input) {
+    parse_result result;
     iterator_type start = input.begin(), end = input.end();
     error_handler_type error_handler(start, end, std::cerr);
 

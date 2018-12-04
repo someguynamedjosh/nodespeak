@@ -148,5 +148,7 @@ struct ReturnStatement: x3::position_tagged {
     Expression value;
 };
 
+using root_type = std::vector<ast::Statement>;
+
 }
 }

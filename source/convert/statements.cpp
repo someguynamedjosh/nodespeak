@@ -1,6 +1,6 @@
 #include "ast_converter.hpp"
 
-#include "intermediate/builtins.hpp"
+#include <waveguide/intermediate/builtins.hpp>
 
 namespace waveguide {
 namespace ast {

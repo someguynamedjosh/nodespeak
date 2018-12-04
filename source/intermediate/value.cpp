@@ -1,11 +1,11 @@
-#include "value.hpp"
+#include <waveguide/intermediate/value.hpp>
 
 #include <cassert>
 #include <cstring>
 #include <sstream>
 #include <string>
 
-#include "data_type.hpp"
+#include <waveguide/intermediate/data_type.hpp>
 
 namespace waveguide {
 namespace intermediate {

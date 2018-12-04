@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 
-#include "waveguide/parser.hpp"
-#include "waveguide/ast_util.hpp"
+#include <waveguide/parser/ast_printer.hpp>
+#include <waveguide/waveguide.hpp>
 
 int main() {
     std::vector<std::string> tests{

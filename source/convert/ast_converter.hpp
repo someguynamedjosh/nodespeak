@@ -2,10 +2,10 @@
 
 #include <boost/core/enable_if.hpp>
 
-#include "intermediate/builtins.hpp"
-#include "intermediate/scope.hpp"
-#include "intermediate/value.hpp"
-#include "parser/ast.hpp"
+#include <waveguide/intermediate/builtins.hpp>
+#include <waveguide/intermediate/scope.hpp>
+#include <waveguide/intermediate/value.hpp>
+#include <waveguide/parser/ast.hpp>
 
 namespace waveguide {
 namespace ast {

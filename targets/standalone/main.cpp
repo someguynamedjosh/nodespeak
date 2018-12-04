@@ -1,9 +1,10 @@
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
-#include "waveguide/parser.hpp"
-#include "waveguide/ast_util.hpp"
+#include <waveguide/parser/ast_printer.hpp>
+#include <waveguide/waveguide.hpp>
 
 int main(int argc, char **argv) {
     if (argc != 2) {

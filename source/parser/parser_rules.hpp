@@ -3,7 +3,7 @@
 #include <boost/spirit/home/x3.hpp>
 #include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 
-#include "ast.hpp"
+#include <waveguide/parser/ast.hpp>
 #include "ast_adapted.hpp"
 #include "parser.hpp"
 #include "parser_error.hpp"
