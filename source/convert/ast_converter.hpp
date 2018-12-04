@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/core/enable_if.hpp>
+
 #include "intermediate/builtins.hpp"
 #include "intermediate/scope.hpp"
 #include "intermediate/value.hpp"
@@ -82,10 +84,37 @@ struct AstConverter: boost::static_visitor<> {
     void operator()(FunctionDec const&dec) const;
     void operator()(DataType const&type) const;
 
+    template<typename T>
+    struct has_visit_method {
+    private:
+        typedef std::true_type yes;
+        typedef std::false_type no;
+        
+        template<typename U> static auto test(int) -> decltype(
+            std::declval<U>().why(), no());
+        template<typename> static no test(...);
+
+    public:
+        static constexpr bool value 
+            = std::is_same<decltype(test<T>(0)),no>::value;
+    };
+
     template<typename Visitable>
-    void recurse(Visitable &to_convert) const {
+    void recurse(Visitable &to_convert, 
+        typename boost::enable_if<has_visit_method<Visitable>, int>::type guard 
+        = 0) const {
+        guard += 1;
         boost::apply_visitor(AstConverter{data}, to_convert);
     }
+
+/*
+    template<typename Visitable>
+    void recurse(Visitable &to_convert, 
+        typename boost::disable_if<has_visit_method<Visitable>, int>::type guard 
+        = 0) const {
+        (*this)(to_convert);
+    }
+    */
 };
 
 template<typename Visitable>
