@@ -115,15 +115,5 @@ struct AstConverter: boost::static_visitor<> {
     #pragma GCC diagnostic pop // Restore command-line options.
 };
 
-template<typename Visitable>
-inline void convert_ast(Visitable const&expr) {
-    boost::apply_visitor(AstConverter{}, expr);
-}
-
-template<>
-inline void convert_ast(std::vector<ast::Statement> const&root) {
-    AstConverter{}(root);
-}
-
 }
 }

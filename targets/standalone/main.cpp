@@ -3,8 +3,8 @@
 #include <sstream>
 #include <string>
 
-#include <waveguide/parser/ast_printer.hpp>
-#include <waveguide/waveguide.hpp>
+#include <waveguide/compile.hpp>
+#include <waveguide/util.hpp>
 
 int main(int argc, char **argv) {
     if (argc != 2) {
