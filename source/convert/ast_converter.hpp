@@ -91,30 +91,30 @@ struct AstConverter: boost::static_visitor<> {
         typedef std::false_type no;
         
         template<typename U> static auto test(int) -> decltype(
-            std::declval<U>().why(), no());
+            std::declval<U>().apply_visitor(std::declval<AstConverter>()), 
+            yes());
         template<typename> static no test(...);
 
     public:
-        static constexpr bool value 
-            = std::is_same<decltype(test<T>(0)),no>::value;
+        static constexpr bool value
+            = std::is_same<decltype(test<T>(0)),yes>::value;
     };
 
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
     template<typename Visitable>
     void recurse(Visitable &to_convert, 
         typename boost::enable_if<has_visit_method<Visitable>, int>::type guard 
         = 0) const {
-        guard += 1;
         boost::apply_visitor(AstConverter{data}, to_convert);
     }
 
-/*
     template<typename Visitable>
     void recurse(Visitable &to_convert, 
         typename boost::disable_if<has_visit_method<Visitable>, int>::type guard 
         = 0) const {
         (*this)(to_convert);
     }
-    */
+    #pragma GCC diagnostic pop // Restore command-line options.
 };
 
 template<typename Visitable>

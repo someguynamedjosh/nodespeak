@@ -17,7 +17,7 @@ struct error_handler {
         error_handler(error.where(), message);
         return x3::error_handler_result::fail;
     }
-    #pragma GCC diagnostic warning "-Wunused-parameter"
+    #pragma GCC diagnostic pop // Restore command-line options.
 };
 
 struct root_class: error_handler { };
