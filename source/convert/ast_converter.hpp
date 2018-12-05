@@ -1,11 +1,10 @@
 #pragma once
 
 #include <boost/core/enable_if.hpp>
-
 #include <waveguide/intermediate/builtins.hpp>
-#include <waveguide/intermediate/scope.hpp>
-#include <waveguide/intermediate/value.hpp>
+#include <waveguide/intermediate/metastructure.hpp>
 #include <waveguide/parser/ast.hpp>
+#include <memory>
 
 namespace waveguide {
 namespace ast {
