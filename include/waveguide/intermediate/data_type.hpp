@@ -6,74 +6,74 @@
 namespace waveguide {
 namespace intermediate {
 
-class Scope;
-class Value;
+class scope;
+class value;
 
-class DataType {
+class data_type {
 public:
-    DataType();
+    data_type();
     virtual int get_length() = 0;
-    virtual std::shared_ptr<DataType> get_base_type();
+    virtual std::shared_ptr<data_type> get_base_type();
     virtual bool is_proxy_type();
     virtual std::string repr() = 0;
     virtual std::string format(void *data) = 0;
 };
 
-class AbstractDataType: public DataType {
+class abstract_data_type: public data_type {
 private:
     std::string label;
 public:
-    AbstractDataType(std::string label);
+    abstract_data_type(std::string label);
     virtual int get_length();
     virtual std::string repr();
     virtual std::string format(void *data);
 };
 
-class IntDataType: public DataType {
+class int_data_type: public data_type {
 public:
     virtual int get_length();
     virtual std::string repr();
     virtual std::string format(void *data);
 };
 
-class FloatDataType: public DataType {
+class float_data_type: public data_type {
 public:
     virtual int get_length();
     virtual std::string repr();
     virtual std::string format(void *data);
 };
 
-class BoolDataType: public DataType {
+class bool_data_type: public data_type {
 public:
     virtual int get_length();
     virtual std::string repr();
     virtual std::string format(void *data);
 };
 
-class ArrayDataType: public DataType {
+class array_data_type: public data_type {
 private:
-    std::shared_ptr<DataType> elementType;
+    std::shared_ptr<data_type> elementType;
     int length;
 public:
-    ArrayDataType(std::shared_ptr<DataType> elementType, int length);
+    array_data_type(std::shared_ptr<data_type> elementType, int length);
     virtual int get_length();
-    virtual std::shared_ptr<DataType> get_base_type();
+    virtual std::shared_ptr<data_type> get_base_type();
     virtual std::string repr();
     virtual std::string format(void *data);
 
     virtual int getArrayLength();
-    std::shared_ptr<DataType> get_element_type();
-    virtual std::shared_ptr<Value> get_data_offset(std::shared_ptr<Value> index);
+    std::shared_ptr<data_type> get_element_type();
+    virtual std::shared_ptr<value> get_data_offset(std::shared_ptr<value> index);
 };
 
-class CopyArrayDataProxy: public ArrayDataType {
+class copy_array_data_proxy: public array_data_type {
 public:
-    CopyArrayDataProxy(std::shared_ptr<DataType> sourceType, int length);
+    copy_array_data_proxy(std::shared_ptr<data_type> sourceType, int length);
     virtual bool is_proxy();
     virtual std::string repr();
     virtual std::string format(void *data);
 
-    virtual std::shared_ptr<Value> get_data_offset(std::shared_ptr<Value> index);
+    virtual std::shared_ptr<value> get_data_offset(std::shared_ptr<value> index);
 };
 
 }

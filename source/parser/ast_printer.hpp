@@ -9,10 +9,10 @@ namespace ast {
 
 constexpr int INDENT_WIDTH = 4;
 
-struct AstPrinter: boost::static_visitor<> {
+struct ast_printer: boost::static_visitor<> {
     int indent;
 
-    AstPrinter(int indent): indent(indent) { }
+    ast_printer(int indent): indent(indent) { }
 
     void print_indent() const {
         for (int i = 0; i < indent; i++) {
@@ -20,12 +20,12 @@ struct AstPrinter: boost::static_visitor<> {
         }
     }
 
-    void operator()(FunctionParameterDec const&dec) const {
+    void operator()(function_parameter_dec const&dec) const {
         (*this)(dec.type);
         std::cout << " " << dec.name;
     }
 
-    void operator()(FunctionDec const&dec) const {
+    void operator()(function_dec const&dec) const {
         std::cout << dec.name << "(";
         bool first = true;
         for (auto const&input : dec.inputs) {
@@ -68,7 +68,7 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << (expr ? "true" : "false");
     }
 
-    void operator()(std::vector<Expression> const&expr) const {
+    void operator()(std::vector<expression> const&expr) const {
         std::cout << "[";
         bool first = true;
         for (auto const&child : expr) {
@@ -79,13 +79,13 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << "]";
     }
 
-    void operator()(SingleVarDec const&dec) const {
+    void operator()(single_var_dec const&dec) const {
         std::cout << "declare, ";
         (*this)(dec.type);
         std::cout << " " << dec.name << " ";
     }
 
-    void operator()(FunctionExpression const&expr) const {
+    void operator()(function_expression const&expr) const {
         std::cout << expr.function_name << '(';
         bool first = true;
         for (auto const&input : expr.inputs) {
@@ -110,7 +110,7 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << "]";
     }
 
-    void operator()(OperatorListExpression const&expr) const {
+    void operator()(operator_list_expression const&expr) const {
         if (expr.operations.size() == 0) {
             recurse(expr.start_value);
             return;
@@ -124,16 +124,16 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << ')';
     }
 
-    void operator()(SignedExpression const&expr) const {
+    void operator()(signed_expression const&expr) const {
         std::cout << '(' << expr.sign << ')';
         recurse(expr.value);
     }
 
-    void operator()(VariableExpression const&expr) const {
+    void operator()(variable_expression const&expr) const {
         std::cout << expr.name;
     }
 
-    void operator()(DataType const&type) const {
+    void operator()(data_type const&type) const {
         std::cout << type.name;
         for (auto &size : type.array_sizes) {
             std::cout << '[';
@@ -142,19 +142,19 @@ struct AstPrinter: boost::static_visitor<> {
         }
     }
 
-    void operator()(std::vector<Statement> const&stats) const {
+    void operator()(std::vector<statement> const&stats) const {
         for (auto const&stat : stats) {
             recurse(stat);
         }
     }
 
-    void operator()(FunctionStatement const&stat) const {
+    void operator()(function_statement const&stat) const {
         print_indent();
         (*this)(stat.func_call);
         std::cout << ';' << std::endl;
     }
 
-    void operator()(AssignStatement const&stat) const {
+    void operator()(assign_statement const&stat) const {
         print_indent();
         (*this)(stat.assign_to);
         std::cout << " = ";
@@ -162,16 +162,16 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << ';' << std::endl;
     }
 
-    void operator()(PlainVarDec const&dec) const {
+    void operator()(Plainvar_dec const&dec) const {
         std::cout << dec.name;
     }
 
-    void operator()(InitVarDec const&dec) const {
+    void operator()(init_var_dec const&dec) const {
         std::cout << dec.name << " = ";
         recurse(dec.value);
     }
 
-    void operator()(VarDecStatement const&stat) const {
+    void operator()(var_dec_statement const&stat) const {
         print_indent();
         std::cout << "declare, ";
         (*this)(stat.type);
@@ -185,7 +185,7 @@ struct AstPrinter: boost::static_visitor<> {
         std::cout << ';' << std::endl;
     }
 
-    void operator()(ReturnStatement const&stat) const {
+    void operator()(return_statement const&stat) const {
         print_indent();
         std::cout << "return ";
         recurse(stat.value);
@@ -194,7 +194,7 @@ struct AstPrinter: boost::static_visitor<> {
 
     template<typename Visitable>
     void recurse(Visitable &to_print) const {
-        boost::apply_visitor(AstPrinter{indent + INDENT_WIDTH}, to_print);
+        boost::apply_visitor(ast_printer{indent + INDENT_WIDTH}, to_print);
     }
 };
 

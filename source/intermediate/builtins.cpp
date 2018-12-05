@@ -7,30 +7,30 @@
 namespace waveguide {
 namespace intermediate {
 
-std::shared_ptr<Builtins> Builtins::instance{nullptr};
+std::shared_ptr<builtins> builtins::instance{nullptr};
 
-std::shared_ptr<Builtins> Builtins::get_instance() {
+std::shared_ptr<builtins> builtins::get_instance() {
     if (!instance) {
-        instance = std::shared_ptr<Builtins>(new Builtins());
+        instance = std::shared_ptr<builtins>(new builtins());
     }
     return instance;
 }
     
-Builtins::Builtins()
-    : INT{new IntDataType()}, FLOAT{new FloatDataType()}, 
-    BOOL{new BoolDataType()}, 
-    UPCAST_WILDCARD{new AbstractDataType("UPCAST_WILDCARD")},
-    ANY_WILDCARD{new AbstractDataType("ANY_WILDCARD")},
-    ADD{new Scope()}, MUL{new Scope()}, RECIP{new Scope()}, MOD{new Scope()},
-    BAND{new Scope()}, BOR{new Scope()}, BXOR{new Scope()},
-    ITOF{new Scope()}, BTOF{new Scope()}, BTOI{new Scope()}, 
-    ITOB{new Scope()}, FTOI{new Scope()}, FTOB{new Scope()},
-    COPY{new Scope()}, LOG{new Scope()}, RETURN{new Scope()},
-    EQ{new Scope()}, NEQ{new Scope()}, LTE{new Scope()}, GTE{new Scope()},
-    LT{new Scope()}, GT{new Scope()}, AND{new Scope()}, OR{new Scope()},
-    XOR{new Scope()} {
+builtins::builtins()
+    : INT{new int_data_type()}, FLOAT{new float_data_type()}, 
+    BOOL{new bool_data_type()}, 
+    UPCAST_WILDCARD{new abstract_data_type("UPCAST_WILDCARD")},
+    ANY_WILDCARD{new abstract_data_type("ANY_WILDCARD")},
+    ADD{new scope()}, MUL{new scope()}, RECIP{new scope()}, MOD{new scope()},
+    BAND{new scope()}, BOR{new scope()}, BXOR{new scope()},
+    ITOF{new scope()}, BTOF{new scope()}, BTOI{new scope()}, 
+    ITOB{new scope()}, FTOI{new scope()}, FTOB{new scope()},
+    COPY{new scope()}, LOG{new scope()}, RETURN{new scope()},
+    EQ{new scope()}, NEQ{new scope()}, LTE{new scope()}, GTE{new scope()},
+    LT{new scope()}, GT{new scope()}, AND{new scope()}, OR{new scope()},
+    XOR{new scope()} {
     
-    #define NEW_VALUE(TYPE) std::shared_ptr<Value>(new Value(TYPE))
+    #define NEW_VALUE(TYPE) std::shared_ptr<value>(new value(TYPE))
 	ADD->auto_add_inputs();
 	ADD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
 	ADD->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
@@ -173,7 +173,7 @@ Builtins::Builtins()
     #undef NEW_VALUE
 }
 
-void Builtins::add_to_scope(std::shared_ptr<Scope> scope) {
+void builtins::add_to_scope(std::shared_ptr<scope> scope) {
     scope->declare_type("Int", INT);
     scope->declare_type("Float", FLOAT);
     scope->declare_type("Bool", BOOL);

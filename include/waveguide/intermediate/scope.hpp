@@ -9,87 +9,87 @@
 namespace waveguide {
 namespace intermediate {
 
-class DataType;
-class Scope;
-class Value;
+class data_type;
+class scope;
+class value;
 
 template<typename T>
 using SP = std::shared_ptr<T>;
 
 struct do_if_aug {
-    SP<Value> condition;
+    SP<value> condition;
 };
 
 struct do_if_not_aug {
-    SP<Value> condition;
+    SP<value> condition;
 };
 
 struct loop_for_aug {
-    SP<Value> to_set, iterate_over;
+    SP<value> to_set, iterate_over;
 };
 
 struct loop_range_aug {
-    SP<Value> to_set, start, end, step;
+    SP<value> to_set, start, end, step;
 };
 
 struct augmentation: boost::variant<
     do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug
 > { };
 
-class Command {
+class command {
     private:
-    std::vector<SP<Value>> ins, outs;
-    SP<Scope> call{nullptr};
+    std::vector<SP<value>> ins, outs;
+    SP<scope> call{nullptr};
     SP<augmentation> aug{nullptr};
 public:
-    Command(SP<Scope> call);
-    Command(SP<Scope> call, SP<augmentation> aug);
+    command(SP<scope> call);
+    command(SP<scope> call, SP<augmentation> aug);
     std::string repr();
 
-    void add_input(SP<Value> input);
-    void add_output(SP<Value> output);
-    std::vector<SP<Value>> &get_inputs();
-    std::vector<SP<Value>> &get_outputs();
+    void add_input(SP<value> input);
+    void add_output(SP<value> output);
+    std::vector<SP<value>> &get_inputs();
+    std::vector<SP<value>> &get_outputs();
     SP<augmentation> get_augmentation();
-    SP<Scope> get_called_scope();
+    SP<scope> get_called_scope();
 };
 
-class Scope {
+class scope {
 private:
-    std::map<std::string, SP<Scope>> funcs;
-    std::vector<SP<Scope>> tempFuncs;
-    std::map<std::string, SP<Value>> vars;
-    std::vector<SP<Value>> tempVars;
-    std::map<std::string, SP<DataType>> types;
-    std::vector<SP<Command>> commands;
-    SP<Scope> parent{nullptr};
+    std::map<std::string, SP<scope>> funcs;
+    std::vector<SP<scope>> tempFuncs;
+    std::map<std::string, SP<value>> vars;
+    std::vector<SP<value>> tempVars;
+    std::map<std::string, SP<data_type>> types;
+    std::vector<SP<command>> commands;
+    SP<scope> parent{nullptr};
 
-    enum AutoAdd {
+    enum auto_add {
         NONE, INS, OUTS
     };
-    AutoAdd autoAdd{AutoAdd::NONE};
-    std::vector<SP<Value>> ins, outs;
+    auto_add do_auto{auto_add::NONE};
+    std::vector<SP<value>> ins, outs;
 public:
-    Scope();
-    Scope(SP<Scope> parent);
-    SP<Scope> getParent();
+    scope();
+    scope(SP<scope> parent);
+    SP<scope> get_parent();
     std::string repr();
 
-    void declare_func(std::string name, SP<Scope> body);
-    void declare_temp_func(SP<Scope> body);
-    SP<Scope> lookup_func(std::string name);
-    void declare_var(std::string name, SP<Value> value);
-    void declare_temp_var(SP<Value> value);
-    SP<Value> lookup_var(std::string name);
-    void declare_type(std::string name, SP<DataType> type);
-    SP<DataType> lookup_type(std::string name);
-    void add_command(SP<Command> command);
-    std::vector<SP<Command>> &get_commands();
+    void declare_func(std::string name, SP<scope> body);
+    void declare_temp_func(SP<scope> body);
+    SP<scope> lookup_func(std::string name);
+    void declare_var(std::string name, SP<value> value);
+    void declare_temp_var(SP<value> value);
+    SP<value> lookup_var(std::string name);
+    void declare_type(std::string name, SP<data_type> type);
+    SP<data_type> lookup_type(std::string name);
+    void add_command(SP<command> command);
+    std::vector<SP<command>> &get_commands();
 
-    void add_input(SP<Value> in);
-    std::vector<SP<Value>> &get_inputs();
-    void add_output(SP<Value> out);
-    std::vector<SP<Value>> &get_outputs();
+    void add_input(SP<value> in);
+    std::vector<SP<value>> &get_inputs();
+    void add_output(SP<value> out);
+    std::vector<SP<value>> &get_outputs();
 
     void auto_add_none();
     void auto_add_inputs();

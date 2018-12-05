@@ -26,38 +26,38 @@ using x3::rule;
         RULE_NAME = #RULE_NAME; \
     struct RULE_NAME##_class : x3::position_tagged { }
 
-RULE(logic1_expr, ast::Expression);
-RULE(logic2_expr, ast::Expression);
-RULE(logic3_expr, ast::Expression);
-RULE(blogic1_expr, ast::Expression);
-RULE(blogic2_expr, ast::Expression);
-RULE(blogic3_expr, ast::Expression);
-RULE(equal_expr, ast::Expression);
-RULE(compare_expr, ast::Expression);
-RULE(add_expr, ast::Expression);
-RULE(multiply_expr, ast::Expression);
-RULE(signed_expr, ast::Expression);
-RULE(basic_expr, ast::Expression);
-RULE(array_expr, std::vector<ast::Expression>);
-RULE(variable_expr, ast::VariableExpression);
-RULE(function_expression_output, ast::FunctionExpressionOutput);
-RULE(function_expr, ast::FunctionExpression);
-RULE(noin_function_expr, ast::FunctionExpression);
-RULE(justl_function_expr, ast::FunctionExpression);
-RULE(default_function_expr, ast::FunctionExpression);
+RULE(logic1_expr, ast::expression);
+RULE(logic2_expr, ast::expression);
+RULE(logic3_expr, ast::expression);
+RULE(blogic1_expr, ast::expression);
+RULE(blogic2_expr, ast::expression);
+RULE(blogic3_expr, ast::expression);
+RULE(equal_expr, ast::expression);
+RULE(compare_expr, ast::expression);
+RULE(add_expr, ast::expression);
+RULE(multiply_expr, ast::expression);
+RULE(signed_expr, ast::expression);
+RULE(basic_expr, ast::expression);
+RULE(array_expr, std::vector<ast::expression>);
+RULE(variable_expr, ast::variable_expression);
+RULE(function_expression_output, ast::function_expression_output);
+RULE(function_expr, ast::function_expression);
+RULE(noin_function_expr, ast::function_expression);
+RULE(justl_function_expr, ast::function_expression);
+RULE(default_function_expr, ast::function_expression);
 auto expr = logic1_expr; // Top-level expression.
 
-RULE(data_type, ast::DataType);
+RULE(data_type, ast::data_type);
 
-RULE(statement, ast::Statement);
-RULE(function_statement, ast::FunctionStatement);
-RULE(assign_statement, ast::AssignStatement);
-RULE(var_dec_statement, ast::VarDecStatement);
-RULE(return_statement, ast::ReturnStatement);
+RULE(statement, ast::statement);
+RULE(function_statement, ast::function_statement);
+RULE(assign_statement, ast::assign_statement);
+RULE(var_dec_statement, ast::var_dec_statement);
+RULE(return_statement, ast::return_statement);
 
-RULE(function_input_dec, ast::FunctionParameterDec);
-RULE(function_single_output_dec, ast::FunctionParameterDec);
-RULE(function_dec, ast::FunctionDec);
+RULE(function_input_dec, ast::function_parameter_dec);
+RULE(function_single_output_dec, ast::function_parameter_dec);
+RULE(function_dec, ast::function_dec);
 
 RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
@@ -88,45 +88,45 @@ template <typename T>
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 
 // Logic expressions
-auto const logic1_expr_def = as<ast::OperatorListExpression>(
+auto const logic1_expr_def = as<ast::operator_list_expression>(
     logic2_expr >> *(
         (string("or") > logic2_expr)
     )
 );
 
-auto const logic2_expr_def = as<ast::OperatorListExpression>(
+auto const logic2_expr_def = as<ast::operator_list_expression>(
     logic3_expr >> *(
         (string("xor") > logic3_expr)
     )
 );
 
-auto const logic3_expr_def = as<ast::OperatorListExpression>(
+auto const logic3_expr_def = as<ast::operator_list_expression>(
     blogic1_expr >> *(
         (string("and") > blogic1_expr)
     )
 );
 
 // Bitwise logic expression
-auto const blogic1_expr_def = as<ast::OperatorListExpression>(
+auto const blogic1_expr_def = as<ast::operator_list_expression>(
     blogic2_expr >> *(
         (string("bor") > blogic2_expr)
     )
 );
 
-auto const blogic2_expr_def = as<ast::OperatorListExpression>(
+auto const blogic2_expr_def = as<ast::operator_list_expression>(
     blogic3_expr >> *(
         (string("bxor") > blogic3_expr)
     )
 );
 
-auto const blogic3_expr_def = as<ast::OperatorListExpression>(
+auto const blogic3_expr_def = as<ast::operator_list_expression>(
     equal_expr >> *(
         (string("band") > equal_expr)
     )
 );
 
 // Equality expression: ==, !=
-auto const equal_expr_def = as<ast::OperatorListExpression>(
+auto const equal_expr_def = as<ast::operator_list_expression>(
     compare_expr >> *(
         (string("==") > compare_expr)
         | (string("!=") > compare_expr)
@@ -134,7 +134,7 @@ auto const equal_expr_def = as<ast::OperatorListExpression>(
 );
 
 // Comparison expression: >=, <, etc.
-auto const compare_expr_def = as<ast::OperatorListExpression>(
+auto const compare_expr_def = as<ast::operator_list_expression>(
     add_expr >> *(
         (string(">=") > add_expr)
         | (string("<=") > add_expr)
@@ -144,7 +144,7 @@ auto const compare_expr_def = as<ast::OperatorListExpression>(
 );
 
 // Addition expressions: a + b - c + d etc.
-auto const add_expr_def = as<ast::OperatorListExpression>(
+auto const add_expr_def = as<ast::operator_list_expression>(
     multiply_expr >> *(
         (string("+") > multiply_expr)
         | (string("-") > multiply_expr)
@@ -152,7 +152,7 @@ auto const add_expr_def = as<ast::OperatorListExpression>(
 );
 
 // Multiplication expressions: a * b / c * d etc.
-auto const multiply_expr_def = as<ast::OperatorListExpression>(
+auto const multiply_expr_def = as<ast::operator_list_expression>(
     signed_expr >> *(
         (string("*") > signed_expr)
         | (string("/") > signed_expr)
@@ -160,11 +160,11 @@ auto const multiply_expr_def = as<ast::OperatorListExpression>(
     )
 );
 
-// Expressions with +/- signs.
+// expressions with +/- signs.
 auto const signed_expr_def =
     basic_expr
-    | as<ast::SignedExpression>(char_('+') > basic_expr)
-    | as<ast::SignedExpression>(char_('-') > basic_expr);
+    | as<ast::signed_expression>(char_('+') > basic_expr)
+    | as<ast::signed_expression>(char_('-') > basic_expr);
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
@@ -232,9 +232,9 @@ auto const assign_statement_def =
     variable_expr >> '=' > expr > ';';
 
 auto const var_dec_statement_def =
-    data_type >> as<ast::VarDec>(
-        as<ast::InitVarDec>(identifier >> '=' > expr)
-        | as<ast::PlainVarDec>(identifier)
+    data_type >> as<ast::var_dec>(
+        as<ast::init_var_dec>(identifier >> '=' > expr)
+        | as<ast::Plainvar_dec>(identifier)
     ) % ',' >> ';';
 
 auto const return_statement_def =

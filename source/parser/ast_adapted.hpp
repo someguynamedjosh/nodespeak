@@ -5,82 +5,82 @@
 #include <waveguide/parser/ast.hpp>
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::DataType,
+    waveguide::ast::data_type,
     name, array_sizes
 )
 
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionParameterDec,
+    waveguide::ast::function_parameter_dec,
     type, name
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionDec,
+    waveguide::ast::function_dec,
     name, inputs, outputs, lambdas, body
 )
 
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::OperatorExpression,
+    waveguide::ast::operator_expression,
     op_char, value
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::SignedExpression,
+    waveguide::ast::signed_expression,
     sign, value
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::VariableExpression,
+    waveguide::ast::variable_expression,
     name, array_accesses
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::OperatorListExpression,
+    waveguide::ast::operator_list_expression,
     start_value, operations
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::SingleVarDec,
+    waveguide::ast::single_var_dec,
     type, name
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionExpression,
+    waveguide::ast::function_expression,
     function_name, inputs, outputs, lambdas
 )
 
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::FunctionStatement,
+    waveguide::ast::function_statement,
     func_call
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::AssignStatement,
+    waveguide::ast::assign_statement,
     assign_to, value
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::PlainVarDec,
+    waveguide::ast::Plainvar_dec,
     name
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::InitVarDec,
+    waveguide::ast::init_var_dec,
     name, value
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::VarDecStatement,
+    waveguide::ast::var_dec_statement,
     type, var_decs
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::ReturnStatement,
+    waveguide::ast::return_statement,
     value
 )

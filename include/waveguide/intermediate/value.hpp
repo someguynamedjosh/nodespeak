@@ -6,27 +6,27 @@
 namespace waveguide {
 namespace intermediate {
 
-class DataType;
+class data_type;
 
-class Value {
+class value {
 private:
-    std::shared_ptr<DataType> type;
+    std::shared_ptr<data_type> type;
     void *data;
     bool value_known{false};
 public:
-    Value(std::shared_ptr<DataType> type);
-    Value(std::shared_ptr<DataType> type, void *data);
-    ~Value();
+    value(std::shared_ptr<data_type> type);
+    value(std::shared_ptr<data_type> type, void *data);
+    ~value();
     std::string repr();
 
-    std::shared_ptr<DataType> get_type();
-    void set_type(std::shared_ptr<DataType> new_type);
+    std::shared_ptr<data_type> get_type();
+    void set_type(std::shared_ptr<data_type> new_type);
     bool is_proxy();
-    Value &get_real_value();
+    value &get_real_value();
 
     bool is_value_known();
     void set_value_known(bool is_known);
-    Value create_known_copy();
+    value create_known_copy();
     void *get_data();
 
     float *data_as_float();

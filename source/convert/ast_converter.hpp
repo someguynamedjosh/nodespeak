@@ -13,32 +13,32 @@ namespace intr = waveguide::intermediate;
 template<typename T>
 using SP = std::shared_ptr<T>;
 
-inline SP<intr::Builtins> blt() {
-    return intr::Builtins::get_instance();
+inline SP<intr::builtins> blt() {
+    return intr::builtins::get_instance();
 }
 
-inline SP<intr::Value> int_literal(const int value) {
-    return SP<intr::Value>{new intr::Value(blt()->INT, new int{value})};
+inline SP<intr::value> int_literal(const int value) {
+    return SP<intr::value>{new intr::value(blt()->INT, new int{value})};
 }
 
-inline SP<intr::Value> double_literal(const double value) {
-    return SP<intr::Value>{new intr::Value(blt()->FLOAT, new double{value})};
+inline SP<intr::value> double_literal(const double value) {
+    return SP<intr::value>{new intr::value(blt()->FLOAT, new double{value})};
 }
 
-inline SP<intr::Value> bool_literal(const bool value) {
-    return SP<intr::Value>{new intr::Value(blt()->BOOL, new bool{value})};
+inline SP<intr::value> bool_literal(const bool value) {
+    return SP<intr::value>{new intr::value(blt()->BOOL, new bool{value})};
 }
 
 struct AccessResult {
-    SP<intr::Value> root_val, offset;
-    SP<intr::DataType> final_type;
+    SP<intr::value> root_val, offset;
+    SP<intr::data_type> final_type;
 };
 
 struct AstConverter: boost::static_visitor<> {
     struct ConverterData {
-        SP<intr::Scope> current_scope;
-        SP<intr::Value> current_value;
-        SP<intr::DataType> current_type;
+        SP<intr::scope> current_scope;
+        SP<intr::value> current_value;
+        SP<intr::data_type> current_type;
     };
     SP<ConverterData> data;
     mutable std::vector<SP<ConverterData>> stack;
@@ -49,39 +49,39 @@ struct AstConverter: boost::static_visitor<> {
     // Utility methods.
     void push_stack() const;
     void pop_stack() const;
-    AccessResult find_access_result(ast::VariableExpression const&expr) const;
-    void copy_value_to_expr(SP<intr::Value> from, 
-        ast::VariableExpression const& to) const;
-    void copy_value_from_expr(ast::VariableExpression const& from,
-        SP<intr::Value> to) const;
-    SP<intr::Value> lookup_var(std::string name) const;
-    SP<intr::Scope> lookup_func(std::string name) const;
-    SP<intr::DataType> lookup_type(std::string name) const;
-    void add_command(SP<intr::Command> command) const;
-    void declare_temp_var(SP<intr::Value> var) const;
+    AccessResult find_access_result(ast::variable_expression const&expr) const;
+    void copy_value_to_expr(SP<intr::value> from, 
+        ast::variable_expression const& to) const;
+    void copy_value_from_expr(ast::variable_expression const& from,
+        SP<intr::value> to) const;
+    SP<intr::value> lookup_var(std::string name) const;
+    SP<intr::scope> lookup_func(std::string name) const;
+    SP<intr::data_type> lookup_type(std::string name) const;
+    void add_command(SP<intr::command> command) const;
+    void declare_temp_var(SP<intr::value> var) const;
     
     // Parses statements into the current scope.
-    void operator()(std::vector<Statement> const&stats) const;
-    void operator()(FunctionStatement const&stat) const;
-    void operator()(AssignStatement const&stat) const;
-    void operator()(VarDecStatement const&stat) const;
-    void operator()(PlainVarDec const&dec) const;
-    void operator()(InitVarDec const&dec) const;
-    void operator()(ReturnStatement const&stat) const;
+    void operator()(std::vector<statement> const&stats) const;
+    void operator()(function_statement const&stat) const;
+    void operator()(assign_statement const&stat) const;
+    void operator()(var_dec_statement const&stat) const;
+    void operator()(Plainvar_dec const&dec) const;
+    void operator()(init_var_dec const&dec) const;
+    void operator()(return_statement const&stat) const;
 
     void operator()(int const&expr) const;
     void operator()(double const&expr) const;
     void operator()(bool const&expr) const;
-    void operator()(SignedExpression const&expr) const;
-    void operator()(VariableExpression const&expr) const;
-    void operator()(std::vector<Expression> const&expr) const;
-    void operator()(SingleVarDec const&dec) const;
-    void operator()(FunctionExpression const&expr) const;
-    void operator()(OperatorListExpression const&expr) const;
+    void operator()(signed_expression const&expr) const;
+    void operator()(variable_expression const&expr) const;
+    void operator()(std::vector<expression> const&expr) const;
+    void operator()(single_var_dec const&dec) const;
+    void operator()(function_expression const&expr) const;
+    void operator()(operator_list_expression const&expr) const;
 
-    void operator()(FunctionParameterDec const&dec) const;
-    void operator()(FunctionDec const&dec) const;
-    void operator()(DataType const&type) const;
+    void operator()(function_parameter_dec const&dec) const;
+    void operator()(function_dec const&dec) const;
+    void operator()(data_type const&type) const;
 
     template<typename T>
     struct has_visit_method {

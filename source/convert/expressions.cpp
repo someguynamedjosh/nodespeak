@@ -15,13 +15,13 @@ void AstConverter::operator()(bool const&expr) const {
     data->current_value = bool_literal(expr);
 }
 
-void AstConverter::operator()(SignedExpression const&expr) const {
+void AstConverter::operator()(signed_expression const&expr) const {
     recurse(expr.value);
     if (expr.sign == '-') {
-        SP<intr::Command> negate{new intr::Command(blt()->MUL)};
+        SP<intr::command> negate{new intr::command(blt()->MUL)};
         negate->add_input(data->current_value);
         negate->add_input(int_literal(-1));
-        SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
+        SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
         declare_temp_var(output);
         data->current_value = output;
         negate->add_output(output);
@@ -29,22 +29,22 @@ void AstConverter::operator()(SignedExpression const&expr) const {
     }
 }
 
-void AstConverter::operator()(VariableExpression const&expr) const {
+void AstConverter::operator()(variable_expression const&expr) const {
     // TODO: Add array access logic.
     data->current_value = lookup_var(expr.name);
 }
 
-void AstConverter::operator()(std::vector<Expression> const&expr) const {
+void AstConverter::operator()(std::vector<expression> const&expr) const {
     // TODO: Add array construction logic.
 }
 
-void AstConverter::operator()(SingleVarDec const&dec) const {
+void AstConverter::operator()(single_var_dec const&dec) const {
     // TODO: Add function output inline declaration logic.
 }
 
-void AstConverter::operator()(FunctionExpression const&expr) const {
+void AstConverter::operator()(function_expression const&expr) const {
     auto func = lookup_func(expr.function_name);
-    SP<intr::Command> command{new intr::Command(func)};
+    SP<intr::command> command{new intr::command(func)};
     for (auto const&input : expr.inputs) {
         recurse(input);
         command->add_input(data->current_value);
@@ -57,21 +57,21 @@ void AstConverter::operator()(FunctionExpression const&expr) const {
     add_command(command);
 }
 
-void AstConverter::operator()(OperatorListExpression const&expr) const {
+void AstConverter::operator()(operator_list_expression const&expr) const {
     recurse(expr.start_value);
     std::string last_op{""};
     bool join{false};
-    intr::Command *last_command{nullptr};
+    intr::command *last_command{nullptr};
     for (auto const&operation : expr.operations) {
         if (operation.op_char != last_op || !join) {
             if (last_command) {
-                SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
+                SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
                 declare_temp_var(output);
                 last_command->add_output(output);
-                add_command(SP<intr::Command>{last_command});
+                add_command(SP<intr::command>{last_command});
                 data->current_value = output;
             }
-            SP<intr::Scope> func{nullptr};
+            SP<intr::scope> func{nullptr};
             auto const&c = operation.op_char;
             if (c == "+" || c == "-") {
                 func = blt()->ADD;
@@ -119,17 +119,17 @@ void AstConverter::operator()(OperatorListExpression const&expr) const {
                 func = blt()->XOR;
                 join = false;
             }
-            last_command = new intr::Command(func);
+            last_command = new intr::command(func);
             last_command->add_input(data->current_value);
         }
         recurse(operation.value);
         last_command->add_input(data->current_value);
     }
     if (last_command) {
-        SP<intr::Value> output{new intr::Value(blt()->UPCAST_WILDCARD)};
+        SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
         declare_temp_var(output);
         last_command->add_output(output);
-        add_command(SP<intr::Command>{last_command});
+        add_command(SP<intr::command>{last_command});
         data->current_value = output;
     }
 }

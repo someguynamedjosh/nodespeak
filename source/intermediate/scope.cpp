@@ -7,15 +7,15 @@ namespace waveguide {
 namespace intermediate {
 
 ////////////////////////////////////////////////////////////////////////////////
-// Com::Command
+// Com::command
 ////////////////////////////////////////////////////////////////////////////////
-Command::Command(std::shared_ptr<Scope> call)
+command::command(std::shared_ptr<scope> call)
     : call{call} { }
 
-Command::Command(std::shared_ptr<Scope> call, std::shared_ptr<augmentation> aug)
+command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
     : call{call}, aug{aug} { }
 
-std::string Command::repr() {
+std::string command::repr() {
     std::stringstream ss;
     ss << "COM S@" << (void*) &call << " I={";
     for (auto value : ins) {
@@ -33,44 +33,44 @@ std::string Command::repr() {
     return ss.str();
 }
 
-void Command::add_input(std::shared_ptr<Value> input) {
+void command::add_input(std::shared_ptr<value> input) {
     ins.push_back(input);
 }
 
-void Command::add_output(std::shared_ptr<Value> output) {
+void command::add_output(std::shared_ptr<value> output) {
     outs.push_back(output);
 }
 
-std::vector<std::shared_ptr<Value>> &Command::get_inputs() {
+std::vector<std::shared_ptr<value>> &command::get_inputs() {
     return ins;
 }
 
-std::vector<std::shared_ptr<Value>> &Command::get_outputs() {
+std::vector<std::shared_ptr<value>> &command::get_outputs() {
     return outs;
 }
 
-std::shared_ptr<augmentation> Command::get_augmentation() {
+std::shared_ptr<augmentation> command::get_augmentation() {
     return aug;
 }
 
-std::shared_ptr<Scope> Command::get_called_scope() {
+std::shared_ptr<scope> command::get_called_scope() {
     return call;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Com::Scope
+// Com::scope
 ////////////////////////////////////////////////////////////////////////////////
 
-Scope::Scope() { }
+scope::scope() { }
 
-Scope::Scope(std::shared_ptr<Scope> parent) 
+scope::scope(std::shared_ptr<scope> parent) 
     : parent(parent) { }
 
-std::shared_ptr<Scope> Scope::getParent() {
+std::shared_ptr<scope> scope::get_parent() {
     return parent;
 }
 
-std::string Scope::repr() {
+std::string scope::repr() {
     std::stringstream ss;
     ss << "S@" << (void*) this << " P@" << (void*) parent.get();
 
@@ -121,15 +121,15 @@ std::string Scope::repr() {
     return ss.str();
 }
 
-void Scope::declare_func(std::string name, std::shared_ptr<Scope> body) {
+void scope::declare_func(std::string name, std::shared_ptr<scope> body) {
     funcs.emplace(name, body);
 }
 
-void Scope::declare_temp_func(std::shared_ptr<Scope> body) {
+void scope::declare_temp_func(std::shared_ptr<scope> body) {
     tempFuncs.push_back(body);
 }
 
-std::shared_ptr<Scope> Scope::lookup_func(std::string name) {
+std::shared_ptr<scope> scope::lookup_func(std::string name) {
     if (funcs.count(name)) {
         return funcs[name];
     } else if (parent) {
@@ -139,20 +139,20 @@ std::shared_ptr<Scope> Scope::lookup_func(std::string name) {
     }
 }
 
-void Scope::declare_var(std::string name, std::shared_ptr<Value> value) {
+void scope::declare_var(std::string name, std::shared_ptr<value> value) {
     vars.emplace(name, value);
-    if (autoAdd == AutoAdd::INS) {
+    if (do_auto == auto_add::INS) {
         add_input(value);
-    } else if (autoAdd == AutoAdd::OUTS) {
+    } else if (do_auto == auto_add::OUTS) {
         add_output(value);
     }
 }
 
-void Scope::declare_temp_var(std::shared_ptr<Value> value) {
+void scope::declare_temp_var(std::shared_ptr<value> value) {
     tempVars.push_back(value);
 }
 
-std::shared_ptr<Value> Scope::lookup_var(std::string name) {
+std::shared_ptr<value> scope::lookup_var(std::string name) {
     if (vars.count(name)) {
         return vars[name];
     } else if (parent) {
@@ -162,11 +162,11 @@ std::shared_ptr<Value> Scope::lookup_var(std::string name) {
     }
 }
 
-void Scope::declare_type(std::string name, std::shared_ptr<DataType> type) {
+void scope::declare_type(std::string name, std::shared_ptr<data_type> type) {
     types.emplace(name, type);
 }
 
-std::shared_ptr<DataType> Scope::lookup_type(std::string name) {
+std::shared_ptr<data_type> scope::lookup_type(std::string name) {
     if (types.count(name)) {
         return types[name];
     } else if (parent) {
@@ -176,42 +176,42 @@ std::shared_ptr<DataType> Scope::lookup_type(std::string name) {
     }
 }
 
-void Scope::add_command(std::shared_ptr<Command> command) {
+void scope::add_command(std::shared_ptr<command> command) {
     commands.push_back(command);
 }
 
-std::vector<std::shared_ptr<Command>> &Scope::get_commands() {
+std::vector<std::shared_ptr<command>> &scope::get_commands() {
     return commands;
 }
 
 
-void Scope::add_input(std::shared_ptr<Value> in) {
+void scope::add_input(std::shared_ptr<value> in) {
     ins.push_back(in);
 }
 
-std::vector<std::shared_ptr<Value>> &Scope::get_inputs() {
+std::vector<std::shared_ptr<value>> &scope::get_inputs() {
     return ins;
 }
 
-void Scope::add_output(std::shared_ptr<Value> out) {
+void scope::add_output(std::shared_ptr<value> out) {
     outs.push_back(out);
 }
 
-std::vector<std::shared_ptr<Value>> &Scope::get_outputs() {
+std::vector<std::shared_ptr<value>> &scope::get_outputs() {
     return outs;
 }
 
 
-void Scope::auto_add_none() {
-    autoAdd = AutoAdd::NONE;
+void scope::auto_add_none() {
+    do_auto = auto_add::NONE;
 }
 
-void Scope::auto_add_inputs() {
-    autoAdd = AutoAdd::INS;
+void scope::auto_add_inputs() {
+    do_auto = auto_add::INS;
 }
 
-void Scope::auto_add_outputs() {
-    autoAdd = AutoAdd::OUTS;
+void scope::auto_add_outputs() {
+    do_auto = auto_add::OUTS;
 }
 
 }

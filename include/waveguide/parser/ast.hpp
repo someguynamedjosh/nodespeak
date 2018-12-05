@@ -10,145 +10,145 @@ namespace ast {
 
 namespace x3 = boost::spirit::x3;
 
-struct FunctionStatement;
-struct AssignStatement;
-struct VarDecStatement;
-struct ReturnStatement;
+struct function_statement;
+struct assign_statement;
+struct var_dec_statement;
+struct return_statement;
 
-using StatementVariant = x3::variant<
-    x3::forward_ast<FunctionStatement>,
-    x3::forward_ast<AssignStatement>,
-    x3::forward_ast<VarDecStatement>,
-    x3::forward_ast<ReturnStatement>>;
-struct Statement: StatementVariant, x3::position_tagged {
+using statement_variant = x3::variant<
+    x3::forward_ast<function_statement>,
+    x3::forward_ast<assign_statement>,
+    x3::forward_ast<var_dec_statement>,
+    x3::forward_ast<return_statement>>;
+struct statement: statement_variant, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
-    void operator=(Statement const&stat) { base_type::operator=(stat); }
-    Statement(Statement &stat) : StatementVariant(stat) { }
-    Statement(Statement const&stat) : StatementVariant(stat) { }
+    void operator=(statement const&stat) { base_type::operator=(stat); }
+    statement(statement &stat) : statement_variant(stat) { }
+    statement(statement const&stat) : statement_variant(stat) { }
 };
 
-struct FunctionExpression;
-struct OperatorListExpression;
-struct SignedExpression;
-struct VariableExpression;
+struct function_expression;
+struct operator_list_expression;
+struct signed_expression;
+struct variable_expression;
 
-struct Expression: x3::variant<
+struct expression: x3::variant<
     int, double, bool, 
-    x3::forward_ast<std::vector<Expression>>,
-    x3::forward_ast<FunctionExpression>, 
-    x3::forward_ast<VariableExpression>,
-    x3::forward_ast<OperatorListExpression>, 
-    x3::forward_ast<SignedExpression>>, x3::position_tagged {
+    x3::forward_ast<std::vector<expression>>,
+    x3::forward_ast<function_expression>, 
+    x3::forward_ast<variable_expression>,
+    x3::forward_ast<operator_list_expression>, 
+    x3::forward_ast<signed_expression>>, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
 };
 
 
 
-struct DataType: x3::position_tagged {
+struct data_type: x3::position_tagged {
     std::string name;
-    std::vector<Expression> array_sizes;
+    std::vector<expression> array_sizes;
 };
 
 
 
-struct FunctionParameterDec: x3::position_tagged {
-    DataType type;
+struct function_parameter_dec: x3::position_tagged {
+    data_type type;
     std::string name;
 };
 
-struct FunctionDec: x3::position_tagged {
+struct function_dec: x3::position_tagged {
     std::string name;
-    std::vector<FunctionParameterDec> inputs, outputs;
-    std::vector<x3::forward_ast<FunctionDec>> lambdas;
-    std::vector<Statement> body;
+    std::vector<function_parameter_dec> inputs, outputs;
+    std::vector<x3::forward_ast<function_dec>> lambdas;
+    std::vector<statement> body;
 };
 
 
 
-struct OperatorExpression: x3::position_tagged {
+struct operator_expression: x3::position_tagged {
     std::string op_char;
-    Expression value;
+    expression value;
 };
 
-struct OperatorListExpression: x3::position_tagged {
-    Expression start_value;
-    std::vector<OperatorExpression> operations;
+struct operator_list_expression: x3::position_tagged {
+    expression start_value;
+    std::vector<operator_expression> operations;
 };
 
-struct SignedExpression: x3::position_tagged {
+struct signed_expression: x3::position_tagged {
     char sign;
-    Expression value;
+    expression value;
 };
 
-struct VariableExpression: x3::position_tagged {
+struct variable_expression: x3::position_tagged {
     std::string name;
-    std::vector<Expression> array_accesses;
+    std::vector<expression> array_accesses;
 };
 
-struct SingleVarDec: x3::position_tagged {
-    DataType type;
+struct single_var_dec: x3::position_tagged {
+    data_type type;
     std::string name;
 };
 
-using FSOVariant = x3::variant<SingleVarDec, VariableExpression>;
-struct FunctionExpressionOutput: FSOVariant {
+using fso_variant = x3::variant<single_var_dec, variable_expression>;
+struct function_expression_output: fso_variant {
     using base_type::base_type;
     using base_type::operator=;
-    void operator=(FunctionExpressionOutput const&expr) 
+    void operator=(function_expression_output const&expr) 
         { base_type::operator=(expr); }
-    FunctionExpressionOutput(FunctionExpressionOutput &expr): 
-        FSOVariant(expr) { }
-    FunctionExpressionOutput(FunctionExpressionOutput const&expr): 
-        FSOVariant(expr) { }
+    function_expression_output(function_expression_output &expr): 
+        fso_variant(expr) { }
+    function_expression_output(function_expression_output const&expr): 
+        fso_variant(expr) { }
 };
 
-struct FunctionExpression: x3::position_tagged {
+struct function_expression: x3::position_tagged {
     std::string function_name;
-    std::vector<Expression> inputs;
-    std::vector<FunctionExpressionOutput> outputs;
-    std::vector<FunctionDec> lambdas;
+    std::vector<expression> inputs;
+    std::vector<function_expression_output> outputs;
+    std::vector<function_dec> lambdas;
 };
 
 
 
-struct FunctionStatement: x3::position_tagged {
-    FunctionExpression func_call;
+struct function_statement: x3::position_tagged {
+    function_expression func_call;
 };
 
-struct AssignStatement: x3::position_tagged {
-    VariableExpression assign_to;
-    Expression value;
+struct assign_statement: x3::position_tagged {
+    variable_expression assign_to;
+    expression value;
 };
 
-struct PlainVarDec: x3::position_tagged {
+struct Plainvar_dec: x3::position_tagged {
     std::string name;
 };
 
-struct InitVarDec: x3::position_tagged {
+struct init_var_dec: x3::position_tagged {
     std::string name;
-    Expression value;
+    expression value;
 };
 
-struct VarDec: x3::variant<PlainVarDec, InitVarDec>, x3::position_tagged {
+struct var_dec: x3::variant<Plainvar_dec, init_var_dec>, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
-    void operator=(VarDec const&dec) { base_type::operator=(dec); }
-    VarDec(VarDec &dec) : x3::variant<PlainVarDec, InitVarDec>(dec) { }
-    VarDec(VarDec const&dec) : x3::variant<PlainVarDec, InitVarDec>(dec) { }
+    void operator=(var_dec const&dec) { base_type::operator=(dec); }
+    var_dec(var_dec &dec) : x3::variant<Plainvar_dec, init_var_dec>(dec) { }
+    var_dec(var_dec const&dec) : x3::variant<Plainvar_dec, init_var_dec>(dec) { }
 };
 
-struct VarDecStatement: x3::position_tagged {
-    DataType type;
-    std::vector<VarDec> var_decs;
+struct var_dec_statement: x3::position_tagged {
+    data_type type;
+    std::vector<var_dec> var_decs;
 };
 
-struct ReturnStatement: x3::position_tagged {
-    Expression value;
+struct return_statement: x3::position_tagged {
+    expression value;
 };
 
-using root_type = std::vector<ast::Statement>;
+using root_type = std::vector<ast::statement>;
 
 }
 }
