@@ -1,38 +1,10 @@
-#include <waveguide/intermediate/scope.hpp>
-
-#include <sstream>
-
 #include <waveguide/intermediate/data_type.hpp>
+#include <waveguide/intermediate/scope.hpp>
 #include <waveguide/intermediate/value.hpp>
+#include <sstream>
 
 namespace waveguide {
 namespace intermediate {
-
-////////////////////////////////////////////////////////////////////////////////
-// Com::Augmentation
-////////////////////////////////////////////////////////////////////////////////
-Augmentation::Augmentation(AugmentationType type)
-    : type{type} { }
-
-Augmentation::Augmentation(AugmentationType type, std::shared_ptr<Value> param1)
-    : type{type} {
-    params.push_back(param1);
-}
-
-Augmentation::Augmentation(AugmentationType type, std::shared_ptr<Value> param1,
-    std::shared_ptr<Value> param2)
-    : type{type} {
-    params.push_back(param1);
-    params.push_back(param2);
-}
-
-AugmentationType Augmentation::get_type() {
-    return type;
-}
-
-std::vector<std::shared_ptr<Value>> &Augmentation::get_params() {
-    return params;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::Command
@@ -40,7 +12,7 @@ std::vector<std::shared_ptr<Value>> &Augmentation::get_params() {
 Command::Command(std::shared_ptr<Scope> call)
     : call{call} { }
 
-Command::Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug)
+Command::Command(std::shared_ptr<Scope> call, std::shared_ptr<augmentation> aug)
     : call{call}, aug{aug} { }
 
 std::string Command::repr() {
@@ -56,24 +28,6 @@ std::string Command::repr() {
     ss << " }";
     if (aug) {
         ss << " A=(";
-        switch (aug->get_type()) {
-        case AugmentationType::DO_IF:
-            ss << "DO_IF";
-            break;
-        case AugmentationType::DO_IF_NOT:
-            ss << "DO_IF_NOT";
-            break;
-        case AugmentationType::LOOP_FOR:
-            ss << "LOOP_FOR";
-            break;
-        case AugmentationType::LOOP_RANGE:
-            ss << "LOOP_RANGE";
-            break;
-        }
-        ss << " {";
-        for (auto param : aug->get_params()) {
-            ss << " " << param->repr();
-        }
         ss << " })";
     }
     return ss.str();
@@ -95,7 +49,7 @@ std::vector<std::shared_ptr<Value>> &Command::get_outputs() {
     return outs;
 }
 
-std::shared_ptr<Augmentation> Command::get_augmentation() {
+std::shared_ptr<augmentation> Command::get_augmentation() {
     return aug;
 }
 

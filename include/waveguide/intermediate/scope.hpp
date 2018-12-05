@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/variant.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -12,77 +13,83 @@ class DataType;
 class Scope;
 class Value;
 
-enum AugmentationType {
-	DO_IF, DO_IF_NOT, LOOP_FOR, LOOP_RANGE
+template<typename T>
+using SP = std::shared_ptr<T>;
+
+struct do_if_aug {
+    SP<Value> condition;
 };
 
-class Augmentation {
-private:
-    AugmentationType type;
-    std::vector<std::shared_ptr<Value>> params;
-public:
-    Augmentation(AugmentationType type);
-    Augmentation(AugmentationType type, std::shared_ptr<Value> param1);
-    Augmentation(AugmentationType type, std::shared_ptr<Value> param1,
-        std::shared_ptr<Value> param2);
-    AugmentationType get_type();
-    std::vector<std::shared_ptr<Value>> &get_params();
+struct do_if_not_aug {
+    SP<Value> condition;
 };
+
+struct loop_for_aug {
+    SP<Value> to_set, iterate_over;
+};
+
+struct loop_range_aug {
+    SP<Value> to_set, start, end, step;
+};
+
+struct augmentation: boost::variant<
+    do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug
+> { };
 
 class Command {
     private:
-    std::vector<std::shared_ptr<Value>> ins, outs;
-    std::shared_ptr<Scope> call{nullptr};
-    std::shared_ptr<Augmentation> aug{nullptr};
+    std::vector<SP<Value>> ins, outs;
+    SP<Scope> call{nullptr};
+    SP<augmentation> aug{nullptr};
 public:
-    Command(std::shared_ptr<Scope> call);
-    Command(std::shared_ptr<Scope> call, std::shared_ptr<Augmentation> aug);
+    Command(SP<Scope> call);
+    Command(SP<Scope> call, SP<augmentation> aug);
     std::string repr();
 
-    void add_input(std::shared_ptr<Value> input);
-    void add_output(std::shared_ptr<Value> output);
-    std::vector<std::shared_ptr<Value>> &get_inputs();
-    std::vector<std::shared_ptr<Value>> &get_outputs();
-    std::shared_ptr<Augmentation> get_augmentation();
-    std::shared_ptr<Scope> get_called_scope();
+    void add_input(SP<Value> input);
+    void add_output(SP<Value> output);
+    std::vector<SP<Value>> &get_inputs();
+    std::vector<SP<Value>> &get_outputs();
+    SP<augmentation> get_augmentation();
+    SP<Scope> get_called_scope();
 };
 
 class Scope {
 private:
-    std::map<std::string, std::shared_ptr<Scope>> funcs;
-    std::vector<std::shared_ptr<Scope>> tempFuncs;
-    std::map<std::string, std::shared_ptr<Value>> vars;
-    std::vector<std::shared_ptr<Value>> tempVars;
-    std::map<std::string, std::shared_ptr<DataType>> types;
-    std::vector<std::shared_ptr<Command>> commands;
-    std::shared_ptr<Scope> parent{nullptr};
+    std::map<std::string, SP<Scope>> funcs;
+    std::vector<SP<Scope>> tempFuncs;
+    std::map<std::string, SP<Value>> vars;
+    std::vector<SP<Value>> tempVars;
+    std::map<std::string, SP<DataType>> types;
+    std::vector<SP<Command>> commands;
+    SP<Scope> parent{nullptr};
 
     enum AutoAdd {
         NONE, INS, OUTS
     };
     AutoAdd autoAdd{AutoAdd::NONE};
-    std::vector<std::shared_ptr<Value>> ins, outs;
+    std::vector<SP<Value>> ins, outs;
 public:
     Scope();
-    Scope(std::shared_ptr<Scope> parent);
-    std::shared_ptr<Scope> getParent();
+    Scope(SP<Scope> parent);
+    SP<Scope> getParent();
     std::string repr();
 
-    void declare_func(std::string name, std::shared_ptr<Scope> body);
-    void declare_temp_func(std::shared_ptr<Scope> body);
-    std::shared_ptr<Scope> lookup_func(std::string name);
-    void declare_var(std::string name, std::shared_ptr<Value> value);
-    void declare_temp_var(std::shared_ptr<Value> value);
-    std::shared_ptr<Value> lookup_var(std::string name);
-    void declare_type(std::string name, std::shared_ptr<DataType> type);
-    std::shared_ptr<DataType> lookup_type(std::string name);
-    void add_command(std::shared_ptr<Command> command);
-    std::vector<std::shared_ptr<Command>> &get_commands();
+    void declare_func(std::string name, SP<Scope> body);
+    void declare_temp_func(SP<Scope> body);
+    SP<Scope> lookup_func(std::string name);
+    void declare_var(std::string name, SP<Value> value);
+    void declare_temp_var(SP<Value> value);
+    SP<Value> lookup_var(std::string name);
+    void declare_type(std::string name, SP<DataType> type);
+    SP<DataType> lookup_type(std::string name);
+    void add_command(SP<Command> command);
+    std::vector<SP<Command>> &get_commands();
 
-    void add_input(std::shared_ptr<Value> in);
-    std::vector<std::shared_ptr<Value>> &get_inputs();
-    void add_output(std::shared_ptr<Value> out);
-    std::vector<std::shared_ptr<Value>> &get_outputs();
+    void add_input(SP<Value> in);
+    std::vector<SP<Value>> &get_inputs();
+    void add_output(SP<Value> out);
+    std::vector<SP<Value>> &get_outputs();
 
     void auto_add_none();
     void auto_add_inputs();
