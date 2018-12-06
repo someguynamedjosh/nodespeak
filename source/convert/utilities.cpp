@@ -5,21 +5,9 @@
 namespace waveguide {
 namespace ast {
 
-AstConverter::AstConverter(): data{new ConverterData{}} {
+void AstConverter::on_start() const {
     data->current_scope = SP<intr::scope>{new intr::scope()};
     blt()->add_to_scope(data->current_scope);
-}
-
-void AstConverter::push_stack() const {
-    stack.push_back(SP<ConverterData>{new ConverterData{*data}});
-}
-
-void AstConverter::pop_stack() const {
-    auto popped = stack.back();
-    data->current_scope = popped->current_scope;
-    data->current_value = popped->current_value;
-    data->current_type = popped->current_type;
-    stack.pop_back();
 }
 
 AccessResult AstConverter::find_access_result(

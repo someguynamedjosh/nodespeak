@@ -6,7 +6,7 @@ namespace waveguide {
 namespace convert {
 
 void convert_ast(ast::root_type const&root) {
-    ast::AstConverter{}(root);
+    ast::AstConverter{}.start(root);
 }
 
 }

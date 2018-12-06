@@ -3,19 +3,22 @@
 #include <boost/core/enable_if.hpp>
 #include <boost/variant.hpp>
 
+#include "util/aliases.hpp"
+
 namespace waveguide {
 namespace util {
 
-template<typename V>
-struct static_visitor: boost::static_visitor<> {
+template<typename ChildClass, typename DataContainer>
+class static_visitor: boost::static_visitor<> {
+private:
     template<typename T>
-    struct has_visit_method {
+    struct has_basic_method {
     private:
         typedef std::true_type yes;
         typedef std::false_type no;
         
         template<typename U> static auto test(int) -> decltype(
-            std::declval<U>().apply_visitor(std::declval<V>()), 
+            std::declval<ChildClass>()(std::declval<U>()),
             yes());
         template<typename> static no test(...);
 
@@ -24,18 +27,30 @@ struct static_visitor: boost::static_visitor<> {
             = std::is_same<decltype(test<T>(0)),yes>::value;
     };
 
-    virtual const V* get_recurse_object() const = 0;
+protected:
+    SP<DataContainer> data;
+
+    virtual void on_start() const = 0;
 
     template<typename Visitable>
-    typename boost::enable_if<has_visit_method<Visitable>, void>::type
+    typename boost::disable_if<has_basic_method<Visitable>, void>::type
     recurse(Visitable const&to_convert) const {
-        boost::apply_visitor(*get_recurse_object(), to_convert);
+        ChildClass child{};
+        child.data = data;
+        boost::apply_visitor(child, to_convert);
     }
 
     template<typename Visitable>
-    typename boost::disable_if<has_visit_method<Visitable>, void>::type
+    typename boost::enable_if<has_basic_method<Visitable>, void>::type
     recurse(Visitable const&to_convert) const {
-        (*get_recurse_object())(to_convert);
+        (*static_cast<const ChildClass*>(this))(to_convert);
+    }
+
+public:
+    template<typename T>
+    void start(T const&start_item) {
+        on_start();
+        recurse(start_item);
     }
 };
 

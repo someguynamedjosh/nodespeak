@@ -32,27 +32,16 @@ struct AccessResult {
     SP<intr::data_type> final_type;
 };
 
-struct AstConverter;
-struct AstConverter: util::static_visitor<AstConverter> {
-    struct ConverterData {
-        SP<intr::scope> current_scope;
-        SP<intr::value> current_value;
-        SP<intr::data_type> current_type;
-    };
-    SP<ConverterData> data;
-    mutable std::vector<SP<ConverterData>> stack;
+struct AstConverterData {
+    SP<intr::scope> current_scope;
+    SP<intr::value> current_value;
+    SP<intr::data_type> current_type;
+};
 
-    AstConverter();
-    AstConverter(SP<ConverterData> data): data{data} { }
-
-    // For recursion.
-    virtual const AstConverter *get_recurse_object() const override { 
-        return this; 
-    }
+struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
+    virtual void on_start() const override;
 
     // Utility methods.
-    void push_stack() const;
-    void pop_stack() const;
     AccessResult find_access_result(ast::variable_expression const&expr) const;
     void copy_value_to_expr(SP<intr::value> from, 
         ast::variable_expression const& to) const;
