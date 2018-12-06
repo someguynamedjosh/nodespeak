@@ -6,15 +6,14 @@
 #include <string>
 #include <vector>
 
+#include "util/aliases.hpp"
+
 namespace waveguide {
 namespace intermediate {
 
 class data_type;
 class scope;
 class value;
-
-template<typename T>
-using SP = std::shared_ptr<T>;
 
 struct do_if_aug {
     SP<value> condition;

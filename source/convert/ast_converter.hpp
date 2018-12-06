@@ -5,14 +5,11 @@
 #include <waveguide/parser/ast.hpp>
 #include <memory>
 
+#include "util/aliases.hpp"
 #include "util/static_visitor.hpp"
 
 namespace waveguide {
 namespace ast {
-
-namespace intr = waveguide::intermediate;
-template<typename T>
-using SP = std::shared_ptr<T>;
 
 inline SP<intr::builtins> blt() {
     return intr::builtins::get_instance();
