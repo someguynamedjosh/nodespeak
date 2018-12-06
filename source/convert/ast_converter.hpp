@@ -1,10 +1,11 @@
 #pragma once
 
-#include <boost/core/enable_if.hpp>
 #include <waveguide/intermediate/builtins.hpp>
 #include <waveguide/intermediate/metastructure.hpp>
 #include <waveguide/parser/ast.hpp>
 #include <memory>
+
+#include "util/static_visitor.hpp"
 
 namespace waveguide {
 namespace ast {
@@ -34,7 +35,8 @@ struct AccessResult {
     SP<intr::data_type> final_type;
 };
 
-struct AstConverter: boost::static_visitor<> {
+struct AstConverter;
+struct AstConverter: util::static_visitor<AstConverter> {
     struct ConverterData {
         SP<intr::scope> current_scope;
         SP<intr::value> current_value;
@@ -45,6 +47,11 @@ struct AstConverter: boost::static_visitor<> {
 
     AstConverter();
     AstConverter(SP<ConverterData> data): data{data} { }
+
+    // For recursion.
+    virtual const AstConverter *get_recurse_object() const override { 
+        return this; 
+    }
 
     // Utility methods.
     void push_stack() const;
@@ -82,36 +89,6 @@ struct AstConverter: boost::static_visitor<> {
     void operator()(function_parameter_dec const&dec) const;
     void operator()(function_dec const&dec) const;
     void operator()(data_type const&type) const;
-
-    template<typename T>
-    struct has_visit_method {
-    private:
-        typedef std::true_type yes;
-        typedef std::false_type no;
-        
-        template<typename U> static auto test(int) -> decltype(
-            std::declval<U>().apply_visitor(std::declval<AstConverter>()), 
-            yes());
-        template<typename> static no test(...);
-
-    public:
-        static constexpr bool value
-            = std::is_same<decltype(test<T>(0)),yes>::value;
-    };
-
-    #pragma GCC diagnostic ignored "-Wunused-parameter"
-    template<typename Visitable>
-    typename boost::enable_if<has_visit_method<Visitable>, void>::type
-    recurse(Visitable &to_convert) const {
-        boost::apply_visitor(AstConverter{data}, to_convert);
-    }
-
-    template<typename Visitable>
-    typename boost::disable_if<has_visit_method<Visitable>, void>::type
-    recurse(Visitable &to_convert) const {
-        (*this)(to_convert);
-    }
-    #pragma GCC diagnostic pop // Restore command-line options.
 };
 
 }
