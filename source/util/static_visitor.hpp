@@ -49,6 +49,7 @@ protected:
 public:
     template<typename T>
     void start(T const&start_item) {
+        data = SP<DataContainer>{new DataContainer{}};
         on_start();
         recurse(start_item);
     }
