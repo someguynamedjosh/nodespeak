@@ -6,8 +6,6 @@
 #include <string>
 #include <vector>
 
-#include "util/aliases.hpp"
-
 namespace waveguide {
 namespace intermediate {
 
@@ -16,19 +14,19 @@ class scope;
 class value;
 
 struct do_if_aug {
-    SP<value> condition;
+    std::shared_ptr<value> condition;
 };
 
 struct do_if_not_aug {
-    SP<value> condition;
+    std::shared_ptr<value> condition;
 };
 
 struct loop_for_aug {
-    SP<value> to_set, iterate_over;
+    std::shared_ptr<value> to_set, iterate_over;
 };
 
 struct loop_range_aug {
-    SP<value> to_set, start, end, step;
+    std::shared_ptr<value> to_set, start, end, step;
 };
 
 struct augmentation: boost::variant<
@@ -37,58 +35,58 @@ struct augmentation: boost::variant<
 
 class command {
     private:
-    std::vector<SP<value>> ins, outs;
-    SP<scope> call{nullptr};
-    SP<augmentation> aug{nullptr};
+    std::vector<std::shared_ptr<value>> ins, outs;
+    std::shared_ptr<scope> call{nullptr};
+    std::shared_ptr<augmentation> aug{nullptr};
 public:
-    command(SP<scope> call);
-    command(SP<scope> call, SP<augmentation> aug);
+    command(std::shared_ptr<scope> call);
+    command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug);
     std::string repr();
 
-    void add_input(SP<value> input);
-    void add_output(SP<value> output);
-    const std::vector<SP<value>> &get_inputs() const;
-    const std::vector<SP<value>> &get_outputs() const;
-    const SP<augmentation> get_augmentation() const;
-    const SP<scope> get_called_scope() const;
+    void add_input(std::shared_ptr<value> input);
+    void add_output(std::shared_ptr<value> output);
+    const std::vector<std::shared_ptr<value>> &get_inputs() const;
+    const std::vector<std::shared_ptr<value>> &get_outputs() const;
+    const std::shared_ptr<augmentation> get_augmentation() const;
+    const std::shared_ptr<scope> get_called_scope() const;
 };
 
 class scope {
 private:
-    std::map<std::string, SP<scope>> funcs;
-    std::vector<SP<scope>> tempFuncs;
-    std::map<std::string, SP<value>> vars;
-    std::vector<SP<value>> tempVars;
-    std::map<std::string, SP<data_type>> types;
-    std::vector<SP<command>> commands;
-    SP<scope> parent{nullptr};
+    std::map<std::string, std::shared_ptr<scope>> funcs;
+    std::vector<std::shared_ptr<scope>> tempFuncs;
+    std::map<std::string, std::shared_ptr<value>> vars;
+    std::vector<std::shared_ptr<value>> tempVars;
+    std::map<std::string, std::shared_ptr<data_type>> types;
+    std::vector<std::shared_ptr<command>> commands;
+    std::shared_ptr<scope> parent{nullptr};
 
     enum auto_add {
         NONE, INS, OUTS
     };
     auto_add do_auto{auto_add::NONE};
-    std::vector<SP<value>> ins, outs;
+    std::vector<std::shared_ptr<value>> ins, outs;
 public:
     scope();
-    scope(SP<scope> parent);
-    const SP<scope> get_parent() const;
+    scope(std::shared_ptr<scope> parent);
+    const std::shared_ptr<scope> get_parent() const;
     std::string repr();
 
-    void declare_func(std::string name, SP<scope> body);
-    void declare_temp_func(SP<scope> body);
-    const SP<scope> lookup_func(std::string name) const;
-    void declare_var(std::string name, SP<value> value);
-    void declare_temp_var(SP<value> value);
-    const SP<value> lookup_var(std::string name) const;
-    void declare_type(std::string name, SP<data_type> type);
-    const SP<data_type> lookup_type(std::string name) const;
-    void add_command(SP<command> command);
-    const std::vector<SP<command>> &get_commands() const;
+    void declare_func(std::string name, std::shared_ptr<scope> body);
+    void declare_temp_func(std::shared_ptr<scope> body);
+    const std::shared_ptr<scope> lookup_func(std::string name) const;
+    void declare_var(std::string name, std::shared_ptr<value> value);
+    void declare_temp_var(std::shared_ptr<value> value);
+    const std::shared_ptr<value> lookup_var(std::string name) const;
+    void declare_type(std::string name, std::shared_ptr<data_type> type);
+    const std::shared_ptr<data_type> lookup_type(std::string name) const;
+    void add_command(std::shared_ptr<command> command);
+    const std::vector<std::shared_ptr<command>> &get_commands() const;
 
-    void add_input(SP<value> in);
-    const std::vector<SP<value>> &get_inputs() const;
-    void add_output(SP<value> out);
-    const std::vector<SP<value>> &get_outputs() const;
+    void add_input(std::shared_ptr<value> in);
+    const std::vector<std::shared_ptr<value>> &get_inputs() const;
+    void add_output(std::shared_ptr<value> out);
+    const std::vector<std::shared_ptr<value>> &get_outputs() const;
 
     void auto_add_none();
     void auto_add_inputs();

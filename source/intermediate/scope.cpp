@@ -3,6 +3,8 @@
 #include <waveguide/intermediate/value.hpp>
 #include <sstream>
 
+#include "util/aliases.hpp"
+
 namespace waveguide {
 namespace intermediate {
 
