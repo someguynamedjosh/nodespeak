@@ -10,6 +10,10 @@ void AstConverter::on_start() const {
     blt()->add_to_scope(data->current_scope);
 }
 
+SP<intr::scope> AstConverter::get_result() const {
+    return data->current_scope;
+}
+
 AccessResult AstConverter::find_access_result(
     ast::variable_expression const& expr) const {
     SP<intr::value> root_val{lookup_var(expr.name)};

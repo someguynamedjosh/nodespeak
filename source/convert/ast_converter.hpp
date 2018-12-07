@@ -40,6 +40,7 @@ struct AstConverterData {
 
 struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
     virtual void on_start() const override;
+    SP<intr::scope> get_result() const;
 
     // Utility methods.
     AccessResult find_access_result(ast::variable_expression const&expr) const;
