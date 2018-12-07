@@ -47,10 +47,10 @@ public:
 
     void add_input(SP<value> input);
     void add_output(SP<value> output);
-    std::vector<SP<value>> &get_inputs();
-    std::vector<SP<value>> &get_outputs();
-    SP<augmentation> get_augmentation();
-    SP<scope> get_called_scope();
+    const std::vector<SP<value>> &get_inputs() const;
+    const std::vector<SP<value>> &get_outputs() const;
+    const SP<augmentation> get_augmentation() const;
+    const SP<scope> get_called_scope() const;
 };
 
 class scope {
@@ -71,24 +71,24 @@ private:
 public:
     scope();
     scope(SP<scope> parent);
-    SP<scope> get_parent();
+    const SP<scope> get_parent() const;
     std::string repr();
 
     void declare_func(std::string name, SP<scope> body);
     void declare_temp_func(SP<scope> body);
-    SP<scope> lookup_func(std::string name);
+    const SP<scope> lookup_func(std::string name) const;
     void declare_var(std::string name, SP<value> value);
     void declare_temp_var(SP<value> value);
-    SP<value> lookup_var(std::string name);
+    const SP<value> lookup_var(std::string name) const;
     void declare_type(std::string name, SP<data_type> type);
-    SP<data_type> lookup_type(std::string name);
+    const SP<data_type> lookup_type(std::string name) const;
     void add_command(SP<command> command);
-    std::vector<SP<command>> &get_commands();
+    const std::vector<SP<command>> &get_commands() const;
 
     void add_input(SP<value> in);
-    std::vector<SP<value>> &get_inputs();
+    const std::vector<SP<value>> &get_inputs() const;
     void add_output(SP<value> out);
-    std::vector<SP<value>> &get_outputs();
+    const std::vector<SP<value>> &get_outputs() const;
 
     void auto_add_none();
     void auto_add_inputs();

@@ -41,19 +41,19 @@ void command::add_output(std::shared_ptr<value> output) {
     outs.push_back(output);
 }
 
-std::vector<std::shared_ptr<value>> &command::get_inputs() {
+const std::vector<std::shared_ptr<value>> &command::get_inputs() const {
     return ins;
 }
 
-std::vector<std::shared_ptr<value>> &command::get_outputs() {
+const std::vector<std::shared_ptr<value>> &command::get_outputs() const {
     return outs;
 }
 
-std::shared_ptr<augmentation> command::get_augmentation() {
+const std::shared_ptr<augmentation> command::get_augmentation() const {
     return aug;
 }
 
-std::shared_ptr<scope> command::get_called_scope() {
+const std::shared_ptr<scope> command::get_called_scope() const {
     return call;
 }
 
@@ -66,7 +66,7 @@ scope::scope() { }
 scope::scope(std::shared_ptr<scope> parent) 
     : parent(parent) { }
 
-std::shared_ptr<scope> scope::get_parent() {
+const std::shared_ptr<scope> scope::get_parent() const {
     return parent;
 }
 
@@ -129,9 +129,9 @@ void scope::declare_temp_func(std::shared_ptr<scope> body) {
     tempFuncs.push_back(body);
 }
 
-std::shared_ptr<scope> scope::lookup_func(std::string name) {
+const std::shared_ptr<scope> scope::lookup_func(std::string name) const {
     if (funcs.count(name)) {
-        return funcs[name];
+        return funcs.at(name);
     } else if (parent) {
         return parent->lookup_func(name);
     } else {
@@ -152,9 +152,9 @@ void scope::declare_temp_var(std::shared_ptr<value> value) {
     tempVars.push_back(value);
 }
 
-std::shared_ptr<value> scope::lookup_var(std::string name) {
+const std::shared_ptr<value> scope::lookup_var(std::string name) const {
     if (vars.count(name)) {
-        return vars[name];
+        return vars.at(name);
     } else if (parent) {
         return parent->lookup_var(name);
     } else {
@@ -166,9 +166,9 @@ void scope::declare_type(std::string name, std::shared_ptr<data_type> type) {
     types.emplace(name, type);
 }
 
-std::shared_ptr<data_type> scope::lookup_type(std::string name) {
+const std::shared_ptr<data_type> scope::lookup_type(std::string name) const {
     if (types.count(name)) {
-        return types[name];
+        return types.at(name);
     } else if (parent) {
         return parent->lookup_type(name);
     } else {
@@ -180,7 +180,7 @@ void scope::add_command(std::shared_ptr<command> command) {
     commands.push_back(command);
 }
 
-std::vector<std::shared_ptr<command>> &scope::get_commands() {
+const std::vector<std::shared_ptr<command>> &scope::get_commands() const {
     return commands;
 }
 
@@ -189,7 +189,7 @@ void scope::add_input(std::shared_ptr<value> in) {
     ins.push_back(in);
 }
 
-std::vector<std::shared_ptr<value>> &scope::get_inputs() {
+const std::vector<std::shared_ptr<value>> &scope::get_inputs() const {
     return ins;
 }
 
@@ -197,7 +197,7 @@ void scope::add_output(std::shared_ptr<value> out) {
     outs.push_back(out);
 }
 
-std::vector<std::shared_ptr<value>> &scope::get_outputs() {
+const std::vector<std::shared_ptr<value>> &scope::get_outputs() const {
     return outs;
 }
 
