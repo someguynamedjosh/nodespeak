@@ -68,7 +68,7 @@ root_rule_type const root_rule = "root_rule";
 // Rule definitions
 ////////////////////////////////////////////////////////////////////////////////
 
-using x3::double_;
+using x3::float_;
 using x3::int_;
 using x3::bool_;
 using x3::char_;
@@ -168,8 +168,8 @@ auto const signed_expr_def =
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
-    double_
-    | int_
+    int_
+    | float_ 
     | bool_
     | ('(' > expr > ')')
     | array_expr

@@ -19,8 +19,8 @@ inline SP<intr::value> int_literal(const int value) {
     return SP<intr::value>{new intr::value(blt()->INT, new int{value})};
 }
 
-inline SP<intr::value> double_literal(const double value) {
-    return SP<intr::value>{new intr::value(blt()->FLOAT, new double{value})};
+inline SP<intr::value> float_literal(const float value) {
+    return SP<intr::value>{new intr::value(blt()->FLOAT, new float{value})};
 }
 
 inline SP<intr::value> bool_literal(const bool value) {
@@ -64,7 +64,7 @@ struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
     void operator()(return_statement const&stat) const;
 
     void operator()(int const&expr) const;
-    void operator()(double const&expr) const;
+    void operator()(float const&expr) const;
     void operator()(bool const&expr) const;
     void operator()(signed_expression const&expr) const;
     void operator()(variable_expression const&expr) const;

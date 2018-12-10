@@ -34,7 +34,7 @@ struct signed_expression;
 struct variable_expression;
 
 struct expression: x3::variant<
-    int, double, bool, 
+    int, float, bool, 
     x3::forward_ast<std::vector<expression>>,
     x3::forward_ast<function_expression>, 
     x3::forward_ast<variable_expression>,

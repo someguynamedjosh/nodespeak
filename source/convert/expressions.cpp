@@ -1,5 +1,8 @@
 #include "ast_converter.hpp"
 
+#include <iostream>
+#include <waveguide/intermediate/scope.hpp>
+
 namespace waveguide {
 namespace ast {
 
@@ -7,8 +10,9 @@ void AstConverter::operator()(int const&expr) const {
     data->current_value = int_literal(expr);
 }
 
-void AstConverter::operator()(double const&expr) const {
-    data->current_value = double_literal(expr);
+void AstConverter::operator()(float const&expr) const {
+    data->current_value = float_literal(expr);
+    std::cout << expr << " " << *data->current_value->data_as_float() << std::endl;
 }
 
 void AstConverter::operator()(bool const&expr) const {
