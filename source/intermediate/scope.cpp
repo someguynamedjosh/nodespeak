@@ -111,16 +111,16 @@ std::string scope::repr() {
     }
 
     ss << "}\nFUNCS={ ";
-    for (uint i = 0; i < tempFuncs.size(); i++) {
-        ss << "\n\"!TEMP" << i << "\"=" << tempFuncs[i]->repr();
+    for (uint i = 0; i < temp_funcs.size(); i++) {
+        ss << "\n\"!TEMP" << i << "\"=" << temp_funcs[i]->repr();
     }
     for (auto func : funcs) {
         ss << "\n\"" << func.first << "\"=" << func.second->repr();
     }
 
     ss << "}\nVARS={ ";
-    for (uint i = 0; i < tempVars.size(); i++) {
-        ss << "\n\"!TEMP" << i << "\"=" << tempVars[i]->repr();
+    for (uint i = 0; i < temp_vars.size(); i++) {
+        ss << "\n\"!TEMP" << i << "\"=" << temp_vars[i]->repr();
     }
     for (auto var : vars) {
         ss << "\n\"" << var.first << "\"=" << var.second->repr();
@@ -131,7 +131,7 @@ std::string scope::repr() {
         ss << "\n" + command->repr();
     }
 
-    for (auto func : tempFuncs) {
+    for (auto func : temp_funcs) {
         ss << func->repr() << "\n";
     }
     for (auto func : funcs) {
@@ -168,14 +168,23 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
         stream << "    " << type.second << " is " << type.first << std::endl;
     }
     stream << "  Function Declarations:" << std::endl;
-    for (auto func : to_print.types) {
+    for (auto func : to_print.funcs) {
         stream << "    " << func.second << " is " << func.first << std::endl;
+    }
+    for (int i = 0; i < to_print.temp_funcs.size(); i++) {
+        stream << "    " << to_print.temp_funcs[i] << " is !TEMP" << (i + 1) 
+            << std::endl;
     }
     stream << "  Variable Declarations:" << std::endl;
     for (auto var : to_print.vars) {
         stream << "    " << var.second << " is " << var.first << ":" 
             << std::endl;
         print_value(stream, *var.second);
+    }
+    for (int i = 0; i < to_print.temp_vars.size(); i++) {
+        stream << "    " << to_print.temp_vars[i] << " is !TEMP" << (i + 1) 
+            << std::endl;
+        print_value(stream, *to_print.temp_vars[i]);
     }
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
@@ -189,7 +198,7 @@ void scope::declare_func(std::string name, std::shared_ptr<scope> body) {
 }
 
 void scope::declare_temp_func(std::shared_ptr<scope> body) {
-    tempFuncs.push_back(body);
+    temp_funcs.push_back(body);
 }
 
 const std::shared_ptr<scope> scope::lookup_func(std::string name) const {
@@ -212,7 +221,7 @@ void scope::declare_var(std::string name, std::shared_ptr<value> value) {
 }
 
 void scope::declare_temp_var(std::shared_ptr<value> value) {
-    tempVars.push_back(value);
+    temp_vars.push_back(value);
 }
 
 const std::shared_ptr<value> scope::lookup_var(std::string name) const {

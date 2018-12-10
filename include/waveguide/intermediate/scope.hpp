@@ -71,9 +71,9 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print);
 class scope {
 private:
     std::map<std::string, std::shared_ptr<scope>> funcs;
-    std::vector<std::shared_ptr<scope>> tempFuncs;
+    std::vector<std::shared_ptr<scope>> temp_funcs;
     std::map<std::string, std::shared_ptr<value>> vars;
-    std::vector<std::shared_ptr<value>> tempVars;
+    std::vector<std::shared_ptr<value>> temp_vars;
     std::map<std::string, std::shared_ptr<data_type>> types;
     std::vector<std::shared_ptr<command>> commands;
     std::shared_ptr<scope> parent{nullptr};
