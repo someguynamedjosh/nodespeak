@@ -29,7 +29,7 @@ inline SP<intr::value> bool_literal(const bool value) {
 
 struct AccessResult {
     SP<intr::value> root_val, offset;
-    SP<intr::data_type> final_type;
+    SP<const intr::data_type> final_type;
 };
 
 struct AstConverterData {

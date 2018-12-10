@@ -2,11 +2,13 @@
 
 #include <waveguide/parser/ast.hpp>
 #include <memory>
+#include <ostream>
 
 namespace waveguide {
 namespace intermediate {
 
 class scope;
+std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 
 }
 }

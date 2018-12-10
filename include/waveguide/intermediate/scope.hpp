@@ -3,6 +3,7 @@
 #include <boost/variant.hpp>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -15,19 +16,32 @@ class value;
 
 struct do_if_aug {
     std::shared_ptr<value> condition;
+    friend std::ostream &operator<<(std::ostream &stream, 
+        do_if_aug const&to_print);
 };
 
 struct do_if_not_aug {
     std::shared_ptr<value> condition;
+    friend std::ostream &operator<<(std::ostream &stream, 
+        do_if_not_aug const&to_print);
 };
 
 struct loop_for_aug {
     std::shared_ptr<value> to_set, iterate_over;
+    friend std::ostream &operator<<(std::ostream &stream, 
+        loop_for_aug const&to_print);
 };
 
 struct loop_range_aug {
     std::shared_ptr<value> to_set, start, end, step;
+    friend std::ostream &operator<<(std::ostream &stream, 
+        loop_range_aug const&to_print);
 };
+
+std::ostream &operator<<(std::ostream &stream, do_if_aug const&to_print);
+std::ostream &operator<<(std::ostream &stream, do_if_not_aug const&to_print);
+std::ostream &operator<<(std::ostream &stream, loop_for_aug const&to_print);
+std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print);
 
 struct augmentation: boost::variant<
     do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug
@@ -42,6 +56,8 @@ public:
     command(std::shared_ptr<scope> call);
     command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug);
     std::string repr();
+    friend std::ostream &operator<<(std::ostream &stream, 
+        command const&to_print);
 
     void add_input(std::shared_ptr<value> input);
     void add_output(std::shared_ptr<value> output);
@@ -50,6 +66,7 @@ public:
     const std::shared_ptr<augmentation> get_augmentation() const;
     const std::shared_ptr<scope> get_called_scope() const;
 };
+std::ostream &operator<<(std::ostream &stream, command const&to_print);
 
 class scope {
 private:
@@ -71,6 +88,8 @@ public:
     scope(std::shared_ptr<scope> parent);
     const std::shared_ptr<scope> get_parent() const;
     std::string repr();
+    friend std::ostream &operator<<(std::ostream &stream, 
+        scope const&to_print);
 
     void declare_func(std::string name, std::shared_ptr<scope> body);
     void declare_temp_func(std::shared_ptr<scope> body);
@@ -92,6 +111,7 @@ public:
     void auto_add_inputs();
     void auto_add_outputs();
 };
+std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 
 }
 }

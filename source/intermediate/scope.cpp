@@ -8,6 +8,19 @@
 namespace waveguide {
 namespace intermediate {
 
+std::ostream &operator<<(std::ostream &stream, do_if_aug const&to_print) {
+    return stream;
+}
+std::ostream &operator<<(std::ostream &stream, do_if_not_aug const&to_print) {
+    return stream;
+}
+std::ostream &operator<<(std::ostream &stream, loop_for_aug const&to_print) {
+    return stream;
+}
+std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print) {
+    return stream;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,20 +32,27 @@ command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
 
 std::string command::repr() {
     std::stringstream ss;
-    ss << "COM S@" << (void*) &call << " I={";
-    for (auto value : ins) {
-        ss << " (" << value->repr() << ")";
-    }
-    ss << " } O={";
-    for (auto value : outs) {
-        ss << " (" << value->repr() << ")";
-    }
-    ss << " }";
-    if (aug) {
-        ss << " A=(";
-        ss << " })";
-    }
+    ss << *this;
     return ss.str();
+}
+
+std::ostream &operator<<(std::ostream &stream, command const&to_print) {
+    stream << "    " << &to_print.call << std::endl;
+    for (auto value : to_print.ins) {
+        stream << "      Input: " << value << " (type " << value->get_type() << ")";
+        if (value->is_value_known()) {
+            stream << " = " << value->get_type()->format(value->get_data());
+        }
+        stream << std::endl;
+    }
+    for (auto value : to_print.outs) {
+        stream << "      Output: " << value << " (type " << value->get_type() << ")";
+        if (value->is_value_known()) {
+            stream << " = " << value->get_type()->format(value->get_data());
+        }
+        stream << std::endl;
+    }
+    return stream;
 }
 
 void command::add_input(std::shared_ptr<value> input) {
@@ -121,6 +141,47 @@ std::string scope::repr() {
     }
 
     return ss.str();
+}
+
+void print_value(std::ostream &stream, value const&to_print) {
+    stream << "      Type: " << to_print.get_type() << " (" << 
+        to_print.get_type()->repr() << ")" << std::endl;
+    if (to_print.is_value_known()) {
+        stream << "      Value: " << 
+            to_print.get_type()->format(to_print.get_data()) << std::endl;
+    }
+}
+
+std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
+    stream << &to_print << " is Scope:" << std::endl;
+    stream << "  Parent: " << to_print.parent.get() << std::endl;
+    stream << "  Inputs:" << std::endl;
+    for (auto in : to_print.ins) {
+        print_value(stream, *in);
+    }
+    stream << "  Outputs:" << std::endl;
+    for (auto out : to_print.outs) {
+        print_value(stream, *out);
+    }
+    stream << "  Types:" << std::endl;
+    for (auto type : to_print.types) {
+        stream << "    " << type.second << " is " << type.first << std::endl;
+    }
+    stream << "  Function Declarations:" << std::endl;
+    for (auto func : to_print.types) {
+        stream << "    " << func.second << " is " << func.first << std::endl;
+    }
+    stream << "  Variable Declarations:" << std::endl;
+    for (auto var : to_print.vars) {
+        stream << "    " << var.second << " is " << var.first << ":" 
+            << std::endl;
+        print_value(stream, *var.second);
+    }
+    stream << "  Commands:" << std::endl;
+    for (auto command : to_print.commands) {
+        stream << *command;
+    }
+    return stream;
 }
 
 void scope::declare_func(std::string name, std::shared_ptr<scope> body) {
