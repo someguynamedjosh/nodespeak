@@ -12,11 +12,11 @@ class value;
 class data_type {
 public:
     data_type();
-    virtual int get_length() = 0;
-    virtual std::shared_ptr<data_type> get_base_type();
-    virtual bool is_proxy_type();
-    virtual std::string repr() = 0;
-    virtual std::string format(void *data) = 0;
+    virtual int get_length() const = 0;
+    virtual std::shared_ptr<const data_type> get_base_type() const;
+    virtual bool is_proxy_type() const;
+    virtual std::string repr() const = 0;
+    virtual std::string format(const void *data) const = 0;
 };
 
 class abstract_data_type: public data_type {
@@ -24,56 +24,59 @@ private:
     std::string label;
 public:
     abstract_data_type(std::string label);
-    virtual int get_length();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    virtual int get_length() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 };
 
 class int_data_type: public data_type {
 public:
-    virtual int get_length();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    virtual int get_length() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 };
 
 class float_data_type: public data_type {
 public:
-    virtual int get_length();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    virtual int get_length() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 };
 
 class bool_data_type: public data_type {
 public:
-    virtual int get_length();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    virtual int get_length() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 };
 
 class array_data_type: public data_type {
 private:
-    std::shared_ptr<data_type> elementType;
+    std::shared_ptr<const data_type> element_type;
     int length;
 public:
-    array_data_type(std::shared_ptr<data_type> elementType, int length);
-    virtual int get_length();
-    virtual std::shared_ptr<data_type> get_base_type();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    array_data_type(std::shared_ptr<const data_type> element_type, int length);
+    virtual int get_length() const;
+    virtual std::shared_ptr<const data_type> get_base_type() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 
-    virtual int getArrayLength();
-    std::shared_ptr<data_type> get_element_type();
-    virtual std::shared_ptr<value> get_data_offset(std::shared_ptr<value> index);
+    virtual int get_array_length() const;
+    std::shared_ptr<const data_type> get_element_type() const;
+    virtual std::shared_ptr<value> 
+        get_data_offset(std::shared_ptr<value> index) const;
 };
 
 class copy_array_data_proxy: public array_data_type {
 public:
-    copy_array_data_proxy(std::shared_ptr<data_type> sourceType, int length);
-    virtual bool is_proxy();
-    virtual std::string repr();
-    virtual std::string format(void *data);
+    copy_array_data_proxy(std::shared_ptr<const data_type> source_type, 
+        int length);
+    virtual bool is_proxy_type() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
 
-    virtual std::shared_ptr<value> get_data_offset(std::shared_ptr<value> index);
+    virtual std::shared_ptr<value> 
+        get_data_offset(std::shared_ptr<value> index) const;
 };
 
 }

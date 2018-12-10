@@ -31,13 +31,13 @@ AccessResult AstConverter::find_access_result(
         declare_temp_var(offset);
     }
 
-    SP<intr::data_type> data_type{root_val->get_type()};
+    auto data_type = root_val->get_type();
 	// TODO: Optimize this for multiple sucessive array indexing operations
 	// TODO: Add in member access operations once objects are a thing
 	// TODO: Add errors if array access or member access is used on an unsupported data type.
 	for (auto const&index : expr.array_accesses) {
-        SP<intr::data_type> element_type = std::static_pointer_cast
-            <intr::array_data_type>(data_type)->get_element_type();
+        auto element_type = std::static_pointer_cast
+            <const intr::array_data_type>(data_type)->get_element_type();
         recurse(index);
         SP<intr::value> index_value{data->current_value};
 

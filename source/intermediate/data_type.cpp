@@ -8,11 +8,11 @@ namespace intermediate {
 ////////////////////////////////////////////////////////////////////////////////
 data_type::data_type() { }
 
-std::shared_ptr<data_type> data_type::get_base_type() {
-    return std::shared_ptr<data_type>(this);
+std::shared_ptr<const data_type> data_type::get_base_type() const {
+    return std::shared_ptr<const data_type>(this);
 }
 
-bool data_type::is_proxy_type() {
+bool data_type::is_proxy_type() const {
     return false;
 }
 
@@ -22,85 +22,86 @@ bool data_type::is_proxy_type() {
 abstract_data_type::abstract_data_type(std::string label)
     : label{label} { }
 
-int abstract_data_type::get_length() {
+int abstract_data_type::get_length() const {
     return 0;
 }
 
-std::string abstract_data_type::repr() {
+std::string abstract_data_type::repr() const {
     return label;
 }
 
-std::string abstract_data_type::format(void *data) {
+std::string abstract_data_type::format(const void *data) const {
     return "???";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // int_data_type
 ////////////////////////////////////////////////////////////////////////////////
-int int_data_type::get_length() {
+int int_data_type::get_length() const {
     return 4;
 }
 
-std::string int_data_type::repr() {
+std::string int_data_type::repr() const {
     return "Int";
 }
 
-std::string int_data_type::format(void *data) {
+std::string int_data_type::format(const void *data) const {
     return std::to_string(*((int *) data));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // float_data_type
 ////////////////////////////////////////////////////////////////////////////////
-int float_data_type::get_length() {
+int float_data_type::get_length() const {
     return 4;
 }
 
-std::string float_data_type::repr() {
+std::string float_data_type::repr() const {
     return "Float";
 }
 
-std::string float_data_type::format(void *data) {
+std::string float_data_type::format(const void *data) const {
     return std::to_string(*((float *) data));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // bool_data_type
 ////////////////////////////////////////////////////////////////////////////////
-int bool_data_type::get_length() {
+int bool_data_type::get_length() const {
     return 1;
 }
 
-std::string bool_data_type::repr() {
+std::string bool_data_type::repr() const {
     return "Bool";
 }
 
-std::string bool_data_type::format(void *data) {
+std::string bool_data_type::format(const void *data) const {
     return (char *) data != 0 ? "true" : "false";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // array_data_type
 ////////////////////////////////////////////////////////////////////////////////
-array_data_type::array_data_type(std::shared_ptr<data_type> elementType, int length)
-    : elementType{elementType}, length{length} { }
+array_data_type::array_data_type(std::shared_ptr<const data_type> element_type, 
+    int length)
+    : element_type{element_type}, length{length} { }
 
-int array_data_type::get_length() {
-    return elementType->get_length() * length;
+int array_data_type::get_length() const {
+    return element_type->get_length() * length;
 }
 
-std::shared_ptr<data_type> array_data_type::get_base_type() {
-    return elementType->get_base_type();
+std::shared_ptr<const data_type> array_data_type::get_base_type() const {
+    return element_type->get_base_type();
 }
 
-std::string array_data_type::repr() {
-    return elementType->repr() + "[" + std::to_string(length) + "]";
+std::string array_data_type::repr() const {
+    return element_type->repr() + "[" + std::to_string(length) + "]";
 }
 
-std::string array_data_type::format(void *data) {
+std::string array_data_type::format(const void *data) const {
     std::string tr = "[";
     for (int i = 0; i < length; i++) {
-        tr += elementType->format(data + i * elementType->get_length());
+        tr += element_type->format(data + i * element_type->get_length());
         if (i != length - 1) {
             tr += ", ";
         }
@@ -108,15 +109,16 @@ std::string array_data_type::format(void *data) {
     return tr + "]";
 }
 
-int array_data_type::getArrayLength() {
+int array_data_type::get_array_length() const {
     return length;
 }
 
-std::shared_ptr<data_type> array_data_type::get_element_type() {
-    return elementType;
+std::shared_ptr<const data_type> array_data_type::get_element_type() const {
+    return element_type;
 }
 
-std::shared_ptr<value> array_data_type::get_data_offset(std::shared_ptr<value> index) {
+std::shared_ptr<value> 
+    array_data_type::get_data_offset(std::shared_ptr<value> index)  const {
     // TODO: Implementation
     return std::shared_ptr<value>{nullptr};
 }
@@ -124,30 +126,32 @@ std::shared_ptr<value> array_data_type::get_data_offset(std::shared_ptr<value> i
 ////////////////////////////////////////////////////////////////////////////////
 // copy_array_data_proxy
 ////////////////////////////////////////////////////////////////////////////////
-copy_array_data_proxy::copy_array_data_proxy(std::shared_ptr<data_type> sourceType, int length)
-    : array_data_type{sourceType, length} { }
+copy_array_data_proxy::copy_array_data_proxy(
+    std::shared_ptr<const data_type> source_type, int length)
+    : array_data_type{source_type, length} { }
 
-bool copy_array_data_proxy::is_proxy() {
+bool copy_array_data_proxy::is_proxy_type() const {
     return true;
 }
 
-std::string copy_array_data_proxy::format(void *data) {
+std::string copy_array_data_proxy::format(const void *data) const {
     std::string tr = "[";
-    for (int i = 0; i < getArrayLength(); i++) {
+    for (int i = 0; i < get_array_length(); i++) {
         tr += get_element_type()->format(data);
-        if (i != getArrayLength() - 1) {
+        if (i != get_array_length() - 1) {
             tr += ", ";
         }
     }
     return tr + "]";
 }
 
-std::string copy_array_data_proxy::repr() {
-    return get_element_type()->repr() + "[" + std::to_string(getArrayLength()) 
+std::string copy_array_data_proxy::repr() const {
+    return get_element_type()->repr() + "[" + std::to_string(get_array_length()) 
         + " copied from 1]";
 }
 
-std::shared_ptr<value> copy_array_data_proxy::get_data_offset(std::shared_ptr<value> index) {
+std::shared_ptr<value> 
+    copy_array_data_proxy::get_data_offset(std::shared_ptr<value> index) const {
     // TODO: Implementation
     return std::shared_ptr<value>{nullptr};
 }
