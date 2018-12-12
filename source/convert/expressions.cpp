@@ -43,7 +43,10 @@ void AstConverter::operator()(std::vector<expression> const&expr) const {
 }
 
 void AstConverter::operator()(single_var_dec const&dec) const {
-    // TODO: Add function output inline declaration logic.
+    recurse(dec.type);
+    SP<intr::value> value{new intr::value{data->current_type}};
+    data->current_scope->declare_var(dec.name, value);
+    data->current_value = value;
 }
 
 void AstConverter::operator()(function_expression const&expr) const {
