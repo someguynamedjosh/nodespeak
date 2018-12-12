@@ -2,11 +2,13 @@ import sys
 
 tokens = {}
 for line in sys.stdin:
-    if (line[:5] == 'type ' or line[:5] == 'func ' or line[:4] == 'var '):
-        name = line[line.find(' ')+1 : line.find(':')]
-        hexv = line[line.find(':')+2:-1]
+    if (' is ' in line and ' is Scope' not in line):
+        name = line[line.find(' is ')+3:]
+        if (name[-1] == ':'):
+            name = name[;-1]
+        hexv = line[:line.find(' is ')].strip()
         tokens[hexv] = name
-    if (line[:6] == 'funcc ' or line[:2] == '=='):
+    else:
         for key, value in tokens.items():
             line = line.replace(key, value)
         print(line)
