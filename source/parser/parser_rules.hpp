@@ -168,8 +168,8 @@ auto const signed_expr_def =
 
 // Basic expressions: 1, 1.0, false, ({expression}), etc.
 auto const basic_expr_def = 
-    int_
-    | float_ 
+    x3::real_parser<float, x3::strict_real_policies<float>>{}
+    | int_
     | bool_
     | ('(' > expr > ')')
     | array_expr
