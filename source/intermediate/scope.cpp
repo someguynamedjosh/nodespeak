@@ -30,14 +30,8 @@ command::command(std::shared_ptr<scope> call)
 command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
     : call{call}, aug{aug} { }
 
-std::string command::repr() {
-    std::stringstream ss;
-    ss << *this;
-    return ss.str();
-}
-
 std::ostream &operator<<(std::ostream &stream, command const&to_print) {
-    stream << "    " << &to_print.call << std::endl;
+    stream << "    " << to_print.call << std::endl;
     for (auto value : to_print.ins) {
         stream << "      Input: " << value << " (type " << value->get_type() << ")";
         if (value->is_value_known()) {
@@ -92,57 +86,6 @@ const std::shared_ptr<scope> scope::get_parent() const {
     return parent;
 }
 
-std::string scope::repr() {
-    std::stringstream ss;
-    ss << "S@" << (void*) this << " P@" << (void*) parent.get();
-
-    ss << "\nINS={ ";
-    for (auto in : ins) {
-        ss << "\n" << in->repr();
-    }
-    ss << "}\nOUTS={ ";
-    for (auto out : outs) {
-        ss << "\n" << out->repr();
-    }
-
-    ss << "}\nTYPES={ ";
-    for (auto type : types) {
-        ss << "\n\"" << type.first << "\"=" << type.second->repr();
-    }
-
-    ss << "}\nFUNCS={ ";
-    for (uint i = 0; i < temp_funcs.size(); i++) {
-        ss << "\n\"!TEMP" << i << "\"=" << temp_funcs[i]->repr();
-    }
-    for (auto func : funcs) {
-        ss << "\n\"" << func.first << "\"=" << func.second->repr();
-    }
-
-    ss << "}\nVARS={ ";
-    for (uint i = 0; i < temp_vars.size(); i++) {
-        ss << "\n\"!TEMP" << i << "\"=" << temp_vars[i]->repr();
-    }
-    for (auto var : vars) {
-        ss << "\n\"" << var.first << "\"=" << var.second->repr();
-    }
-
-    ss << "}\nCOMMANDS={ ";
-    for (auto command : commands) {
-        ss << "\n" + command->repr();
-    }
-
-    for (auto func : temp_funcs) {
-        ss << func->repr() << "\n";
-    }
-    for (auto func : funcs) {
-        if (func.second->get_commands().size() > 0) {
-            ss << func.second->repr() << "\n";
-        }
-    }
-
-    return ss.str();
-}
-
 void print_value(std::ostream &stream, value const&to_print) {
     stream << "      Type: " << to_print.get_type() << " (" << 
         to_print.get_type()->repr() << ")" << std::endl;
@@ -168,14 +111,19 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
         stream << "    " << type.second << " is " << type.first << std::endl;
     }
     stream << "  Function Declarations:" << std::endl;
-    for (auto func : to_print.funcs) {
-        stream << "    " << func.second << " is " << func.first << std::endl;
-    }
-    for (int i = 0; i < to_print.temp_funcs.size(); i++) {
+    for (unsigned int i = 0; i < to_print.temp_funcs.size(); i++) {
         stream << "    " << to_print.temp_funcs[i] << " is !TEMP" << (i + 1) 
             << std::endl;
     }
+    for (auto func : to_print.funcs) {
+        stream << "    " << func.second << " is " << func.first << std::endl;
+    }
     stream << "  Variable Declarations:" << std::endl;
+    for (unsigned int i = 0; i < to_print.temp_vars.size(); i++) {
+        stream << "    " << to_print.temp_vars[i] << " is !TEMP" << (i + 1) 
+            << ":" << std::endl;
+        print_value(stream, *to_print.temp_vars[i]);
+    }
     for (auto var : to_print.vars) {
         stream << "    " << var.second << " is " << var.first << ":" 
             << std::endl;

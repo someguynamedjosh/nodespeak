@@ -55,7 +55,6 @@ class command {
 public:
     command(std::shared_ptr<scope> call);
     command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug);
-    std::string repr();
     friend std::ostream &operator<<(std::ostream &stream, 
         command const&to_print);
 
@@ -87,7 +86,6 @@ public:
     scope();
     scope(std::shared_ptr<scope> parent);
     const std::shared_ptr<scope> get_parent() const;
-    std::string repr();
     friend std::ostream &operator<<(std::ostream &stream, 
         scope const&to_print);
 
