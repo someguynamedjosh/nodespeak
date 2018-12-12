@@ -18,7 +18,7 @@ public:
     std::shared_ptr<data_type> INT, FLOAT, BOOL, UPCAST_WILDCARD, ANY_WILDCARD;
     std::shared_ptr<scope> ADD, MUL, RECIP, MOD, BAND, BOR, BXOR,
         ITOF, BTOF, BTOI, ITOB, FTOI, FTOB,
-        COPY, LOG, RETURN,
+        COPY, COPY_TO_INDEX, COPY_FROM_INDEX, LOG, RETURN,
         EQ, NEQ, LTE, GTE, LT, GT, AND, OR, XOR;
 };
 

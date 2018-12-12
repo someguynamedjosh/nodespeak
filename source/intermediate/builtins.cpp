@@ -78,14 +78,22 @@ builtins::builtins()
 	FTOB->auto_add_outputs();
 	FTOB->declare_var("x", NEW_VALUE(BOOL));
 
-	// The way this one works is a bit weird. If the input and output are the same size, OFFSET should be zero. The
-	// entire value will be copied. If one is bigger than the other, a chunk of data the size of the smaller one will
-	// be transferred. OFFSET will be used as the byte index to start copying from or to the larger data type.
 	COPY->auto_add_inputs();
 	COPY->declare_var("a", NEW_VALUE(ANY_WILDCARD));
-	COPY->declare_var("offset", NEW_VALUE(INT));
 	COPY->auto_add_outputs();
 	COPY->declare_var("x", NEW_VALUE(ANY_WILDCARD));
+
+	COPY_TO_INDEX->auto_add_inputs();
+	COPY_TO_INDEX->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY_TO_INDEX->declare_var("index", NEW_VALUE(INT));
+	COPY_TO_INDEX->auto_add_outputs();
+	COPY_TO_INDEX->declare_var("x", NEW_VALUE(ANY_WILDCARD));
+
+	COPY_FROM_INDEX->auto_add_inputs();
+	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY_FROM_INDEX->declare_var("index", NEW_VALUE(INT));
+	COPY_FROM_INDEX->auto_add_outputs();
+	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(ANY_WILDCARD));
 
 	LOG->auto_add_inputs();
 	LOG->declare_var("a", NEW_VALUE(ANY_WILDCARD));
@@ -190,6 +198,8 @@ void builtins::add_to_scope(std::shared_ptr<scope> scope) {
 	scope->declare_func("!FTOI", FTOI);
 	scope->declare_func("!FTOB", FTOB);
 	scope->declare_func("!COPY", COPY);
+	scope->declare_func("!COPY_TO_INDEX", COPY_TO_INDEX);
+	scope->declare_func("!COPY_FROM_INDEX", COPY_FROM_INDEX);
 	scope->declare_func("log", LOG);
 	scope->declare_func("!MOD", MOD);
 	scope->declare_func("!EQ", EQ);
