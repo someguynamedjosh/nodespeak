@@ -66,7 +66,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    waveguide::ast::Plainvar_dec,
+    waveguide::ast::plain_var_dec,
     name
 )
 

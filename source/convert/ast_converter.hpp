@@ -59,7 +59,7 @@ struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
     void operator()(function_statement const&stat) const;
     void operator()(assign_statement const&stat) const;
     void operator()(var_dec_statement const&stat) const;
-    void operator()(Plainvar_dec const&dec) const;
+    void operator()(plain_var_dec const&dec) const;
     void operator()(init_var_dec const&dec) const;
     void operator()(return_statement const&stat) const;
 

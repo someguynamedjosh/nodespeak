@@ -122,7 +122,7 @@ struct assign_statement: x3::position_tagged {
     expression value;
 };
 
-struct Plainvar_dec: x3::position_tagged {
+struct plain_var_dec: x3::position_tagged {
     std::string name;
 };
 
@@ -131,12 +131,12 @@ struct init_var_dec: x3::position_tagged {
     expression value;
 };
 
-struct var_dec: x3::variant<Plainvar_dec, init_var_dec>, x3::position_tagged {
+struct var_dec: x3::variant<plain_var_dec, init_var_dec>, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
     void operator=(var_dec const&dec) { base_type::operator=(dec); }
-    var_dec(var_dec &dec) : x3::variant<Plainvar_dec, init_var_dec>(dec) { }
-    var_dec(var_dec const&dec) : x3::variant<Plainvar_dec, init_var_dec>(dec) { }
+    var_dec(var_dec &dec) : x3::variant<plain_var_dec, init_var_dec>(dec) { }
+    var_dec(var_dec const&dec) : x3::variant<plain_var_dec, init_var_dec>(dec) { }
 };
 
 struct var_dec_statement: x3::position_tagged {

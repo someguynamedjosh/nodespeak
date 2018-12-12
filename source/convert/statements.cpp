@@ -27,7 +27,7 @@ void AstConverter::operator()(var_dec_statement const&dec) const {
     }
 }
 
-void AstConverter::operator()(Plainvar_dec const&dec) const {
+void AstConverter::operator()(plain_var_dec const&dec) const {
     SP<intr::value> value{new intr::value{data->current_type}};
     data->current_scope->declare_var(dec.name, value);
 }

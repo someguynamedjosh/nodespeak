@@ -234,7 +234,7 @@ auto const assign_statement_def =
 auto const var_dec_statement_def =
     data_type >> as<ast::var_dec>(
         as<ast::init_var_dec>(identifier >> '=' > expr)
-        | as<ast::Plainvar_dec>(identifier)
+        | as<ast::plain_var_dec>(identifier)
     ) % ',' >> ';';
 
 auto const return_statement_def =

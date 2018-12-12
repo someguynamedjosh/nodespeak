@@ -162,7 +162,7 @@ struct ast_printer: boost::static_visitor<> {
         std::cout << ';' << std::endl;
     }
 
-    void operator()(Plainvar_dec const&dec) const {
+    void operator()(plain_var_dec const&dec) const {
         std::cout << dec.name;
     }
 
