@@ -25,7 +25,8 @@ builtins::builtins()
     BAND{new scope()}, BOR{new scope()}, BXOR{new scope()},
     ITOF{new scope()}, BTOF{new scope()}, BTOI{new scope()}, 
     ITOB{new scope()}, FTOI{new scope()}, FTOB{new scope()},
-    COPY{new scope()}, LOG{new scope()}, RETURN{new scope()},
+    COPY{new scope()}, COPY_TO_INDEX{new scope{}}, COPY_FROM_INDEX{new scope{}},
+	LOG{new scope()}, RETURN{new scope()},
     EQ{new scope()}, NEQ{new scope()}, LTE{new scope()}, GTE{new scope()},
     LT{new scope()}, GT{new scope()}, AND{new scope()}, OR{new scope()},
     XOR{new scope()} {
