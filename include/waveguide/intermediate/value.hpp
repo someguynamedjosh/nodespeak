@@ -10,17 +10,17 @@ class data_type;
 
 class value {
 private:
-    std::shared_ptr<data_type> type;
+    std::shared_ptr<const data_type> type;
     void *data;
     bool value_known{false};
 public:
-    value(std::shared_ptr<data_type> type);
-    value(std::shared_ptr<data_type> type, void *data);
+    value(std::shared_ptr<const data_type> type);
+    value(std::shared_ptr<const data_type> type, void *data);
     ~value();
     const std::string repr() const;
 
     std::shared_ptr<const data_type> get_type() const;
-    void set_type(std::shared_ptr<data_type> new_type);
+    void set_type(std::shared_ptr<const data_type> new_type);
     bool is_proxy() const;
     value const&get_real_value() const;
 

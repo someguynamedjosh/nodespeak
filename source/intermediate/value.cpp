@@ -14,14 +14,14 @@ namespace intermediate {
 // Com::value
 ////////////////////////////////////////////////////////////////////////////////
 
-value::value(std::shared_ptr<data_type> type)
+value::value(std::shared_ptr<const data_type> type)
     : type{type} {
     if (!type->is_proxy_type()) {
         data = malloc(type->get_length());
     }
 }
 
-value::value(std::shared_ptr<data_type> type, void *data)
+value::value(std::shared_ptr<const data_type> type, void *data)
     : type{type}, data{data}, value_known{true} { }
 
 value::~value() {
@@ -45,7 +45,7 @@ std::shared_ptr<const data_type> value::get_type() const {
     return type;
 }
 
-void value::set_type(std::shared_ptr<data_type> new_type) {
+void value::set_type(std::shared_ptr<const data_type> new_type) {
     assert(new_type->get_length() == type->get_length());
     assert(new_type->is_proxy_type() == type->is_proxy_type());
     type = new_type;
