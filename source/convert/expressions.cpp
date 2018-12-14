@@ -25,7 +25,7 @@ void AstConverter::operator()(signed_expression const&expr) const {
         SP<intr::command> negate{new intr::command(blt()->MUL)};
         negate->add_input(data->current_value);
         negate->add_input(int_literal(-1));
-        SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
+        SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
         data->current_value = output;
         negate->add_output(output);
@@ -37,7 +37,7 @@ void AstConverter::operator()(variable_expression const&expr) const {
     data->current_value = lookup_var(expr.name);
     for (auto index_expr : expr.array_accesses) {
         SP<intr::value> output_value{
-            new intr::value(blt()->UPCAST_WILDCARD)};
+            new intr::value(blt()->DEDUCE_LATER)};
         declare_temp_var(output_value);
 
         SP<intr::command> copy_command{
@@ -53,7 +53,7 @@ void AstConverter::operator()(variable_expression const&expr) const {
 
 void AstConverter::operator()(std::vector<expression> const&expr) const {
     // TODO: Add array construction logic.
-    SP<intr::value> copy_to{new intr::value(blt()->UPCAST_WILDCARD)};
+    SP<intr::value> copy_to{new intr::value(blt()->DEDUCE_LATER)};
     declare_temp_var(copy_to);
     for (int i = 0; i < expr.size(); i++) {
         recurse(expr[i]);
@@ -96,7 +96,7 @@ void AstConverter::operator()(operator_list_expression const&expr) const {
     for (auto const&operation : expr.operations) {
         if (operation.op_char != last_op || !join) {
             if (last_command) {
-                SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
+                SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
                 declare_temp_var(output);
                 last_command->add_output(output);
                 add_command(SP<intr::command>{last_command});
@@ -157,7 +157,7 @@ void AstConverter::operator()(operator_list_expression const&expr) const {
         last_command->add_input(data->current_value);
     }
     if (last_command) {
-        SP<intr::value> output{new intr::value(blt()->UPCAST_WILDCARD)};
+        SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
         last_command->add_output(output);
         add_command(SP<intr::command>{last_command});

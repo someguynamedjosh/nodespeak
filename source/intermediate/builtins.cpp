@@ -19,8 +19,7 @@ std::shared_ptr<builtins> builtins::get_instance() {
 builtins::builtins()
     : INT{new int_data_type()}, FLOAT{new float_data_type()}, 
     BOOL{new bool_data_type()}, 
-    UPCAST_WILDCARD{new abstract_data_type("UPCAST_WILDCARD")},
-    ANY_WILDCARD{new abstract_data_type("ANY_WILDCARD")},
+    DEDUCE_LATER{new abstract_data_type("DEDUCE_LATER")},
     ADD{new scope()}, MUL{new scope()}, RECIP{new scope()}, MOD{new scope()},
     BAND{new scope()}, BOR{new scope()}, BXOR{new scope()},
     ITOF{new scope()}, BTOF{new scope()}, BTOI{new scope()}, 
@@ -33,16 +32,16 @@ builtins::builtins()
     
     #define NEW_VALUE(TYPE) std::shared_ptr<value>(new value(TYPE))
 	ADD->auto_add_inputs();
-	ADD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	ADD->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	ADD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	ADD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	ADD->auto_add_outputs();
-	ADD->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	ADD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	MUL->auto_add_inputs();
-	MUL->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	MUL->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	MUL->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	MUL->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	MUL->auto_add_outputs();
-	MUL->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	MUL->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	RECIP->auto_add_inputs();
 	RECIP->declare_var("a", NEW_VALUE(FLOAT));
@@ -80,67 +79,67 @@ builtins::builtins()
 	FTOB->declare_var("x", NEW_VALUE(BOOL));
 
 	COPY->auto_add_inputs();
-	COPY->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY->declare_var("a", NEW_VALUE(DEDUCE_LATER));
 	COPY->auto_add_outputs();
-	COPY->declare_var("x", NEW_VALUE(ANY_WILDCARD));
+	COPY->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	COPY_TO_INDEX->auto_add_inputs();
-	COPY_TO_INDEX->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY_TO_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
 	COPY_TO_INDEX->declare_var("index", NEW_VALUE(INT));
 	COPY_TO_INDEX->auto_add_outputs();
-	COPY_TO_INDEX->declare_var("x", NEW_VALUE(ANY_WILDCARD));
+	COPY_TO_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	COPY_FROM_INDEX->auto_add_inputs();
-	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
 	COPY_FROM_INDEX->declare_var("index", NEW_VALUE(INT));
 	COPY_FROM_INDEX->auto_add_outputs();
-	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(ANY_WILDCARD));
+	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	LOG->auto_add_inputs();
-	LOG->declare_var("a", NEW_VALUE(ANY_WILDCARD));
+	LOG->declare_var("a", NEW_VALUE(DEDUCE_LATER));
 	LOG->auto_add_outputs();
 
 	// RETURN has no inputs, no outputs.
 
 	MOD->auto_add_inputs();
-	MOD->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	MOD->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	MOD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	MOD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	MOD->auto_add_outputs();
-	MOD->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	MOD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	EQ->auto_add_inputs();
-	EQ->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	EQ->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	EQ->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	EQ->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	EQ->auto_add_outputs();
 	EQ->declare_var("x", NEW_VALUE(BOOL));
 
 	NEQ->auto_add_inputs();
-	NEQ->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	NEQ->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	NEQ->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	NEQ->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	NEQ->auto_add_outputs();
 	NEQ->declare_var("x", NEW_VALUE(BOOL));
 
 	LTE->auto_add_inputs();
-	LTE->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	LTE->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	LTE->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	LTE->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	LTE->auto_add_outputs();
 	LTE->declare_var("x", NEW_VALUE(BOOL));
 
 	GTE->auto_add_inputs();
-	GTE->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	GTE->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	GTE->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	GTE->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	GTE->auto_add_outputs();
 	GTE->declare_var("x", NEW_VALUE(BOOL));
 
 	LT->auto_add_inputs();
-	LT->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	LT->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	LT->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	LT->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	LT->auto_add_outputs();
 	LT->declare_var("x", NEW_VALUE(BOOL));
 
 	GT->auto_add_inputs();
-	GT->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	GT->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	GT->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	GT->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	GT->auto_add_outputs();
 	GT->declare_var("x", NEW_VALUE(BOOL));
 
@@ -163,22 +162,22 @@ builtins::builtins()
 	XOR->declare_var("x", NEW_VALUE(BOOL));
 
 	BAND->auto_add_inputs();
-	BAND->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	BAND->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BAND->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BAND->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	BAND->auto_add_outputs();
-	BAND->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	BAND->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	BOR->auto_add_inputs();
-	BOR->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	BOR->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	BOR->auto_add_outputs();
-	BOR->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	BOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	BXOR->auto_add_inputs();
-	BXOR->declare_var("a", NEW_VALUE(UPCAST_WILDCARD));
-	BXOR->declare_var("b", NEW_VALUE(UPCAST_WILDCARD));
+	BXOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BXOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
 	BXOR->auto_add_outputs();
-	BXOR->declare_var("x", NEW_VALUE(UPCAST_WILDCARD));
+	BXOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
     #undef NEW_VALUE
 }
 
@@ -186,8 +185,7 @@ void builtins::add_to_scope(std::shared_ptr<scope> scope) {
     scope->declare_type("Int", INT);
     scope->declare_type("Float", FLOAT);
     scope->declare_type("Bool", BOOL);
-    scope->declare_type("!UPCAST_WILDCARD", UPCAST_WILDCARD);
-    scope->declare_type("!ANY_WILDCARD", ANY_WILDCARD);
+    scope->declare_type("!DEDUCE_LATER", DEDUCE_LATER);
 
 	scope->declare_func("!ADD", ADD);
 	scope->declare_func("!MUL", MUL);
