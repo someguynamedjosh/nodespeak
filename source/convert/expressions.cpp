@@ -34,12 +34,36 @@ void AstConverter::operator()(signed_expression const&expr) const {
 }
 
 void AstConverter::operator()(variable_expression const&expr) const {
-    // TODO: Add array access logic.
     data->current_value = lookup_var(expr.name);
+    for (auto index_expr : expr.array_accesses) {
+        SP<intr::value> output_value{
+            new intr::value(blt()->UPCAST_WILDCARD)};
+        declare_temp_var(output_value);
+
+        SP<intr::command> copy_command{
+            new intr::command{blt()->COPY_FROM_INDEX}};
+        copy_command->add_input(data->current_value);
+        recurse(index_expr);
+        copy_command->add_input(data->current_value);
+        copy_command->add_output(output_value);
+        add_command(copy_command);
+        data->current_value = output_value;
+    }
 }
 
 void AstConverter::operator()(std::vector<expression> const&expr) const {
     // TODO: Add array construction logic.
+    SP<intr::value> copy_to{new intr::value(blt()->UPCAST_WILDCARD)};
+    declare_temp_var(copy_to);
+    for (int i = 0; i < expr.size(); i++) {
+        recurse(expr[i]);
+        SP<intr::command> insert{new intr::command(blt()->COPY_TO_INDEX)};
+        insert->add_input(data->current_value);
+        insert->add_input(int_literal(i));
+        insert->add_output(copy_to);
+        add_command(insert);
+    }
+    data->current_value = copy_to;
 }
 
 void AstConverter::operator()(single_var_dec const&dec) const {
