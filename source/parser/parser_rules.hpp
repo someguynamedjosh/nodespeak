@@ -49,6 +49,14 @@ auto expr = logic1_expr; // Top-level expression.
 
 RULE(data_type, ast::data_type);
 
+RULE(vague_add_expr, ast::vague_expression);
+RULE(vague_multiply_expr, ast::vague_expression);
+RULE(vague_signed_expr, ast::vague_expression);
+RULE(vague_variable_expr, ast::vague_variable_expression);
+RULE(vague_basic_expr, ast::vague_expression);
+auto vague_expr = vague_add_expr; // Top-level vague expression.
+RULE(vague_data_type, ast::vague_data_type);
+
 RULE(statement, ast::statement);
 RULE(function_statement, ast::function_statement);
 RULE(assign_statement, ast::assign_statement);
@@ -221,6 +229,40 @@ auto const data_type_def =
 
 
 
+auto const vague_add_expr_def = as<ast::vague_operator_list_expression>(
+    vague_multiply_expr >> *(
+        (string("+") > vague_multiply_expr)
+        | (string("-") > vague_multiply_expr)
+    )
+);
+
+auto const vague_multiply_expr_def = as<ast::vague_operator_list_expression>(
+    vague_signed_expr >> *(
+        (string("*") > vague_signed_expr)
+        | (string("/") > vague_signed_expr)
+        | (string("%") > vague_signed_expr)
+    )
+);
+
+auto const vague_signed_expr_def = 
+    vague_basic_expr
+    | as<ast::vague_signed_expression>(char_('-') > vague_basic_expr);
+
+auto const vague_basic_expr_def = 
+    int_
+    | ('(' > vague_expr > ')')
+    | vague_variable_expr;
+
+auto const vague_variable_expr_def =
+    identifier;
+
+auto const vague_data_type_def =
+    identifier >> *(
+        '[' > vague_expr > ']'
+    );
+
+
+
 auto const statement_def =
     return_statement | var_dec_statement | function_statement 
     | assign_statement;
@@ -243,10 +285,10 @@ auto const return_statement_def =
 
 
 auto const function_input_dec_def =
-    data_type > identifier;
+    vague_data_type > identifier;
 
 auto const function_single_output_dec_def =
-    (data_type >> attr("return"));
+    (vague_data_type >> attr("return"));
 
 auto const function_dec_def = 
     identifier 
@@ -277,6 +319,8 @@ BOOST_SPIRIT_DEFINE(logic1_expr, logic2_expr, logic3_expr, blogic1_expr,
     function_expr, function_expression_output, noin_function_expr, 
     justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
+BOOST_SPIRIT_DEFINE(vague_add_expr, vague_multiply_expr, vague_signed_expr,
+    vague_basic_expr, vague_variable_expr, vague_data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
     var_dec_statement, return_statement)
 BOOST_SPIRIT_DEFINE(function_input_dec, function_single_output_dec, 

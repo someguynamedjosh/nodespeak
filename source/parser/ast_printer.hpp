@@ -124,7 +124,26 @@ struct ast_printer: boost::static_visitor<> {
         std::cout << ')';
     }
 
+    void operator()(vague_operator_list_expression const&expr) const {
+        if (expr.operations.size() == 0) {
+            recurse(expr.start_value);
+            return;
+        }
+        std::cout << '(';
+        recurse(expr.start_value);
+        for (auto const&operation : expr.operations) {
+            std::cout << ' ' << operation.op_char << ' ';
+            recurse(operation.value);
+        }
+        std::cout << ')';
+    }
+
     void operator()(signed_expression const&expr) const {
+        std::cout << '(' << expr.sign << ')';
+        recurse(expr.value);
+    }
+
+    void operator()(vague_signed_expression const&expr) const {
         std::cout << '(' << expr.sign << ')';
         recurse(expr.value);
     }
@@ -133,7 +152,20 @@ struct ast_printer: boost::static_visitor<> {
         std::cout << expr.name;
     }
 
+    void operator()(vague_variable_expression const&expr) const {
+        std::cout << expr.name;
+    }
+
     void operator()(data_type const&type) const {
+        std::cout << type.name;
+        for (auto &size : type.array_sizes) {
+            std::cout << '[';
+            recurse(size);
+            std::cout << ']';
+        }
+    }
+
+    void operator()(vague_data_type const&type) const {
         std::cout << type.name;
         for (auto &size : type.array_sizes) {
             std::cout << '[';

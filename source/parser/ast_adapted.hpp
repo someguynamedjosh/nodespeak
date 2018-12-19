@@ -56,6 +56,33 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 
 BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_data_type,
+    name, array_sizes
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_variable_expression,
+    name
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_signed_expression,
+    sign, value
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_operator_expression,
+    op_char, value
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_operator_list_expression,
+    start_value, operations
+)
+
+
+
+BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::function_statement,
     func_call
 )

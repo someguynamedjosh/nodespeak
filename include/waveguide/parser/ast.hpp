@@ -10,6 +10,49 @@ namespace ast {
 
 namespace x3 = boost::spirit::x3;
 
+struct vague_variable_expression;
+struct vague_signed_expression;
+struct vague_operator_list_expression;
+
+using ve_variant = x3::variant<
+    int, 
+    x3::forward_ast<vague_variable_expression>,
+    x3::forward_ast<vague_signed_expression>,
+    x3::forward_ast<vague_operator_list_expression>>;
+struct vague_expression: ve_variant, x3::position_tagged {
+    using base_type::base_type;
+    using base_type::operator=;
+    void operator=(vague_expression const&expr) { base_type::operator=(expr); }
+    vague_expression(vague_expression &expr) : ve_variant(expr) { }
+    vague_expression(vague_expression const&expr) : ve_variant(expr) { }
+};
+
+struct vague_data_type {
+    std::string name;
+    std::vector<vague_expression> array_sizes;
+};
+
+struct vague_variable_expression {
+    std::string name;
+};
+
+struct vague_signed_expression {
+    char sign;
+    vague_expression value;
+};
+
+struct vague_operator_expression {
+    std::string op_char;
+    vague_expression value;
+};
+
+struct vague_operator_list_expression {
+    vague_expression start_value;
+    std::vector<vague_operator_expression> operations;
+};
+
+
+
 struct function_statement;
 struct assign_statement;
 struct var_dec_statement;
@@ -54,7 +97,7 @@ struct data_type: x3::position_tagged {
 
 
 struct function_parameter_dec: x3::position_tagged {
-    data_type type;
+    vague_data_type type;
     std::string name;
 };
 
