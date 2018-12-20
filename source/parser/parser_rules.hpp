@@ -26,16 +26,21 @@ using x3::rule;
         RULE_NAME = #RULE_NAME; \
     struct RULE_NAME##_class : x3::position_tagged { }
 
-RULE(logic1_expr, ast::expression);
-RULE(logic2_expr, ast::expression);
-RULE(logic3_expr, ast::expression);
-RULE(blogic1_expr, ast::expression);
-RULE(blogic2_expr, ast::expression);
-RULE(blogic3_expr, ast::expression);
-RULE(equal_expr, ast::expression);
-RULE(compare_expr, ast::expression);
-RULE(add_expr, ast::expression);
-RULE(multiply_expr, ast::expression);
+#define OPERATOR_EXPRESSION_RULE(EXPRESSION_NAME) \
+    RULE(EXPRESSION_NAME##_expr, ast::operator_list_expression); \
+    RULE(EXPRESSION_NAME##_op, ast::operator_expression)
+
+OPERATOR_EXPRESSION_RULE(logic1);
+OPERATOR_EXPRESSION_RULE(logic2);
+OPERATOR_EXPRESSION_RULE(logic3);
+OPERATOR_EXPRESSION_RULE(blogic1);
+OPERATOR_EXPRESSION_RULE(blogic2);
+OPERATOR_EXPRESSION_RULE(blogic3);
+OPERATOR_EXPRESSION_RULE(equal);
+OPERATOR_EXPRESSION_RULE(compare);
+OPERATOR_EXPRESSION_RULE(add);
+OPERATOR_EXPRESSION_RULE(multiply);
+
 RULE(signed_expr, ast::expression);
 RULE(basic_expr, ast::expression);
 RULE(array_expr, std::vector<ast::expression>);
@@ -70,8 +75,6 @@ RULE(function_dec, ast::function_dec);
 RULE(identifier, std::string);
 root_rule_type const root_rule = "root_rule";
 
-#undef RULE
-
 ////////////////////////////////////////////////////////////////////////////////
 // Rule definitions
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,77 +99,51 @@ template <typename T>
 static auto as = [](auto p) { return x3::rule<struct tag, T> {"as"} = p; };
 
 // Logic expressions
-auto const logic1_expr_def = as<ast::operator_list_expression>(
-    logic2_expr >> *(
-        (string("or") > logic2_expr)
-    )
-);
+auto const logic1_expr_def = logic2_expr >> *logic1_op;
+auto const logic1_op_def = string("or") > logic2_expr;
 
-auto const logic2_expr_def = as<ast::operator_list_expression>(
-    logic3_expr >> *(
-        (string("xor") > logic3_expr)
-    )
-);
+auto const logic2_expr_def = logic3_expr >> *logic2_op;
+auto const logic2_op_def = string("xor") > logic3_expr;
 
-auto const logic3_expr_def = as<ast::operator_list_expression>(
-    blogic1_expr >> *(
-        (string("and") > blogic1_expr)
-    )
-);
+auto const logic3_expr_def = blogic1_expr >> *logic3_op;
+auto const logic3_op_def = string("and") > blogic1_expr;
 
 // Bitwise logic expression
-auto const blogic1_expr_def = as<ast::operator_list_expression>(
-    blogic2_expr >> *(
-        (string("bor") > blogic2_expr)
-    )
-);
+auto const blogic1_expr_def = blogic2_expr >> *blogic1_op;
+auto const blogic1_op_def = string("bor") > blogic2_expr;
 
-auto const blogic2_expr_def = as<ast::operator_list_expression>(
-    blogic3_expr >> *(
-        (string("bxor") > blogic3_expr)
-    )
-);
+auto const blogic2_expr_def = blogic3_expr >> *blogic2_op;
+auto const blogic2_op_def = string("bxor") > blogic3_expr;
 
-auto const blogic3_expr_def = as<ast::operator_list_expression>(
-    equal_expr >> *(
-        (string("band") > equal_expr)
-    )
-);
+auto const blogic3_expr_def = equal_expr >> *blogic3_op;
+auto const blogic3_op_def = string("band") > equal_expr;
 
 // Equality expression: ==, !=
-auto const equal_expr_def = as<ast::operator_list_expression>(
-    compare_expr >> *(
-        (string("==") > compare_expr)
-        | (string("!=") > compare_expr)
-    )
-);
+auto const equal_expr_def = compare_expr >> *equal_op;
+auto const equal_op_def =
+    (string("==") > compare_expr)
+    | (string("!=") > compare_expr);
 
 // Comparison expression: >=, <, etc.
-auto const compare_expr_def = as<ast::operator_list_expression>(
-    add_expr >> *(
-        (string(">=") > add_expr)
-        | (string("<=") > add_expr)
-        | (string(">") > add_expr)
-        | (string("<") > add_expr)
-    )
-);
+auto const compare_expr_def = add_expr >> *compare_op;
+auto const compare_op_def =
+    (string(">=") > add_expr)
+    | (string("<=") > add_expr)
+    | (string(">") > add_expr)
+    | (string("<") > add_expr);
 
 // Addition expressions: a + b - c + d etc.
-auto const add_expr_def = as<ast::operator_list_expression>(
-    multiply_expr >> *(
-        (string("+") > multiply_expr)
-        | (string("-") > multiply_expr)
-    )
-);
+auto const add_expr_def = multiply_expr >> *add_op;
+auto const add_op_def =
+    (string("+") > multiply_expr)
+    | (string("-") > multiply_expr);
 
 // Multiplication expressions: a * b / c * d etc.
-auto const multiply_expr_def = as<ast::operator_list_expression>(
-    signed_expr >> *(
-        (string("*") > signed_expr)
-        | (string("/") > signed_expr)
-        | (string("%") > signed_expr)
-    )
-);
+auto const multiply_expr_def = signed_expr >> *multiply_op;
+auto const multiply_op_def =
+    (string("*") > signed_expr)
+    | (string("/") > signed_expr)
+    | (string("%") > signed_expr);
 
 // expressions with +/- signs.
 auto const signed_expr_def =
@@ -313,9 +290,11 @@ auto const root_rule_def =
 
 
 
-BOOST_SPIRIT_DEFINE(logic1_expr, logic2_expr, logic3_expr, blogic1_expr, 
-    blogic2_expr, blogic3_expr, equal_expr, compare_expr, add_expr, 
-    multiply_expr, signed_expr, basic_expr, array_expr, variable_expr, 
+BOOST_SPIRIT_DEFINE(logic1_expr, logic1_op, logic2_expr, logic2_op, logic3_expr,
+    logic3_op, blogic1_expr, blogic1_op, blogic2_expr, blogic2_op, blogic3_expr,
+    blogic3_op, equal_expr, equal_op, compare_expr, compare_op, add_expr,
+    add_op, multiply_expr, multiply_op)
+BOOST_SPIRIT_DEFINE(signed_expr, basic_expr, array_expr, variable_expr, 
     function_expr, function_expression_output, noin_function_expr, 
     justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
