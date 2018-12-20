@@ -52,8 +52,11 @@ void AstConverter::operator()(variable_expression const&expr) const {
 }
 
 void AstConverter::operator()(std::vector<expression> const&expr) const {
-    // TODO: Add array construction logic.
-    SP<intr::value> copy_to{new intr::value(blt()->DEDUCE_LATER)};
+    SP<intr::value> copy_to{
+        new intr::value{SP<intr::data_type>{new intr::array_data_type{
+            SP<const intr::data_type>(blt()->DEDUCE_LATER), (int) expr.size()
+        }
+    }}};
     declare_temp_var(copy_to);
     for (int i = 0; i < expr.size(); i++) {
         recurse(expr[i]);
