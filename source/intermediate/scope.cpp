@@ -33,14 +33,16 @@ command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
 std::ostream &operator<<(std::ostream &stream, command const&to_print) {
     stream << "    " << to_print.call << std::endl;
     for (auto value : to_print.ins) {
-        stream << "      Input: " << value << " (type " << value->get_type() << ")";
+        stream << "      Input: " << value << " (type " << 
+            value->get_type()->repr() << ")";
         if (value->is_value_known()) {
             stream << " = " << value->get_type()->format(value->get_data());
         }
         stream << std::endl;
     }
     for (auto value : to_print.outs) {
-        stream << "      Output: " << value << " (type " << value->get_type() << ")";
+        stream << "      Output: " << value << " (type " << 
+            value->get_type()->repr() << ")";
         if (value->is_value_known()) {
             stream << " = " << value->get_type()->format(value->get_data());
         }
@@ -128,11 +130,6 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
         stream << "    " << var.second << " is " << var.first << ":" 
             << std::endl;
         print_value(stream, *var.second);
-    }
-    for (int i = 0; i < to_print.temp_vars.size(); i++) {
-        stream << "    " << to_print.temp_vars[i] << " is !TEMP" << (i + 1) 
-            << std::endl;
-        print_value(stream, *to_print.temp_vars[i]);
     }
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
