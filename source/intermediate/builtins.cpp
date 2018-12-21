@@ -20,15 +20,22 @@ builtins::builtins()
     : INT{new int_data_type()}, FLOAT{new float_data_type()}, 
     BOOL{new bool_data_type()}, 
     DEDUCE_LATER{new abstract_data_type("DEDUCE_LATER")},
+
     ADD{new scope()}, MUL{new scope()}, RECIP{new scope()}, MOD{new scope()},
     BAND{new scope()}, BOR{new scope()}, BXOR{new scope()},
+
     ITOF{new scope()}, BTOF{new scope()}, BTOI{new scope()}, 
     ITOB{new scope()}, FTOI{new scope()}, FTOB{new scope()},
-    COPY{new scope()}, COPY_TO_INDEX{new scope{}}, COPY_FROM_INDEX{new scope{}},
-	LOG{new scope()}, RETURN{new scope()},
+
     EQ{new scope()}, NEQ{new scope()}, LTE{new scope()}, GTE{new scope()},
     LT{new scope()}, GT{new scope()}, AND{new scope()}, OR{new scope()},
-    XOR{new scope()} {
+    XOR{new scope()},
+
+    COPY{new scope()}, COPY_TO_INDEX{new scope{}}, COPY_FROM_INDEX{new scope{}},
+	RETURN{new scope()},
+
+	LOG{new scope()}, DEF{new scope()}, IF{new scope()}, FOR{new scope()}, 
+	FOR_EACH{new scope()}, WHILE{new scope()} {
     
     #define NEW_VALUE(TYPE) std::shared_ptr<value>(new value(TYPE))
 	ADD->auto_add_inputs();
@@ -47,6 +54,30 @@ builtins::builtins()
 	RECIP->declare_var("a", NEW_VALUE(FLOAT));
 	RECIP->auto_add_outputs();
 	RECIP->declare_var("x", NEW_VALUE(FLOAT));
+
+	MOD->auto_add_inputs();
+	MOD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	MOD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
+	MOD->auto_add_outputs();
+	MOD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+
+	BAND->auto_add_inputs();
+	BAND->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BAND->declare_var("b", NEW_VALUE(DEDUCE_LATER));
+	BAND->auto_add_outputs();
+	BAND->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+
+	BOR->auto_add_inputs();
+	BOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
+	BOR->auto_add_outputs();
+	BOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+
+	BXOR->auto_add_inputs();
+	BXOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	BXOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
+	BXOR->auto_add_outputs();
+	BXOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	ITOF->auto_add_inputs();
 	ITOF->declare_var("a", NEW_VALUE(INT));
@@ -77,35 +108,6 @@ builtins::builtins()
 	FTOB->declare_var("a", NEW_VALUE(FLOAT));
 	FTOB->auto_add_outputs();
 	FTOB->declare_var("x", NEW_VALUE(BOOL));
-
-	COPY->auto_add_inputs();
-	COPY->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY->auto_add_outputs();
-	COPY->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	COPY_TO_INDEX->auto_add_inputs();
-	COPY_TO_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY_TO_INDEX->declare_var("index", NEW_VALUE(INT));
-	COPY_TO_INDEX->auto_add_outputs();
-	COPY_TO_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	COPY_FROM_INDEX->auto_add_inputs();
-	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY_FROM_INDEX->declare_var("index", NEW_VALUE(INT));
-	COPY_FROM_INDEX->auto_add_outputs();
-	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	LOG->auto_add_inputs();
-	LOG->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	LOG->auto_add_outputs();
-
-	// RETURN has no inputs, no outputs.
-
-	MOD->auto_add_inputs();
-	MOD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	MOD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	MOD->auto_add_outputs();
-	MOD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
 	EQ->auto_add_inputs();
 	EQ->declare_var("a", NEW_VALUE(DEDUCE_LATER));
@@ -161,23 +163,51 @@ builtins::builtins()
 	XOR->auto_add_outputs();
 	XOR->declare_var("x", NEW_VALUE(BOOL));
 
-	BAND->auto_add_inputs();
-	BAND->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BAND->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BAND->auto_add_outputs();
-	BAND->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	COPY->auto_add_inputs();
+	COPY->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	COPY->auto_add_outputs();
+	COPY->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
-	BOR->auto_add_inputs();
-	BOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BOR->auto_add_outputs();
-	BOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	COPY_TO_INDEX->auto_add_inputs();
+	COPY_TO_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	COPY_TO_INDEX->declare_var("index", NEW_VALUE(INT));
+	COPY_TO_INDEX->auto_add_outputs();
+	COPY_TO_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
 
-	BXOR->auto_add_inputs();
-	BXOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BXOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BXOR->auto_add_outputs();
-	BXOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	COPY_FROM_INDEX->auto_add_inputs();
+	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	COPY_FROM_INDEX->declare_var("index", NEW_VALUE(INT));
+	COPY_FROM_INDEX->auto_add_outputs();
+	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+
+	// RETURN has no inputs, no outputs.
+
+	LOG->auto_add_inputs();
+	LOG->declare_var("a", NEW_VALUE(DEDUCE_LATER));
+	LOG->auto_add_outputs();
+
+	// DEF has no inputs, no outputs.
+
+	IF->auto_add_inputs();
+	IF->declare_var("condition", NEW_VALUE(BOOL));
+	IF->auto_add_outputs();
+	IF->declare_var("return", NEW_VALUE(DEDUCE_LATER));
+
+	FOR->auto_add_inputs();
+	FOR->declare_var("times", NEW_VALUE(INT));
+	FOR->auto_add_outputs();
+	FOR->declare_var("return", NEW_VALUE(DEDUCE_LATER));
+
+	FOR_EACH->auto_add_inputs();
+	FOR_EACH->declare_var("times", NEW_VALUE(INT));
+	FOR_EACH->auto_add_outputs();
+	FOR_EACH->declare_var("return", NEW_VALUE(DEDUCE_LATER));
+
+	WHILE->auto_add_inputs();
+	WHILE->declare_var("condition", NEW_VALUE(BOOL));
+	WHILE->auto_add_outputs();
+	WHILE->declare_var("return", NEW_VALUE(DEDUCE_LATER));
+
     #undef NEW_VALUE
 }
 
@@ -190,17 +220,18 @@ void builtins::add_to_scope(std::shared_ptr<scope> scope) {
 	scope->declare_func("!ADD", ADD);
 	scope->declare_func("!MUL", MUL);
 	scope->declare_func("!RECIP", RECIP);
+	scope->declare_func("!MOD", MOD);
+	scope->declare_func("!BAND", BAND);
+	scope->declare_func("!BOR", BOR);
+	scope->declare_func("!BXOR", BXOR);
+
 	scope->declare_func("!ITOF", ITOF);
 	scope->declare_func("!BTOF", BTOF);
 	scope->declare_func("!BTOI", BTOI);
 	scope->declare_func("!ITOB", ITOB);
 	scope->declare_func("!FTOI", FTOI);
 	scope->declare_func("!FTOB", FTOB);
-	scope->declare_func("!COPY", COPY);
-	scope->declare_func("!COPY_TO_INDEX", COPY_TO_INDEX);
-	scope->declare_func("!COPY_FROM_INDEX", COPY_FROM_INDEX);
-	scope->declare_func("log", LOG);
-	scope->declare_func("!MOD", MOD);
+
 	scope->declare_func("!EQ", EQ);
 	scope->declare_func("!NEQ", NEQ);
 	scope->declare_func("!LTE", LTE);
@@ -210,9 +241,18 @@ void builtins::add_to_scope(std::shared_ptr<scope> scope) {
 	scope->declare_func("!AND", AND);
 	scope->declare_func("!OR", OR);
 	scope->declare_func("!XOR", XOR);
-	scope->declare_func("!BAND", BAND);
-	scope->declare_func("!BOR", BOR);
-	scope->declare_func("!BXOR", BXOR);
+
+	scope->declare_func("!COPY", COPY);
+	scope->declare_func("!COPY_TO_INDEX", COPY_TO_INDEX);
+	scope->declare_func("!COPY_FROM_INDEX", COPY_FROM_INDEX);
+	scope->declare_func("!RETURN", RETURN);
+
+	scope->declare_func("log", LOG);
+	scope->declare_func("def", DEF);
+	scope->declare_func("if", IF);
+	scope->declare_func("for", FOR);
+	scope->declare_func("for_each", FOR_EACH);
+	scope->declare_func("while", WHILE);
 }
 
 }
