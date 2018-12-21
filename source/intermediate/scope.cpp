@@ -48,6 +48,10 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
         }
         stream << std::endl;
     }
+    for (auto lambda : to_print.lambdas) {
+        stream << "      Lambda: " << lambda.name << " is " << lambda.body 
+            << std::endl;
+    }
     return stream;
 }
 
@@ -59,12 +63,20 @@ void command::add_output(std::shared_ptr<value> output) {
     outs.push_back(output);
 }
 
-const std::vector<std::shared_ptr<value>> &command::get_inputs() const {
+void command::add_lambda(command_lambda &lambda) {
+    lambdas.push_back(lambda);
+}
+
+std::vector<std::shared_ptr<value>> const&command::get_inputs() const {
     return ins;
 }
 
-const std::vector<std::shared_ptr<value>> &command::get_outputs() const {
+std::vector<std::shared_ptr<value>> const&command::get_outputs() const {
     return outs;
+}
+
+std::vector<command_lambda> const&command::get_lambdas() const {
+    return lambdas;
 }
 
 const std::shared_ptr<augmentation> command::get_augmentation() const {

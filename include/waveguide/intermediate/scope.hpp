@@ -47,10 +47,16 @@ struct augmentation: boost::variant<
     do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug
 > { };
 
+struct command_lambda {
+    std::string name;
+    std::shared_ptr<scope> body;
+};
+
 class command {
     private:
-    std::vector<std::shared_ptr<value>> ins, outs;
     std::shared_ptr<scope> call{nullptr};
+    std::vector<std::shared_ptr<value>> ins, outs;
+    std::vector<command_lambda> lambdas;
     std::shared_ptr<augmentation> aug{nullptr};
 public:
     command(std::shared_ptr<scope> call);
@@ -60,8 +66,10 @@ public:
 
     void add_input(std::shared_ptr<value> input);
     void add_output(std::shared_ptr<value> output);
-    const std::vector<std::shared_ptr<value>> &get_inputs() const;
-    const std::vector<std::shared_ptr<value>> &get_outputs() const;
+    void add_lambda(command_lambda &lambda);
+    std::vector<std::shared_ptr<value>> const&get_inputs() const;
+    std::vector<std::shared_ptr<value>> const&get_outputs() const;
+    std::vector<command_lambda> const&get_lambdas() const;
     const std::shared_ptr<augmentation> get_augmentation() const;
     const std::shared_ptr<scope> get_called_scope() const;
 };
