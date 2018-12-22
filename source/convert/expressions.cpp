@@ -87,8 +87,10 @@ void AstConverter::operator()(function_expression const&expr) const {
         recurse(output);
         command->add_output(data->current_value);
     }
-    // TODO: Add lambda logic.
     add_command(command);
+    for (auto const&lambda : expr.lambdas) {
+        recurse(lambda);
+    }
 }
 
 void AstConverter::operator()(operator_list_expression const&expr) const {

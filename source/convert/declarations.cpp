@@ -8,7 +8,17 @@ void AstConverter::operator()(function_parameter_dec const&dec) const {
 }
 
 void AstConverter::operator()(function_dec const&dec) const {
-    // TODO: add logic.
+    auto old_scope = data->current_scope;
+    data->current_scope = SP<intr::scope>{new intr::scope{old_scope}};
+    // TODO: add logic for inputs/outputs.
+    recurse(dec.body);
+    intr::command_lambda lambda;
+    lambda.name = dec.name;
+    lambda.body = data->current_scope;
+    old_scope->declare_temp_func(lambda.body);
+
+    old_scope->get_commands().back()->add_lambda(lambda);
+    data->current_scope = old_scope;
 }
 
 void AstConverter::operator()(data_type const&type) const {
