@@ -49,7 +49,7 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
         stream << std::endl;
     }
     for (auto lambda : to_print.lambdas) {
-        stream << "      Lambda: " << lambda.name << " is " << lambda.body 
+        stream << "      Lambda: " << lambda.body << " is " << lambda.name
             << std::endl;
     }
     return stream;
@@ -146,6 +146,12 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
         stream << *command;
+    }
+    for (auto child : to_print.temp_funcs) {
+        stream << std::endl << *child;
+    }
+    for (auto child : to_print.funcs) {
+        stream << std::endl << *child.second;
     }
     return stream;
 }
