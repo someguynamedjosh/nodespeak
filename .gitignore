@@ -8,3 +8,4 @@ lex.yy.c
 a.out
 build
 *.old
+samples/.*.wg
