@@ -86,19 +86,19 @@ const void *value::get_data() const {
 
 const float *value::data_as_float() const {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<float_data_type>(type));
+    assert(std::dynamic_pointer_cast<const float_data_type>(type));
     return static_cast<float*>(data);
 }
 
 const int *value::data_as_int() const {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<int_data_type>(type));
+    assert(std::dynamic_pointer_cast<const int_data_type>(type));
     return static_cast<int*>(data);
 }
 
 const bool *value::data_as_bool() const {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<bool_data_type>(type));
+    assert(std::dynamic_pointer_cast<const bool_data_type>(type));
     return static_cast<bool*>(data);
 }
 
@@ -109,19 +109,19 @@ void *value::get_data() {
 
 float *value::data_as_float() {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<float_data_type>(type));
+    assert(std::dynamic_pointer_cast<const float_data_type>(type));
     return static_cast<float*>(data);
 }
 
 int *value::data_as_int() {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<int_data_type>(type));
+    assert(std::dynamic_pointer_cast<const int_data_type>(type));
     return static_cast<int*>(data);
 }
 
 bool *value::data_as_bool() {
     assert(!is_proxy());
-    assert(std::dynamic_pointer_cast<bool_data_type>(type));
+    assert(std::dynamic_pointer_cast<const bool_data_type>(type));
     return static_cast<bool*>(data);
 }
 

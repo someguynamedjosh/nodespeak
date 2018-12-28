@@ -8,7 +8,7 @@ else(MSVC)
 endif(MSVC)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 set(SOURCE_DIR source)
 set(INCLUDE_DIR include)
 set(SPIRIT_DIR spirit)
