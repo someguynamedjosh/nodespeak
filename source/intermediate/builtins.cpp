@@ -2,7 +2,10 @@
 
 #include <waveguide/intermediate/data_type.hpp>
 #include <waveguide/intermediate/scope.hpp>
+#include <waveguide/intermediate/type_template.hpp>
 #include <waveguide/intermediate/value.hpp>
+
+#include "util/aliases.hpp"
 
 namespace waveguide {
 namespace intermediate {
@@ -14,6 +17,26 @@ std::shared_ptr<builtins> builtins::get_instance() {
         instance = std::shared_ptr<builtins>(new builtins());
     }
     return instance;
+}
+
+void add_ax_io(SP<scope> add_to, std::string in_type, std::string out_type) {
+	SP<vague_data_type> in_type_template{new vague_basic_data_type{in_type}};
+	SP<vague_data_type> out_type_template{new vague_basic_data_type{out_type}};
+	add_to->add_input("a", in_type_template);
+	add_to->add_output("x", out_type_template);
+
+}
+
+void add_abx_io(SP<scope> add_to, std::string in_type, std::string out_type) {
+	SP<vague_data_type> in_type_template{new vague_basic_data_type{in_type}};
+	SP<vague_data_type> out_type_template{new vague_basic_data_type{out_type}};
+	add_to->add_input("a", in_type_template);
+	add_to->add_input("b", in_type_template);
+	add_to->add_output("x", out_type_template);
+}
+
+void add_uniform_abx_io(SP<scope> add_to) {
+	add_abx_io(add_to, "!TYPE", "!TYPE");
 }
     
 builtins::builtins()
@@ -37,178 +60,60 @@ builtins::builtins()
 	LOG{new scope()}, DEF{new scope()}, IF{new scope()}, FOR{new scope()}, 
 	FOR_EACH{new scope()}, WHILE{new scope()} {
     
-    #define NEW_VALUE(TYPE) std::shared_ptr<value>(new value(TYPE))
-	ADD->auto_add_inputs();
-	ADD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	ADD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	ADD->auto_add_outputs();
-	ADD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	// ABX IO is two inputs (a, b) with one data type and one output (x) with
+	// another data type.
+	// Uniform ABX IO is two inputs (a, b) and one output (x) that should all 
+	// have the same (unknown / templated) data type.
+	// AX IO is one input (a) and one output (x).
+	add_uniform_abx_io(ADD);
+	add_uniform_abx_io(MUL);
+	add_ax_io(RECIP, "Float", "Float");
+	add_uniform_abx_io(MOD);
+	add_uniform_abx_io(BAND);
+	add_uniform_abx_io(BOR);
+	add_uniform_abx_io(BXOR);
 
-	MUL->auto_add_inputs();
-	MUL->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	MUL->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	MUL->auto_add_outputs();
-	MUL->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	add_ax_io(ITOF, "Int", "Float");
+	add_ax_io(BTOF, "Bool", "Float");
+	add_ax_io(BTOI, "Bool", "Int");
+	add_ax_io(ITOB, "Int", "Bool");
+	add_ax_io(FTOI, "Float", "Int");
+	add_ax_io(FTOB, "Float", "Bool");
 
-	RECIP->auto_add_inputs();
-	RECIP->declare_var("a", NEW_VALUE(FLOAT));
-	RECIP->auto_add_outputs();
-	RECIP->declare_var("x", NEW_VALUE(FLOAT));
+	add_abx_io(EQ, "!TYPE", "Bool");
+	add_abx_io(NEQ, "!TYPE", "Bool");
+	add_abx_io(LTE, "!TYPE", "Bool");
+	add_abx_io(GTE, "!TYPE", "Bool");
+	add_abx_io(LT, "!TYPE", "Bool");
+	add_abx_io(GT, "!TYPE", "Bool");
 
-	MOD->auto_add_inputs();
-	MOD->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	MOD->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	MOD->auto_add_outputs();
-	MOD->declare_var("x", NEW_VALUE(DEDUCE_LATER));
+	add_abx_io(AND, "Bool", "Bool");
+	add_abx_io(OR, "Bool", "Bool");
+	add_abx_io(XOR, "Bool", "Bool");
 
-	BAND->auto_add_inputs();
-	BAND->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BAND->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BAND->auto_add_outputs();
-	BAND->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	BOR->auto_add_inputs();
-	BOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BOR->auto_add_outputs();
-	BOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	BXOR->auto_add_inputs();
-	BXOR->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	BXOR->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	BXOR->auto_add_outputs();
-	BXOR->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	ITOF->auto_add_inputs();
-	ITOF->declare_var("a", NEW_VALUE(INT));
-	ITOF->auto_add_outputs();
-	ITOF->declare_var("x", NEW_VALUE(FLOAT));
-
-	BTOF->auto_add_inputs();
-	BTOF->declare_var("a", NEW_VALUE(BOOL));
-	BTOF->auto_add_outputs();
-	BTOF->declare_var("x", NEW_VALUE(FLOAT));
-
-	BTOI->auto_add_inputs();
-	BTOI->declare_var("a", NEW_VALUE(BOOL));
-	BTOI->auto_add_outputs();
-	BTOI->declare_var("x", NEW_VALUE(INT));
-
-	ITOB->auto_add_inputs();
-	ITOB->declare_var("a", NEW_VALUE(INT));
-	ITOB->auto_add_outputs();
-	ITOB->declare_var("x", NEW_VALUE(BOOL));
-
-	FTOI->auto_add_inputs();
-	FTOI->declare_var("a", NEW_VALUE(FLOAT));
-	FTOI->auto_add_outputs();
-	FTOI->declare_var("x", NEW_VALUE(INT));
-
-	FTOB->auto_add_inputs();
-	FTOB->declare_var("a", NEW_VALUE(FLOAT));
-	FTOB->auto_add_outputs();
-	FTOB->declare_var("x", NEW_VALUE(BOOL));
-
-	EQ->auto_add_inputs();
-	EQ->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	EQ->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	EQ->auto_add_outputs();
-	EQ->declare_var("x", NEW_VALUE(BOOL));
-
-	NEQ->auto_add_inputs();
-	NEQ->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	NEQ->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	NEQ->auto_add_outputs();
-	NEQ->declare_var("x", NEW_VALUE(BOOL));
-
-	LTE->auto_add_inputs();
-	LTE->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	LTE->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	LTE->auto_add_outputs();
-	LTE->declare_var("x", NEW_VALUE(BOOL));
-
-	GTE->auto_add_inputs();
-	GTE->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	GTE->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	GTE->auto_add_outputs();
-	GTE->declare_var("x", NEW_VALUE(BOOL));
-
-	LT->auto_add_inputs();
-	LT->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	LT->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	LT->auto_add_outputs();
-	LT->declare_var("x", NEW_VALUE(BOOL));
-
-	GT->auto_add_inputs();
-	GT->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	GT->declare_var("b", NEW_VALUE(DEDUCE_LATER));
-	GT->auto_add_outputs();
-	GT->declare_var("x", NEW_VALUE(BOOL));
-
-	AND->auto_add_inputs();
-	AND->declare_var("a", NEW_VALUE(BOOL));
-	AND->declare_var("b", NEW_VALUE(BOOL));
-	AND->auto_add_outputs();
-	AND->declare_var("x", NEW_VALUE(BOOL));
-
-	OR->auto_add_inputs();
-	OR->declare_var("a", NEW_VALUE(BOOL));
-	OR->declare_var("b", NEW_VALUE(BOOL));
-	OR->auto_add_outputs();
-	OR->declare_var("x", NEW_VALUE(BOOL));
-
-	XOR->auto_add_inputs();
-	XOR->declare_var("a", NEW_VALUE(BOOL));
-	XOR->declare_var("b", NEW_VALUE(BOOL));
-	XOR->auto_add_outputs();
-	XOR->declare_var("x", NEW_VALUE(BOOL));
-
-	COPY->auto_add_inputs();
-	COPY->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY->auto_add_outputs();
-	COPY->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	COPY_TO_INDEX->auto_add_inputs();
-	COPY_TO_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY_TO_INDEX->declare_var("index", NEW_VALUE(INT));
-	COPY_TO_INDEX->auto_add_outputs();
-	COPY_TO_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
-	COPY_FROM_INDEX->auto_add_inputs();
-	COPY_FROM_INDEX->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	COPY_FROM_INDEX->declare_var("index", NEW_VALUE(INT));
-	COPY_FROM_INDEX->auto_add_outputs();
-	COPY_FROM_INDEX->declare_var("x", NEW_VALUE(DEDUCE_LATER));
-
+	SP<vague_data_type> wildcard_type{new vague_basic_data_type{"!TYPE"}};
+	SP<vague_data_type> wildcard2_type{new vague_basic_data_type{"!TYPE2"}};
+	SP<vague_data_type> int_type{new vague_basic_data_type{"Int"}};
+	SP<vague_data_type> bool_type{new vague_basic_data_type{"Bool"}};
+	add_ax_io(COPY, "!TYPE", "!TYPE");
+	COPY_TO_INDEX->add_input("a", wildcard_type);
+	COPY_TO_INDEX->add_input("index", int_type);
+	COPY_TO_INDEX->add_output("x", wildcard_type);
+	COPY_FROM_INDEX->add_input("a", wildcard_type);
+	COPY_FROM_INDEX->add_input("index", int_type);
+	COPY_FROM_INDEX->add_output("x", wildcard_type);
 	// RETURN has no inputs, no outputs.
 
-	LOG->auto_add_inputs();
-	LOG->declare_var("a", NEW_VALUE(DEDUCE_LATER));
-	LOG->auto_add_outputs();
-
+	LOG->add_input("a", wildcard_type);
 	// DEF has no inputs, no outputs.
-
-	IF->auto_add_inputs();
-	IF->declare_var("condition", NEW_VALUE(BOOL));
-	IF->auto_add_outputs();
-	IF->declare_var("return", NEW_VALUE(DEDUCE_LATER));
-
-	FOR->auto_add_inputs();
-	FOR->declare_var("times", NEW_VALUE(INT));
-	FOR->auto_add_outputs();
-	FOR->declare_var("return", NEW_VALUE(DEDUCE_LATER));
-
-	FOR_EACH->auto_add_inputs();
-	FOR_EACH->declare_var("times", NEW_VALUE(INT));
-	FOR_EACH->auto_add_outputs();
-	FOR_EACH->declare_var("return", NEW_VALUE(DEDUCE_LATER));
-
-	WHILE->auto_add_inputs();
-	WHILE->declare_var("condition", NEW_VALUE(BOOL));
-	WHILE->auto_add_outputs();
-	WHILE->declare_var("return", NEW_VALUE(DEDUCE_LATER));
-
-    #undef NEW_VALUE
+	IF->add_input("condition", bool_type);
+	IF->add_output("return", wildcard_type);
+	FOR->add_input("times", int_type);
+	FOR->add_output("return", wildcard_type);
+	FOR_EACH->add_input("values", wildcard2_type);
+	FOR_EACH->add_output("return", wildcard_type);
+	WHILE->add_input("condition", bool_type);
+	WHILE->add_output("return", wildcard_type);
 }
 
 void builtins::add_to_scope(std::shared_ptr<scope> scope) {
