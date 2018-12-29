@@ -18,18 +18,19 @@
             }
         },
         {
-            "label": "debug",
+            "label": "run tests",
             "type": "shell",
-            "command": "gdb build/bin/waveguide.x86_64",
+            "command": "../build/bin/waveguide_test_runner",
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": []
         },
         {
-            "label": "run",
+            "label": "run standalone",
             "type": "shell",
-            "command": "../build/bin/waveguide.x86_64",
+            "command": "../build/bin/waveguide_standalone | python3 ../out_parse.py",
             "options": {
                 "cwd": "./samples/"
             },
@@ -40,20 +41,7 @@
             "problemMatcher": []
         },
         {
-            "label": "run w/ readable code output",
-            "type": "shell",
-            "command": "../build/bin/waveguide.x86_64 | python3 ../out_parse.py",
-            "options": {
-                "cwd": "./samples/"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "build and run",
+            "label": "build and run tests",
             "dependsOn": [
                 "run",
                 "build"
