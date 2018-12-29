@@ -1,5 +1,7 @@
 #include <waveguide/intermediate/data_type.hpp>
 
+#include "util/aliases.hpp"
+
 namespace waveguide {
 namespace intermediate {
 
@@ -31,6 +33,32 @@ std::string abstract_data_type::repr() const {
 }
 
 std::string abstract_data_type::format(const void *data) const {
+    return "???";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// unresolved_vague_type
+////////////////////////////////////////////////////////////////////////////////
+unresolved_vague_type::unresolved_vague_type(SP<vague_data_type> unresolved)
+    : unresolved(unresolved) { }
+
+SP<vague_data_type> unresolved_vague_type::get_vague_type() const {
+    return unresolved;
+}
+
+int unresolved_vague_type::get_length() const {
+    return 0;
+}
+
+bool unresolved_vague_type::is_proxy_type() const {
+    return true;
+}
+
+std::string unresolved_vague_type::repr() const {
+    return "Unresolved vague data type";
+}
+
+std::string unresolved_vague_type::format(const void *data) const {
     return "???";
 }
 

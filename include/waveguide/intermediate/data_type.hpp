@@ -7,6 +7,7 @@ namespace waveguide {
 namespace intermediate {
 
 class scope;
+class vague_data_type;
 class value;
 
 class data_type {
@@ -25,6 +26,18 @@ private:
 public:
     abstract_data_type(std::string label);
     virtual int get_length() const;
+    virtual std::string repr() const;
+    virtual std::string format(const void *data) const;
+};
+
+class unresolved_vague_type: public data_type {
+private:
+    std::shared_ptr<vague_data_type> unresolved;
+public:
+    unresolved_vague_type(std::shared_ptr<vague_data_type> unresolved);
+    std::shared_ptr<vague_data_type> get_vague_type() const;
+    virtual int get_length() const;
+    virtual bool is_proxy_type() const;
     virtual std::string repr() const;
     virtual std::string format(const void *data) const;
 };
