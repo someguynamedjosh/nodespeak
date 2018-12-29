@@ -30,17 +30,6 @@ value::~value() {
     }
 }
 
-const std::string value::repr() const {
-    std::stringstream ss;
-    ss << (is_value_known() ? "C" : "V");
-    ss << "@" << (void*) this;
-    ss << " T=" << type->repr();
-    if (is_value_known()) {
-        ss << " V=" << type->format(get_real_value().get_data());
-    }
-    return ss.str();
-}
-
 std::shared_ptr<const data_type> value::get_type() const {
     return type;
 }

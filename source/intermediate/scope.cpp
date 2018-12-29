@@ -33,18 +33,22 @@ command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
 std::ostream &operator<<(std::ostream &stream, command const&to_print) {
     stream << "    " << to_print.call << std::endl;
     for (auto value : to_print.ins) {
-        stream << "      Input: " << value << " (type " << 
-            value->get_type()->repr() << ")";
+        stream << "      Input: " << value << " (type ";
+        value->get_type()->print_repr(stream);
+        stream << ")";
         if (value->is_value_known()) {
-            stream << " = " << value->get_type()->format(value->get_data());
+            stream << " = ";
+            value->get_type()->format(stream, value->get_data());
         }
         stream << std::endl;
     }
     for (auto value : to_print.outs) {
-        stream << "      Output: " << value << " (type " << 
-            value->get_type()->repr() << ")";
+        stream << "      Output: " << value << " (type ";
+        value->get_type()->print_repr(stream);
+        stream << ")";
         if (value->is_value_known()) {
-            stream << " = " << value->get_type()->format(value->get_data());
+            stream << " = ";
+            value->get_type()->format(stream, value->get_data());
         }
         stream << std::endl;
     }
@@ -101,11 +105,13 @@ const std::shared_ptr<scope> scope::get_parent() const {
 }
 
 void print_value(std::ostream &stream, value const&to_print) {
-    stream << "      Type: " << to_print.get_type() << " (" << 
-        to_print.get_type()->repr() << ")" << std::endl;
+    stream << "      Type: " << to_print.get_type() << " (";
+    to_print.get_type()->print_repr(stream);
+    stream << ")" << std::endl;
     if (to_print.is_value_known()) {
-        stream << "      Value: " << 
-            to_print.get_type()->format(to_print.get_data()) << std::endl;
+        stream << "      Value: ";
+        to_print.get_type()->format(stream, to_print.get_data());
+        stream << std::endl;
     }
 }
 

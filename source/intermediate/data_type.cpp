@@ -1,5 +1,8 @@
 #include <waveguide/intermediate/data_type.hpp>
 
+#include <ostream>
+#include <waveguide/intermediate/type_template.hpp>
+
 #include "util/aliases.hpp"
 
 namespace waveguide {
@@ -28,12 +31,12 @@ int abstract_data_type::get_length() const {
     return 0;
 }
 
-std::string abstract_data_type::repr() const {
-    return label;
+void abstract_data_type::print_repr(std::ostream &stream) const {
+    stream << label;
 }
 
-std::string abstract_data_type::format(const void *data) const {
-    return "???";
+void abstract_data_type::format(std::ostream &stream, const void *data) const {
+    stream << "???";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,12 +57,13 @@ bool unresolved_vague_type::is_proxy_type() const {
     return true;
 }
 
-std::string unresolved_vague_type::repr() const {
-    return "Unresolved vague data type";
+void unresolved_vague_type::print_repr(std::ostream &stream) const {
+    stream << "[UVDT] ";
+    unresolved->print_repr(stream);
 }
 
-std::string unresolved_vague_type::format(const void *data) const {
-    return "???";
+void unresolved_vague_type::format(std::ostream &stream, const void *data) const {
+    stream << "???";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,12 +73,12 @@ int int_data_type::get_length() const {
     return 4;
 }
 
-std::string int_data_type::repr() const {
-    return "Int";
+void int_data_type::print_repr(std::ostream &stream) const {
+    stream << "Int";
 }
 
-std::string int_data_type::format(const void *data) const {
-    return std::to_string(*((int *) data));
+void int_data_type::format(std::ostream &stream, const void *data) const {
+    stream << *((int *) data);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,12 +88,12 @@ int float_data_type::get_length() const {
     return 4;
 }
 
-std::string float_data_type::repr() const {
-    return "Float";
+void float_data_type::print_repr(std::ostream &stream) const {
+    stream << "Float";
 }
 
-std::string float_data_type::format(const void *data) const {
-    return std::to_string(*((float *) data));
+void float_data_type::format(std::ostream &stream, const void *data) const {
+    stream << *((float *) data);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,12 +103,12 @@ int bool_data_type::get_length() const {
     return 1;
 }
 
-std::string bool_data_type::repr() const {
-    return "Bool";
+void bool_data_type::print_repr(std::ostream &stream) const {
+    stream << "Bool";
 }
 
-std::string bool_data_type::format(const void *data) const {
-    return (char *) data != 0 ? "true" : "false";
+void bool_data_type::format(std::ostream &stream, const void *data) const {
+    stream << (*((char *) data) != 0 ? "true" : "false");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,19 +126,20 @@ std::shared_ptr<const data_type> array_data_type::get_base_type() const {
     return element_type->get_base_type();
 }
 
-std::string array_data_type::repr() const {
-    return element_type->repr() + "[" + std::to_string(length) + "]";
+void array_data_type::print_repr(std::ostream &stream) const {
+    element_type->print_repr(stream);
+    stream << "[" << std::to_string(length) << "]";
 }
 
-std::string array_data_type::format(const void *data) const {
-    std::string tr = "[";
+void array_data_type::format(std::ostream &stream, const void *data) const {
+    stream << "[";
     for (int i = 0; i < length; i++) {
-        tr += element_type->format(data + i * element_type->get_length());
+        element_type->format(stream, data + i * element_type->get_length());
         if (i != length - 1) {
-            tr += ", ";
+            stream << ", ";
         }
     }
-    return tr + "]";
+    stream << "]";
 }
 
 int array_data_type::get_array_length() const {
@@ -162,20 +167,20 @@ bool copy_array_data_proxy::is_proxy_type() const {
     return true;
 }
 
-std::string copy_array_data_proxy::format(const void *data) const {
-    std::string tr = "[";
+void copy_array_data_proxy::format(std::ostream &stream, const void *data) const {
+    stream << "[";
     for (int i = 0; i < get_array_length(); i++) {
-        tr += get_element_type()->format(data);
+        get_element_type()->format(stream, data);
         if (i != get_array_length() - 1) {
-            tr += ", ";
+            stream << ", ";
         }
     }
-    return tr + "]";
+    stream << "]";
 }
 
-std::string copy_array_data_proxy::repr() const {
-    return get_element_type()->repr() + "[" + std::to_string(get_array_length()) 
-        + " copied from 1]";
+void copy_array_data_proxy::print_repr(std::ostream &stream) const {
+    get_element_type()->print_repr(stream);
+    stream << "[" << std::to_string(get_array_length()) << " copied from 1]";
 }
 
 std::shared_ptr<value> 

@@ -17,7 +17,6 @@ public:
     value(std::shared_ptr<const data_type> type);
     value(std::shared_ptr<const data_type> type, void *data);
     ~value();
-    const std::string repr() const;
 
     std::shared_ptr<const data_type> get_type() const;
     void set_type(std::shared_ptr<const data_type> new_type);
