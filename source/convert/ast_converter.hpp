@@ -33,9 +33,12 @@ struct AccessResult {
 };
 
 struct AstConverterData {
+    bool fpd_is_input;
     SP<intr::scope> current_scope;
     SP<intr::value> current_value;
     SP<intr::data_type> current_type;
+    SP<intr::vague_data_type> current_vtype;
+    SP<intr::vague_expression> current_vexpr;
 };
 
 struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
@@ -76,6 +79,10 @@ struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
     void operator()(function_parameter_dec const&dec) const;
     void operator()(function_dec const&dec) const;
     void operator()(data_type const&type) const;
+    void operator()(vague_data_type const&type) const;
+    void operator()(vague_variable_expression const&expr) const;
+    void operator()(vague_signed_expression const&expr) const;
+    void operator()(vague_operator_list_expression const&expr) const;
 };
 
 }
