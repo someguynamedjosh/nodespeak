@@ -8,6 +8,7 @@
 namespace waveguide {
 namespace intermediate {
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 std::ostream &operator<<(std::ostream &stream, do_if_aug const&to_print) {
     return stream;
 }
@@ -20,6 +21,7 @@ std::ostream &operator<<(std::ostream &stream, loop_for_aug const&to_print) {
 std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print) {
     return stream;
 }
+#pragma GCC diagnostic pop
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command

@@ -58,7 +58,7 @@ void AstConverter::operator()(std::vector<expression> const&expr) const {
         }
     }}};
     declare_temp_var(copy_to);
-    for (int i = 0; i < expr.size(); i++) {
+    for (uint i = 0; i < expr.size(); i++) {
         recurse(expr[i]);
         SP<intr::command> insert{new intr::command(blt()->COPY_TO_INDEX)};
         insert->add_input(data->current_value);

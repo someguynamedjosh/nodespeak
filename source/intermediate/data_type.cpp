@@ -36,7 +36,7 @@ void abstract_data_type::print_repr(std::ostream &stream) const {
 }
 
 void abstract_data_type::format(std::ostream &stream, const void *data) const {
-    stream << "???";
+    stream << "??? at " << data;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +63,7 @@ void unresolved_vague_type::print_repr(std::ostream &stream) const {
 }
 
 void unresolved_vague_type::format(std::ostream &stream, const void *data) const {
-    stream << "???";
+    stream << "??? at " << data;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +134,8 @@ void array_data_type::print_repr(std::ostream &stream) const {
 void array_data_type::format(std::ostream &stream, const void *data) const {
     stream << "[";
     for (int i = 0; i < length; i++) {
-        element_type->format(stream, data + i * element_type->get_length());
+        element_type->format(stream, 
+            ((char *) data) + i * element_type->get_length());
         if (i != length - 1) {
             stream << ", ";
         }
@@ -150,11 +151,13 @@ std::shared_ptr<const data_type> array_data_type::get_element_type() const {
     return element_type;
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 std::shared_ptr<value> 
     array_data_type::get_data_offset(std::shared_ptr<value> index)  const {
     // TODO: Implementation
     return std::shared_ptr<value>{nullptr};
 }
+#pragma GCC diagnostic pop
 
 ////////////////////////////////////////////////////////////////////////////////
 // copy_array_data_proxy
@@ -183,11 +186,13 @@ void copy_array_data_proxy::print_repr(std::ostream &stream) const {
     stream << "[" << std::to_string(get_array_length()) << " copied from 1]";
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 std::shared_ptr<value> 
     copy_array_data_proxy::get_data_offset(std::shared_ptr<value> index) const {
     // TODO: Implementation
     return std::shared_ptr<value>{nullptr};
 }
+#pragma GCC diagnostic pop
 
 }
 }
