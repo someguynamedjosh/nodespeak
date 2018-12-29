@@ -8,12 +8,12 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/compiler_v3/waveguide",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/compiler_v3",
+            "program": "${workspaceFolder}/build/waveguide_standalone",
+            "args": ["${workspaceFolder}/samples/.debug.wg"],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}/build",
             "environment": [],
-            "externalConsole": true,
+            "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
                 {
