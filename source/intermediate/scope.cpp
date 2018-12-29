@@ -172,10 +172,11 @@ void scope::declare_temp_func(std::shared_ptr<scope> body) {
     temp_funcs.push_back(body);
 }
 
-const std::shared_ptr<scope> scope::lookup_func(std::string name) const {
+const std::shared_ptr<scope> scope::lookup_func(std::string name, bool recurse) 
+    const {
     if (funcs.count(name)) {
         return funcs.at(name);
-    } else if (parent) {
+    } else if (parent && recurse) {
         return parent->lookup_func(name);
     } else {
         return nullptr;
@@ -190,10 +191,11 @@ void scope::declare_temp_var(std::shared_ptr<value> value) {
     temp_vars.push_back(value);
 }
 
-const std::shared_ptr<value> scope::lookup_var(std::string name) const {
+const std::shared_ptr<value> scope::lookup_var(std::string name, bool recurse) 
+    const {
     if (vars.count(name)) {
         return vars.at(name);
-    } else if (parent) {
+    } else if (parent && recurse) {
         return parent->lookup_var(name);
     } else {
         return nullptr;
@@ -204,10 +206,11 @@ void scope::declare_type(std::string name, std::shared_ptr<data_type> type) {
     types.emplace(name, type);
 }
 
-const std::shared_ptr<data_type> scope::lookup_type(std::string name) const {
+const std::shared_ptr<data_type> scope::lookup_type(std::string name, 
+    bool recurse) const {
     if (types.count(name)) {
         return types.at(name);
-    } else if (parent) {
+    } else if (parent && recurse) {
         return parent->lookup_type(name);
     } else {
         return nullptr;

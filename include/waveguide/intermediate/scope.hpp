@@ -95,12 +95,15 @@ public:
 
     void declare_func(std::string name, std::shared_ptr<scope> body);
     void declare_temp_func(std::shared_ptr<scope> body);
-    const std::shared_ptr<scope> lookup_func(std::string name) const;
+    const std::shared_ptr<scope> lookup_func(std::string name, 
+        bool recurse = true) const;
     void declare_var(std::string name, std::shared_ptr<value> value);
     void declare_temp_var(std::shared_ptr<value> value);
-    const std::shared_ptr<value> lookup_var(std::string name) const;
+    const std::shared_ptr<value> lookup_var(std::string name,
+        bool recurse = true) const;
     void declare_type(std::string name, std::shared_ptr<data_type> type);
-    const std::shared_ptr<data_type> lookup_type(std::string name) const;
+    const std::shared_ptr<data_type> lookup_type(std::string name,
+        bool recurse = true) const;
     void add_command(std::shared_ptr<command> command);
     const std::vector<std::shared_ptr<command>> &get_commands() const;
 
