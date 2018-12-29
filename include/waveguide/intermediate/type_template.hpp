@@ -67,13 +67,17 @@ public:
 
 
 
-class vague_data_type { };
+class vague_data_type {
+public:
+    virtual void print_repr(std::ostream &stream) const = 0;
+};
 
 class vague_basic_data_type: public vague_data_type {
 private:
     std::string name;
 public:
     vague_basic_data_type(std::string name);
+    virtual void print_repr(std::ostream &stream) const;
     std::string get_name() const;
 };
 
@@ -81,6 +85,12 @@ class vague_array_data_type: public vague_data_type {
 private:
     std::shared_ptr<vague_data_type> base;
     std::shared_ptr<vague_expression> size;
+public:
+    vague_array_data_type(std::shared_ptr<vague_data_type> base,
+        std::shared_ptr<vague_expression> size);
+    virtual void print_repr(std::ostream &stream) const;
+    std::shared_ptr<vague_data_type> get_base_type() const;
+    std::shared_ptr<vague_expression> get_size() const;
 };
 
 }
