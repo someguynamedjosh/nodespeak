@@ -12,6 +12,7 @@ namespace intermediate {
 
 class data_type;
 class scope;
+class vague_data_type;
 class value;
 
 struct do_if_aug {
@@ -53,7 +54,7 @@ struct command_lambda {
 };
 
 class command {
-    private:
+private:
     std::shared_ptr<scope> call{nullptr};
     std::vector<std::shared_ptr<value>> ins, outs;
     std::vector<command_lambda> lambdas;
@@ -77,18 +78,13 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print);
 
 class scope {
 private:
+    std::shared_ptr<scope> parent{nullptr};
     std::map<std::string, std::shared_ptr<scope>> funcs;
     std::vector<std::shared_ptr<scope>> temp_funcs;
     std::map<std::string, std::shared_ptr<value>> vars;
     std::vector<std::shared_ptr<value>> temp_vars;
     std::map<std::string, std::shared_ptr<data_type>> types;
     std::vector<std::shared_ptr<command>> commands;
-    std::shared_ptr<scope> parent{nullptr};
-
-    enum auto_add {
-        NONE, INS, OUTS
-    };
-    auto_add do_auto{auto_add::NONE};
     std::vector<std::shared_ptr<value>> ins, outs;
 public:
     scope();
@@ -108,14 +104,12 @@ public:
     void add_command(std::shared_ptr<command> command);
     const std::vector<std::shared_ptr<command>> &get_commands() const;
 
-    void add_input(std::shared_ptr<value> in);
+    std::shared_ptr<value> add_input(std::string name,
+        std::shared_ptr<vague_data_type> type);
     const std::vector<std::shared_ptr<value>> &get_inputs() const;
-    void add_output(std::shared_ptr<value> out);
+    std::shared_ptr<value> add_output(std::string name,
+        std::shared_ptr<vague_data_type> type);
     const std::vector<std::shared_ptr<value>> &get_outputs() const;
-
-    void auto_add_none();
-    void auto_add_inputs();
-    void auto_add_outputs();
 };
 std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 

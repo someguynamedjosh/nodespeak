@@ -176,11 +176,6 @@ const std::shared_ptr<scope> scope::lookup_func(std::string name) const {
 
 void scope::declare_var(std::string name, std::shared_ptr<value> value) {
     vars.emplace(name, value);
-    if (do_auto == auto_add::INS) {
-        add_input(value);
-    } else if (do_auto == auto_add::OUTS) {
-        add_output(value);
-    }
 }
 
 void scope::declare_temp_var(std::shared_ptr<value> value) {
@@ -219,34 +214,33 @@ const std::vector<std::shared_ptr<command>> &scope::get_commands() const {
     return commands;
 }
 
-
-void scope::add_input(std::shared_ptr<value> in) {
-    ins.push_back(in);
+SP<value> scope::add_input(std::string name, SP<vague_data_type> type) {
+    SP<data_type> value_type{new unresolved_vague_type{type}};
+    SP<value> holder{new value{value_type}};
+    ins.push_back(holder);
+    // TODO: Expose types and values used in the template for the body of the
+    // scope to use.
+    // TODO: mark inputs as read-only.
+    declare_var(name, holder);
+    return holder;
 }
 
 const std::vector<std::shared_ptr<value>> &scope::get_inputs() const {
     return ins;
 }
 
-void scope::add_output(std::shared_ptr<value> out) {
-    outs.push_back(out);
+SP<value> scope::add_output(std::string name, SP<vague_data_type> type) {
+    SP<data_type> value_type{new unresolved_vague_type{type}};
+    SP<value> holder{new value{value_type}};
+    outs.push_back(holder);
+    // TODO: Expose types and values used in the template for the body of the
+    // scope to use.
+    declare_var(name, holder);
+    return holder;
 }
 
 const std::vector<std::shared_ptr<value>> &scope::get_outputs() const {
     return outs;
-}
-
-
-void scope::auto_add_none() {
-    do_auto = auto_add::NONE;
-}
-
-void scope::auto_add_inputs() {
-    do_auto = auto_add::INS;
-}
-
-void scope::auto_add_outputs() {
-    do_auto = auto_add::OUTS;
 }
 
 }
