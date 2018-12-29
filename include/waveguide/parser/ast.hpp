@@ -2,6 +2,7 @@
 
 #include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
 #include <boost/spirit/home/x3/support/ast/variant.hpp>
+#include <boost/optional/optional.hpp>
 #include <string>
 #include <vector>
 
@@ -29,11 +30,13 @@ struct vague_expression: ve_variant, x3::position_tagged {
 
 struct vague_data_type {
     std::string name;
+    boost::optional<char> is_unknown;
     std::vector<vague_expression> array_sizes;
 };
 
 struct vague_variable_expression {
     std::string name;
+    boost::optional<char> is_unknown;
 };
 
 struct vague_signed_expression {

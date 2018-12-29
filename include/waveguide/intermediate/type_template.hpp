@@ -7,6 +7,9 @@
 namespace waveguide {
 namespace intermediate {
 
+class data_type;
+class value;
+
 class vague_expression { };
 
 class vague_number_expression: public vague_expression {
@@ -23,6 +26,14 @@ private:
 public:
     vague_value_expression(std::string name);
     std::string get_name() const;
+};
+
+class vague_known_value_expression: public vague_expression {
+private:
+    std::shared_ptr<value> real_value;
+public:
+    vague_known_value_expression(std::shared_ptr<value> real_value);
+    std::shared_ptr<value> get_real_value() const;
 };
 
 class vague_operation_expression: public vague_expression {
@@ -79,6 +90,15 @@ public:
     vague_basic_data_type(std::string name);
     virtual void print_repr(std::ostream &stream) const;
     std::string get_name() const;
+};
+
+class vague_known_data_type: public vague_data_type {
+private:
+    std::shared_ptr<data_type> real_type;
+public:
+    vague_known_data_type(std::shared_ptr<data_type> real_type);
+    virtual void print_repr(std::ostream &stream) const;
+    std::shared_ptr<data_type> get_real_type() const;
 };
 
 class vague_array_data_type: public vague_data_type {

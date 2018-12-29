@@ -57,12 +57,12 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::vague_data_type,
-    name, array_sizes
+    name, is_unknown, array_sizes
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::vague_variable_expression,
-    name
+    name, is_unknown
 )
 
 BOOST_FUSION_ADAPT_STRUCT(

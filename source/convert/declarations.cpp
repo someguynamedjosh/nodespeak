@@ -54,8 +54,15 @@ void AstConverter::operator()(data_type const&type) const {
 }
 
 void AstConverter::operator()(vague_data_type const&type) const {
-    data->current_vtype = SP<intr::vague_data_type>{
-        new intr::vague_basic_data_type{type.name}};
+    if (type.is_unknown) {
+        data->current_vtype = SP<intr::vague_data_type>{
+            new intr::vague_basic_data_type{type.name}
+        };
+    } else {
+        data->current_vtype = SP<intr::vague_data_type>{
+            new intr::vague_known_data_type{lookup_type(type.name)}
+        };
+    }
     for (auto size : type.array_sizes) { 
         recurse(size);
         data->current_vtype = SP<intr::vague_data_type>{
@@ -67,9 +74,15 @@ void AstConverter::operator()(vague_data_type const&type) const {
 }
 
 void AstConverter::operator()(vague_variable_expression const&expr) const {
-    data->current_vexpr = SP<intr::vague_expression>{
-        new intr::vague_value_expression{expr.name}
-    };
+    if (expr.is_unknown) {
+        data->current_vexpr = SP<intr::vague_expression>{
+            new intr::vague_value_expression{expr.name}
+        };
+    } else {
+        data->current_vexpr = SP<intr::vague_expression>{
+            new intr::vague_known_value_expression{lookup_var(expr.name)}
+        };
+    }
 }
 
 void AstConverter::operator()(vague_signed_expression const&expr) const {

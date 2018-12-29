@@ -231,10 +231,10 @@ auto const vague_basic_expr_def =
     | vague_variable_expr;
 
 auto const vague_variable_expr_def =
-    identifier;
+    identifier >> -char_('?');
 
 auto const vague_data_type_def =
-    identifier >> *(
+    identifier >> -char_('?') >> *(
         '[' > vague_expr > ']'
     );
 
