@@ -17,6 +17,26 @@ void AstConverter::operator()(function_parameter_dec const&dec) const {
             data->current_scope->add_output(dec.name, data->current_vtype);
     }
     data->current_scope->declare_var(dec.name, placeholder_value);
+
+    std::vector<std::string> new_vars{}, new_types{};
+    data->current_vtype->collect_new_vars(new_vars);
+    data->current_vtype->collect_new_types(new_types);
+    for (auto var_name : new_vars) {
+        if (!data->current_scope->lookup_var(var_name, false)) {
+            data->current_scope->declare_var(var_name, SP<intr::value>{
+                new intr::value{blt()->INT}
+            });
+        }
+    }
+    for (auto type_name : new_types) {
+        if (!data->current_scope->lookup_type(type_name, false)) {
+            data->current_scope->declare_type(type_name, SP<intr::data_type>{
+                new intr::unresolved_vague_type{SP<intr::vague_data_type>{
+                    new intr::vague_basic_data_type{type_name}
+                }}
+            });
+        }
+    }
 }
 
 void AstConverter::operator()(function_dec const&dec) const {
