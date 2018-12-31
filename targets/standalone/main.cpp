@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
         (result.error ? "Compile failed!" : "Compile suceeded!") << std::endl;
     waveguide::ast::print_ast(result.ast);
     auto converted = waveguide::convert::convert_ast(result.ast);
+    waveguide::squash::squash(converted);
     std::cout << *converted.get() << std::endl;
     return 0;
 }
