@@ -3,7 +3,7 @@
 namespace waveguide {
 namespace ast {
 
-void AstConverter::operator()(function_parameter_dec const&dec) const {
+void ast_converter::operator()(function_parameter_dec const&dec) const {
     recurse(dec.type);
     SP<intr::data_type> placeholder_type{
         new intr::unresolved_vague_type{data->current_vtype}
@@ -39,7 +39,7 @@ void AstConverter::operator()(function_parameter_dec const&dec) const {
     }
 }
 
-void AstConverter::operator()(function_dec const&dec) const {
+void ast_converter::operator()(function_dec const&dec) const {
     auto old_scope = data->current_scope;
     data->current_scope = SP<intr::scope>{new intr::scope{old_scope}};
     data->fpd_is_input = true;
@@ -60,7 +60,7 @@ void AstConverter::operator()(function_dec const&dec) const {
     data->current_scope = old_scope;
 }
 
-void AstConverter::operator()(data_type const&type) const {
+void ast_converter::operator()(data_type const&type) const {
     data->current_type = lookup_type(type.name);
     for (auto size : type.array_sizes) {
         recurse(size);
@@ -73,7 +73,7 @@ void AstConverter::operator()(data_type const&type) const {
     }
 }
 
-void AstConverter::operator()(vague_data_type const&type) const {
+void ast_converter::operator()(vague_data_type const&type) const {
     if (type.is_unknown) {
         data->current_vtype = SP<intr::vague_data_type>{
             new intr::vague_basic_data_type{type.name}
@@ -93,13 +93,13 @@ void AstConverter::operator()(vague_data_type const&type) const {
     }
 }
 
-void AstConverter::operator()(vague_number_expression const&expr) const {
+void ast_converter::operator()(vague_number_expression const&expr) const {
     data->current_vexpr = SP<intr::vague_expression>{
         new intr::vague_number_expression{expr.value}
     };
 }
 
-void AstConverter::operator()(vague_variable_expression const&expr) const {
+void ast_converter::operator()(vague_variable_expression const&expr) const {
     if (expr.is_unknown) {
         data->current_vexpr = SP<intr::vague_expression>{
             new intr::vague_value_expression{expr.name}
@@ -111,7 +111,7 @@ void AstConverter::operator()(vague_variable_expression const&expr) const {
     }
 }
 
-void AstConverter::operator()(vague_signed_expression const&expr) const {
+void ast_converter::operator()(vague_signed_expression const&expr) const {
     if (expr.sign == '-') {
         data->current_vexpr = SP<intr::vague_expression>{
             new intr::vague_negation_expression{data->current_vexpr}
@@ -119,7 +119,7 @@ void AstConverter::operator()(vague_signed_expression const&expr) const {
     }
 }
 
-void AstConverter::operator()(vague_operator_list_expression const&expr) const {
+void ast_converter::operator()(vague_operator_list_expression const&expr) const {
     recurse(expr.start_value);
     for (auto operation : expr.operations) {
         auto old_vexpr = data->current_vexpr;

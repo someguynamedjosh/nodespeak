@@ -5,34 +5,34 @@
 namespace waveguide {
 namespace ast {
 
-void AstConverter::operator()(std::vector<statement> const&stats) const {
+void ast_converter::operator()(std::vector<statement> const&stats) const {
     for (auto const&stat : stats) {
         recurse(stat);
     }
 }
 
-void AstConverter::operator()(function_statement const&stat) const {
+void ast_converter::operator()(function_statement const&stat) const {
     recurse(stat.func_call);
 }
 
-void AstConverter::operator()(assign_statement const&stat) const {
+void ast_converter::operator()(assign_statement const&stat) const {
     recurse(stat.value);
     copy_value_to_expr(data->current_value, stat.assign_to);
 }
 
-void AstConverter::operator()(var_dec_statement const&dec) const {
+void ast_converter::operator()(var_dec_statement const&dec) const {
     recurse(dec.type);
     for (auto const&var_dec : dec.var_decs) {
         recurse(var_dec);
     }
 }
 
-void AstConverter::operator()(plain_var_dec const&dec) const {
+void ast_converter::operator()(plain_var_dec const&dec) const {
     SP<intr::value> value{new intr::value{data->current_type}};
     data->current_scope->declare_var(dec.name, value);
 }
 
-void AstConverter::operator()(init_var_dec const&dec) const {
+void ast_converter::operator()(init_var_dec const&dec) const {
     SP<intr::value> value{new intr::value{data->current_type}};
     data->current_scope->declare_var(dec.name, value);
 
@@ -44,7 +44,7 @@ void AstConverter::operator()(init_var_dec const&dec) const {
     add_command(copy);
 }
 
-void AstConverter::operator()(return_statement const&stat) const {
+void ast_converter::operator()(return_statement const&stat) const {
     SP<intr::command> copy{new intr::command{blt()->COPY}};
     recurse(stat.value);
     copy->add_input(data->current_value);

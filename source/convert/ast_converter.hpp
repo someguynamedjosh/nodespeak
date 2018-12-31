@@ -27,12 +27,12 @@ inline SP<intr::value> bool_literal(const bool value) {
     return SP<intr::value>{new intr::value(blt()->BOOL, new bool{value})};
 }
 
-struct AccessResult {
+struct access_result {
     SP<intr::value> root_val, offset;
     SP<const intr::data_type> final_type;
 };
 
-struct AstConverterData {
+struct ast_converter_data {
     bool fpd_is_input;
     SP<intr::scope> current_scope;
     SP<intr::value> current_value;
@@ -41,12 +41,12 @@ struct AstConverterData {
     SP<intr::vague_expression> current_vexpr;
 };
 
-struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
+struct ast_converter: util::static_visitor<ast_converter, ast_converter_data> {
     virtual void on_start() const override;
     SP<intr::scope> get_result() const;
 
     // Utility methods.
-    AccessResult find_access_result(ast::variable_expression const&expr) const;
+    access_result find_access_result(ast::variable_expression const&expr) const;
     void copy_value_to_expr(SP<intr::value> from, 
         ast::variable_expression const& to) const;
     void copy_value_from_expr(ast::variable_expression const& from,

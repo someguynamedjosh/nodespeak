@@ -6,20 +6,20 @@
 namespace waveguide {
 namespace ast {
 
-void AstConverter::operator()(int const&expr) const {
+void ast_converter::operator()(int const&expr) const {
     data->current_value = int_literal(expr);
 }
 
-void AstConverter::operator()(float const&expr) const {
+void ast_converter::operator()(float const&expr) const {
     data->current_value = float_literal(expr);
     std::cout << expr << " " << *data->current_value->data_as_float() << std::endl;
 }
 
-void AstConverter::operator()(bool const&expr) const {
+void ast_converter::operator()(bool const&expr) const {
     data->current_value = bool_literal(expr);
 }
 
-void AstConverter::operator()(signed_expression const&expr) const {
+void ast_converter::operator()(signed_expression const&expr) const {
     recurse(expr.value);
     if (expr.sign == '-') {
         SP<intr::command> negate{new intr::command(blt()->MUL)};
@@ -33,7 +33,7 @@ void AstConverter::operator()(signed_expression const&expr) const {
     }
 }
 
-void AstConverter::operator()(variable_expression const&expr) const {
+void ast_converter::operator()(variable_expression const&expr) const {
     data->current_value = lookup_var(expr.name);
     for (auto index_expr : expr.array_accesses) {
         SP<intr::value> output_value{
@@ -51,7 +51,7 @@ void AstConverter::operator()(variable_expression const&expr) const {
     }
 }
 
-void AstConverter::operator()(std::vector<expression> const&expr) const {
+void ast_converter::operator()(std::vector<expression> const&expr) const {
     SP<intr::value> copy_to{
         new intr::value{SP<intr::data_type>{new intr::array_data_type{
             SP<const intr::data_type>(blt()->DEDUCE_LATER), (int) expr.size()
@@ -69,14 +69,14 @@ void AstConverter::operator()(std::vector<expression> const&expr) const {
     data->current_value = copy_to;
 }
 
-void AstConverter::operator()(single_var_dec const&dec) const {
+void ast_converter::operator()(single_var_dec const&dec) const {
     recurse(dec.type);
     SP<intr::value> value{new intr::value{data->current_type}};
     data->current_scope->declare_var(dec.name, value);
     data->current_value = value;
 }
 
-void AstConverter::operator()(function_expression const&expr) const {
+void ast_converter::operator()(function_expression const&expr) const {
     auto func = lookup_func(expr.function_name);
     SP<intr::command> command{new intr::command(func)};
     for (auto const&input : expr.inputs) {
@@ -93,7 +93,7 @@ void AstConverter::operator()(function_expression const&expr) const {
     }
 }
 
-void AstConverter::operator()(operator_list_expression const&expr) const {
+void ast_converter::operator()(operator_list_expression const&expr) const {
     recurse(expr.start_value);
     std::string last_op{""};
     bool join{false};
