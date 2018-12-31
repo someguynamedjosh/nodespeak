@@ -60,6 +60,10 @@ struct ast_printer: boost::static_visitor<> {
         std::cout << expr;
     }
 
+    void operator()(vague_number_expression const&expr) const {
+        std::cout << expr.value << std::endl;
+    }
+
     void operator()(double const&expr) const {
         std::cout << expr;
     }

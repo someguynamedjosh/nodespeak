@@ -80,6 +80,7 @@ struct AstConverter: util::static_visitor<AstConverter, AstConverterData> {
     void operator()(function_dec const&dec) const;
     void operator()(data_type const&type) const;
     void operator()(vague_data_type const&type) const;
+    void operator()(vague_number_expression const&type) const;
     void operator()(vague_variable_expression const&expr) const;
     void operator()(vague_signed_expression const&expr) const;
     void operator()(vague_operator_list_expression const&expr) const;

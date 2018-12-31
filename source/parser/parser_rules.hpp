@@ -59,6 +59,7 @@ RULE(vague_multiply_expr, ast::vague_expression);
 RULE(vague_signed_expr, ast::vague_expression);
 RULE(vague_variable_expr, ast::vague_variable_expression);
 RULE(vague_basic_expr, ast::vague_expression);
+RULE(vague_number_expr, ast::vague_number_expression);
 auto vague_expr = vague_add_expr; // Top-level vague expression.
 RULE(vague_data_type, ast::vague_data_type);
 
@@ -226,9 +227,12 @@ auto const vague_signed_expr_def =
     | as<ast::vague_signed_expression>(char_('-') > vague_basic_expr);
 
 auto const vague_basic_expr_def = 
-    int_
+    vague_number_expr
     | ('(' > vague_expr > ')')
     | vague_variable_expr;
+
+auto const vague_number_expr_def =
+    int_;
 
 auto const vague_variable_expr_def =
     identifier >> -char_('?');
@@ -299,7 +303,7 @@ BOOST_SPIRIT_DEFINE(signed_expr, basic_expr, array_expr, variable_expr,
     justl_function_expr, default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(vague_add_expr, vague_multiply_expr, vague_signed_expr,
-    vague_basic_expr, vague_variable_expr, vague_data_type)
+    vague_basic_expr, vague_number_expr, vague_variable_expr, vague_data_type)
 BOOST_SPIRIT_DEFINE(statement, function_statement, assign_statement, 
     var_dec_statement, return_statement)
 BOOST_SPIRIT_DEFINE(function_input_dec, function_single_output_dec, 

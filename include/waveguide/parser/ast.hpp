@@ -11,12 +11,13 @@ namespace ast {
 
 namespace x3 = boost::spirit::x3;
 
+struct vague_number_expression;
 struct vague_variable_expression;
 struct vague_signed_expression;
 struct vague_operator_list_expression;
 
 using ve_variant = x3::variant<
-    int, 
+    x3::forward_ast<vague_number_expression>,
     x3::forward_ast<vague_variable_expression>,
     x3::forward_ast<vague_signed_expression>,
     x3::forward_ast<vague_operator_list_expression>>;
@@ -32,6 +33,10 @@ struct vague_data_type {
     std::string name;
     boost::optional<char> is_unknown;
     std::vector<vague_expression> array_sizes;
+};
+
+struct vague_number_expression {
+    int value;
 };
 
 struct vague_variable_expression {

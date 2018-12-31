@@ -61,6 +61,11 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::vague_number_expression,
+    value
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::vague_variable_expression,
     name, is_unknown
 )

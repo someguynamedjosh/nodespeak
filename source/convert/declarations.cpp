@@ -73,6 +73,12 @@ void AstConverter::operator()(vague_data_type const&type) const {
     }
 }
 
+void AstConverter::operator()(vague_number_expression const&expr) const {
+    data->current_vexpr = SP<intr::vague_expression>{
+        new intr::vague_number_expression{expr.value}
+    };
+}
+
 void AstConverter::operator()(vague_variable_expression const&expr) const {
     if (expr.is_unknown) {
         data->current_vexpr = SP<intr::vague_expression>{
