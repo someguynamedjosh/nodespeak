@@ -1,5 +1,6 @@
 #pragma once
 
+#include <waveguide/convert/convert.hpp>
 #include <waveguide/intermediate/builtins.hpp>
 #include <waveguide/intermediate/metastructure.hpp>
 #include <waveguide/parser/ast.hpp>
@@ -7,6 +8,20 @@
 
 #include "util/aliases.hpp"
 #include "util/static_visitor.hpp"
+
+namespace waveguide {
+namespace convert {
+
+class ast_conversion_exception: public std::exception {
+private:
+    std::string message;
+public:
+    ast_conversion_exception(std::string message);
+    const char *what() const throw();
+};
+
+}
+}
 
 namespace waveguide {
 namespace ast {

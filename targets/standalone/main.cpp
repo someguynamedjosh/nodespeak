@@ -34,8 +34,13 @@ int main(int argc, char **argv) {
     std::cout << 
         (result.error ? "Compile failed!" : "Compile suceeded!") << std::endl;
     waveguide::ast::print_ast(result.ast);
-    auto converted = waveguide::convert::convert_ast(result.ast);
-    waveguide::squash::squash(converted);
-    std::cout << *converted.get() << std::endl;
+    auto conversion_result = waveguide::convert::convert_ast(result.ast);
+    if (!conversion_result->success) {
+        std::cerr << "Error converting AST!" << std::endl;
+        std::cerr << conversion_result->error_message << std::endl;
+        return 1;
+    }
+    waveguide::squash::squash(conversion_result->converted_scope);
+    std::cout << *conversion_result->converted_scope.get() << std::endl;
     return 0;
 }
