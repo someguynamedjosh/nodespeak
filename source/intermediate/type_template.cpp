@@ -177,10 +177,10 @@ vague_array_data_type::vague_array_data_type(SP<vague_data_type> base,
     : base(base), size(size) { }
 
 void vague_array_data_type::print_repr(std::ostream &stream) const {
-    base->print_repr(stream);
     stream << "[";
     size->print_repr(stream);
     stream << "]";
+    base->print_repr(stream);
 }
 
 void vague_array_data_type::collect_new_vars(std::vector<std::string> &list)

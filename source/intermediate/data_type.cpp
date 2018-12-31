@@ -135,8 +135,8 @@ int array_data_type::get_array_depth() const {
 }
 
 void array_data_type::print_repr(std::ostream &stream) const {
-    element_type->print_repr(stream);
     stream << "[" << std::to_string(length) << "]";
+    element_type->print_repr(stream);
 }
 
 void array_data_type::format(std::ostream &stream, const void *data) const {
@@ -190,8 +190,8 @@ void copy_array_data_proxy::format(std::ostream &stream, const void *data) const
 }
 
 void copy_array_data_proxy::print_repr(std::ostream &stream) const {
-    get_element_type()->print_repr(stream);
     stream << "[" << std::to_string(get_array_length()) << " copied from 1]";
+    get_element_type()->print_repr(stream);
 }
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"

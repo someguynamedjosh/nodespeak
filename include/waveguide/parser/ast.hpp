@@ -30,9 +30,9 @@ struct vague_expression: ve_variant, x3::position_tagged {
 };
 
 struct vague_data_type {
+    std::vector<vague_expression> array_sizes;
     std::string name;
     boost::optional<char> is_unknown;
-    std::vector<vague_expression> array_sizes;
 };
 
 struct vague_number_expression {
@@ -98,8 +98,8 @@ struct expression: x3::variant<
 
 
 struct data_type: x3::position_tagged {
-    std::string name;
     std::vector<expression> array_sizes;
+    std::string name;
 };
 
 

@@ -161,21 +161,21 @@ struct ast_printer: boost::static_visitor<> {
     }
 
     void operator()(data_type const&type) const {
-        std::cout << type.name;
         for (auto &size : type.array_sizes) {
             std::cout << '[';
             recurse(size);
             std::cout << ']';
         }
+        std::cout << type.name;
     }
 
     void operator()(vague_data_type const&type) const {
-        std::cout << type.name;
         for (auto &size : type.array_sizes) {
             std::cout << '[';
             recurse(size);
             std::cout << ']';
         }
+        std::cout << type.name;
     }
 
     void operator()(std::vector<statement> const&stats) const {

@@ -203,7 +203,7 @@ auto const default_function_expr_def = (
 
 
 auto const data_type_def = 
-    identifier >> *('[' > expr > ']');
+    *('[' > expr > ']') >> identifier;
 
 
 
@@ -238,9 +238,7 @@ auto const vague_variable_expr_def =
     identifier >> -char_('?');
 
 auto const vague_data_type_def =
-    identifier >> -char_('?') >> *(
-        '[' > vague_expr > ']'
-    );
+    *('[' > vague_expr > ']') >> identifier >> -char_('?');
 
 
 
