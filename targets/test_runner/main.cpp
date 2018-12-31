@@ -30,13 +30,13 @@ int main() {
     uint successes = 0;
     for (auto const&test : tests) {
         auto result = waveguide::parser::parse(test);
-        if (result.error) {
+        if (result.success) {
+            successes++;
+        } else {
             std::cout << "=====ERROR PARSING TEST!=====" << std::endl;
             std::cout << "Input:" << std::endl;
             std::cout << test << std::endl;
             std::cout << "=============================" << std::endl;
-        } else {
-            successes++;
         }
     }
 

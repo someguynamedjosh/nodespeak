@@ -6,8 +6,8 @@ namespace waveguide {
 namespace parser {
 
 struct parse_result {
+    bool success;
     ast::root_type ast;
-    int error = 0;
 };
 
 parse_result parse(std::string input);

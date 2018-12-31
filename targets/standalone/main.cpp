@@ -31,14 +31,17 @@ int main(int argc, char **argv) {
     std::cout << "Compiling code:" << std::endl;
     std::cout << code << std::endl;
     auto result = waveguide::parser::parse(code);
-    std::cout << 
-        (result.error ? "Compile failed!" : "Compile suceeded!") << std::endl;
+    if (!result.success) {
+        std::cerr << "Parsing failed!" << std::endl;
+        return 1;
+    }
+    std::cout << "Parsing suceeded!" << std::endl;
     waveguide::ast::print_ast(result.ast);
     auto conversion_result = waveguide::convert::convert_ast(result.ast);
     if (!conversion_result->success) {
         std::cerr << "Error converting AST!" << std::endl;
         std::cerr << conversion_result->error_message << std::endl;
-        return 1;
+        return 2;
     }
     waveguide::squash::squash(conversion_result->converted_scope);
     std::cout << *conversion_result->converted_scope.get() << std::endl;

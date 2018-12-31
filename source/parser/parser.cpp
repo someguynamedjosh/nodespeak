@@ -41,7 +41,7 @@ parse_result parse(std::string input) {
         std::cerr << std::endl;
     }
     success &= start == end;
-    result.error = success ? 0 : 1;
+    result.success = success;
     return result;
 }
 
