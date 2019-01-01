@@ -6,7 +6,12 @@
 namespace waveguide {
 namespace squash {
 
-void squash(std::shared_ptr<intermediate::scope> scope);
+struct squash_result {
+    bool success;
+    std::string error_message;
+};
+
+squash_result squash(std::shared_ptr<intermediate::scope> scope);
 
 }
 }

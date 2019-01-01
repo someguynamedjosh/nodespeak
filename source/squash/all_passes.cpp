@@ -5,7 +5,7 @@
 namespace waveguide {
 namespace squash {
 
-void squash(SP<intr::scope> scope) {
+squash_result squash(SP<intr::scope> scope) {
     cast_pass(scope);
 }
 
