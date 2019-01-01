@@ -1,5 +1,7 @@
 #include "passes.hpp"
 
+#include <waveguide/intermediate/metastructure.hpp>
+
 namespace waveguide {
 namespace squash {
 
@@ -59,6 +61,32 @@ namespace squash {
 //
 //    [1][2]Int + [4][2]Int : [1]TYPE1 + [A]TYPE2 (TYPE1=[2]Int, TYPE2=[2]Int)
 // -> [4][2]Int + [4][2]Int : Copy the array.
+
+SP<intr::value> cast_value(SP<intr::scope> context, SP<intr::value> input, 
+    SP<intr::data_type> target) {
+    auto input_type = input->get_type();
+    std::vector<int> in_sizes, target_sizes;
+    while (auto array_type 
+        = std::dynamic_pointer_cast<const intr::array_data_type>(input_type)) {
+        in_sizes.push_back(array_type->get_array_length());
+        input_type = array_type->get_element_type();
+    }
+    while (auto array_type 
+        = std::dynamic_pointer_cast<const intr::array_data_type>(target)) {
+        target_sizes.push_back(array_type->get_array_length());
+        target = array_type->get_element_type();
+    }
+    int in_depth = in_sizes.length(), target_depth = target_sizes.length();
+    int min_depth = in_depth > target_depth ? in_depth : target_depth;
+    for (int i = 0; i < min_depth; i++) {
+        if (in_sizes[i] == 1) {
+            
+        }
+    }
+    if (input_type->get_array_depth() == 0 && target->get_array_depth() == 0) {
+        // Cast based on 
+    }
+}
 
 void cast_pass(SP<intr::scope> scope) {
     // TODO: Do something.
