@@ -17,6 +17,11 @@ SP<intr::scope> ast_converter::get_result() const {
 access_result ast_converter::find_access_result(
     ast::variable_expression const& expr) const {
     SP<intr::value> root_val{lookup_var(expr.name)};
+    if (!root_val) {
+        throw convert::ast_conversion_exception{
+            "There is no variable with name '" + expr.name + "'."
+        };
+    }
     SP<intr::value> offset{new intr::value(blt()->INT)};
 
     if (expr.array_accesses.size() == 0) {

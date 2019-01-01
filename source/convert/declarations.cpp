@@ -62,9 +62,18 @@ void ast_converter::operator()(function_dec const&dec) const {
 
 void ast_converter::operator()(data_type const&type) const {
     data->current_type = lookup_type(type.name);
+    if (!data->current_type) {
+        throw convert::ast_conversion_exception{
+            "There is no data type with name '" + type.name + "'."
+        };
+    }
     for (auto size : type.array_sizes) {
         recurse(size);
-        // TODO: Error if value is not known.
+        if (!data->current_value->is_value_known()) {
+            throw convert::ast_conversion_exception{
+                "Value of array index is not constant!"
+            };
+        }
         data->current_type = SP<intr::array_data_type>{
             new intr::array_data_type{
                 data->current_type, *data->current_value->data_as_int()

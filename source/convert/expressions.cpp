@@ -35,6 +35,11 @@ void ast_converter::operator()(signed_expression const&expr) const {
 
 void ast_converter::operator()(variable_expression const&expr) const {
     data->current_value = lookup_var(expr.name);
+    if (data->current_value == nullptr) {
+        throw convert::ast_conversion_exception{
+            "There is no variable in scope with the name '" + expr.name + "'."
+        };
+    }
     for (auto index_expr : expr.array_accesses) {
         SP<intr::value> output_value{
             new intr::value(blt()->DEDUCE_LATER)};
@@ -78,6 +83,12 @@ void ast_converter::operator()(single_var_dec const&dec) const {
 
 void ast_converter::operator()(function_expression const&expr) const {
     auto func = lookup_func(expr.function_name);
+    if (func == nullptr) {
+        throw convert::ast_conversion_exception{
+            "There is no function in scope with the name '" 
+                + expr.function_name + "'."
+        };
+    }
     SP<intr::command> command{new intr::command(func)};
     for (auto const&input : expr.inputs) {
         recurse(input);
