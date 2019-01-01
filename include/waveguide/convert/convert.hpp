@@ -24,7 +24,7 @@ struct conversion_result {
     std::string error_message;
 };
 
-std::shared_ptr<conversion_result> convert_ast(ast::root_type const&root);
+conversion_result convert_ast(ast::root_type const&root);
 
 }
 }

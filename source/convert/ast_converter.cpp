@@ -13,18 +13,18 @@ const char *ast_conversion_exception::what() const throw() {
     return message.c_str();
 }
 
-SP<conversion_result> convert_ast(ast::root_type const&root) {
-    SP<conversion_result> result{new conversion_result{}};
+conversion_result convert_ast(ast::root_type const&root) {
+    conversion_result result{};
     ast::ast_converter converter{};
     try {
         converter.start(root);
-        result->converted_scope = converter.get_result();
-        result->success = true;
-        result->error_message = "";
+        result.converted_scope = converter.get_result();
+        result.success = true;
+        result.error_message = "";
     } catch (ast_conversion_exception &e) {
-        result->converted_scope = nullptr;
-        result->success = false;
-        result->error_message = std::string{e.what()};
+        result.converted_scope = nullptr;
+        result.success = false;
+        result.error_message = std::string{e.what()};
     }
     return result;
 }
