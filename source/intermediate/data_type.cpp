@@ -39,7 +39,7 @@ void abstract_data_type::print_repr(std::ostream &stream) const {
     stream << label;
 }
 
-void abstract_data_type::format(std::ostream &stream, const void *data) const {
+void abstract_data_type::format(std::ostream &stream, const char *data) const {
     stream << "??? at " << data;
 }
 
@@ -66,7 +66,8 @@ void unresolved_vague_type::print_repr(std::ostream &stream) const {
     unresolved->print_repr(stream);
 }
 
-void unresolved_vague_type::format(std::ostream &stream, const void *data) const {
+void unresolved_vague_type::format(std::ostream &stream, 
+    const char *data) const {
     stream << "??? at " << data;
 }
 
@@ -81,7 +82,7 @@ void int_data_type::print_repr(std::ostream &stream) const {
     stream << "Int";
 }
 
-void int_data_type::format(std::ostream &stream, const void *data) const {
+void int_data_type::format(std::ostream &stream, const char *data) const {
     stream << *((int *) data);
 }
 
@@ -96,7 +97,7 @@ void float_data_type::print_repr(std::ostream &stream) const {
     stream << "Float";
 }
 
-void float_data_type::format(std::ostream &stream, const void *data) const {
+void float_data_type::format(std::ostream &stream, const char *data) const {
     stream << *((float *) data);
 }
 
@@ -111,7 +112,7 @@ void bool_data_type::print_repr(std::ostream &stream) const {
     stream << "Bool";
 }
 
-void bool_data_type::format(std::ostream &stream, const void *data) const {
+void bool_data_type::format(std::ostream &stream, const char *data) const {
     stream << (*((char *) data) != 0 ? "true" : "false");
 }
 
@@ -139,11 +140,10 @@ void array_data_type::print_repr(std::ostream &stream) const {
     element_type->print_repr(stream);
 }
 
-void array_data_type::format(std::ostream &stream, const void *data) const {
+void array_data_type::format(std::ostream &stream, const char *data) const {
     stream << "[";
     for (int i = 0; i < length; i++) {
-        element_type->format(stream, 
-            ((char *) data) + i * element_type->get_length());
+        element_type->format(stream, data + i * element_type->get_length());
         if (i != length - 1) {
             stream << ", ";
         }
@@ -178,7 +178,8 @@ bool copy_array_data_proxy::is_proxy_type() const {
     return true;
 }
 
-void copy_array_data_proxy::format(std::ostream &stream, const void *data) const {
+void copy_array_data_proxy::format(std::ostream &stream, 
+    const char *data) const {
     stream << "[";
     for (int i = 0; i < get_array_length(); i++) {
         get_element_type()->format(stream, data);

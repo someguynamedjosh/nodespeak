@@ -40,7 +40,7 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
         stream << ")";
         if (value->is_value_known()) {
             stream << " = ";
-            value->get_type()->format(stream, value->get_data());
+            value->get_type()->format(stream, value->get_data().get());
         }
         stream << std::endl;
     }
@@ -50,7 +50,7 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
         stream << ")";
         if (value->is_value_known()) {
             stream << " = ";
-            value->get_type()->format(stream, value->get_data());
+            value->get_type()->format(stream, value->get_data().get());
         }
         stream << std::endl;
     }
@@ -112,7 +112,7 @@ void print_value(std::ostream &stream, value const&to_print) {
     stream << ")" << std::endl;
     if (to_print.is_value_known()) {
         stream << "      Value: ";
-        to_print.get_type()->format(stream, to_print.get_data());
+        to_print.get_type()->format(stream, to_print.get_data().get());
         stream << std::endl;
     }
 }

@@ -31,15 +31,21 @@ inline SP<intr::builtins> blt() {
 }
 
 inline SP<intr::value> int_literal(const int value) {
-    return SP<intr::value>{new intr::value(blt()->INT, new int{value})};
+    return std::make_shared<intr::value>(
+        blt()->INT, std::make_shared<int>(value)
+    );
 }
 
 inline SP<intr::value> float_literal(const float value) {
-    return SP<intr::value>{new intr::value(blt()->FLOAT, new float{value})};
+    return std::make_shared<intr::value>(
+        blt()->INT, std::make_shared<float>(value)
+    );
 }
 
 inline SP<intr::value> bool_literal(const bool value) {
-    return SP<intr::value>{new intr::value(blt()->BOOL, new bool{value})};
+    return std::make_shared<intr::value>(
+        blt()->INT, std::make_shared<bool>(value)
+    );
 }
 
 struct access_result {
