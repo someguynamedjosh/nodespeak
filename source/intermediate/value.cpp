@@ -53,10 +53,11 @@ value const&value::get_real_value() const {
 }
 
 bool value::is_value_known() const {
-    return value_known;
+    return is_proxy() ? get_real_value().is_value_known() : value_known;
 }
 
 void value::set_value_known(bool is_known) {
+    assert(!is_proxy());
     value_known = is_known;
 }
 
