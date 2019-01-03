@@ -58,7 +58,7 @@ int unresolved_vague_type::get_length() const {
 }
 
 bool unresolved_vague_type::is_proxy_type() const {
-    return true;
+    return false;
 }
 
 void unresolved_vague_type::print_repr(std::ostream &stream) const {
