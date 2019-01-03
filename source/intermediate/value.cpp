@@ -19,16 +19,16 @@ namespace intermediate {
 value::value(std::shared_ptr<const data_type> type)
     : type{type} {
     if (!type->is_proxy_type()) {
-        data = SP<char[]>{new char[type->get_length()]};
+        data = data_block_ptr{new char[type->get_length()]};
     }
 }
 
-value::value(std::shared_ptr<const data_type> type, SP<char[]> data)
+value::value(std::shared_ptr<const data_type> type, data_block_ptr data)
     : type{type}, data{data}, value_known{true} {
     assert(!type->is_proxy_type());
 }
 
-value::value(std::shared_ptr<const data_type> type, SP<value> target)
+value::value(std::shared_ptr<const data_type> type, value_ptr target)
     : type{type}, value_known{false} {
     assert(type->is_proxy_type());
     data = std::reinterpret_pointer_cast<char[]>(target);
@@ -76,47 +76,47 @@ value value::create_known_copy() const {
     return tr;
 }
 
-const SP<char[]> value::get_data() const {
+const data_block_ptr value::get_data() const {
     assert(!is_proxy());
     return data;
 }
 
-const SP<float> value::data_as_float() const {
+const std::shared_ptr<float> value::data_as_float() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const float_data_type>(type));
     return std::reinterpret_pointer_cast<float>(data);
 }
 
-const SP<int> value::data_as_int() const {
+const std::shared_ptr<int> value::data_as_int() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const int_data_type>(type));
     return std::reinterpret_pointer_cast<int>(data);
 }
 
-const SP<bool> value::data_as_bool() const {
+const std::shared_ptr<bool> value::data_as_bool() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const bool_data_type>(type));
     return std::reinterpret_pointer_cast<bool>(data);
 }
 
-SP<char[]> value::get_data() {
+std::shared_ptr<char[]> value::get_data() {
     assert(!is_proxy());
     return data;
 }
 
-SP<float> value::data_as_float() {
+std::shared_ptr<float> value::data_as_float() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const float_data_type>(type));
     return std::reinterpret_pointer_cast<float>(data);
 }
 
-SP<int> value::data_as_int() {
+std::shared_ptr<int> value::data_as_int() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const int_data_type>(type));
     return std::reinterpret_pointer_cast<int>(data);
 }
 
-SP<bool> value::data_as_bool() {
+std::shared_ptr<bool> value::data_as_bool() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const bool_data_type>(type));
     return std::reinterpret_pointer_cast<bool>(data);

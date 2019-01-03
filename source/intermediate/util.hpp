@@ -9,8 +9,11 @@ class builtins;
 class scope;
 class data_type;
 
-SP<data_type> biggest_type(SP<data_type> a, SP<data_type> b);
-SP<builtins> blt();
+typedef std::shared_ptr<builtins> builtins_ptr;
+typedef std::shared_ptr<data_type> data_type_ptr;
+
+data_type_ptr biggest_type(data_type_ptr a, data_type_ptr b);
+builtins_ptr blt();
 
 }
 }

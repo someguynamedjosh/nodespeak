@@ -39,7 +39,7 @@ std::string vague_value_expression::get_name() const {
     return name;
 }
 
-vague_known_value_expression::vague_known_value_expression(SP<value> real_value)
+vague_known_value_expression::vague_known_value_expression(value_ptr real_value)
     : real_value{real_value} { }
 
 void vague_known_value_expression::print_repr(std::ostream &stream) const {
@@ -49,15 +49,15 @@ void vague_known_value_expression::print_repr(std::ostream &stream) const {
 void vague_known_value_expression::collect_new_vars(
     std::vector<std::string> &list) const { }
 
-SP<value> vague_known_value_expression::get_real_value() const {
+value_ptr vague_known_value_expression::get_real_value() const {
     return real_value;
 }
 
-vague_operation_expression::vague_operation_expression(SP<vague_expression> a)
+vague_operation_expression::vague_operation_expression(vague_expression_ptr a)
     : operands{a} { }
 
-vague_operation_expression::vague_operation_expression(SP<vague_expression> a, 
-    SP<vague_expression> b)
+vague_operation_expression::vague_operation_expression(vague_expression_ptr a, 
+    vague_expression_ptr b)
     : operands{a, b} { }
 
 void vague_operation_expression::collect_new_vars(
@@ -67,12 +67,12 @@ void vague_operation_expression::collect_new_vars(
     }
 }
 
-std::vector<SP<vague_expression>> 
+std::vector<vague_expression_ptr> 
     const&vague_operation_expression::get_operands() const {
     return operands;
 }
 
-vague_negation_expression::vague_negation_expression(SP<vague_expression> input)
+vague_negation_expression::vague_negation_expression(vague_expression_ptr input)
     : vague_operation_expression{input} { }
 
 void vague_negation_expression::print_repr(std::ostream &stream) const {
@@ -82,8 +82,8 @@ void vague_negation_expression::print_repr(std::ostream &stream) const {
     stream << ")";
 }
 
-vague_add_expression::vague_add_expression(SP<vague_expression> a, 
-    SP<vague_expression> b)
+vague_add_expression::vague_add_expression(vague_expression_ptr a, 
+    vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
 
 void vague_add_expression::print_repr(std::ostream &stream) const {
@@ -95,8 +95,8 @@ void vague_add_expression::print_repr(std::ostream &stream) const {
     stream << ")";
 }
 
-vague_subtract_expression::vague_subtract_expression(SP<vague_expression> a, 
-    SP<vague_expression> b)
+vague_subtract_expression::vague_subtract_expression(vague_expression_ptr a, 
+    vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
 
 void vague_subtract_expression::print_repr(std::ostream &stream) const {
@@ -108,8 +108,8 @@ void vague_subtract_expression::print_repr(std::ostream &stream) const {
     stream << ")";
 }
 
-vague_multiply_expression::vague_multiply_expression(SP<vague_expression> a,
-    SP<vague_expression> b)
+vague_multiply_expression::vague_multiply_expression(vague_expression_ptr a,
+    vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
 
 void vague_multiply_expression::print_repr(std::ostream &stream) const {
@@ -121,8 +121,8 @@ void vague_multiply_expression::print_repr(std::ostream &stream) const {
     stream << ")";
 }
 
-vague_divide_expression::vague_divide_expression(SP<vague_expression> a, 
-    SP<vague_expression> b)
+vague_divide_expression::vague_divide_expression(vague_expression_ptr a, 
+    vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
 
 void vague_divide_expression::print_repr(std::ostream &stream) const {
@@ -155,7 +155,7 @@ std::string vague_basic_data_type::get_name() const {
     return name;
 }
 
-vague_known_data_type::vague_known_data_type(SP<data_type> real_type)
+vague_known_data_type::vague_known_data_type(data_type_ptr real_type)
     : real_type{real_type} { }
 
 void vague_known_data_type::print_repr(std::ostream &stream) const {
@@ -168,12 +168,12 @@ void vague_known_data_type::collect_new_vars(std::vector<std::string> &list)
 void vague_known_data_type::collect_new_types(std::vector<std::string> &list)
     const { }
 
-SP<data_type> vague_known_data_type::get_real_type() const {
+data_type_ptr vague_known_data_type::get_real_type() const {
     return real_type;
 }
 
-vague_array_data_type::vague_array_data_type(SP<vague_data_type> base, 
-    SP<vague_expression> size)
+vague_array_data_type::vague_array_data_type(vague_data_type_ptr base, 
+    vague_expression_ptr size)
     : base(base), size(size) { }
 
 void vague_array_data_type::print_repr(std::ostream &stream) const {
@@ -193,11 +193,11 @@ void vague_array_data_type::collect_new_types(std::vector<std::string> &list)
     base->collect_new_types(list);
 }
 
-SP<vague_data_type> vague_array_data_type::get_base_type() const {
+vague_data_type_ptr vague_array_data_type::get_base_type() const {
     return base;
 }
 
-SP<vague_expression> vague_array_data_type::get_size() const {
+vague_expression_ptr vague_array_data_type::get_size() const {
     return size;
 }
 

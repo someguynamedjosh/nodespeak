@@ -26,57 +26,57 @@ public:
 namespace waveguide {
 namespace ast {
 
-inline SP<intr::builtins> blt() {
+inline intr::builtins_ptr blt() {
     return intr::builtins::get_instance();
 }
 
-inline SP<intr::value> int_literal(const int value) {
+inline intr::value_ptr int_literal(const int value) {
     return std::make_shared<intr::value>(
         blt()->INT, std::make_shared<int>(value)
     );
 }
 
-inline SP<intr::value> float_literal(const float value) {
+inline intr::value_ptr float_literal(const float value) {
     return std::make_shared<intr::value>(
         blt()->INT, std::make_shared<float>(value)
     );
 }
 
-inline SP<intr::value> bool_literal(const bool value) {
+inline intr::value_ptr bool_literal(const bool value) {
     return std::make_shared<intr::value>(
         blt()->INT, std::make_shared<bool>(value)
     );
 }
 
 struct access_result {
-    SP<intr::value> root_val, offset;
-    SP<const intr::data_type> final_type;
+    intr::value_ptr root_val, offset;
+    intr::const_data_type_ptr final_type;
 };
 
 struct ast_converter_data {
     bool fpd_is_input;
-    SP<intr::scope> current_scope;
-    SP<intr::value> current_value;
-    SP<intr::data_type> current_type;
-    SP<intr::vague_data_type> current_vtype;
-    SP<intr::vague_expression> current_vexpr;
+    intr::scope_ptr current_scope;
+    intr::value_ptr current_value;
+    intr::data_type_ptr current_type;
+    intr::vague_data_type_ptr current_vtype;
+    intr::vague_expression_ptr current_vexpr;
 };
 
 struct ast_converter: util::static_visitor<ast_converter, ast_converter_data> {
     virtual void on_start() const override;
-    SP<intr::scope> get_result() const;
+    intr::scope_ptr get_result() const;
 
     // Utility methods.
     access_result find_access_result(ast::variable_expression const&expr) const;
-    void copy_value_to_expr(SP<intr::value> from, 
+    void copy_value_to_expr(intr::value_ptr from, 
         ast::variable_expression const& to) const;
     void copy_value_from_expr(ast::variable_expression const& from,
-        SP<intr::value> to) const;
-    SP<intr::value> lookup_var(std::string name) const;
-    SP<intr::scope> lookup_func(std::string name) const;
-    SP<intr::data_type> lookup_type(std::string name) const;
-    void add_command(SP<intr::command> command) const;
-    void declare_temp_var(SP<intr::value> var) const;
+        intr::value_ptr to) const;
+    intr::value_ptr lookup_var(std::string name) const;
+    intr::scope_ptr lookup_func(std::string name) const;
+    intr::data_type_ptr lookup_type(std::string name) const;
+    void add_command(intr::command_ptr command) const;
+    void declare_temp_var(intr::value_ptr) const;
     
     // Parses statements into the current scope.
     void operator()(std::vector<statement> const&stats) const;

@@ -8,7 +8,14 @@ namespace waveguide {
 namespace intermediate {
 
 class data_type;
+class vague_data_type;
+class vague_expression;
 class value;
+
+typedef std::shared_ptr<data_type> data_type_ptr;
+typedef std::shared_ptr<vague_data_type> vague_data_type_ptr;
+typedef std::shared_ptr<vague_expression> vague_expression_ptr;
+typedef std::shared_ptr<value> value_ptr;
 
 class vague_expression {
 public:
@@ -38,57 +45,52 @@ public:
 
 class vague_known_value_expression: public vague_expression {
 private:
-    std::shared_ptr<value> real_value;
+    value_ptr real_value;
 public:
-    vague_known_value_expression(std::shared_ptr<value> real_value);
+    vague_known_value_expression(value_ptr real_value);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
-    std::shared_ptr<value> get_real_value() const;
+    value_ptr get_real_value() const;
 };
 
 class vague_operation_expression: public vague_expression {
 private:
-    std::vector<std::shared_ptr<vague_expression>> operands;
+    std::vector<vague_expression_ptr> operands;
 protected:
-    vague_operation_expression(std::shared_ptr<vague_expression> a);
-    vague_operation_expression(std::shared_ptr<vague_expression> a, 
-        std::shared_ptr<vague_expression> b);
+    vague_operation_expression(vague_expression_ptr a);
+    vague_operation_expression(vague_expression_ptr a, vague_expression_ptr b);
 public:
-    std::vector<std::shared_ptr<vague_expression>> const&get_operands() const;
+    std::vector<vague_expression_ptr> const&get_operands() const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
 };
 
 class vague_negation_expression: public vague_operation_expression {
 public:
-    vague_negation_expression(std::shared_ptr<vague_expression> input);
+    vague_negation_expression(vague_expression_ptr input);
     virtual void print_repr(std::ostream &stream) const;
 };
 
 class vague_add_expression: public vague_operation_expression {
 public:
-    vague_add_expression(std::shared_ptr<vague_expression> a, 
-        std::shared_ptr<vague_expression> b);
+    vague_add_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
 };
 
 class vague_subtract_expression: public vague_operation_expression {
 public:
-    vague_subtract_expression(std::shared_ptr<vague_expression> a, 
-        std::shared_ptr<vague_expression> b);
+    vague_subtract_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
 };
 
 class vague_multiply_expression: public vague_operation_expression {
 public:
-    vague_multiply_expression(std::shared_ptr<vague_expression> a, 
-        std::shared_ptr<vague_expression> b);
+    vague_multiply_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
 };
 
 class vague_divide_expression: public vague_operation_expression {
 public:
-    vague_divide_expression(std::shared_ptr<vague_expression> a, 
-        std::shared_ptr<vague_expression> b);
+    vague_divide_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
 };
 
@@ -114,27 +116,27 @@ public:
 
 class vague_known_data_type: public vague_data_type {
 private:
-    std::shared_ptr<data_type> real_type;
+    data_type_ptr real_type;
 public:
-    vague_known_data_type(std::shared_ptr<data_type> real_type);
+    vague_known_data_type(data_type_ptr real_type);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
     virtual void collect_new_types(std::vector<std::string> &list) const;
-    std::shared_ptr<data_type> get_real_type() const;
+    data_type_ptr get_real_type() const;
 };
 
 class vague_array_data_type: public vague_data_type {
 private:
-    std::shared_ptr<vague_data_type> base;
-    std::shared_ptr<vague_expression> size;
+    vague_data_type_ptr base;
+    vague_expression_ptr size;
 public:
-    vague_array_data_type(std::shared_ptr<vague_data_type> base,
-        std::shared_ptr<vague_expression> size);
+    vague_array_data_type(vague_data_type_ptr base,
+        vague_expression_ptr size);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
     virtual void collect_new_types(std::vector<std::string> &list) const;
-    std::shared_ptr<vague_data_type> get_base_type() const;
-    std::shared_ptr<vague_expression> get_size() const;
+    vague_data_type_ptr get_base_type() const;
+    vague_expression_ptr get_size() const;
 };
 
 }

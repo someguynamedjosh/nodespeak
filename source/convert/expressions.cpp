@@ -22,10 +22,10 @@ void ast_converter::operator()(bool const&expr) const {
 void ast_converter::operator()(signed_expression const&expr) const {
     recurse(expr.value);
     if (expr.sign == '-') {
-        SP<intr::command> negate{new intr::command(blt()->MUL)};
+        auto negate{std::make_shared<intr::command>(blt()->MUL)};
         negate->add_input(data->current_value);
         negate->add_input(int_literal(-1));
-        SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
+        auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
         data->current_value = output;
         negate->add_output(output);
@@ -41,12 +41,11 @@ void ast_converter::operator()(variable_expression const&expr) const {
         };
     }
     for (auto index_expr : expr.array_accesses) {
-        SP<intr::value> output_value{
-            new intr::value(blt()->DEDUCE_LATER)};
+        auto output_value{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
         declare_temp_var(output_value);
-
-        SP<intr::command> copy_command{
-            new intr::command{blt()->COPY_FROM_INDEX}};
+        auto copy_command{
+            std::make_shared<intr::command>(blt()->COPY_FROM_INDEX)
+        };
         copy_command->add_input(data->current_value);
         recurse(index_expr);
         copy_command->add_input(data->current_value);
@@ -57,15 +56,15 @@ void ast_converter::operator()(variable_expression const&expr) const {
 }
 
 void ast_converter::operator()(std::vector<expression> const&expr) const {
-    SP<intr::value> copy_to{
-        new intr::value{SP<intr::data_type>{new intr::array_data_type{
-            SP<const intr::data_type>(blt()->DEDUCE_LATER), (int) expr.size()
-        }
-    }}};
+    auto copy_to{std::make_shared<intr::value>(
+        std::make_shared<intr::array_data_type>(
+            blt()->DEDUCE_LATER, expr.size()
+        )
+    )};
     declare_temp_var(copy_to);
     for (uint i = 0; i < expr.size(); i++) {
         recurse(expr[i]);
-        SP<intr::command> insert{new intr::command(blt()->COPY_TO_INDEX)};
+        auto insert{std::make_shared<intr::command>(blt()->COPY_TO_INDEX)};
         insert->add_input(data->current_value);
         insert->add_input(int_literal(i));
         insert->add_output(copy_to);
@@ -76,7 +75,7 @@ void ast_converter::operator()(std::vector<expression> const&expr) const {
 
 void ast_converter::operator()(single_var_dec const&dec) const {
     recurse(dec.type);
-    SP<intr::value> value{new intr::value{data->current_type}};
+    auto value{std::make_shared<intr::value>(data->current_type)};
     data->current_scope->declare_var(dec.name, value);
     data->current_value = value;
 }
@@ -89,7 +88,7 @@ void ast_converter::operator()(function_expression const&expr) const {
                 + expr.function_name + "'."
         };
     }
-    SP<intr::command> command{new intr::command(func)};
+    auto command{std::make_shared<intr::command>(func)};
     for (auto const&input : expr.inputs) {
         recurse(input);
         command->add_input(data->current_value);
@@ -108,17 +107,17 @@ void ast_converter::operator()(operator_list_expression const&expr) const {
     recurse(expr.start_value);
     std::string last_op{""};
     bool join{false};
-    intr::command *last_command{nullptr};
+    intr::command_ptr last_command{nullptr};
     for (auto const&operation : expr.operations) {
         if (operation.op_char != last_op || !join) {
             if (last_command) {
-                SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
+                auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
                 declare_temp_var(output);
                 last_command->add_output(output);
-                add_command(SP<intr::command>{last_command});
+                add_command(last_command);
                 data->current_value = output;
             }
-            SP<intr::scope> func{nullptr};
+            intr::scope_ptr func{nullptr};
             auto const&c = operation.op_char;
             if (c == "+" || c == "-") {
                 func = blt()->ADD;
@@ -166,17 +165,17 @@ void ast_converter::operator()(operator_list_expression const&expr) const {
                 func = blt()->XOR;
                 join = false;
             }
-            last_command = new intr::command(func);
+            last_command = std::make_shared<intr::command>(func);
             last_command->add_input(data->current_value);
         }
         recurse(operation.value);
         last_command->add_input(data->current_value);
     }
     if (last_command) {
-        SP<intr::value> output{new intr::value(blt()->DEDUCE_LATER)};
+        auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
         last_command->add_output(output);
-        add_command(SP<intr::command>{last_command});
+        add_command(last_command);
         data->current_value = output;
     }
 }

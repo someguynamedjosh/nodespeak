@@ -225,9 +225,9 @@ const std::vector<std::shared_ptr<command>> &scope::get_commands() const {
     return commands;
 }
 
-SP<value> scope::add_input(std::string name, SP<vague_data_type> type) {
-    SP<data_type> value_type{new unresolved_vague_type{type}};
-    SP<value> holder{new value{value_type}};
+value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {
+    auto value_type{std::make_shared<unresolved_vague_type>(type)};
+    auto holder{std::make_shared<value>(value_type)};
     ins.push_back(holder);
     // TODO: Expose types and values used in the template for the body of the
     // scope to use.
@@ -240,9 +240,9 @@ const std::vector<std::shared_ptr<value>> &scope::get_inputs() const {
     return ins;
 }
 
-SP<value> scope::add_output(std::string name, SP<vague_data_type> type) {
-    SP<data_type> value_type{new unresolved_vague_type{type}};
-    SP<value> holder{new value{value_type}};
+value_ptr scope::add_output(std::string name, vague_data_type_ptr type) {
+    auto value_type{std::make_shared<unresolved_vague_type>(type)};
+    auto holder{std::make_shared<value>(value_type)};
     outs.push_back(holder);
     // TODO: Expose types and values used in the template for the body of the
     // scope to use.

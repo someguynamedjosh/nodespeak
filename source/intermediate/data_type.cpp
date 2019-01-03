@@ -46,10 +46,10 @@ void abstract_data_type::format(std::ostream &stream, const char *data) const {
 ////////////////////////////////////////////////////////////////////////////////
 // unresolved_vague_type
 ////////////////////////////////////////////////////////////////////////////////
-unresolved_vague_type::unresolved_vague_type(SP<vague_data_type> unresolved)
+unresolved_vague_type::unresolved_vague_type(vague_data_type_ptr unresolved)
     : unresolved(unresolved) { }
 
-SP<vague_data_type> unresolved_vague_type::get_vague_type() const {
+vague_data_type_ptr unresolved_vague_type::get_vague_type() const {
     return unresolved;
 }
 

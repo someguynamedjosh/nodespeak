@@ -5,18 +5,23 @@
 namespace waveguide {
 namespace intermediate {
 
+class builtins;
 class data_type;
 class scope;
+
+typedef std::shared_ptr<builtins> builtins_ptr;
+typedef std::shared_ptr<data_type> data_type_ptr;
+typedef std::shared_ptr<scope> scope_ptr;
 
 class builtins {
 private:
     builtins();
-    static std::shared_ptr<builtins> instance;
+    static builtins_ptr instance;
 public:
-    static std::shared_ptr<builtins> get_instance();
-    void add_to_scope(std::shared_ptr<scope> scope);
-    std::shared_ptr<data_type> INT, FLOAT, BOOL, DEDUCE_LATER;
-    std::shared_ptr<scope> 
+    static builtins_ptr get_instance();
+    void add_to_scope(scope_ptr scope);
+    data_type_ptr INT, FLOAT, BOOL, DEDUCE_LATER;
+    scope_ptr
         ADD, MUL, RECIP, MOD, BAND, BOR, BXOR,
         ITOF, BTOF, BTOI, ITOB, FTOI, FTOB,
         EQ, NEQ, LTE, GTE, LT, GT, AND, OR, XOR,

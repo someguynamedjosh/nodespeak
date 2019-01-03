@@ -7,7 +7,7 @@
 namespace waveguide {
 namespace intermediate {
 
-SP<data_type> biggest_type(SP<data_type> a, SP<data_type> b) {
+data_type_ptr biggest_type(data_type_ptr a, data_type_ptr b) {
     // If A has more array dimensions, it is bigger.
     if (a->get_array_depth() > b->get_array_depth()) {
         return a;
@@ -51,7 +51,7 @@ SP<data_type> biggest_type(SP<data_type> a, SP<data_type> b) {
     }
 }
 
-SP<builtins> blt() {
+builtins_ptr blt() {
     return builtins::get_instance();
 }
 

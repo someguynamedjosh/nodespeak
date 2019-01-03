@@ -10,32 +10,32 @@
 namespace waveguide {
 namespace intermediate {
 
-std::shared_ptr<builtins> builtins::instance{nullptr};
+builtins_ptr builtins::instance{nullptr};
 
-std::shared_ptr<builtins> builtins::get_instance() {
+builtins_ptr builtins::get_instance() {
     if (!instance) {
-        instance = std::shared_ptr<builtins>(new builtins());
+        instance = std::shared_ptr<builtins>{new builtins{}};
     }
     return instance;
 }
 
-void add_ax_io(SP<scope> add_to, std::string in_type, std::string out_type) {
-	SP<vague_data_type> in_type_template{new vague_basic_data_type{in_type}};
-	SP<vague_data_type> out_type_template{new vague_basic_data_type{out_type}};
+void add_ax_io(scope_ptr add_to, std::string in_type, std::string out_type) {
+	vague_data_type_ptr in_type_template = std::make_shared<vague_basic_data_type>(in_type);
+	vague_data_type_ptr out_type_template = std::make_shared<vague_basic_data_type>(out_type);
 	add_to->add_input("a", in_type_template);
 	add_to->add_output("x", out_type_template);
 
 }
 
-void add_abx_io(SP<scope> add_to, std::string in_type, std::string out_type) {
-	SP<vague_data_type> in_type_template{new vague_basic_data_type{in_type}};
-	SP<vague_data_type> out_type_template{new vague_basic_data_type{out_type}};
+void add_abx_io(scope_ptr add_to, std::string in_type, std::string out_type) {
+	vague_data_type_ptr in_type_template{new vague_basic_data_type{in_type}};
+	vague_data_type_ptr out_type_template{new vague_basic_data_type{out_type}};
 	add_to->add_input("a", in_type_template);
 	add_to->add_input("b", in_type_template);
 	add_to->add_output("x", out_type_template);
 }
 
-void add_uniform_abx_io(SP<scope> add_to) {
+void add_uniform_abx_io(scope_ptr add_to) {
 	add_abx_io(add_to, "!TYPE", "!TYPE");
 }
     
@@ -91,10 +91,10 @@ builtins::builtins()
 	add_abx_io(OR, "Bool", "Bool");
 	add_abx_io(XOR, "Bool", "Bool");
 
-	SP<vague_data_type> wildcard_type{new vague_basic_data_type{"!TYPE"}};
-	SP<vague_data_type> wildcard2_type{new vague_basic_data_type{"!TYPE2"}};
-	SP<vague_data_type> int_type{new vague_basic_data_type{"Int"}};
-	SP<vague_data_type> bool_type{new vague_basic_data_type{"Bool"}};
+	vague_data_type_ptr wildcard_type{new vague_basic_data_type{"!TYPE"}};
+	vague_data_type_ptr wildcard2_type{new vague_basic_data_type{"!TYPE2"}};
+	vague_data_type_ptr int_type{new vague_basic_data_type{"Int"}};
+	vague_data_type_ptr bool_type{new vague_basic_data_type{"Bool"}};
 	add_ax_io(COPY, "!TYPE", "!TYPE");
 	COPY_TO_INDEX->add_input("a", wildcard_type);
 	COPY_TO_INDEX->add_input("index", int_type);
@@ -116,7 +116,7 @@ builtins::builtins()
 	WHILE->add_output("return", wildcard_type);
 }
 
-void builtins::add_to_scope(std::shared_ptr<scope> scope) {
+void builtins::add_to_scope(scope_ptr scope) {
     scope->declare_type("Int", INT);
     scope->declare_type("Float", FLOAT);
     scope->declare_type("Bool", BOOL);

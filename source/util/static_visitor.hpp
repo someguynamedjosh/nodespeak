@@ -28,7 +28,7 @@ private:
     };
 
 protected:
-    SP<DataContainer> data;
+    std::shared_ptr<DataContainer> data;
 
     virtual void on_start() const = 0;
 
@@ -49,7 +49,7 @@ protected:
 public:
     template<typename T>
     void start(T const&start_item) {
-        data = SP<DataContainer>{new DataContainer{}};
+        data = std::make_shared<DataContainer>();
         on_start();
         recurse(start_item);
     }

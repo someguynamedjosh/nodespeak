@@ -5,10 +5,10 @@ namespace ast {
 
 void ast_converter::operator()(function_parameter_dec const&dec) const {
     recurse(dec.type);
-    SP<intr::data_type> placeholder_type{
-        new intr::unresolved_vague_type{data->current_vtype}
+    intr::data_type_ptr placeholder_type{
+        std::make_shared<intr::unresolved_vague_type>(data->current_vtype)
     };
-    SP<intr::value> placeholder_value;
+    intr::value_ptr placeholder_value;
     if (data->fpd_is_input) {
         placeholder_value = 
             data->current_scope->add_input(dec.name, data->current_vtype);
@@ -23,25 +23,25 @@ void ast_converter::operator()(function_parameter_dec const&dec) const {
     data->current_vtype->collect_new_types(new_types);
     for (auto var_name : new_vars) {
         if (!data->current_scope->lookup_var(var_name, false)) {
-            data->current_scope->declare_var(var_name, SP<intr::value>{
-                new intr::value{blt()->INT}
-            });
+            data->current_scope->declare_var(var_name, 
+                std::make_shared<intr::value>(blt()->INT)
+            );
         }
     }
     for (auto type_name : new_types) {
         if (!data->current_scope->lookup_type(type_name, false)) {
-            data->current_scope->declare_type(type_name, SP<intr::data_type>{
-                new intr::unresolved_vague_type{SP<intr::vague_data_type>{
-                    new intr::vague_basic_data_type{type_name}
-                }}
-            });
+            data->current_scope->declare_type(type_name, 
+                std::make_shared<intr::unresolved_vague_type>(
+                    std::make_shared<intr::vague_basic_data_type>(type_name)
+                )
+            );
         }
     }
 }
 
 void ast_converter::operator()(function_dec const&dec) const {
     auto old_scope = data->current_scope;
-    data->current_scope = SP<intr::scope>{new intr::scope{old_scope}};
+    data->current_scope = std::make_shared<intr::scope>(old_scope);
     data->fpd_is_input = true;
     for (auto fpd : dec.inputs) {
         recurse(fpd);
@@ -74,57 +74,54 @@ void ast_converter::operator()(data_type const&type) const {
                 "Value of array index is not constant!"
             };
         }
-        data->current_type = SP<intr::array_data_type>{
-            new intr::array_data_type{
-                data->current_type, *data->current_value->data_as_int()
-            }
-        };
+        data->current_type = std::make_shared<intr::array_data_type>(
+            data->current_type, *data->current_value->data_as_int()
+        );
     }
 }
 
 void ast_converter::operator()(vague_data_type const&type) const {
     if (type.is_unknown) {
-        data->current_vtype = SP<intr::vague_data_type>{
-            new intr::vague_basic_data_type{type.name}
-        };
+        data->current_vtype = std::make_shared<intr::vague_basic_data_type>(
+            type.name
+        );
     } else {
-        data->current_vtype = SP<intr::vague_data_type>{
-            new intr::vague_known_data_type{lookup_type(type.name)}
-        };
+        data->current_vtype = std::make_shared<intr::vague_known_data_type>(
+            lookup_type(type.name)
+        );
     }
     for (auto size : type.array_sizes) { 
         recurse(size);
-        data->current_vtype = SP<intr::vague_data_type>{
-            new intr::vague_array_data_type{
-                data->current_vtype, data->current_vexpr
-            }
-        };
+        data->current_vtype = std::make_shared<intr::vague_array_data_type>(
+            data->current_vtype, data->current_vexpr
+        );
     }
 }
 
 void ast_converter::operator()(vague_number_expression const&expr) const {
-    data->current_vexpr = SP<intr::vague_expression>{
-        new intr::vague_number_expression{expr.value}
-    };
+    data->current_vexpr = std::make_shared<intr::vague_number_expression>(
+        expr.value
+    );
 }
 
 void ast_converter::operator()(vague_variable_expression const&expr) const {
     if (expr.is_unknown) {
-        data->current_vexpr = SP<intr::vague_expression>{
-            new intr::vague_value_expression{expr.name}
-        };
+        data->current_vexpr = std::make_shared<intr::vague_value_expression>(
+            expr.name
+        );
     } else {
-        data->current_vexpr = SP<intr::vague_expression>{
-            new intr::vague_known_value_expression{lookup_var(expr.name)}
-        };
+        data->current_vexpr = 
+            std::make_shared<intr::vague_known_value_expression>(
+                lookup_var(expr.name)
+            );
     }
 }
 
 void ast_converter::operator()(vague_signed_expression const&expr) const {
     if (expr.sign == '-') {
-        data->current_vexpr = SP<intr::vague_expression>{
-            new intr::vague_negation_expression{data->current_vexpr}
-        };
+        data->current_vexpr = std::make_shared<intr::vague_negation_expression>(
+            data->current_vexpr
+        );
     }
 }
 
@@ -134,27 +131,24 @@ void ast_converter::operator()(vague_operator_list_expression const&expr) const 
         auto old_vexpr = data->current_vexpr;
         recurse(operation.value);
         if (operation.op_char == "+") {
-            data->current_vexpr = SP<intr::vague_expression>{
-                new intr::vague_add_expression{old_vexpr, data->current_vexpr}
-            };
+            data->current_vexpr = std::make_shared<intr::vague_add_expression>(
+                old_vexpr, data->current_vexpr
+            );
         } else if (operation.op_char == "-") {
-            data->current_vexpr = SP<intr::vague_expression>{
-                new intr::vague_subtract_expression{
+            data->current_vexpr = 
+                std::make_shared<intr::vague_subtract_expression>(
                     old_vexpr, data->current_vexpr
-                }
-            };
+                );
         } else if (operation.op_char == "*") {
-            data->current_vexpr = SP<intr::vague_expression>{
-                new intr::vague_multiply_expression{
+            data->current_vexpr = 
+                std::make_shared<intr::vague_multiply_expression>(
                     old_vexpr, data->current_vexpr
-                }
-            };
+                );
         } else if (operation.op_char == "/") {
-            data->current_vexpr = SP<intr::vague_expression>{
-                new intr::vague_divide_expression{
+            data->current_vexpr = 
+                std::make_shared<intr::vague_divide_expression>(
                     old_vexpr, data->current_vexpr
-                }
-            };
+                );
         }
     }
 }

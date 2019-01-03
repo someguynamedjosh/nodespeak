@@ -6,29 +6,29 @@ namespace waveguide {
 namespace ast {
 
 void ast_converter::on_start() const {
-    data->current_scope = SP<intr::scope>{new intr::scope()};
+    data->current_scope = std::make_shared<intr::scope>();
     blt()->add_to_scope(data->current_scope);
 }
 
-SP<intr::scope> ast_converter::get_result() const {
+intr::scope_ptr ast_converter::get_result() const {
     return data->current_scope;
 }
 
 access_result ast_converter::find_access_result(
     ast::variable_expression const& expr) const {
-    SP<intr::value> root_val{lookup_var(expr.name)};
+    auto root_val{lookup_var(expr.name)};
     if (!root_val) {
         throw convert::ast_conversion_exception{
             "There is no variable with name '" + expr.name + "'."
         };
     }
-    SP<intr::value> offset{new intr::value(blt()->INT)};
+    auto offset{std::make_shared<intr::value>(blt()->INT)};
 
     if (expr.array_accesses.size() == 0) {
         *offset->data_as_int() = 0;
         offset->set_value_known(true);
     } else {
-        SP<intr::command> set{new intr::command(blt()->COPY)};
+        auto set{std::make_shared<intr::command>(blt()->COPY)};
         set->add_input(int_literal(0));
         set->add_input(int_literal(0));
         set->add_output(offset);
@@ -44,17 +44,17 @@ access_result ast_converter::find_access_result(
         auto element_type = std::static_pointer_cast
             <const intr::array_data_type>(data_type)->get_element_type();
         recurse(index);
-        SP<intr::value> index_value{data->current_value};
+        intr::value_ptr index_value{data->current_value};
 
-        SP<intr::command> mul{new intr::command{blt()->MUL}};
+        auto mul{std::make_shared<intr::command>(blt()->MUL)};
         mul->add_input(index_value);
         mul->add_input(int_literal(element_type->get_length()));
-        SP<intr::value> mindex{new intr::value{blt()->INT}};
+        auto mindex{std::make_shared<intr::value>(blt()->INT)};
         declare_temp_var(mindex);
         mul->add_output(mindex);
         add_command(mul);
 
-        SP<intr::command> add{new intr::command{blt()->ADD}};
+        auto add{std::make_shared<intr::command>(blt()->ADD)};
         add->add_input(offset);
         add->add_input(mindex);
         add->add_output(offset);
@@ -69,10 +69,10 @@ access_result ast_converter::find_access_result(
     return tr;
 }
 
-void ast_converter::copy_value_to_expr(SP<intr::value> from,
+void ast_converter::copy_value_to_expr(intr::value_ptr from,
     ast::variable_expression const& to) const {
     auto access = find_access_result(to);
-    SP<intr::command> copy{new intr::command(blt()->COPY)};
+    auto copy{std::make_shared<intr::command>(blt()->COPY)};
     copy->add_input(from);
     copy->add_input(access.offset);
     copy->add_output(access.root_val);
@@ -80,32 +80,32 @@ void ast_converter::copy_value_to_expr(SP<intr::value> from,
 }
 
 void ast_converter::copy_value_from_expr(ast::variable_expression const& from,
-    SP<intr::value> to) const {
+    intr::value_ptr to) const {
     auto access = find_access_result(from);
-    SP<intr::command> copy{new intr::command(blt()->COPY)};
+    auto copy{std::make_shared<intr::command>(blt()->COPY)};
     copy->add_input(access.root_val);
     copy->add_input(access.offset);
     copy->add_output(to);
     add_command(copy);
 }
 
-SP<intr::value> ast_converter::lookup_var(std::string name) const {
+intr::value_ptr ast_converter::lookup_var(std::string name) const {
     return data->current_scope->lookup_var(name);
 }
 
-SP<intr::scope> ast_converter::lookup_func(std::string name) const {
+intr::scope_ptr ast_converter::lookup_func(std::string name) const {
     return data->current_scope->lookup_func(name);
 }
 
-SP<intr::data_type> ast_converter::lookup_type(std::string name) const {
+intr::data_type_ptr ast_converter::lookup_type(std::string name) const {
     return data->current_scope->lookup_type(name);
 }
 
-void ast_converter::add_command(SP<intr::command> command) const {
+void ast_converter::add_command(intr::command_ptr command) const {
     data->current_scope->add_command(command);
 }
 
-void ast_converter::declare_temp_var(SP<intr::value> var) const {
+void ast_converter::declare_temp_var(intr::value_ptr var) const {
     data->current_scope->declare_temp_var(var);
 }
 

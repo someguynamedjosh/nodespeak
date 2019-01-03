@@ -28,15 +28,15 @@ void ast_converter::operator()(var_dec_statement const&dec) const {
 }
 
 void ast_converter::operator()(plain_var_dec const&dec) const {
-    SP<intr::value> value{new intr::value{data->current_type}};
+    auto value{std::make_shared<intr::value>(data->current_type)};
     data->current_scope->declare_var(dec.name, value);
 }
 
 void ast_converter::operator()(init_var_dec const&dec) const {
-    SP<intr::value> value{new intr::value{data->current_type}};
+    auto value{std::make_shared<intr::value>(data->current_type)};
     data->current_scope->declare_var(dec.name, value);
 
-    SP<intr::command> copy{new intr::command{blt()->COPY}};
+    auto copy{std::make_shared<intr::command>(blt()->COPY)};
     recurse(dec.value);
     copy->add_input(data->current_value);
     copy->add_input(int_literal(0));
@@ -45,14 +45,14 @@ void ast_converter::operator()(init_var_dec const&dec) const {
 }
 
 void ast_converter::operator()(return_statement const&stat) const {
-    SP<intr::command> copy{new intr::command{blt()->COPY}};
+    auto copy{std::make_shared<intr::command>(blt()->COPY)};
     recurse(stat.value);
     copy->add_input(data->current_value);
     copy->add_input(int_literal(0));
     copy->add_output(lookup_var("return"));
     add_command(copy);
 
-    SP<intr::command> ret{new intr::command{blt()->RETURN}};
+    auto ret{std::make_shared<intr::command>(blt()->RETURN)};
     add_command(ret);
 }
 
