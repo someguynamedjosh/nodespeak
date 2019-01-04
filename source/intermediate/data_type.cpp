@@ -14,7 +14,7 @@ namespace intermediate {
 data_type::data_type() { }
 
 std::shared_ptr<const data_type> data_type::get_base_type() const {
-    return std::shared_ptr<const data_type>(this);
+    return shared_from_this();
 }
 
 int data_type::get_array_depth() const {
@@ -133,6 +133,10 @@ std::shared_ptr<const data_type> array_data_type::get_base_type() const {
 
 int array_data_type::get_array_depth() const {
     return element_type->get_array_depth() + 1;
+}
+
+bool array_data_type::is_proxy_type() const {
+    return element_type->is_proxy_type();
 }
 
 void array_data_type::print_repr(std::ostream &stream) const {

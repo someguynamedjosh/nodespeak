@@ -18,7 +18,7 @@ typedef const char* data_block;
 typedef std::shared_ptr<vague_data_type> vague_data_type_ptr;
 typedef std::shared_ptr<value> value_ptr;
 
-class data_type {
+class data_type: public std::enable_shared_from_this<data_type> {
 public:
     data_type();
     virtual int get_length() const = 0;
@@ -81,6 +81,7 @@ public:
     virtual int get_length() const;
     virtual const_data_type_ptr get_base_type() const;
     virtual int get_array_depth() const;
+    virtual bool is_proxy_type() const;
     virtual void print_repr(std::ostream &stream) const;
     virtual void format(std::ostream &stream, data_block data) const;
 
