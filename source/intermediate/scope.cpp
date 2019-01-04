@@ -65,8 +65,16 @@ void command::add_input(std::shared_ptr<value> input) {
     ins.push_back(input);
 }
 
+void command::clear_inputs() {
+    ins.clear();
+}
+
 void command::add_output(std::shared_ptr<value> output) {
     outs.push_back(output);
+}
+
+void command::clear_outputs() {
+    outs.clear();
 }
 
 void command::add_lambda(command_lambda &lambda) {
@@ -114,6 +122,10 @@ void print_value(std::ostream &stream, value const&to_print) {
         stream << "      Value: ";
         to_print.get_type()->format(stream, to_print.get_data().get());
         stream << std::endl;
+    }
+    if (to_print.is_proxy()) {
+        stream << "      Proxy for: ";
+        stream << &to_print.get_real_value() << std::endl;
     }
 }
 
@@ -223,6 +235,10 @@ void scope::add_command(std::shared_ptr<command> command) {
 
 const std::vector<std::shared_ptr<command>> &scope::get_commands() const {
     return commands;
+}
+
+void scope::clear_commands() {
+    commands.clear();
 }
 
 value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {

@@ -75,7 +75,9 @@ public:
         command const&to_print);
 
     void add_input(value_ptr input);
+    void clear_inputs();
     void add_output(value_ptr output);
+    void clear_outputs();
     void add_lambda(command_lambda &lambda);
     std::vector<value_ptr> const&get_inputs() const;
     std::vector<value_ptr> const&get_outputs() const;
@@ -111,6 +113,7 @@ public:
     const data_type_ptr lookup_type(std::string name, bool recurse = true) 
         const;
     void add_command(command_ptr command);
+    void clear_commands();
     const std::vector<command_ptr> &get_commands() const;
 
     value_ptr add_input(std::string name, vague_data_type_ptr type);
