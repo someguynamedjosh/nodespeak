@@ -163,6 +163,35 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
     }
 }
 
+void cast_command(intr::scope_ptr context, intr::command_ptr command) {
+    const std::vector<intr::value_ptr> &ins = command->get_inputs(), 
+        &outs = command->get_outputs();
+    const std::vector<intr::command_lambda> &lambdas = command->get_lambdas();
+
+    std::map<std::string, std::vector<intr::data_type_ptr>> type_map;
+    std::map<std::string, std::vector<double>> value_map;
+
+    auto algebra = [&](auto )
+
+    auto unravel = [&](auto real_value, auto param_value) {
+        auto real_type = std::dynamic_pointer_cast<intr::unresolved_vague_type>(
+            real_value->get_type();
+        )->get_vague_type();
+        auto param_type = std::dynamic_pointer_cast
+            <intr::unresolved_vague_type>(
+                param_value->get_type()
+        )->get_vague_type();
+        while (auto array_type = std::dynamic_pointer_cast
+            <intr::vague_array_data_type>(param_type)) {
+            param_type = array_type->get_element_type();
+            if (auto real_array_type = std::dynamic_pointer_cast
+                <intr::vague_array_data_type>(real_type)) {
+                real_type = real_array_type->get_element_type();
+            }
+        }
+    }
+}
+
 void cast_pass(intr::scope_ptr scope) {
     // TODO: Do something.
 }

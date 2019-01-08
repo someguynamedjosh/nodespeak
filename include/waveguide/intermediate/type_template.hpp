@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +22,9 @@ class vague_expression {
 public:
     virtual void print_repr(std::ostream &stream) const = 0;
     virtual void collect_new_vars(std::vector<std::string> &list) const = 0;
+    virtual bool is_constant() = 0;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value) = 0;
 };
 
 class vague_number_expression: public vague_expression {
@@ -30,6 +34,9 @@ public:
     vague_number_expression(int value);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
+    virtual bool is_constant();
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
     int get_value() const;
 };
 
@@ -40,6 +47,9 @@ public:
     vague_value_expression(std::string name);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
+    virtual bool is_constant();
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
     std::string get_name() const;
 };
 
@@ -50,6 +60,9 @@ public:
     vague_known_value_expression(value_ptr real_value);
     virtual void print_repr(std::ostream &stream) const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
+    virtual bool is_constant();
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
     value_ptr get_real_value() const;
 };
 
@@ -62,36 +75,47 @@ protected:
 public:
     std::vector<vague_expression_ptr> const&get_operands() const;
     virtual void collect_new_vars(std::vector<std::string> &list) const;
+    virtual bool is_constant();
 };
 
 class vague_negation_expression: public vague_operation_expression {
 public:
     vague_negation_expression(vague_expression_ptr input);
     virtual void print_repr(std::ostream &stream) const;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
 };
 
 class vague_add_expression: public vague_operation_expression {
 public:
     vague_add_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
 };
 
 class vague_subtract_expression: public vague_operation_expression {
 public:
     vague_subtract_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
 };
 
 class vague_multiply_expression: public vague_operation_expression {
 public:
     vague_multiply_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
 };
 
 class vague_divide_expression: public vague_operation_expression {
 public:
     vague_divide_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
+    virtual int do_algebra(std::map<std::string, std::vector<int>> &table,
+        int final_value);
 };
 
 
