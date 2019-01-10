@@ -30,7 +30,6 @@ access_result ast_converter::find_access_result(
     } else {
         auto set{std::make_shared<intr::command>(blt()->COPY)};
         set->add_input(int_literal(0));
-        set->add_input(int_literal(0));
         set->add_output(offset);
         add_command(set);
         declare_temp_var(offset);

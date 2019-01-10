@@ -39,7 +39,6 @@ void ast_converter::operator()(init_var_dec const&dec) const {
     auto copy{std::make_shared<intr::command>(blt()->COPY)};
     recurse(dec.value);
     copy->add_input(data->current_value);
-    copy->add_input(int_literal(0));
     copy->add_output(value);
     add_command(copy);
 }
@@ -48,7 +47,6 @@ void ast_converter::operator()(return_statement const&stat) const {
     auto copy{std::make_shared<intr::command>(blt()->COPY)};
     recurse(stat.value);
     copy->add_input(data->current_value);
-    copy->add_input(int_literal(0));
     copy->add_output(lookup_var("return"));
     add_command(copy);
 
