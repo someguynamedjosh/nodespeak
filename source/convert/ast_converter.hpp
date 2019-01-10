@@ -38,13 +38,13 @@ inline intr::value_ptr int_literal(const int value) {
 
 inline intr::value_ptr float_literal(const float value) {
     return std::make_shared<intr::value>(
-        blt()->INT, std::make_shared<float>(value)
+        blt()->FLOAT, std::make_shared<float>(value)
     );
 }
 
 inline intr::value_ptr bool_literal(const bool value) {
     return std::make_shared<intr::value>(
-        blt()->INT, std::make_shared<bool>(value)
+        blt()->BOOL, std::make_shared<bool>(value)
     );
 }
 

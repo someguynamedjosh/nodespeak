@@ -12,7 +12,6 @@ void ast_converter::operator()(int const&expr) const {
 
 void ast_converter::operator()(float const&expr) const {
     data->current_value = float_literal(expr);
-    std::cout << expr << " " << *data->current_value->data_as_float() << std::endl;
 }
 
 void ast_converter::operator()(bool const&expr) const {
