@@ -54,7 +54,7 @@ struct access_result {
 };
 
 struct ast_converter_data {
-    bool fpd_is_input;
+    bool fpd_is_input, is_lambda;
     intr::scope_ptr current_scope;
     intr::value_ptr current_value;
     intr::data_type_ptr current_type;

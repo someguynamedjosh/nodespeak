@@ -1,5 +1,7 @@
 #include "ast_converter.hpp"
 
+#include <iostream>
+
 namespace waveguide {
 namespace ast {
 
@@ -40,8 +42,10 @@ void ast_converter::operator()(function_parameter_dec const&dec) const {
 }
 
 void ast_converter::operator()(function_dec const&dec) const {
-    auto old_scope = data->current_scope;
-    data->current_scope = std::make_shared<intr::scope>(old_scope);
+    auto func_scope = std::make_shared<intr::scope>(data->current_scope);
+
+    push_data();
+    data->current_scope = func_scope;
     data->fpd_is_input = true;
     for (auto fpd : dec.inputs) {
         recurse(fpd);
@@ -51,13 +55,17 @@ void ast_converter::operator()(function_dec const&dec) const {
         recurse(fpd);
     }
     recurse(dec.body);
-    intr::command_lambda lambda;
-    lambda.name = dec.name;
-    lambda.body = data->current_scope;
-    old_scope->declare_temp_func(lambda.body);
+    pop_data();
 
-    old_scope->get_commands().back()->add_lambda(lambda);
-    data->current_scope = old_scope;
+    if (data->is_lambda) {
+        intr::command_lambda lambda;
+        lambda.name = dec.name;
+        lambda.body = func_scope;
+        data->current_scope->declare_temp_func(lambda.body);
+        data->current_scope->get_commands().back()->add_lambda(lambda);
+    } else {
+        data->current_scope->declare_func(dec.name, func_scope);
+    }
 }
 
 void ast_converter::operator()(data_type const&type) const {
