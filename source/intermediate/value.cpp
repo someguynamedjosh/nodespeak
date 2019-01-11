@@ -25,7 +25,7 @@ value::value(std::shared_ptr<const data_type> type)
 
 value::value(std::shared_ptr<const data_type> type, data_block_ptr data)
     : type{type}, data{data}, value_known{true} {
-    assert(!type->is_proxy_type());
+    value_known = !type->is_proxy_type();
 }
 
 value::value(std::shared_ptr<const data_type> type, value_ptr target)
