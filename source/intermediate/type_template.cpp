@@ -45,7 +45,7 @@ void vague_value_expression::collect_new_vars(std::vector<std::string> &list)
 }
 
 bool vague_value_expression::is_constant() const {
-    return true;
+    return false;
 }
 
 int vague_value_expression::do_algebra(possible_value_table &values,
