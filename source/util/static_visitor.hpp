@@ -27,8 +27,12 @@ private:
             = std::is_same<decltype(test<T>(0)),yes>::value;
     };
 
+    typedef std::shared_ptr<DataContainer> data_container_ptr;
+    typedef std::vector<data_container_ptr> stack;
+    mutable stack data_stack;
+
 protected:
-    std::shared_ptr<DataContainer> data;
+    mutable data_container_ptr data;
 
     virtual void on_start() const = 0;
 
@@ -37,6 +41,7 @@ protected:
     recurse(Visitable const&to_convert) const {
         ChildClass child{};
         child.data = data;
+        child.data_stack.push_back(child.data);
         boost::apply_visitor(child, to_convert);
     }
 
@@ -46,10 +51,21 @@ protected:
         (*static_cast<const ChildClass*>(this))(to_convert);
     }
 
+    void push_data() const {
+        data = std::make_shared<DataContainer>(*data);
+        data_stack.push_back(data);
+    }
+
+    void pop_data() const {
+        data_stack.pop_back();
+        data = data_stack.back();
+    }
+
 public:
     template<typename T>
     void start(T const&start_item) {
         data = std::make_shared<DataContainer>();
+        data_stack.push_back(data);
         on_start();
         recurse(start_item);
     }
