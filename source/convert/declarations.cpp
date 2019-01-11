@@ -98,7 +98,8 @@ void ast_converter::operator()(vague_data_type const&type) const {
             lookup_type(type.name)
         );
     }
-    for (auto size : type.array_sizes) { 
+    for (uint i = type.array_sizes.size(); i > 0; i--) { 
+        auto size = type.array_sizes[i - 1];
         recurse(size);
         data->current_vtype = std::make_shared<intr::vague_array_data_type>(
             data->current_vtype, data->current_vexpr
