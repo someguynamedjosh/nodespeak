@@ -7,7 +7,10 @@
 namespace waveguide {
 namespace intermediate {
 
-data_type_ptr biggest_type(data_type_ptr a, data_type_ptr b) {
+const_data_type_ptr biggest_type(const_data_type_ptr a, const_data_type_ptr b) {
+    // If one of them is set to be resolved later, return the other one.
+    if (a == blt()->DEDUCE_LATER) return b;
+    if (b == blt()->DEDUCE_LATER) return a;
     // If A has more array dimensions, it is bigger.
     if (a->get_array_depth() > b->get_array_depth()) {
         return a;
@@ -24,8 +27,8 @@ data_type_ptr biggest_type(data_type_ptr a, data_type_ptr b) {
         if (a->get_array_depth() > 0) {
             // If there is array depth, return whichever one has more
             // elements (in the highest-level array, not overall.)
-            auto a_array = std::dynamic_pointer_cast<array_data_type>(a),
-                b_array = std::dynamic_pointer_cast<array_data_type>(b);
+            auto a_array = std::dynamic_pointer_cast<const array_data_type>(a),
+                b_array = std::dynamic_pointer_cast<const array_data_type>(b);
             if (a_array->get_array_length() > b_array->get_array_length()) {
                 return a;
             } else {

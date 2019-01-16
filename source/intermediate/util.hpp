@@ -10,9 +10,9 @@ class scope;
 class data_type;
 
 typedef std::shared_ptr<builtins> builtins_ptr;
-typedef std::shared_ptr<data_type> data_type_ptr;
+typedef std::shared_ptr<const data_type> const_data_type_ptr;
 
-data_type_ptr biggest_type(data_type_ptr a, data_type_ptr b);
+const_data_type_ptr biggest_type(const_data_type_ptr a, const_data_type_ptr b);
 builtins_ptr blt();
 
 }
