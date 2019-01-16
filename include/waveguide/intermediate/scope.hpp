@@ -74,16 +74,22 @@ public:
     friend std::ostream &operator<<(std::ostream &stream, 
         command const&to_print);
 
+    std::vector<value_ptr> const&get_inputs() const;
     void add_input(value_ptr input);
     void clear_inputs();
+
+    std::vector<value_ptr> const&get_outputs() const;
     void add_output(value_ptr output);
     void clear_outputs();
-    void add_lambda(command_lambda &lambda);
-    std::vector<value_ptr> const&get_inputs() const;
-    std::vector<value_ptr> const&get_outputs() const;
+
     std::vector<command_lambda> const&get_lambdas() const;
+    void add_lambda(command_lambda &lambda);
+    void clear_lambdas();
+
     const augmentation_ptr get_augmentation() const;
+
     const scope_ptr get_called_scope() const;
+    void set_called_scope(scope_ptr callee);
 };
 std::ostream &operator<<(std::ostream &stream, command const&to_print);
 
@@ -106,12 +112,20 @@ public:
     void declare_func(std::string name, scope_ptr body);
     void declare_temp_func(scope_ptr body);
     const scope_ptr lookup_func(std::string name, bool recurse = true) const;
+    const std::map<std::string, scope_ptr> get_func_table() const;
+    const std::vector<scope_ptr> get_temp_func_list() const;
+
     void declare_var(std::string name, value_ptr value);
     void declare_temp_var(value_ptr value);
     const value_ptr lookup_var(std::string name, bool recurse = true) const;
+    const std::map<std::string, value_ptr> get_var_table() const;
+    const std::vector<value_ptr> get_temp_var_list() const;
+
     void declare_type(std::string name, data_type_ptr type);
     const data_type_ptr lookup_type(std::string name, bool recurse = true) 
         const;
+    const std::map<std::string, data_type_ptr> get_type_table() const;
+
     void add_command(command_ptr command);
     void clear_commands();
     const std::vector<command_ptr> &get_commands() const;

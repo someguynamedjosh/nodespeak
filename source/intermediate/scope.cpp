@@ -26,10 +26,10 @@ std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print) {
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command
 ////////////////////////////////////////////////////////////////////////////////
-command::command(std::shared_ptr<scope> call)
+command::command(scope_ptr call)
     : call{call} { }
 
-command::command(std::shared_ptr<scope> call, std::shared_ptr<augmentation> aug)
+command::command(scope_ptr call, augmentation_ptr aug)
     : call{call}, aug{aug} { }
 
 std::ostream &operator<<(std::ostream &stream, command const&to_print) {
@@ -61,7 +61,11 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
     return stream;
 }
 
-void command::add_input(std::shared_ptr<value> input) {
+std::vector<value_ptr> const&command::get_inputs() const {
+    return ins;
+}
+
+void command::add_input(value_ptr input) {
     ins.push_back(input);
 }
 
@@ -69,7 +73,11 @@ void command::clear_inputs() {
     ins.clear();
 }
 
-void command::add_output(std::shared_ptr<value> output) {
+std::vector<value_ptr> const&command::get_outputs() const {
+    return outs;
+}
+
+void command::add_output(value_ptr output) {
     outs.push_back(output);
 }
 
@@ -77,28 +85,24 @@ void command::clear_outputs() {
     outs.clear();
 }
 
-void command::add_lambda(command_lambda &lambda) {
-    lambdas.push_back(lambda);
-}
-
-std::vector<std::shared_ptr<value>> const&command::get_inputs() const {
-    return ins;
-}
-
-std::vector<std::shared_ptr<value>> const&command::get_outputs() const {
-    return outs;
-}
-
 std::vector<command_lambda> const&command::get_lambdas() const {
     return lambdas;
 }
 
-const std::shared_ptr<augmentation> command::get_augmentation() const {
+void command::add_lambda(command_lambda &lambda) {
+    lambdas.push_back(lambda);
+}
+
+const augmentation_ptr command::get_augmentation() const {
     return aug;
 }
 
-const std::shared_ptr<scope> command::get_called_scope() const {
+const scope_ptr command::get_called_scope() const {
     return call;
+}
+
+void command::set_called_scope(scope_ptr callee) {
+    call = callee;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -107,10 +111,10 @@ const std::shared_ptr<scope> command::get_called_scope() const {
 
 scope::scope() { }
 
-scope::scope(std::shared_ptr<scope> parent) 
+scope::scope(scope_ptr parent) 
     : parent(parent) { }
 
-const std::shared_ptr<scope> scope::get_parent() const {
+const scope_ptr scope::get_parent() const {
     return parent;
 }
 
@@ -176,15 +180,15 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     return stream;
 }
 
-void scope::declare_func(std::string name, std::shared_ptr<scope> body) {
+void scope::declare_func(std::string name, scope_ptr body) {
     funcs.emplace(name, body);
 }
 
-void scope::declare_temp_func(std::shared_ptr<scope> body) {
+void scope::declare_temp_func(scope_ptr body) {
     temp_funcs.push_back(body);
 }
 
-const std::shared_ptr<scope> scope::lookup_func(std::string name, bool recurse) 
+const scope_ptr scope::lookup_func(std::string name, bool recurse) 
     const {
     if (funcs.count(name)) {
         return funcs.at(name);
@@ -195,15 +199,23 @@ const std::shared_ptr<scope> scope::lookup_func(std::string name, bool recurse)
     }
 }
 
-void scope::declare_var(std::string name, std::shared_ptr<value> value) {
+const std::map<std::string, scope_ptr> scope::get_func_table() const {
+    return funcs;
+}
+
+const std::vector<scope_ptr> scope::get_temp_func_list() const {
+    return temp_funcs;
+}
+
+void scope::declare_var(std::string name, value_ptr value) {
     vars.emplace(name, value);
 }
 
-void scope::declare_temp_var(std::shared_ptr<value> value) {
+void scope::declare_temp_var(value_ptr value) {
     temp_vars.push_back(value);
 }
 
-const std::shared_ptr<value> scope::lookup_var(std::string name, bool recurse) 
+const value_ptr scope::lookup_var(std::string name, bool recurse) 
     const {
     if (vars.count(name)) {
         return vars.at(name);
@@ -214,11 +226,19 @@ const std::shared_ptr<value> scope::lookup_var(std::string name, bool recurse)
     }
 }
 
-void scope::declare_type(std::string name, std::shared_ptr<data_type> type) {
+const std::map<std::string, value_ptr> scope::get_var_table() const {
+    return vars;
+}
+
+const std::vector<value_ptr> scope::get_temp_var_list() const {
+    return temp_vars;
+}
+
+void scope::declare_type(std::string name, data_type_ptr type) {
     types.emplace(name, type);
 }
 
-const std::shared_ptr<data_type> scope::lookup_type(std::string name, 
+const data_type_ptr scope::lookup_type(std::string name, 
     bool recurse) const {
     if (types.count(name)) {
         return types.at(name);
@@ -229,11 +249,15 @@ const std::shared_ptr<data_type> scope::lookup_type(std::string name,
     }
 }
 
-void scope::add_command(std::shared_ptr<command> command) {
+const std::map<std::string, data_type_ptr> scope::get_type_table() const {
+    return types;
+}
+
+void scope::add_command(command_ptr command) {
     commands.push_back(command);
 }
 
-const std::vector<std::shared_ptr<command>> &scope::get_commands() const {
+const std::vector<command_ptr> &scope::get_commands() const {
     return commands;
 }
 
@@ -252,7 +276,7 @@ value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {
     return holder;
 }
 
-const std::vector<std::shared_ptr<value>> &scope::get_inputs() const {
+const std::vector<value_ptr> &scope::get_inputs() const {
     return ins;
 }
 
@@ -266,7 +290,7 @@ value_ptr scope::add_output(std::string name, vague_data_type_ptr type) {
     return holder;
 }
 
-const std::vector<std::shared_ptr<value>> &scope::get_outputs() const {
+const std::vector<value_ptr> &scope::get_outputs() const {
     return outs;
 }
 
