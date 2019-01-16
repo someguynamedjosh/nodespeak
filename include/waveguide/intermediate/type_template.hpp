@@ -18,7 +18,9 @@ typedef std::shared_ptr<vague_data_type> vague_const_data_type_ptr;
 typedef std::shared_ptr<vague_expression> vague_expression_ptr;
 typedef std::shared_ptr<value> value_ptr;
 typedef std::map<std::string, std::vector<const_data_type_ptr>> data_type_table;
+typedef std::map<std::string, const_data_type_ptr> resolved_data_type_table;
 typedef std::map<std::string, std::vector<int>> possible_value_table;
+typedef std::map<std::string, int> resolved_value_table;
 
 class vague_expression {
 public:

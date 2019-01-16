@@ -323,12 +323,17 @@ bool vague_array_data_type::fill_tables(possible_value_table &value_table,
     auto array_type = std::dynamic_pointer_cast<const array_data_type>(
         real_type
     );
-    if (!array_type) return false;
-    int asize = size->do_algebra(value_table, array_type->get_array_length());
-    if (asize != array_type->get_array_length()) return false;
-    base->fill_tables(value_table, type_table, std::static_pointer_cast
-        <const data_type>(array_type->get_element_type())
-    );
+    if (array_type) {
+        int asize = size->do_algebra(value_table, array_type->get_array_length());
+        if (asize != array_type->get_array_length()) return false;
+        base->fill_tables(value_table, type_table, std::static_pointer_cast
+            <const data_type>(array_type->get_element_type())
+        );
+    } else {
+        size->do_algebra(value_table, 1);
+        base->fill_tables(value_table, type_table, real_type);
+    }
+    return true;
 }
 
 vague_const_data_type_ptr vague_array_data_type::get_base_type() const {
