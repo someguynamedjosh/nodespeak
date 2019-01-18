@@ -95,6 +95,8 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print);
 
 class scope {
 private:
+    // TODO: Remove this value in production builds.
+    std::string debug_label;
     scope_ptr parent{nullptr};
     std::map<std::string, scope_ptr> funcs;
     std::vector<scope_ptr> temp_funcs;
@@ -106,6 +108,8 @@ private:
 public:
     scope();
     scope(scope_ptr parent);
+    void set_debug_label(std::string debug_label);
+    const std::string get_debug_label() const;
     const scope_ptr get_parent() const;
     friend std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 

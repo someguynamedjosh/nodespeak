@@ -7,6 +7,7 @@ namespace ast {
 
 void ast_converter::on_start() const {
     data->current_scope = std::make_shared<intr::scope>();
+    data->current_scope->set_debug_label("!ROOT");
     blt()->add_to_scope(data->current_scope);
 }
 
