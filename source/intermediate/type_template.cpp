@@ -28,6 +28,11 @@ int vague_number_expression::do_algebra(possible_value_table &values,
     return value;
 }
 
+int vague_number_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    return value;
+}
+
 int vague_number_expression::get_value() const {
     return value;
 }
@@ -54,6 +59,11 @@ int vague_value_expression::do_algebra(possible_value_table &values,
     return final_value;
 }
 
+int vague_value_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    return value_table.find(name)->second;
+}
+
 std::string vague_value_expression::get_name() const {
     return name;
 }
@@ -75,6 +85,12 @@ bool vague_known_value_expression::is_constant() const {
 
 int vague_known_value_expression::do_algebra(possible_value_table &values,
     int final_value) const {
+    assert(real_value->is_value_known());
+    return *real_value->data_as_int();
+}
+
+int vague_known_value_expression::resolve_value(
+    resolved_value_table const&value_table) const {
     assert(real_value->is_value_known());
     return *real_value->data_as_int();
 }
@@ -126,6 +142,11 @@ int vague_negation_expression::do_algebra(possible_value_table &table,
     return final_value;
 }
 
+int vague_negation_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    return get_operands()[0]->resolve_value(value_table);
+}
+
 vague_add_expression::vague_add_expression(vague_expression_ptr a, 
     vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
@@ -154,6 +175,13 @@ int vague_add_expression::do_algebra(possible_value_table &table,
     return final_value;
 }
 
+int vague_add_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    int a = get_operands()[0]->resolve_value(value_table);
+    int b = get_operands()[1]->resolve_value(value_table);
+    return a + b;
+}
+
 vague_subtract_expression::vague_subtract_expression(vague_expression_ptr a, 
     vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
@@ -180,6 +208,13 @@ int vague_subtract_expression::do_algebra(possible_value_table &table,
         return 0;
     }
     return final_value;
+}
+
+int vague_subtract_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    int a = get_operands()[0]->resolve_value(value_table);
+    int b = get_operands()[1]->resolve_value(value_table);
+    return a - b;
 }
 
 vague_multiply_expression::vague_multiply_expression(vague_expression_ptr a,
@@ -216,6 +251,13 @@ int vague_multiply_expression::do_algebra(possible_value_table &table,
     return final_value;
 }
 
+int vague_multiply_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    int a = get_operands()[0]->resolve_value(value_table);
+    int b = get_operands()[1]->resolve_value(value_table);
+    return a * b;
+}
+
 vague_divide_expression::vague_divide_expression(vague_expression_ptr a, 
     vague_expression_ptr b)
     : vague_operation_expression{a, b} { }
@@ -247,6 +289,13 @@ int vague_divide_expression::do_algebra(possible_value_table &table,
     return final_value;
 }
 
+int vague_divide_expression::resolve_value(
+    resolved_value_table const&value_table) const {
+    int a = get_operands()[0]->resolve_value(value_table);
+    int b = get_operands()[1]->resolve_value(value_table);
+    return a / b;
+}
+
 
 
 vague_basic_data_type::vague_basic_data_type(std::string name)
@@ -270,6 +319,12 @@ bool vague_basic_data_type::fill_tables(possible_value_table &value_table,
     return true;
 }
 
+const_data_type_ptr vague_basic_data_type::resolve_type(resolved_value_table 
+    const&value_table, resolved_data_type_table const&type_table)
+    const {
+    return type_table.find(name)->second;
+}
+
 std::string vague_basic_data_type::get_name() const {
     return name;
 }
@@ -291,6 +346,12 @@ bool vague_known_data_type::fill_tables(possible_value_table &value_table,
     data_type_table &type_table, const_data_type_ptr real_type) const {
     // TODO: Check for equality between real_type and this->real_type.
     return true;
+}
+
+const_data_type_ptr vague_known_data_type::resolve_type(resolved_value_table 
+    const&value_table, resolved_data_type_table const&type_table)
+    const {
+    return real_type;
 }
 
 const_data_type_ptr vague_known_data_type::get_real_type() const {
@@ -334,6 +395,14 @@ bool vague_array_data_type::fill_tables(possible_value_table &value_table,
         base->fill_tables(value_table, type_table, real_type);
     }
     return true;
+}
+
+const_data_type_ptr vague_array_data_type::resolve_type(resolved_value_table 
+    const&value_table, resolved_data_type_table const&type_table)
+    const {
+    auto sub_type = base->resolve_type(value_table, type_table);
+    auto real_size = size->resolve_value(value_table);
+    return std::make_shared<intr::array_data_type>(sub_type, real_size);
 }
 
 vague_const_data_type_ptr vague_array_data_type::get_base_type() const {

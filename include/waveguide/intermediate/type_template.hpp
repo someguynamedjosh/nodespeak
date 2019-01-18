@@ -29,6 +29,7 @@ public:
     virtual bool is_constant() const = 0;
     virtual int do_algebra(possible_value_table &table, int final_value) const 
         = 0;
+    virtual int resolve_value(resolved_value_table const&value_table) const = 0;
 };
 
 class vague_number_expression: public vague_expression {
@@ -40,6 +41,7 @@ public:
     virtual void collect_new_vars(std::vector<std::string> &list) const;
     virtual bool is_constant() const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
     int get_value() const;
 };
 
@@ -52,6 +54,7 @@ public:
     virtual void collect_new_vars(std::vector<std::string> &list) const;
     virtual bool is_constant() const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
     std::string get_name() const;
 };
 
@@ -64,6 +67,7 @@ public:
     virtual void collect_new_vars(std::vector<std::string> &list) const;
     virtual bool is_constant() const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
     value_ptr get_real_value() const;
 };
 
@@ -84,6 +88,7 @@ public:
     vague_negation_expression(vague_expression_ptr input);
     virtual void print_repr(std::ostream &stream) const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
 };
 
 class vague_add_expression: public vague_operation_expression {
@@ -91,6 +96,7 @@ public:
     vague_add_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
 };
 
 class vague_subtract_expression: public vague_operation_expression {
@@ -98,6 +104,7 @@ public:
     vague_subtract_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
 };
 
 class vague_multiply_expression: public vague_operation_expression {
@@ -105,6 +112,7 @@ public:
     vague_multiply_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
 };
 
 class vague_divide_expression: public vague_operation_expression {
@@ -112,6 +120,7 @@ public:
     vague_divide_expression(vague_expression_ptr a, vague_expression_ptr b);
     virtual void print_repr(std::ostream &stream) const;
     virtual int do_algebra(possible_value_table &table, int final_value) const;
+    virtual int resolve_value(resolved_value_table const&value_table) const;
 };
 
 
@@ -123,6 +132,8 @@ public:
     virtual void collect_new_types(std::vector<std::string> &list) const = 0;
     virtual bool fill_tables(possible_value_table &value_table, 
         data_type_table &type_table, const_data_type_ptr real_type) const = 0;
+    virtual const_data_type_ptr resolve_type(resolved_value_table 
+        const&value_table, resolved_data_type_table const&type_table) const = 0;
 };
 
 class vague_basic_data_type: public vague_data_type {
@@ -135,6 +146,8 @@ public:
     virtual void collect_new_types(std::vector<std::string> &list) const;
     virtual bool fill_tables(possible_value_table &value_table, 
         data_type_table &type_table, const_data_type_ptr real_type) const;
+    virtual const_data_type_ptr resolve_type(resolved_value_table 
+        const&value_table, resolved_data_type_table const&type_table) const;
     std::string get_name() const;
 };
 
@@ -148,6 +161,8 @@ public:
     virtual void collect_new_types(std::vector<std::string> &list) const;
     virtual bool fill_tables(possible_value_table &value_table, 
         data_type_table &type_table, const_data_type_ptr real_type) const;
+    virtual const_data_type_ptr resolve_type(resolved_value_table 
+        const&value_table, resolved_data_type_table const&type_table) const;
     const_data_type_ptr get_real_type() const;
 };
 
@@ -163,6 +178,8 @@ public:
     virtual void collect_new_types(std::vector<std::string> &list) const;
     virtual bool fill_tables(possible_value_table &value_table, 
         data_type_table &type_table, const_data_type_ptr real_type) const;
+    virtual const_data_type_ptr resolve_type(resolved_value_table 
+        const&value_table, resolved_data_type_table const&type_table) const;
     vague_const_data_type_ptr get_base_type() const;
     vague_expression_ptr get_size() const;
 };
