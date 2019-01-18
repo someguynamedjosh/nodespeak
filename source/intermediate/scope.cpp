@@ -33,7 +33,7 @@ command::command(scope_ptr call, augmentation_ptr aug)
     : call{call}, aug{aug} { }
 
 std::ostream &operator<<(std::ostream &stream, command const&to_print) {
-    stream << "    " << to_print.call->get_debug_label() << std::endl;
+    stream << "    " << to_print.call->get_debug_path() << std::endl;
     for (auto value : to_print.ins) {
         stream << "      Input: " << value << " (type ";
         value->get_type()->print_repr(stream);
@@ -123,6 +123,10 @@ const std::string scope::get_debug_label() const {
     return debug_label;
 }
 
+const std::string scope::get_debug_path() const {
+    return (parent ? parent->get_debug_path() + "." : "") + debug_label;
+}
+
 const scope_ptr scope::get_parent() const {
     return parent;
 }
@@ -143,7 +147,7 @@ void print_value(std::ostream &stream, value const&to_print) {
 }
 
 std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
-    stream << to_print.get_debug_label() << " is Scope:" << std::endl;
+    stream << to_print.get_debug_path() << " is Scope:" << std::endl;
     stream << "  Parent: " << to_print.parent.get() << std::endl;
     stream << "  Inputs:" << std::endl;
     for (auto in : to_print.ins) {
@@ -159,11 +163,11 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     }
     stream << "  Function Declarations:" << std::endl;
     for (unsigned int i = 0; i < to_print.temp_funcs.size(); i++) {
-        stream << "    " << to_print.temp_funcs[i]->get_debug_label() 
+        stream << "    " << to_print.temp_funcs[i]->get_debug_path() 
             << " is !TEMP" << (i + 1) << std::endl;
     }
     for (auto func : to_print.funcs) {
-        stream << "    " << func.second->get_debug_label() << " is " 
+        stream << "    " << func.second->get_debug_path() << " is " 
             << func.first << std::endl;
     }
     stream << "  Variable Declarations:" << std::endl;
@@ -192,13 +196,12 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
 
 void scope::declare_func(std::string name, scope_ptr body) {
     funcs.emplace(name, body);
-    body->set_debug_label(debug_label + "." + name);
+    body->set_debug_label(name);
 }
 
 void scope::declare_temp_func(scope_ptr body) {
     temp_funcs.push_back(body);
-    std::string name = "!TEMP" + std::to_string(temp_funcs.size());
-    body->set_debug_label(debug_label + "." + name);
+    body->set_debug_label("!TEMP" + std::to_string(temp_funcs.size()));
 }
 
 const scope_ptr scope::lookup_func(std::string name, bool recurse) 

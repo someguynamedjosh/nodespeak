@@ -110,6 +110,7 @@ public:
     scope(scope_ptr parent);
     void set_debug_label(std::string debug_label);
     const std::string get_debug_label() const;
+    const std::string get_debug_path() const;
     const scope_ptr get_parent() const;
     friend std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 
