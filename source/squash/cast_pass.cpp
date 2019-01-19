@@ -2,6 +2,8 @@
 
 #include <waveguide/intermediate/builtins.hpp>
 #include <waveguide/intermediate/metastructure.hpp>
+#include <iostream>
+#include <sstream>
 
 #include "intermediate/util.hpp"
 
@@ -164,36 +166,162 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
 }
 
 void cast_command(intr::scope_ptr context, intr::command_ptr command) {
-    const std::vector<intr::value_ptr> &ins = command->get_inputs(), 
-        &outs = command->get_outputs();
-    const std::vector<intr::command_lambda> &lambdas = command->get_lambdas();
+    auto &ins = command->get_inputs(), &outs = command->get_outputs();
+    auto &lambdas = command->get_lambdas();
+    auto callee = command->get_called_scope();
 
-    std::map<std::string, std::vector<intr::data_type_ptr>> type_map;
-    std::map<std::string, std::vector<double>> value_map;
+    intr::possible_value_table value_table;
+    intr::data_type_table type_table;
 
-    auto algebra = [&](auto )
+    // auto algebra = [&](auto )
 
     auto unravel = [&](auto real_value, auto param_value) {
-        auto real_type = std::dynamic_pointer_cast<intr::unresolved_vague_type>(
-            real_value->get_type();
+        auto param_type = std::dynamic_pointer_cast<
+            const intr::unresolved_vague_type
+        >(
+            param_value->get_type()
         )->get_vague_type();
-        auto param_type = std::dynamic_pointer_cast
-            <intr::unresolved_vague_type>(
-                param_value->get_type()
-        )->get_vague_type();
-        while (auto array_type = std::dynamic_pointer_cast
-            <intr::vague_array_data_type>(param_type)) {
-            param_type = array_type->get_element_type();
-            if (auto real_array_type = std::dynamic_pointer_cast
-                <intr::vague_array_data_type>(real_type)) {
-                real_type = real_array_type->get_element_type();
-            }
-        }
+        auto real_type = real_value->get_type();
+        param_type->fill_tables(value_table, type_table, real_type);
+    };
+
+    for (int i = 0; i < ins.size(); i++) {
+        unravel(ins[i], callee->get_inputs()[i]);
     }
+
+    for (int i = 0; i < outs.size(); i++) {
+        unravel(outs[i], callee->get_outputs()[i]);
+    }
+
+    intr::resolved_value_table resolved_value_table;
+    intr::resolved_data_type_table resolved_type_table;
+
+    for (auto const&[key, list] : value_table) {
+        auto biggest = list[0];
+        for (auto value : list) {
+            if (value > biggest) biggest = value;
+        }
+        resolved_value_table[key] = biggest;
+    }
+
+    for (auto const&[key, list] : type_table) {
+        auto biggest = list[0];
+        for (auto value : list) {
+            biggest = intr::biggest_type(biggest, value);
+        }
+        resolved_type_table[key] = biggest;
+    }
+
+    for (auto const&[key, list] : type_table) {
+        std::cout << "Vague type " << key << " = [";
+        bool first = true;
+        for (auto const&type : list) {
+            if (first)
+                first = false;
+            else
+                std::cout << ", ";
+            type->print_repr(std::cout);
+        }
+        std::cout << "] = ";
+        resolved_type_table[key]->print_repr(std::cout);
+        std::cout << std::endl;
+    }
+
+    for (auto const&[key, list] : value_table) {
+        std::cout << "Vague value " << key << " = [";
+        bool first = true;
+        for (auto const&value: list) {
+            if (first)
+                first = false;
+            else
+                std::cout << ", ";
+            std::cout << value;
+        }
+        std::cout << "] = " << resolved_value_table[key] << std::endl;
+    }
+
+    auto new_callee = std::make_shared<intr::scope>(callee->get_parent());
+
+    for (auto const&[key, value] : callee->get_func_table()) {
+        new_callee->declare_func(key, value);
+    }
+    for (auto const&value : callee->get_temp_func_list()) {
+        new_callee->declare_temp_func(value);
+    }
+
+    auto make_var = [&](intr::value_ptr old_value) -> intr::value_ptr {
+        intr::value_ptr new_var;
+        auto type = old_value->get_type();
+        auto real_type = std::dynamic_pointer_cast<
+            const intr::unresolved_vague_type
+        >(type);
+        if (real_type) {
+            auto vtype = real_type->get_vague_type();
+            type = vtype->resolve_type(resolved_value_table, 
+                resolved_type_table);
+        }
+        if (old_value->is_proxy() || old_value->is_value_known()) {
+            new_var = std::make_shared<intr::value>(
+                type, old_value->get_data()
+            );
+        } else {
+            new_var = std::make_shared<intr::value>(type);
+        }
+        return new_var;
+    };
+
+    for (auto const&[key, value] : callee->get_var_table()) {
+        new_callee->declare_var(key, make_var(value));
+    }
+    for (auto const&value : callee->get_temp_var_list()) {
+        new_callee->declare_temp_var(make_var(value));
+    }
+    for (auto input : callee->get_inputs()) {
+        new_callee->add_resolved_input(make_var(input));
+    }
+    for (auto output : callee->get_outputs()) {
+        new_callee->add_resolved_output(make_var(output));
+    }
+
+    // TODO: Disable this for production builds.
+    std::stringstream new_name_stream;
+    new_name_stream << callee->get_debug_label();
+    new_name_stream << "(";
+    bool first = true;
+    for (auto const&value : new_callee->get_inputs()) {
+        if (first) {
+            first = false;
+        } else {
+            new_name_stream << ", ";
+        }
+        value->get_type()->print_repr(new_name_stream);
+    }
+    new_name_stream << "):(";
+    first = true;
+    for (auto const&value : new_callee->get_outputs()) {
+        if (first) {
+            first = false;
+        } else {
+            new_name_stream << ", ";
+        }
+        value->get_type()->print_repr(new_name_stream);
+    }
+    new_name_stream << ")";
+    // So its contents get printed when debugging.
+    context->declare_temp_func(new_callee); 
+    new_callee->set_debug_label(new_name_stream.str());
+    // FITODO
+
+    command->set_called_scope(new_callee);
+
+    std::cout << *command << std::endl;
 }
 
 void cast_pass(intr::scope_ptr scope) {
     // TODO: Do something.
+    for (auto command : scope->get_commands()) {
+        cast_command(scope, command);
+    }
 }
 
 }
