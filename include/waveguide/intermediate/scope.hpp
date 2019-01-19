@@ -10,15 +10,20 @@
 namespace waveguide {
 namespace intermediate {
 
+class abstract_command;
 class command;
+class resolved_command;
 class data_type;
 class scope;
+class resolved_scope;
 class vague_data_type;
 class value;
 
 typedef std::shared_ptr<command> command_ptr;
+typedef std::shared_ptr<resolved_command> resolved_command_ptr;
 typedef std::shared_ptr<data_type> data_type_ptr;
 typedef std::shared_ptr<scope> scope_ptr;
+typedef std::shared_ptr<resolved_scope> resolved_scope_ptr;
 typedef std::shared_ptr<vague_data_type> vague_data_type_ptr;
 typedef std::shared_ptr<value> value_ptr;
 
@@ -60,17 +65,16 @@ struct command_lambda {
     scope_ptr body;
 };
 
-class command {
+class abstract_command {
 private:
-    scope_ptr call{nullptr};
     std::vector<value_ptr> ins, outs;
     std::vector<command_lambda> lambdas;
     augmentation_ptr aug{nullptr};
 public:
-    command(scope_ptr call);
-    command(scope_ptr call, augmentation_ptr aug);
+    abstract_command() { }
+    abstract_command(augmentation_ptr aug): aug(aug) { }
     friend std::ostream &operator<<(std::ostream &stream, 
-        command const&to_print);
+        abstract_command const&to_print);
 
     std::vector<value_ptr> const&get_inputs() const;
     void add_input(value_ptr input);
@@ -85,11 +89,38 @@ public:
     void clear_lambdas();
 
     const augmentation_ptr get_augmentation() const;
+};
+std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print);
 
-    const scope_ptr get_called_scope() const;
-    void set_called_scope(scope_ptr callee);
+class command: public abstract_command {
+private:
+    scope_ptr callee{nullptr};
+public:
+    command();
+    command(scope_ptr callee);
+    command(scope_ptr callee, augmentation_ptr aug);
+    friend std::ostream &operator<<(std::ostream &stream, 
+        command const&to_print);
+
+    const scope_ptr get_callee() const;
+    void set_callee(scope_ptr callee);
 };
 std::ostream &operator<<(std::ostream &stream, command const&to_print);
+
+class resolved_command: public abstract_command {
+private:
+    resolved_scope_ptr callee{nullptr};
+public:
+    resolved_command();
+    resolved_command(resolved_scope_ptr callee);
+    resolved_command(resolved_scope_ptr callee, augmentation_ptr aug);
+    friend std::ostream &operator<<(std::ostream &stream, 
+        resolved_command const&to_print);
+
+    const resolved_scope_ptr get_callee() const;
+    void set_callee(resolved_scope_ptr callee);
+};
+std::ostream &operator<<(std::ostream &stream, resolved_command const&to_print);
 
 class scope {
 private:
@@ -141,6 +172,32 @@ public:
     const std::vector<value_ptr> &get_outputs() const;
 };
 std::ostream &operator<<(std::ostream &stream, scope const&to_print);
+
+class resolved_scope {
+private:
+    // TODO: Remove these two value in production builds.
+    std::string debug_label;
+    scope_ptr parent{nullptr};
+    std::vector<command_ptr> commands;
+    std::vector<value_ptr> ins, outs;
+public:
+    resolved_scope();
+    void set_debug_label(std::string debug_label);
+    const std::string get_debug_label() const;
+    const std::string get_debug_path() const;
+    friend std::ostream &operator<<(std::ostream &stream, 
+        resolved_scope const&to_print);
+
+    void add_command(command_ptr command);
+    void clear_commands();
+    const std::vector<command_ptr> &get_commands() const;
+
+    void add_resolved_input(value_ptr input);
+    const std::vector<value_ptr> &get_inputs() const;
+    void add_resolved_output(value_ptr output);
+    const std::vector<value_ptr> &get_outputs() const;
+};
+std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print);
 
 }
 }

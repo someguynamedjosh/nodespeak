@@ -26,14 +26,64 @@ std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print) {
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command
 ////////////////////////////////////////////////////////////////////////////////
-command::command(scope_ptr call)
-    : call{call} { }
+abstract_command::abstract_command() { }
 
-command::command(scope_ptr call, augmentation_ptr aug)
-    : call{call}, aug{aug} { }
+abstract_command::abstract_command(augmentation_ptr aug):
+    aug{aug} { }
 
-std::ostream &operator<<(std::ostream &stream, command const&to_print) {
-    stream << "    " << to_print.call->get_debug_path() << std::endl;
+std::vector<value_ptr> const&abstract_command::get_inputs() const {
+    return ins;
+}
+
+void abstract_command::add_input(value_ptr input) {
+    ins.push_back(input);
+}
+
+void abstract_command::clear_inputs() {
+    ins.clear();
+}
+
+std::vector<value_ptr> const&abstract_command::get_outputs() const {
+    return outs;
+}
+
+void abstract_command::add_output(value_ptr output) {
+    outs.push_back(output);
+}
+
+void abstract_command::clear_outputs() {
+    outs.clear();
+}
+
+std::vector<command_lambda> const&abstract_command::get_lambdas() const {
+    return lambdas;
+}
+
+void abstract_command::add_lambda(command_lambda &lambda) {
+    lambdas.push_back(lambda);
+}
+
+const augmentation_ptr abstract_command::get_augmentation() const {
+    return aug;
+}
+
+const scope_ptr command::get_callee() const {
+    return callee;
+}
+
+void command::set_callee(scope_ptr callee) {
+    callee = callee;
+}
+
+const resolved_scope_ptr resolved_command::get_callee() const {
+    return callee;
+}
+
+void resolved_command::set_callee(resolved_scope_ptr callee) {
+    callee = callee;
+}
+
+std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) {
     for (auto value : to_print.ins) {
         stream << "      Input: " << value << " (type ";
         value->get_type()->print_repr(stream);
@@ -60,50 +110,7 @@ std::ostream &operator<<(std::ostream &stream, command const&to_print) {
     }
     return stream;
 }
-
-std::vector<value_ptr> const&command::get_inputs() const {
-    return ins;
-}
-
-void command::add_input(value_ptr input) {
-    ins.push_back(input);
-}
-
-void command::clear_inputs() {
-    ins.clear();
-}
-
-std::vector<value_ptr> const&command::get_outputs() const {
-    return outs;
-}
-
-void command::add_output(value_ptr output) {
-    outs.push_back(output);
-}
-
-void command::clear_outputs() {
-    outs.clear();
-}
-
-std::vector<command_lambda> const&command::get_lambdas() const {
-    return lambdas;
-}
-
-void command::add_lambda(command_lambda &lambda) {
-    lambdas.push_back(lambda);
-}
-
-const augmentation_ptr command::get_augmentation() const {
-    return aug;
-}
-
-const scope_ptr command::get_called_scope() const {
-    return call;
-}
-
-void command::set_called_scope(scope_ptr callee) {
-    call = callee;
-}
+    stream << "    " << to_print.callee->get_debug_path() << std::endl;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::scope
