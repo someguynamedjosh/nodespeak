@@ -136,8 +136,10 @@ public:
     const std::vector<command_ptr> &get_commands() const;
 
     value_ptr add_input(std::string name, vague_data_type_ptr type);
+    void add_resolved_input(value_ptr input);
     const std::vector<value_ptr> &get_inputs() const;
     value_ptr add_output(std::string name, vague_data_type_ptr type);
+    void add_resolved_output(value_ptr output);
     const std::vector<value_ptr> &get_outputs() const;
 };
 std::ostream &operator<<(std::ostream &stream, scope const&to_print);

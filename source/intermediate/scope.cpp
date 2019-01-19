@@ -292,6 +292,10 @@ value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {
     return holder;
 }
 
+void scope::add_resolved_input(value_ptr input) {
+    ins.push_back(input);
+}
+
 const std::vector<value_ptr> &scope::get_inputs() const {
     return ins;
 }
@@ -304,6 +308,10 @@ value_ptr scope::add_output(std::string name, vague_data_type_ptr type) {
     // scope to use.
     declare_var(name, holder);
     return holder;
+}
+
+void scope::add_resolved_output(value_ptr output) {
+    outs.push_back(output);
 }
 
 const std::vector<value_ptr> &scope::get_outputs() const {
