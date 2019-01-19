@@ -10,14 +10,12 @@
 namespace waveguide {
 namespace intermediate {
 
-class augmentation;
 class command;
 class data_type;
 class scope;
 class vague_data_type;
 class value;
 
-typedef std::shared_ptr<augmentation> augmentation_ptr;
 typedef std::shared_ptr<command> command_ptr;
 typedef std::shared_ptr<data_type> data_type_ptr;
 typedef std::shared_ptr<scope> scope_ptr;
@@ -53,9 +51,9 @@ std::ostream &operator<<(std::ostream &stream, do_if_not_aug const&to_print);
 std::ostream &operator<<(std::ostream &stream, loop_for_aug const&to_print);
 std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print);
 
-struct augmentation: boost::variant<
-    do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug
-> { };
+typedef boost::variant<do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug>
+    augmentation;
+typedef std::shared_ptr<augmentation> augmentation_ptr;
 
 struct command_lambda {
     std::string name;
