@@ -168,7 +168,7 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
 void cast_command(intr::scope_ptr context, intr::command_ptr command) {
     auto &ins = command->get_inputs(), &outs = command->get_outputs();
     auto &lambdas = command->get_lambdas();
-    auto callee = command->get_called_scope();
+    auto callee = command->get_callee();
 
     intr::possible_value_table value_table;
     intr::data_type_table type_table;
@@ -312,7 +312,7 @@ void cast_command(intr::scope_ptr context, intr::command_ptr command) {
     new_callee->set_debug_label(new_name_stream.str());
     // FITODO
 
-    command->set_called_scope(new_callee);
+    command->set_callee(new_callee);
 
     std::cout << *command << std::endl;
 }

@@ -71,8 +71,8 @@ private:
     std::vector<command_lambda> lambdas;
     augmentation_ptr aug{nullptr};
 public:
-    abstract_command() { }
-    abstract_command(augmentation_ptr aug): aug(aug) { }
+    abstract_command();
+    abstract_command(augmentation_ptr aug);
     friend std::ostream &operator<<(std::ostream &stream, 
         abstract_command const&to_print);
 
@@ -177,25 +177,26 @@ class resolved_scope {
 private:
     // TODO: Remove these two value in production builds.
     std::string debug_label;
-    scope_ptr parent{nullptr};
-    std::vector<command_ptr> commands;
+    resolved_scope_ptr parent{nullptr};
+    std::vector<resolved_command_ptr> commands;
     std::vector<value_ptr> ins, outs;
 public:
     resolved_scope();
+    resolved_scope(resolved_scope_ptr parent);
     void set_debug_label(std::string debug_label);
     const std::string get_debug_label() const;
     const std::string get_debug_path() const;
     friend std::ostream &operator<<(std::ostream &stream, 
         resolved_scope const&to_print);
 
-    void add_command(command_ptr command);
+    void add_command(resolved_command_ptr command);
     void clear_commands();
-    const std::vector<command_ptr> &get_commands() const;
+    std::vector<resolved_command_ptr> const&get_commands() const;
 
     void add_resolved_input(value_ptr input);
-    const std::vector<value_ptr> &get_inputs() const;
+    std::vector<value_ptr> const&get_inputs() const;
     void add_resolved_output(value_ptr output);
-    const std::vector<value_ptr> &get_outputs() const;
+    std::vector<value_ptr> const&get_outputs() const;
 };
 std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print);
 

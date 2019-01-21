@@ -67,6 +67,14 @@ const augmentation_ptr abstract_command::get_augmentation() const {
     return aug;
 }
 
+command::command() { }
+
+command::command(scope_ptr callee)
+    : callee(callee) { }
+
+command::command(scope_ptr callee, augmentation_ptr aug)
+    : abstract_command(aug), callee(callee) { }
+
 const scope_ptr command::get_callee() const {
     return callee;
 }
@@ -74,6 +82,15 @@ const scope_ptr command::get_callee() const {
 void command::set_callee(scope_ptr callee) {
     callee = callee;
 }
+
+resolved_command::resolved_command() { }
+
+resolved_command::resolved_command(resolved_scope_ptr callee)
+    : callee(callee) { }
+
+resolved_command::resolved_command(resolved_scope_ptr callee, 
+    augmentation_ptr aug)
+    : abstract_command(aug), callee(callee) { }
 
 const resolved_scope_ptr resolved_command::get_callee() const {
     return callee;
@@ -110,7 +127,19 @@ std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) 
     }
     return stream;
 }
+
+std::ostream &operator<<(std::ostream &stream, command const&to_print) {
     stream << "    " << to_print.callee->get_debug_path() << std::endl;
+    stream << static_cast<abstract_command const&>(to_print);
+    return stream;
+}
+
+std::ostream &operator<<(std::ostream &stream,  
+    resolved_command const&to_print) {
+    stream << "    " << to_print.callee->get_debug_path() << std::endl;
+    stream << static_cast<abstract_command const&>(to_print);
+    return stream;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Com::scope
@@ -323,6 +352,75 @@ void scope::add_resolved_output(value_ptr output) {
 
 const std::vector<value_ptr> &scope::get_outputs() const {
     return outs;
+}
+
+
+
+resolved_scope::resolved_scope() { }
+
+resolved_scope::resolved_scope(resolved_scope_ptr parent)
+    : parent(parent) { }
+
+void resolved_scope::set_debug_label(std::string debug_label) {
+    this->debug_label = debug_label;
+}
+
+const std::string resolved_scope::get_debug_label() const {
+    return debug_label;
+}
+
+const std::string resolved_scope::get_debug_path() const {
+    if (parent) {
+        return parent->get_debug_path() + "." + debug_label;
+    } else {
+        return debug_label;
+    }
+}
+
+void resolved_scope::add_command(resolved_command_ptr command) {
+    commands.push_back(command);
+}
+
+void resolved_scope::clear_commands() {
+    commands.clear();
+}
+
+std::vector<resolved_command_ptr> const&resolved_scope::get_commands() const {
+    return commands;
+}
+
+void resolved_scope::add_resolved_input(value_ptr input) {
+    ins.push_back(input);
+}
+
+std::vector<value_ptr> const&resolved_scope::get_inputs() const {
+    return ins;
+}
+
+void resolved_scope::add_resolved_output(value_ptr output) {
+    outs.push_back(output);
+}
+
+std::vector<value_ptr> const&resolved_scope::get_outputs() const {
+    return outs;
+}
+
+std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print) {
+    stream << to_print.get_debug_path() << " is Resolved Scope:" << std::endl;
+    stream << "  Parent: " << to_print.parent.get() << std::endl;
+    stream << "  Inputs:" << std::endl;
+    for (auto in : to_print.ins) {
+        print_value(stream, *in);
+    }
+    stream << "  Outputs:" << std::endl;
+    for (auto out : to_print.outs) {
+        print_value(stream, *out);
+    }
+    stream << "  Commands:" << std::endl;
+    for (auto command : to_print.commands) {
+        stream << *command;
+    }
+    return stream;
 }
 
 }
