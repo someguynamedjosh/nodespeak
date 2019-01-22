@@ -165,7 +165,8 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
     }
 }
 
-void cast_command(intr::scope_ptr context, intr::command_ptr command) {
+void cast_command(intr::scope_ptr context, intr::resolved_scope_ptr output,
+    intr::command_ptr command) {
     auto &ins = command->get_inputs(), &outs = command->get_outputs();
     auto &lambdas = command->get_lambdas();
     auto callee = command->get_callee();
@@ -317,11 +318,12 @@ void cast_command(intr::scope_ptr context, intr::command_ptr command) {
     std::cout << *command << std::endl;
 }
 
-void cast_pass(intr::scope_ptr scope) {
-    // TODO: Do something.
+intr::resolved_scope_ptr cast_pass(intr::scope_ptr scope) {
+    auto resolved_scope{std::make_shared<intr::resolved_scope>()};
     for (auto command : scope->get_commands()) {
-        cast_command(scope, command);
+        cast_command(scope, resolved_scope, command);
     }
+    return resolved_scope;
 }
 
 }

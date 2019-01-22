@@ -6,8 +6,9 @@ namespace waveguide {
 namespace squash {
 
 squash_result squash(intr::scope_ptr scope) {
-    cast_pass(scope);
-    return squash_result{};
+    squash_result result{};
+    result.squashed = cast_pass(scope);
+    return result;
 }
 
 }

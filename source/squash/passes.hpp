@@ -8,7 +8,7 @@
 namespace waveguide {
 namespace squash {
 
-void cast_pass(intr::scope_ptr scope);
+intr::resolved_scope_ptr cast_pass(intr::scope_ptr scope);
 
 }
 }
