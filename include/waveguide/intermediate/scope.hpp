@@ -71,7 +71,7 @@ struct command_lambda {
 
 class abstract_command {
 private:
-    std::vector<value_ptr> ins, outs;
+    std::vector<const_value_ptr> ins, outs;
     std::vector<command_lambda> lambdas;
     augmentation_ptr aug{nullptr};
 public:
@@ -80,12 +80,12 @@ public:
     friend std::ostream &operator<<(std::ostream &stream, 
         abstract_command const&to_print);
 
-    std::vector<value_ptr> const&get_inputs() const;
-    void add_input(value_ptr input);
+    std::vector<const_value_ptr> const&get_inputs() const;
+    void add_input(const_value_ptr input);
     void clear_inputs();
 
-    std::vector<value_ptr> const&get_outputs() const;
-    void add_output(value_ptr output);
+    std::vector<const_value_ptr> const&get_outputs() const;
+    void add_output(const_value_ptr output);
     void clear_outputs();
 
     std::vector<command_lambda> const&get_lambdas() const;
