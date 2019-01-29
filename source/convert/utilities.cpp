@@ -72,7 +72,7 @@ access_result ast_converter::find_access_result(
 void ast_converter::copy_value_to_expr(intr::value_ptr from,
     ast::variable_expression const& to) const {
     auto access = find_access_result(to);
-    auto copy{std::make_shared<intr::command>(blt()->COPY)};
+    auto copy{std::make_shared<intr::command>(blt()->COPY_TO_INDEX)};
     copy->add_input(from);
     copy->add_input(access.offset);
     copy->add_output(access.root_val);
@@ -82,7 +82,7 @@ void ast_converter::copy_value_to_expr(intr::value_ptr from,
 void ast_converter::copy_value_from_expr(ast::variable_expression const& from,
     intr::value_ptr to) const {
     auto access = find_access_result(from);
-    auto copy{std::make_shared<intr::command>(blt()->COPY)};
+    auto copy{std::make_shared<intr::command>(blt()->COPY_FROM_INDEX)};
     copy->add_input(access.root_val);
     copy->add_input(access.offset);
     copy->add_output(to);

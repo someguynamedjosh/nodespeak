@@ -184,11 +184,11 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
     };
 
     for (int i = 0; i < inputs.size(); i++) {
-        unravel(scope->get_inputs()[i], inputs[i]);
+        unravel(inputs[i], scope->get_inputs()[i]);
     }
 
     for (int i = 0; i < outputs.size(); i++) {
-        unravel(scope->get_outputs()[i], outputs[i]);
+        unravel(outputs[i], scope->get_outputs()[i]);
     }
 
     intr::resolved_value_table resolved_value_table;
