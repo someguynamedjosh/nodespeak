@@ -44,9 +44,9 @@ const_data_type_ptr biggest_type(const_data_type_ptr a, const_data_type_ptr b) {
     if (a_base == blt()->BOOL) a_val = 0;
     else if (a_base == blt()->INT) a_val = 1;
     else if (a_base == blt()->FLOAT) a_val = 2;
-    if (b_base == blt()->BOOL) a_val = 0;
-    else if (b_base == blt()->INT) a_val = 1;
-    else if (b_base == blt()->FLOAT) a_val = 2;
+    if (b_base == blt()->BOOL) b_val = 0;
+    else if (b_base == blt()->INT) b_val = 1;
+    else if (b_base == blt()->FLOAT) b_val = 2;
     if (a_val > b_val) {
         return a;
     } else { // Either B is bigger, or they are the same.
