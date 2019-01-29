@@ -324,6 +324,7 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         for (auto out : command->get_outputs()) {
             new_command->add_output(output->convert_value(out));
         }
+        output->add_command(new_command);
     }
 
     return output;

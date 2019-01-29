@@ -43,7 +43,8 @@ int main(int argc, char **argv) {
         std::cerr << conversion_result.error_message << std::endl;
         return 2;
     }
-    waveguide::squash::squash(conversion_result.converted_scope);
-    std::cout << *conversion_result.converted_scope.get() << std::endl;
+    auto squash_result
+        = waveguide::squash::squash(conversion_result.converted_scope);
+    std::cout << *squash_result.squashed << std::endl;
     return 0;
 }
