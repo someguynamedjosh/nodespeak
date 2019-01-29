@@ -1,6 +1,7 @@
 #include <waveguide/intermediate/data_type.hpp>
 #include <waveguide/intermediate/scope.hpp>
 #include <waveguide/intermediate/value.hpp>
+#include <set>
 #include <sstream>
 
 #include "util/aliases.hpp"
@@ -459,6 +460,14 @@ std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print) {
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
         stream << *command;
+    }
+
+    std::set<resolved_scope_ptr> child_scopes;
+    for (auto command : to_print.commands) {
+        child_scopes.insert(command->get_callee());
+    }
+    for (auto callee : child_scopes) {
+        stream << std::endl << *callee;
     }
     return stream;
 }
