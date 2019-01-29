@@ -201,9 +201,11 @@ public:
 
     void add_value_conversion(const_value_ptr from, const_value_ptr to);
     value_map const&get_value_conversions() const;
+    const_value_ptr convert_value(const_value_ptr from) const;
     void add_data_type_conversion(const_data_type_ptr from, 
         const_data_type_ptr to);
     data_type_map const&get_data_type_conversions() const;
+    const_data_type_ptr convert_data_type(const_data_type_ptr from) const;
 
     void add_resolved_input(value_ptr input);
     std::vector<value_ptr> const&get_inputs() const;

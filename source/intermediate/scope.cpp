@@ -398,6 +398,17 @@ value_map const&resolved_scope::get_value_conversions() const {
     return value_conversions;
 }
 
+const_value_ptr resolved_scope::convert_value(const_value_ptr from) 
+    const {
+    if (value_conversions.count(from.get())) {
+        return value_conversions.at(from.get());
+    } else if (parent) {
+        return parent->convert_value(from);
+    } else {
+        return from;
+    }
+}
+
 void resolved_scope::add_data_type_conversion(const_data_type_ptr from, 
     const_data_type_ptr to) {
     data_type_conversions[from.get()] = to;
@@ -405,6 +416,17 @@ void resolved_scope::add_data_type_conversion(const_data_type_ptr from,
 
 data_type_map const&resolved_scope::get_data_type_conversions() const {
     return data_type_conversions;
+}
+
+const_data_type_ptr resolved_scope::convert_data_type(const_data_type_ptr from) 
+    const {
+    if (data_type_conversions.count(from.get())) {
+        return data_type_conversions.at(from.get());
+    } else if (parent) {
+        return parent->convert_data_type(from);
+    } else {
+        return from;
+    }
 }
 
 void resolved_scope::add_resolved_input(value_ptr input) {
