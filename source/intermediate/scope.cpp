@@ -389,6 +389,24 @@ std::vector<resolved_command_ptr> const&resolved_scope::get_commands() const {
     return commands;
 }
 
+void resolved_scope::add_value_conversion(const_value_ptr from, 
+    const_value_ptr to) {
+    value_conversions[from.get()] = to;
+}
+
+value_map const&resolved_scope::get_value_conversions() const {
+    return value_conversions;
+}
+
+void resolved_scope::add_data_type_conversion(const_data_type_ptr from, 
+    const_data_type_ptr to) {
+    data_type_conversions[from.get()] = to;
+}
+
+data_type_map const&resolved_scope::get_data_type_conversions() const {
+    return data_type_conversions;
+}
+
 void resolved_scope::add_resolved_input(value_ptr input) {
     ins.push_back(input);
 }

@@ -22,10 +22,14 @@ class value;
 typedef std::shared_ptr<command> command_ptr;
 typedef std::shared_ptr<resolved_command> resolved_command_ptr;
 typedef std::shared_ptr<data_type> data_type_ptr;
+typedef std::shared_ptr<const data_type> const_data_type_ptr;
 typedef std::shared_ptr<scope> scope_ptr;
 typedef std::shared_ptr<resolved_scope> resolved_scope_ptr;
 typedef std::shared_ptr<vague_data_type> vague_data_type_ptr;
 typedef std::shared_ptr<value> value_ptr;
+typedef std::shared_ptr<const value> const_value_ptr;
+typedef std::map<const value*, const_value_ptr> value_map;
+typedef std::map<const data_type*, const_data_type_ptr> data_type_map;
 
 struct do_if_aug {
     value_ptr condition;
@@ -178,6 +182,8 @@ private:
     // TODO: Remove these two value in production builds.
     std::string debug_label;
     resolved_scope_ptr parent{nullptr};
+    value_map value_conversions;
+    data_type_map data_type_conversions;
     std::vector<resolved_command_ptr> commands;
     std::vector<value_ptr> ins, outs;
 public:
@@ -192,6 +198,12 @@ public:
     void add_command(resolved_command_ptr command);
     void clear_commands();
     std::vector<resolved_command_ptr> const&get_commands() const;
+
+    void add_value_conversion(const_value_ptr from, const_value_ptr to);
+    value_map const&get_value_conversions() const;
+    void add_data_type_conversion(const_data_type_ptr from, 
+        const_data_type_ptr to);
+    data_type_map const&get_data_type_conversions() const;
 
     void add_resolved_input(value_ptr input);
     std::vector<value_ptr> const&get_inputs() const;
