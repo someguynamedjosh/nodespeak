@@ -165,12 +165,11 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
     }
 }
 
-intr::resolved_command_ptr cast_command(intr::scope_ptr context, 
-    intr::resolved_scope_ptr output, intr::command_ptr command) {
-    auto &ins = command->get_inputs(), &outs = command->get_outputs();
-    auto &lambdas = command->get_lambdas();
-    auto callee = command->get_callee();
+intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope, 
+    std::vector<intr::const_value_ptr> const&inputs,
+    std::vector<intr::const_value_ptr> const&outputs) {
 
+    auto output{std::make_shared<intr::resolved_scope>()};
     intr::possible_value_table value_table;
     intr::data_type_table type_table;
 
@@ -184,12 +183,12 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
         param_type->fill_tables(value_table, type_table, real_type);
     };
 
-    for (int i = 0; i < ins.size(); i++) {
-        unravel(ins[i], callee->get_inputs()[i]);
+    for (int i = 0; i < inputs.size(); i++) {
+        unravel(scope->get_inputs()[i], inputs[i]);
     }
 
-    for (int i = 0; i < outs.size(); i++) {
-        unravel(outs[i], callee->get_outputs()[i]);
+    for (int i = 0; i < outputs.size(); i++) {
+        unravel(scope->get_outputs()[i], outputs[i]);
     }
 
     intr::resolved_value_table resolved_value_table;
@@ -239,10 +238,6 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
         std::cout << "] = " << resolved_value_table[key] << std::endl;
     }
 
-    auto new_callee = std::make_shared<intr::resolved_scope>(
-        callee->get_parent()
-    );
-
     auto make_var = [&](intr::value_ptr old_value) -> intr::value_ptr {
         intr::value_ptr new_var;
         auto type = old_value->get_type();
@@ -253,7 +248,7 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
             auto vtype = real_type->get_vague_type();
             auto new_type = vtype->resolve_type(resolved_value_table, 
                 resolved_type_table);
-            new_callee->add_data_type_conversion(type, new_type);
+            output->add_data_type_conversion(type, new_type);
             type = new_type;
         }
         if (old_value->is_proxy() || old_value->is_value_known()) {
@@ -263,29 +258,30 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
         } else {
             new_var = std::make_shared<intr::value>(type);
         }
-        new_callee->add_value_conversion(old_value, new_var);
+        output->add_value_conversion(old_value, new_var);
         return new_var;
     };
 
-    for (auto const&[key, value] : callee->get_var_table()) {
+    for (auto const&[key, value] : scope->get_var_table()) {
         make_var(value);
     }
-    for (auto const&value : callee->get_temp_var_list()) {
+    for (auto const&value : scope->get_temp_var_list()) {
         make_var(value);
     }
-    for (auto input : callee->get_inputs()) {
-        new_callee->add_resolved_input(make_var(input));
+
+    for (auto in : scope->get_inputs()) {
+        output->add_resolved_input(make_var(in));
     }
-    for (auto output : callee->get_outputs()) {
-        new_callee->add_resolved_output(make_var(output));
+    for (auto out : scope->get_outputs()) {
+        output->add_resolved_output(make_var(out));
     }
 
     // TODO: Disable this for production builds.
     std::stringstream new_name_stream;
-    new_name_stream << callee->get_debug_label(
+    new_name_stream << scope->get_debug_label();
     new_name_stream << "(";
     bool first = true;
-    for (auto const&value : new_callee->get_inputs()) {
+    for (auto const&value : output->get_inputs()) {
         if (first) {
             first = false;
         } else {
@@ -295,7 +291,7 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
     }
     new_name_stream << "):(";
     first = true;
-    for (auto const&value : new_callee->get_outputs()) {
+    for (auto const&value : output->get_outputs()) {
         if (first) {
             first = false;
         } else {
@@ -305,20 +301,36 @@ intr::resolved_command_ptr cast_command(intr::scope_ptr context,
     }
     new_name_stream << ")";
     // So its contents get printed when debugging.
-    new_callee->set_debug_label(new_name_stream.str());
+    output->set_debug_label(new_name_stream.str());
     // FITODO
 
-    command->set_callee(new_callee);
+    for (auto command : scope->get_commands()) {
+        auto old_ins = command->get_inputs(), old_outs = command->get_outputs();
+        std::vector<intr::const_value_ptr> new_ins, new_outs;
+        for (auto in : old_ins) {
+            new_ins.push_back(output->convert_value(in));
+        }
+        for (auto out : old_outs) {
+            new_outs.push_back(output->convert_value(out));
+        }
+        auto new_callee{cast_scope(
+            command->get_callee(), new_ins, new_outs
+        )};
+        auto new_command{std::make_shared<intr::resolved_command>(
+            new_callee, command->get_augmentation())};
+        for (auto in : command->get_inputs()) {
+            new_command->add_input(output->convert_value(in));
+        }
+        for (auto out : command->get_outputs()) {
+            new_command->add_output(output->convert_value(out));
+        }
+    }
 
-    std::cout << *command << std::endl;
+    return output;
 }
 
 intr::resolved_scope_ptr cast_pass(intr::scope_ptr scope) {
-    auto resolved_scope{std::make_shared<intr::resolved_scope>()};
-    for (auto command : scope->get_commands()) {
-        cast_command(scope, resolved_scope, command);
-    }
-    return resolved_scope;
+    return cast_scope(scope, {}, {});
 }
 
 }
