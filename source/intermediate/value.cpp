@@ -122,5 +122,28 @@ std::shared_ptr<bool> value::data_as_bool() {
     return std::reinterpret_pointer_cast<bool>(data);
 }
 
+
+
+value_accessor::value_accessor() { }
+
+value_accessor::value_accessor(value_ptr root_value)
+    : root_value{root_value} { }
+
+void value_accessor::set_root_value(value_ptr root_value) {
+    this->root_value = root_value;
+}
+
+value_ptr value_accessor::get_root_value() const {
+    return root_value;
+}
+
+void value_accessor::add_subpart(value_ptr subpart) {
+    subparts.push_back(subpart);
+}
+
+std::vector<value_ptr> const&value_accessor::get_subparts() const {
+    return subparts;
+}
+
 }
 }

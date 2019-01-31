@@ -13,6 +13,7 @@ class value;
 typedef std::shared_ptr<const data_type> const_data_type_ptr;
 typedef std::shared_ptr<char[]> data_block_ptr;
 typedef std::shared_ptr<value> value_ptr;
+typedef std::shared_ptr<value_accessor> value_accessor_ptr;
 
 class value {
 private:
@@ -48,6 +49,21 @@ public:
     std::shared_ptr<int> data_as_int();
     std::shared_ptr<bool> data_as_bool();
 };
+
+class value_accessor {
+private:
+    value_ptr root_value{nullptr};
+    std::vector<value_ptr> subparts{};
+public:
+    value_accessor();
+    value_accessor(value_ptr root_value);
+
+    void set_root_value(value_ptr root_value);
+    value_ptr get_root_value() const;
+
+    void add_subpart(value_ptr subpart);
+    std::vector<value_ptr> const&get_subparts() const;
+}
 
 }
 }
