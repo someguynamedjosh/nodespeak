@@ -3,17 +3,21 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace waveguide {
 namespace intermediate {
 
 class data_type;
 class value;
+class value_accessor;
 
 typedef std::shared_ptr<const data_type> const_data_type_ptr;
 typedef std::shared_ptr<char[]> data_block_ptr;
 typedef std::shared_ptr<value> value_ptr;
+typedef std::shared_ptr<const value> const_value_ptr;
 typedef std::shared_ptr<value_accessor> value_accessor_ptr;
+typedef std::shared_ptr<const value_accessor> const_value_accessor_ptr;
 
 class value {
 private:
@@ -52,18 +56,18 @@ public:
 
 class value_accessor {
 private:
-    value_ptr root_value{nullptr};
-    std::vector<value_ptr> subparts{};
+    const_value_ptr root_value{nullptr};
+    std::vector<const_value_ptr> subparts{};
 public:
     value_accessor();
-    value_accessor(value_ptr root_value);
+    value_accessor(const_value_ptr root_value);
 
-    void set_root_value(value_ptr root_value);
-    value_ptr get_root_value() const;
+    void set_root_value(const_value_ptr root_value);
+    const_value_ptr get_root_value() const;
 
-    void add_subpart(value_ptr subpart);
-    std::vector<value_ptr> const&get_subparts() const;
-}
+    void add_subpart(const_value_ptr subpart);
+    std::vector<const_value_ptr> const&get_subparts() const;
+};
 
 }
 }
