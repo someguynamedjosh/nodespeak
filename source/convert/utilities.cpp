@@ -26,7 +26,7 @@ access_result ast_converter::find_access_result(
     auto offset{std::make_shared<intr::value>(blt()->INT)};
 
     if (expr.array_accesses.size() == 0) {
-        *offset->data_as_int() = 0;
+        offset->data_as_int() = 0;
         offset->set_value_known(true);
     } else {
         auto set{std::make_shared<intr::command>(blt()->COPY)};

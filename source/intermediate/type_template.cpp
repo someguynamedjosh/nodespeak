@@ -86,13 +86,13 @@ bool vague_known_value_expression::is_constant() const {
 int vague_known_value_expression::do_algebra(possible_value_table &values,
     int final_value) const {
     assert(real_value->is_value_known());
-    return *real_value->data_as_int();
+    return real_value->data_as_int();
 }
 
 int vague_known_value_expression::resolve_value(
     resolved_value_table const&value_table) const {
     assert(real_value->is_value_known());
-    return *real_value->data_as_int();
+    return real_value->data_as_int();
 }
 
 value_ptr vague_known_value_expression::get_real_value() const {

@@ -81,22 +81,22 @@ const data_block_ptr value::get_data() const {
     return data;
 }
 
-const std::shared_ptr<float> value::data_as_float() const {
+float const&value::data_as_float() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const float_data_type>(type));
-    return std::reinterpret_pointer_cast<float>(data);
+    return *std::reinterpret_pointer_cast<float>(data);
 }
 
-const std::shared_ptr<int> value::data_as_int() const {
+int const&value::data_as_int() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const int_data_type>(type));
-    return std::reinterpret_pointer_cast<int>(data);
+    return *std::reinterpret_pointer_cast<int>(data);
 }
 
-const std::shared_ptr<bool> value::data_as_bool() const {
+bool const&value::data_as_bool() const {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const bool_data_type>(type));
-    return std::reinterpret_pointer_cast<bool>(data);
+    return *std::reinterpret_pointer_cast<bool>(data);
 }
 
 std::shared_ptr<char[]> value::get_data() {
@@ -104,22 +104,22 @@ std::shared_ptr<char[]> value::get_data() {
     return data;
 }
 
-std::shared_ptr<float> value::data_as_float() {
+float &value::data_as_float() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const float_data_type>(type));
-    return std::reinterpret_pointer_cast<float>(data);
+    return *std::reinterpret_pointer_cast<float>(data);
 }
 
-std::shared_ptr<int> value::data_as_int() {
+int &value::data_as_int() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const int_data_type>(type));
-    return std::reinterpret_pointer_cast<int>(data);
+    return *std::reinterpret_pointer_cast<int>(data);
 }
 
-std::shared_ptr<bool> value::data_as_bool() {
+bool &value::data_as_bool() {
     assert(!is_proxy());
     assert(std::dynamic_pointer_cast<const bool_data_type>(type));
-    return std::reinterpret_pointer_cast<bool>(data);
+    return *std::reinterpret_pointer_cast<bool>(data);
 }
 
 
@@ -143,6 +143,13 @@ void value_accessor::add_subpart(const_value_ptr subpart) {
 
 std::vector<const_value_ptr> const&value_accessor::get_subparts() const {
     return subparts;
+}
+
+bool value_accessor::is_value_known() const {
+    if (!root_value->is_value_known()) return false;
+    for (auto subpart : subparts) {
+        if (!subpart->value_is_known()) return false;
+    }
 }
 
 }

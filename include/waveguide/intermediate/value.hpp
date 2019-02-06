@@ -46,12 +46,12 @@ public:
     const data_block_ptr get_data() const;
     data_block_ptr get_data();
 
-    const std::shared_ptr<float> data_as_float() const;
-    const std::shared_ptr<int> data_as_int() const;
-    const std::shared_ptr<bool> data_as_bool() const;
-    std::shared_ptr<float> data_as_float();
-    std::shared_ptr<int> data_as_int();
-    std::shared_ptr<bool> data_as_bool();
+    float const&data_as_float() const;
+    int const&data_as_int() const;
+    bool const&data_as_bool() const;
+    float &data_as_float();
+    int &data_as_int();
+    bool &data_as_bool();
 };
 
 class value_accessor {
@@ -67,6 +67,8 @@ public:
 
     void add_subpart(const_value_ptr subpart);
     std::vector<const_value_ptr> const&get_subparts() const;
+
+    bool is_value_known() const;
 };
 
 }

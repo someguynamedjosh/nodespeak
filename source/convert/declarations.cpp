@@ -83,7 +83,7 @@ void ast_converter::operator()(data_type const&type) const {
             };
         }
         data->current_type = std::make_shared<intr::array_data_type>(
-            data->current_type, *data->current_value->data_as_int()
+            data->current_type, data->current_value->data_as_int()
         );
     }
 }
