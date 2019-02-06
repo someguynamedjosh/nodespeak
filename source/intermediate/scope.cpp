@@ -32,11 +32,11 @@ abstract_command::abstract_command() { }
 abstract_command::abstract_command(augmentation_ptr aug):
     aug{aug} { }
 
-std::vector<const_value_ptr> const&abstract_command::get_inputs() const {
+arg_list const&abstract_command::get_inputs() const {
     return ins;
 }
 
-void abstract_command::add_input(const_value_ptr input) {
+void abstract_command::add_input(arg_ptr input) {
     ins.push_back(input);
 }
 
@@ -44,11 +44,11 @@ void abstract_command::clear_inputs() {
     ins.clear();
 }
 
-std::vector<const_value_ptr> const&abstract_command::get_outputs() const {
+arg_list const&abstract_command::get_outputs() const {
     return outs;
 }
 
-void abstract_command::add_output(const_value_ptr output) {
+void abstract_command::add_output(arg_ptr output) {
     outs.push_back(output);
 }
 

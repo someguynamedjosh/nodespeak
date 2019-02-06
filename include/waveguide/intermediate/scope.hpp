@@ -18,6 +18,7 @@ class scope;
 class resolved_scope;
 class vague_data_type;
 class value;
+class value_accessor;
 
 typedef std::shared_ptr<command> command_ptr;
 typedef std::shared_ptr<resolved_command> resolved_command_ptr;
@@ -27,30 +28,32 @@ typedef std::shared_ptr<scope> scope_ptr;
 typedef std::shared_ptr<resolved_scope> resolved_scope_ptr;
 typedef std::shared_ptr<vague_data_type> vague_data_type_ptr;
 typedef std::shared_ptr<value> value_ptr;
+typedef std::shared_ptr<value_accessor> value_accessor_ptr;
 typedef std::shared_ptr<const value> const_value_ptr;
+typedef std::shared_ptr<const value_accessor> const_value_accessor_ptr;
 typedef std::map<const value*, const_value_ptr> value_map;
 typedef std::map<const data_type*, const_data_type_ptr> data_type_map;
 
 struct do_if_aug {
-    value_ptr condition;
+    value_accessor_ptr condition;
     friend std::ostream &operator<<(std::ostream &stream, 
         do_if_aug const&to_print);
 };
 
 struct do_if_not_aug {
-    value_ptr condition;
+    value_accessor_ptr condition;
     friend std::ostream &operator<<(std::ostream &stream, 
         do_if_not_aug const&to_print);
 };
 
 struct loop_for_aug {
-    value_ptr to_set, iterate_over;
+    value_accessor_ptr to_set, iterate_over;
     friend std::ostream &operator<<(std::ostream &stream, 
         loop_for_aug const&to_print);
 };
 
 struct loop_range_aug {
-    value_ptr to_set, start, end, step;
+    value_accessor_ptr to_set, start, end, step;
     friend std::ostream &operator<<(std::ostream &stream, 
         loop_range_aug const&to_print);
 };
@@ -71,7 +74,9 @@ struct command_lambda {
 
 class abstract_command {
 private:
-    std::vector<const_value_ptr> ins, outs;
+    typedef const_value_accessor_ptr arg_ptr;
+    typedef std::vector<arg_ptr> arg_list;
+    arg_list ins, outs;
     std::vector<command_lambda> lambdas;
     augmentation_ptr aug{nullptr};
 public:
@@ -80,15 +85,15 @@ public:
     friend std::ostream &operator<<(std::ostream &stream, 
         abstract_command const&to_print);
 
-    std::vector<const_value_ptr> const&get_inputs() const;
-    void add_input(const_value_ptr input);
+    arg_list const&get_inputs() const;
+    void add_input(arg_ptr input);
     void clear_inputs();
 
-    std::vector<const_value_ptr> const&get_outputs() const;
-    void add_output(const_value_ptr output);
+    arg_list const&get_outputs() const;
+    void add_output(arg_ptr output);
     void clear_outputs();
 
-    std::vector<command_lambda> const&get_lambdas() const;
+    arg_list const&get_lambdas() const;
     void add_lambda(command_lambda &lambda);
     void clear_lambdas();
 
