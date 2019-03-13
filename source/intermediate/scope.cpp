@@ -183,6 +183,21 @@ void print_value(std::ostream &stream, value const&to_print) {
     }
 }
 
+void print_value(std::ostream &stream, value_accessor const&to_print) {
+    stream << "      Type: " << to_print.get_type() << " (";
+    to_print.get_type()->print_repr(stream);
+    stream << ")" << std::endl;
+    if (to_print.is_value_known()) {
+        stream << "      Value: ";
+        to_print.get_type()->format(stream, to_print.get_data());
+        stream << std::endl;
+    }
+    if (to_print.get_root_value()->is_proxy()) {
+        stream << "      Proxy for: ";
+        stream << &to_print.get_root_value()->get_real_value() << std::endl;
+    }
+}
+
 std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     stream << to_print.get_debug_path() << " is Scope:" << std::endl;
     stream << "  Parent: " << to_print.parent.get() << std::endl;
@@ -321,7 +336,7 @@ void scope::clear_commands() {
 value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {
     auto value_type{std::make_shared<unresolved_vague_type>(type)};
     auto holder{std::make_shared<value>(value_type)};
-    ins.push_back(holder);
+    ins.push_back(std::make_shared<value_accessor>(holder));
     // TODO: Expose types and values used in the template for the body of the
     // scope to use.
     // TODO: mark inputs as read-only.
@@ -329,29 +344,29 @@ value_ptr scope::add_input(std::string name, vague_data_type_ptr type) {
     return holder;
 }
 
-void scope::add_resolved_input(value_ptr input) {
+void scope::add_resolved_input(const_value_accessor_ptr input) {
     ins.push_back(input);
 }
 
-const std::vector<value_ptr> &scope::get_inputs() const {
+const std::vector<const_value_accessor_ptr> &scope::get_inputs() const {
     return ins;
 }
 
 value_ptr scope::add_output(std::string name, vague_data_type_ptr type) {
     auto value_type{std::make_shared<unresolved_vague_type>(type)};
     auto holder{std::make_shared<value>(value_type)};
-    outs.push_back(holder);
+    outs.push_back(std::make_shared<value_accessor>(holder));
     // TODO: Expose types and values used in the template for the body of the
     // scope to use.
     declare_var(name, holder);
     return holder;
 }
 
-void scope::add_resolved_output(value_ptr output) {
+void scope::add_resolved_output(const_value_accessor_ptr output) {
     outs.push_back(output);
 }
 
-const std::vector<value_ptr> &scope::get_outputs() const {
+const std::vector<const_value_accessor_ptr> &scope::get_outputs() const {
     return outs;
 }
 
@@ -410,6 +425,24 @@ const_value_ptr resolved_scope::convert_value(const_value_ptr from)
     }
 }
 
+const_value_accessor_ptr resolved_scope::convert_value(
+    const_value_accessor_ptr from) const {
+    if (value_conversions.count(from->get_root_value().get())) {
+        auto new_ptr{std::make_shared<value_accessor>()};
+        new_ptr->set_root_value(value_conversions.at(
+            from->get_root_value().get()
+        ));
+        for (auto subpart : from->get_subparts()) {
+            new_ptr->add_subpart(subpart);
+        }
+        return new_ptr;
+    } else if (parent) {
+        return parent->convert_value(from);
+    } else {
+        return from;
+    }
+}
+
 void resolved_scope::add_data_type_conversion(const_data_type_ptr from, 
     const_data_type_ptr to) {
     data_type_conversions[from.get()] = to;
@@ -430,19 +463,19 @@ const_data_type_ptr resolved_scope::convert_data_type(const_data_type_ptr from)
     }
 }
 
-void resolved_scope::add_resolved_input(value_ptr input) {
+void resolved_scope::add_resolved_input(const_value_accessor_ptr input) {
     ins.push_back(input);
 }
 
-std::vector<value_ptr> const&resolved_scope::get_inputs() const {
+std::vector<const_value_accessor_ptr> const&resolved_scope::get_inputs() const {
     return ins;
 }
 
-void resolved_scope::add_resolved_output(value_ptr output) {
+void resolved_scope::add_resolved_output(const_value_accessor_ptr output) {
     outs.push_back(output);
 }
 
-std::vector<value_ptr> const&resolved_scope::get_outputs() const {
+std::vector<const_value_accessor_ptr> const&resolved_scope::get_outputs() const {
     return outs;
 }
 

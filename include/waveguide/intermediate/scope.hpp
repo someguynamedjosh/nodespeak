@@ -142,7 +142,7 @@ private:
     std::vector<value_ptr> temp_vars;
     std::map<std::string, data_type_ptr> types;
     std::vector<command_ptr> commands;
-    std::vector<value_ptr> ins, outs;
+    std::vector<const_value_accessor_ptr> ins, outs;
 public:
     scope();
     scope(scope_ptr parent);
@@ -174,11 +174,11 @@ public:
     const std::vector<command_ptr> &get_commands() const;
 
     value_ptr add_input(std::string name, vague_data_type_ptr type);
-    void add_resolved_input(value_ptr input);
-    const std::vector<value_ptr> &get_inputs() const;
+    void add_resolved_input(const_value_accessor_ptr input);
+    const std::vector<const_value_accessor_ptr> &get_inputs() const;
     value_ptr add_output(std::string name, vague_data_type_ptr type);
-    void add_resolved_output(value_ptr output);
-    const std::vector<value_ptr> &get_outputs() const;
+    void add_resolved_output(const_value_accessor_ptr output);
+    const std::vector<const_value_accessor_ptr> &get_outputs() const;
 };
 std::ostream &operator<<(std::ostream &stream, scope const&to_print);
 
@@ -190,7 +190,7 @@ private:
     value_map value_conversions;
     data_type_map data_type_conversions;
     std::vector<resolved_command_ptr> commands;
-    std::vector<value_ptr> ins, outs;
+    std::vector<const_value_accessor_ptr> ins, outs;
 public:
     resolved_scope();
     resolved_scope(resolved_scope_ptr parent);
@@ -213,10 +213,10 @@ public:
     data_type_map const&get_data_type_conversions() const;
     const_data_type_ptr convert_data_type(const_data_type_ptr from) const;
 
-    void add_resolved_input(value_ptr input);
-    std::vector<value_ptr> const&get_inputs() const;
-    void add_resolved_output(value_ptr output);
-    std::vector<value_ptr> const&get_outputs() const;
+    void add_resolved_input(const_value_accessor_ptr input);
+    std::vector<const_value_accessor_ptr> const&get_inputs() const;
+    void add_resolved_output(const_value_accessor_ptr output);
+    std::vector<const_value_accessor_ptr> const&get_outputs() const;
 };
 std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print);
 
