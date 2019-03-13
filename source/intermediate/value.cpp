@@ -136,28 +136,16 @@ bool &value::data_as_bool() {
 
 
 
-const_data_block_ptr value_accessor::get_element_ptr() const {
-    assert(root_value);
-    const_data_block_ptr ptr = root_value.get()->get_data();
-    const_data_type_ptr data_type = root_value->get_type();
-
-    for (auto subpart : subparts) {
-        ptr = ptr;
-    }
-
-    return ptr;
-}
-
 value_accessor::value_accessor() { }
 
-value_accessor::value_accessor(const_value_ptr root_value)
+value_accessor::value_accessor(value_ptr root_value)
     : root_value{root_value} { }
 
-void value_accessor::set_root_value(const_value_ptr root_value) {
+void value_accessor::set_root_value(value_ptr root_value) {
     this->root_value = root_value;
 }
 
-const_value_ptr value_accessor::get_root_value() const {
+value_ptr value_accessor::get_root_value() const {
     return root_value;
 }
 
@@ -177,24 +165,80 @@ bool value_accessor::is_value_known() const {
 }
 
 const_data_type_ptr value_accessor::get_type() const {
+    auto data_type = root_value->get_type();
+    for (auto subpart : subparts) {
+        if (subpart->get_type() == blt()->INT) {
+            data_type = std::dynamic_pointer_cast<const array_data_type>(
+                data_type
+            )->get_element_type();
+        } else {
+            // TODO: Add support for object keys.
+            return nullptr;
+        }
+    }
+    return data_type;
+}
 
+data_block_ptr value_accessor::get_data() {
+    assert(root_value);
+    assert(is_value_known());
+    auto data_type = root_value->get_type();
+    data_block_ptr ptr = root_value->get_data();
+
+    for (auto subpart : subparts) {
+        // TODO: Add support for object keys.
+        assert(subpart->get_type() == blt()->INT);
+        data_type = std::dynamic_pointer_cast<const array_data_type>(
+            data_type
+        )->get_element_type();
+        if (!subpart->is_value_known()) return nullptr;
+        ptr = ptr + subpart->data_as_int() * data_type->get_length();
+    }
+
+    return ptr;
 }
 
 const_data_block_ptr value_accessor::get_data() const {
     assert(root_value);
+    assert(is_value_known());
+    auto data_type = root_value->get_type();
     const_data_block_ptr ptr = root_value.get()->get_data();
-    const_data_type_ptr data_type = root_value->get_type();
 
     for (auto subpart : subparts) {
+        // TODO: Add support for object keys.
         assert(subpart->get_type() == blt()->INT);
-        ptr = ptr;
+        data_type = std::dynamic_pointer_cast<const array_data_type>(
+            data_type
+        )->get_element_type();
+        if (!subpart->is_value_known()) return nullptr;
+        ptr = ptr + subpart->data_as_int() * data_type->get_length();
     }
 
     return ptr;
 }
 
 float const&value_accessor::data_as_float() const {
-    assert(is_value_known());
+    return *get_data();
+}
+
+int const&value_accessor::data_as_int() const {
+    return *get_data();
+}
+
+bool const&value_accessor::data_as_bool() const {
+    return *get_data();
+}
+
+float &value_accessor::data_as_float()  {
+    return *(float*)get_data();
+}
+
+int &value_accessor::data_as_int()  {
+    return *(int*)get_data();
+}
+
+bool &value_accessor::data_as_bool()  {
+    return *(bool*)get_data();
 }
 
 }

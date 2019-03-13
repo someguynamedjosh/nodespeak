@@ -59,16 +59,15 @@ public:
 
 class value_accessor {
 private:
-    const_value_ptr root_value{nullptr};
+    value_ptr root_value{nullptr};
     std::vector<const_value_ptr> subparts{};
 
-    const_data_block_ptr get_element_ptr() const;
 public:
     value_accessor();
-    value_accessor(const_value_ptr root_value);
+    value_accessor(value_ptr root_value);
 
-    void set_root_value(const_value_ptr root_value);
-    const_value_ptr get_root_value() const;
+    void set_root_value(value_ptr root_value);
+    value_ptr get_root_value() const;
 
     void add_subpart(const_value_ptr subpart);
     std::vector<const_value_ptr> const&get_subparts() const;
