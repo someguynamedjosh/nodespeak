@@ -1,5 +1,6 @@
 #include <waveguide/intermediate/value.hpp>
 
+#include <waveguide/intermediate/builtins.hpp>
 #include <waveguide/intermediate/data_type.hpp>
 #include <cassert>
 #include <cstring>
@@ -8,6 +9,7 @@
 #include <string>
 
 #include "util/aliases.hpp"
+#include "util.hpp"
 
 namespace waveguide {
 namespace intermediate {
@@ -16,19 +18,29 @@ namespace intermediate {
 // Com::value
 ////////////////////////////////////////////////////////////////////////////////
 
-value::value(std::shared_ptr<const data_type> type)
+value::value(const_data_type_ptr type)
     : type{type} {
     if (!type->is_proxy_type()) {
-        data = data_block_ptr{new char[type->get_length()]};
+        data = shared_data_block_ptr{new char[type->get_length()]};
     }
 }
 
-value::value(std::shared_ptr<const data_type> type, data_block_ptr data)
+value::value(const_data_type_ptr type, shared_data_block_ptr data)
     : type{type}, data{data}, value_known{true} {
     value_known = !type->is_proxy_type();
 }
 
-value::value(std::shared_ptr<const data_type> type, value_ptr target)
+value::value(const_data_type_ptr type, data_block_ptr data)
+    : type{type}, value_known{true} {
+    assert(!type->is_proxy_type());
+    value_known = true;
+    this->data = shared_data_block_ptr{new char[type->get_length()]};
+    for (int i = 0; i < type->get_length(); i++) {
+        this->data[i] = data[i];
+    }
+}
+
+value::value(const_data_type_ptr type, value_ptr target)
     : type{type}, value_known{false} {
     assert(type->is_proxy_type());
     data = std::reinterpret_pointer_cast<char[]>(target);
@@ -68,7 +80,7 @@ void value::set_value_known(bool is_known) {
 value value::create_known_copy() const {
     assert(value_known);
     value tr{type};
-    auto tr_data = tr.get_data().get();
+    auto tr_data = tr.get_data();
     for (int i = 0; i < type->get_length(); i++) {
         tr_data[i] = data[i];
     }
@@ -76,9 +88,9 @@ value value::create_known_copy() const {
     return tr;
 }
 
-const data_block_ptr value::get_data() const {
+const_data_block_ptr value::get_data() const {
     assert(!is_proxy());
-    return data;
+    return data.get();
 }
 
 float const&value::data_as_float() const {
@@ -99,9 +111,9 @@ bool const&value::data_as_bool() const {
     return *std::reinterpret_pointer_cast<bool>(data);
 }
 
-std::shared_ptr<char[]> value::get_data() {
+data_block_ptr value::get_data() {
     assert(!is_proxy());
-    return data;
+    return data.get();
 }
 
 float &value::data_as_float() {
@@ -123,6 +135,18 @@ bool &value::data_as_bool() {
 }
 
 
+
+const_data_block_ptr value_accessor::get_element_ptr() const {
+    assert(root_value);
+    const_data_block_ptr ptr = root_value.get()->get_data();
+    const_data_type_ptr data_type = root_value->get_type();
+
+    for (auto subpart : subparts) {
+        ptr = ptr;
+    }
+
+    return ptr;
+}
 
 value_accessor::value_accessor() { }
 
@@ -148,8 +172,29 @@ std::vector<const_value_ptr> const&value_accessor::get_subparts() const {
 bool value_accessor::is_value_known() const {
     if (!root_value->is_value_known()) return false;
     for (auto subpart : subparts) {
-        if (!subpart->value_is_known()) return false;
+        if (!subpart->is_value_known()) return false;
     }
+}
+
+const_data_type_ptr value_accessor::get_type() const {
+
+}
+
+const_data_block_ptr value_accessor::get_data() const {
+    assert(root_value);
+    const_data_block_ptr ptr = root_value.get()->get_data();
+    const_data_type_ptr data_type = root_value->get_type();
+
+    for (auto subpart : subparts) {
+        assert(subpart->get_type() == blt()->INT);
+        ptr = ptr;
+    }
+
+    return ptr;
+}
+
+float const&value_accessor::data_as_float() const {
+    assert(is_value_known());
 }
 
 }
