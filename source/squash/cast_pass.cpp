@@ -166,13 +166,16 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
 }
 
 intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope, 
-    std::vector<intr::const_value_ptr> const&inputs,
-    std::vector<intr::const_value_ptr> const&outputs) {
+    std::vector<intr::const_value_accessor_ptr> const&inputs,
+    std::vector<intr::const_value_accessor_ptr> const&outputs) {
 
     auto output{std::make_shared<intr::resolved_scope>()};
     intr::possible_value_table value_table;
     intr::data_type_table type_table;
 
+    // Fills the tables above with information from each parameter that will
+    // be used to figure out how to cast everything to match the templates
+    // the user specified for each parameter.
     auto unravel = [&](auto real_value, auto param_value) {
         auto param_type = std::dynamic_pointer_cast<
             const intr::unresolved_vague_type
@@ -191,6 +194,8 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         unravel(outputs[i], scope->get_outputs()[i]);
     }
 
+    // Use the previously collected data to figure out what all the templated
+    // types and variables should resolve to.
     intr::resolved_value_table resolved_value_table;
     intr::resolved_data_type_table resolved_type_table;
 
@@ -210,6 +215,8 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         resolved_type_table[key] = biggest;
     }
 
+    // Print all the vague types in all the parameters' templates and the final
+    // specific types they were resolved to.
     for (auto const&[key, list] : type_table) {
         std::cout << "Vague type " << key << " = [";
         bool first = true;
@@ -225,6 +232,8 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         std::cout << std::endl;
     }
 
+    // Prints all the vague values in all the parameters' templates and the
+    // final specific integer value they were found to have.
     for (auto const&[key, list] : value_table) {
         std::cout << "Vague value " << key << " = [";
         bool first = true;
@@ -238,6 +247,13 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         std::cout << "] = " << resolved_value_table[key] << std::endl;
     }
 
+    /**
+     * @brief Makes a new variable from a vague one.
+     * Resolves whatever vagueness the variable may have in its data type to
+     * make a copy of that variable with a specific, resolved data type. Also
+     * automatically adds a data conversion between the old and new value into
+     * the scope.
+     */
     auto make_var = [&](intr::value_ptr old_value) -> intr::value_ptr {
         intr::value_ptr new_var;
         auto type = old_value->get_type();
@@ -262,6 +278,7 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         return new_var;
     };
 
+    // Make resolved versions of all the variables.
     for (auto const&[key, value] : scope->get_var_table()) {
         make_var(value);
     }
@@ -269,11 +286,13 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         make_var(value);
     }
 
+    // Convert the inputs to use their resolved targets.
     for (auto in : scope->get_inputs()) {
-        output->add_resolved_input(make_var(in));
+        output->add_resolved_input(output->convert_value(in));
     }
+
     for (auto out : scope->get_outputs()) {
-        output->add_resolved_output(make_var(out));
+        output->add_resolved_output(output->convert_value(out));
     }
 
     // TODO: Disable this for production builds.
@@ -305,21 +324,28 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
     // FITODO
 
     for (auto command : scope->get_commands()) {
+        // Convert all input and output variables, so that if they got resolved
+        // from higher up the tree, those resolutions are taken into account.
         auto old_ins = command->get_inputs(), old_outs = command->get_outputs();
-        std::vector<intr::const_value_ptr> new_ins, new_outs;
+        std::vector<intr::const_value_accessor_ptr> new_ins, new_outs;
         for (auto in : old_ins) {
-            new_ins.push_back(output->convert_value(in);
+            new_ins.push_back(output->convert_value(in));
         }
         for (auto out : old_outs) {
             new_outs.push_back(output->convert_value(out));
         }
+        // Make a new scope that is converted to handle specific template
+        // parameters.
         auto new_callee{cast_scope(
             command->get_callee(), new_ins, new_outs
         )};
         auto new_command{std::make_shared<intr::resolved_command>(
-            new_callee, command->get_augmentation())};
-        for (auto in : command->get_inputs()) {
-            new_command->add_input(output->convert_value(in));
+            new_callee, command->get_augmentation()
+        )};
+
+        // Add the arguments to the new command.
+        for (auto in : new_ins) {
+            new_command->add_input(in);
         }
         for (auto out : command->get_outputs()) {
             new_command->add_output(output->convert_value(out));
