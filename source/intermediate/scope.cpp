@@ -32,7 +32,7 @@ abstract_command::abstract_command() { }
 abstract_command::abstract_command(augmentation_ptr aug):
     aug{aug} { }
 
-arg_list const&abstract_command::get_inputs() const {
+abstract_command::arg_list const&abstract_command::get_inputs() const {
     return ins;
 }
 
@@ -44,7 +44,7 @@ void abstract_command::clear_inputs() {
     ins.clear();
 }
 
-arg_list const&abstract_command::get_outputs() const {
+abstract_command::arg_list const&abstract_command::get_outputs() const {
     return outs;
 }
 
@@ -108,7 +108,7 @@ std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) 
         stream << ")";
         if (value->is_value_known()) {
             stream << " = ";
-            value->get_type()->format(stream, value->get_data().get());
+            value->get_type()->format(stream, value->get_data());
         }
         stream << std::endl;
     }
@@ -118,7 +118,7 @@ std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) 
         stream << ")";
         if (value->is_value_known()) {
             stream << " = ";
-            value->get_type()->format(stream, value->get_data().get());
+            value->get_type()->format(stream, value->get_data());
         }
         stream << std::endl;
     }
@@ -174,7 +174,7 @@ void print_value(std::ostream &stream, value const&to_print) {
     stream << ")" << std::endl;
     if (to_print.is_value_known()) {
         stream << "      Value: ";
-        to_print.get_type()->format(stream, to_print.get_data().get());
+        to_print.get_type()->format(stream, to_print.get_data());
         stream << std::endl;
     }
     if (to_print.is_proxy()) {

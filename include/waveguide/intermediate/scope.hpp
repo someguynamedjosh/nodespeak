@@ -93,7 +93,7 @@ public:
     void add_output(arg_ptr output);
     void clear_outputs();
 
-    arg_list const&get_lambdas() const;
+    std::vector<command_lambda> const&get_lambdas() const;
     void add_lambda(command_lambda &lambda);
     void clear_lambdas();
 
@@ -207,6 +207,7 @@ public:
     void add_value_conversion(const_value_ptr from, const_value_ptr to);
     value_map const&get_value_conversions() const;
     const_value_ptr convert_value(const_value_ptr from) const;
+    const_value_accessor_ptr convert_value(const_value_accessor_ptr from) const;
     void add_data_type_conversion(const_data_type_ptr from, 
         const_data_type_ptr to);
     data_type_map const&get_data_type_conversions() const;
