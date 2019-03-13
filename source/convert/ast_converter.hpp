@@ -54,7 +54,7 @@ inline intr::value_accessor_ptr bool_literal(const bool value) {
     );
 }
 
-inline intr::value_accessor_ptr access(intr::const_value_ptr value) {
+inline intr::value_accessor_ptr access(intr::value_ptr value) {
     return std::make_shared<intr::value_accessor>(value);
 }
 

@@ -405,8 +405,7 @@ std::vector<resolved_command_ptr> const&resolved_scope::get_commands() const {
     return commands;
 }
 
-void resolved_scope::add_value_conversion(const_value_ptr from, 
-    const_value_ptr to) {
+void resolved_scope::add_value_conversion(const_value_ptr from, value_ptr to) {
     value_conversions[from.get()] = to;
 }
 

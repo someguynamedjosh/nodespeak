@@ -31,7 +31,7 @@ typedef std::shared_ptr<value> value_ptr;
 typedef std::shared_ptr<value_accessor> value_accessor_ptr;
 typedef std::shared_ptr<const value> const_value_ptr;
 typedef std::shared_ptr<const value_accessor> const_value_accessor_ptr;
-typedef std::map<const value*, const_value_ptr> value_map;
+typedef std::map<const value*, value_ptr> value_map;
 typedef std::map<const data_type*, const_data_type_ptr> data_type_map;
 
 struct do_if_aug {
@@ -204,7 +204,7 @@ public:
     void clear_commands();
     std::vector<resolved_command_ptr> const&get_commands() const;
 
-    void add_value_conversion(const_value_ptr from, const_value_ptr to);
+    void add_value_conversion(const_value_ptr from, value_ptr to);
     value_map const&get_value_conversions() const;
     const_value_ptr convert_value(const_value_ptr from) const;
     const_value_accessor_ptr convert_value(const_value_accessor_ptr from) const;
