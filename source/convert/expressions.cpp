@@ -26,14 +26,14 @@ void ast_converter::operator()(signed_expression const&expr) const {
         negate->add_input(int_literal(-1));
         auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
-        data->current_value = output;
-        negate->add_output(output);
+        data->current_value = access(output);
+        negate->add_output(data->current_value);
         add_command(negate);
     }
 }
 
 void ast_converter::operator()(variable_expression const&expr) const {
-    data->current_value = lookup_var(expr.name);
+    data->current_value = access(lookup_var(expr.name));
     if (data->current_value == nullptr) {
         throw convert::ast_conversion_exception{
             "There is no variable in scope with the name '" + expr.name + "'."
@@ -48,9 +48,9 @@ void ast_converter::operator()(variable_expression const&expr) const {
         copy_command->add_input(data->current_value);
         recurse(index_expr);
         copy_command->add_input(data->current_value);
-        copy_command->add_output(output_value);
+        copy_command->add_output(access(output_value));
         add_command(copy_command);
-        data->current_value = output_value;
+        data->current_value = access(output_value);
     }
 }
 
@@ -66,17 +66,17 @@ void ast_converter::operator()(std::vector<expression> const&expr) const {
         auto insert{std::make_shared<intr::command>(blt()->COPY_TO_INDEX)};
         insert->add_input(data->current_value);
         insert->add_input(int_literal(i));
-        insert->add_output(copy_to);
+        insert->add_output(access(copy_to));
         add_command(insert);
     }
-    data->current_value = copy_to;
+    data->current_value = access(copy_to);
 }
 
 void ast_converter::operator()(single_var_dec const&dec) const {
     recurse(dec.type);
     auto value{std::make_shared<intr::value>(data->current_type)};
     data->current_scope->declare_var(dec.name, value);
-    data->current_value = value;
+    data->current_value = access(value);
 }
 
 void ast_converter::operator()(function_expression const&expr) const {
@@ -120,9 +120,9 @@ void ast_converter::operator()(operator_list_expression const&expr) const {
             if (last_command) {
                 auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
                 declare_temp_var(output);
-                last_command->add_output(output);
+                last_command->add_output(access(output));
                 add_command(last_command);
-                data->current_value = output;
+                data->current_value = access(output);
             }
             intr::scope_ptr func{nullptr};
             auto const&c = operation.op_char;
@@ -181,9 +181,9 @@ void ast_converter::operator()(operator_list_expression const&expr) const {
     if (last_command) {
         auto output{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
         declare_temp_var(output);
-        last_command->add_output(output);
+        last_command->add_output(access(output));
         add_command(last_command);
-        data->current_value = output;
+        data->current_value = access(output);
     }
 }
 

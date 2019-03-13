@@ -149,8 +149,8 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
         output = std::make_shared<intr::value>(output_type);
         context->declare_temp_var(output);
         auto convert{std::make_shared<intr::command>(convert_func)};
-        convert->add_input(input);
-        convert->add_output(output);
+        convert->add_input(std::make_shared<intr::value_accessor>(input));
+        convert->add_output(std::make_shared<intr::value_accessor>(output));
         context->add_command(convert);
     } else {
         output = input;
@@ -183,11 +183,11 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         param_type->fill_tables(value_table, type_table, real_type);
     };
 
-    for (int i = 0; i < inputs.size(); i++) {
+    for (unsigned int i = 0; i < inputs.size(); i++) {
         unravel(inputs[i], scope->get_inputs()[i]);
     }
 
-    for (int i = 0; i < outputs.size(); i++) {
+    for (unsigned int i = 0; i < outputs.size(); i++) {
         unravel(outputs[i], scope->get_outputs()[i]);
     }
 
@@ -308,7 +308,7 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         auto old_ins = command->get_inputs(), old_outs = command->get_outputs();
         std::vector<intr::const_value_ptr> new_ins, new_outs;
         for (auto in : old_ins) {
-            new_ins.push_back(output->convert_value(in));
+            new_ins.push_back(output->convert_value(in);
         }
         for (auto out : old_outs) {
             new_outs.push_back(output->convert_value(out));

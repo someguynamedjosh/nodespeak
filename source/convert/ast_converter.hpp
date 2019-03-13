@@ -30,22 +30,32 @@ inline intr::builtins_ptr blt() {
     return intr::builtins::get_instance();
 }
 
-inline intr::value_ptr int_literal(const int value) {
-    return std::make_shared<intr::value>(
-        blt()->INT, std::make_shared<int>(value)
+inline intr::value_accessor_ptr int_literal(const int value) {
+    return std::make_shared<intr::value_accessor>(
+        std::make_shared<intr::value>(
+            blt()->INT, std::make_shared<int>(value)
+        )
     );
 }
 
-inline intr::value_ptr float_literal(const float value) {
-    return std::make_shared<intr::value>(
-        blt()->FLOAT, std::make_shared<float>(value)
+inline intr::value_accessor_ptr float_literal(const float value) {
+    return std::make_shared<intr::value_accessor>(
+        std::make_shared<intr::value>(
+            blt()->FLOAT, std::make_shared<float>(value)
+        )
     );
 }
 
-inline intr::value_ptr bool_literal(const bool value) {
-    return std::make_shared<intr::value>(
-        blt()->BOOL, std::make_shared<bool>(value)
+inline intr::value_accessor_ptr bool_literal(const bool value) {
+    return std::make_shared<intr::value_accessor>(
+        std::make_shared<intr::value>(
+            blt()->BOOL, std::make_shared<bool>(value)
+        )
     );
+}
+
+inline intr::value_accessor_ptr access(intr::const_value_ptr value) {
+    return std::make_shared<intr::value_accessor>(value);
 }
 
 struct access_result {
@@ -56,7 +66,7 @@ struct access_result {
 struct ast_converter_data {
     bool fpd_is_input, is_lambda;
     intr::scope_ptr current_scope;
-    intr::value_ptr current_value;
+    intr::value_accessor_ptr current_value;
     intr::data_type_ptr current_type;
     intr::vague_data_type_ptr current_vtype;
     intr::vague_expression_ptr current_vexpr;
