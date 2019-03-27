@@ -46,6 +46,14 @@ value::value(const_data_type_ptr type, value_ptr target)
     data = std::reinterpret_pointer_cast<char[]>(target);
 }
 
+void value::set_debug_label(std::string label) {
+    debug_label = label;
+}
+
+std::string value::get_debug_label() const {
+    return debug_label;
+}
+
 std::shared_ptr<const data_type> value::get_type() const {
     return type;
 }

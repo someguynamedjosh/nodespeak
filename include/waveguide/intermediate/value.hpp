@@ -23,6 +23,8 @@ typedef std::shared_ptr<const value_accessor> const_value_accessor_ptr;
 
 class value {
 private:
+    // TODO: Remove this value in production builds.
+    std::string debug_label;
     const_data_type_ptr type;
     shared_data_block_ptr data;
     bool value_known{false};
@@ -37,6 +39,8 @@ public:
         assert(!type->is_proxy_type());
         data = std::reinterpret_pointer_cast<char[]>(in_data);
     }
+    void set_debug_label(std::string label);
+    std::string get_debug_label() const;
 
     const_data_type_ptr get_type() const;
     void set_type(const_data_type_ptr new_type);
@@ -59,12 +63,16 @@ public:
 
 class value_accessor {
 private:
+    // TODO: Remove this value in production builds.
+    std::string debug_label;
     value_ptr root_value{nullptr};
     std::vector<const_value_ptr> subparts{};
-
 public:
     value_accessor();
     value_accessor(value_ptr root_value);
+    void set_debug_label(std::string label);
+    std::string get_debug_label() const;
+    std::string format_debug_label() const;
 
     void set_root_value(value_ptr root_value);
     value_ptr get_root_value() const;
