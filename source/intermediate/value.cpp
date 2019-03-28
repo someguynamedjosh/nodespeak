@@ -59,8 +59,10 @@ std::shared_ptr<const data_type> value::get_type() const {
 }
 
 void value::set_type(std::shared_ptr<const data_type> new_type) {
-    assert(new_type->get_length() == type->get_length());
-    assert(new_type->is_proxy_type() == type->is_proxy_type());
+    if (type != blt()->DEDUCE_LATER) {
+        assert(new_type->get_length() == type->get_length());
+        assert(new_type->is_proxy_type() == type->is_proxy_type());
+    }
     type = new_type;
 }
 
@@ -149,16 +151,8 @@ value_accessor::value_accessor() { }
 value_accessor::value_accessor(value_ptr root_value)
     : root_value{root_value} { }
 
-void value_accessor::set_debug_label(std::string label) {
-    debug_label = label;
-}
-
 std::string value_accessor::get_debug_label() const {
-    return debug_label;
-}
-
-std::string value_accessor::format_debug_label() const {
-    std::string output = debug_label;
+    std::string output = root_value->get_debug_label();
     for (auto subpart : subparts) {
         output += '[';
         output += subpart->get_debug_label();

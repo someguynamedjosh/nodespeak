@@ -147,6 +147,7 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
     intr::value_ptr output{nullptr};
     if (convert_func) {
         output = std::make_shared<intr::value>(output_type);
+        output->set_debug_label(input->get_debug_label());
         context->declare_temp_var(output);
         auto convert{std::make_shared<intr::command>(convert_func)};
         convert->add_input(std::make_shared<intr::value_accessor>(input));
@@ -165,6 +166,10 @@ intr::value_ptr cast_value(intr::scope_ptr context, intr::value_ptr input,
     }
 }
 
+/**
+ * Changes a scope so that it does not have any vague data types in any of the
+ * variables.
+ */
 intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope, 
     std::vector<intr::const_value_accessor_ptr> const&inputs,
     std::vector<intr::const_value_accessor_ptr> const&outputs) {
@@ -274,6 +279,7 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         } else {
             new_var = std::make_shared<intr::value>(type);
         }
+        new_var->set_debug_label(old_value->get_debug_label() + " [Casted]");
         output->add_value_conversion(old_value, new_var);
         return new_var;
     };
@@ -344,11 +350,16 @@ intr::resolved_scope_ptr cast_scope(intr::scope_ptr scope,
         )};
 
         // Add the arguments to the new command.
-        for (auto in : new_ins) {
-            new_command->add_input(in);
+        for (int i = 0; i < new_ins.size(); i++) {
+            new_command->add_input(new_ins[i]);
         }
-        for (auto out : command->get_outputs()) {
-            new_command->add_output(output->convert_value(out));
+        for (int i = 0; i < new_outs.size(); i++) {
+            if (new_outs[i]->get_type() == intr::blt()->DEDUCE_LATER) {
+                new_outs[i]->get_root_value()->set_type(
+                    new_callee->get_outputs()[i]->get_type()
+                );
+            }
+            new_command->add_output(new_outs[i]);
         }
         output->add_command(new_command);
     }
