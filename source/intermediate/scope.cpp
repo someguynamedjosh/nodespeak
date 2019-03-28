@@ -135,11 +135,11 @@ void resolved_command::set_callee(resolved_scope_ptr callee) {
 
 std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) {
     for (auto value : to_print.ins) {
-        stream << "      Input: " << std::endl;
+        stream << "      Input: " << value->get_root_value() << std::endl;
         print_value("        ", stream, *value);
     }
     for (auto value : to_print.outs) {
-        stream << "      Output: " << std::endl;
+        stream << "      Output: " << value->get_root_value() << std::endl;
         print_value("        ", stream, *value);
     }
     for (auto lambda : to_print.lambdas) {
@@ -191,12 +191,12 @@ const scope_ptr scope::get_parent() const {
 std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     stream << to_print.get_debug_path() << " is Scope:" << std::endl;
     stream << "  Parent: " << to_print.parent.get() << std::endl;
-    stream << "  Inputs:" << std::endl;
     for (auto in : to_print.ins) {
+    stream << "  Input: " << in->get_root_value() << std::endl;
         print_value("      ", stream, *in);
     }
-    stream << "  Outputs:" << std::endl;
     for (auto out : to_print.outs) {
+        stream << "  Outputs: " << out->get_root_value() << std::endl;
         print_value("      ", stream, *out);
     }
     stream << "  Types:" << std::endl;
@@ -267,10 +267,12 @@ const std::vector<scope_ptr> scope::get_temp_func_list() const {
 
 void scope::declare_var(std::string name, value_ptr value) {
     vars.emplace(name, value);
+    value->set_debug_label("Variable " + name);
 }
 
 void scope::declare_temp_var(value_ptr value) {
     temp_vars.push_back(value);
+    value->set_debug_label("Temp Var #" + std::to_string(temp_vars.size()));
 }
 
 const value_ptr scope::lookup_var(std::string name, bool recurse) 
@@ -471,12 +473,12 @@ std::vector<const_value_accessor_ptr> const&resolved_scope::get_outputs() const 
 std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print) {
     stream << to_print.get_debug_path() << " is Resolved Scope:" << std::endl;
     stream << "  Parent: " << to_print.parent.get() << std::endl;
-    stream << "  Inputs:" << std::endl;
     for (auto in : to_print.ins) {
+        stream << "  Inputs: " << in << std::endl;
         print_value("    ", stream, *in);
     }
-    stream << "  Outputs:" << std::endl;
     for (auto out : to_print.outs) {
+        stream << "  Outputs: " << out << std::endl;
         print_value("    ", stream, *out);
     }
     stream << "  Commands:" << std::endl;

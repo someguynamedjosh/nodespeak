@@ -31,27 +31,27 @@ inline intr::builtins_ptr blt() {
 }
 
 inline intr::value_accessor_ptr int_literal(const int value) {
-    return std::make_shared<intr::value_accessor>(
-        std::make_shared<intr::value>(
-            blt()->INT, std::make_shared<int>(value)
-        )
+    auto literal = std::make_shared<intr::value>(
+        blt()->INT, std::make_shared<int>(value)
     );
+    literal->set_debug_label("Literal " + std::to_string(value));
+    return std::make_shared<intr::value_accessor>(literal);
 }
 
 inline intr::value_accessor_ptr float_literal(const float value) {
-    return std::make_shared<intr::value_accessor>(
-        std::make_shared<intr::value>(
-            blt()->FLOAT, std::make_shared<float>(value)
-        )
+    auto literal = std::make_shared<intr::value>(
+        blt()->FLOAT, std::make_shared<float>(value)
     );
+    literal->set_debug_label("Literal " + std::to_string(value));
+    return std::make_shared<intr::value_accessor>(literal);
 }
 
 inline intr::value_accessor_ptr bool_literal(const bool value) {
-    return std::make_shared<intr::value_accessor>(
-        std::make_shared<intr::value>(
-            blt()->BOOL, std::make_shared<bool>(value)
-        )
+    auto literal = std::make_shared<intr::value>(
+        blt()->BOOL, std::make_shared<bool>(value)
     );
+    literal->set_debug_label("Literal " + std::to_string(value));
+    return std::make_shared<intr::value_accessor>(literal);
 }
 
 inline intr::value_accessor_ptr access(intr::value_ptr value) {

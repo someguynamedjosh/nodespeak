@@ -64,15 +64,12 @@ public:
 class value_accessor {
 private:
     // TODO: Remove this value in production builds.
-    std::string debug_label;
     value_ptr root_value{nullptr};
     std::vector<const_value_ptr> subparts{};
 public:
     value_accessor();
     value_accessor(value_ptr root_value);
-    void set_debug_label(std::string label);
     std::string get_debug_label() const;
-    std::string format_debug_label() const;
 
     void set_root_value(value_ptr root_value);
     value_ptr get_root_value() const;
