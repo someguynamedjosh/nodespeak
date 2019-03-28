@@ -9,3 +9,4 @@ a.out
 build
 *.old
 samples/.*.wg
+.vscode/ipch
