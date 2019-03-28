@@ -149,6 +149,24 @@ value_accessor::value_accessor() { }
 value_accessor::value_accessor(value_ptr root_value)
     : root_value{root_value} { }
 
+void value_accessor::set_debug_label(std::string label) {
+    debug_label = label;
+}
+
+std::string value_accessor::get_debug_label() const {
+    return debug_label;
+}
+
+std::string value_accessor::format_debug_label() const {
+    std::string output = debug_label;
+    for (auto subpart : subparts) {
+        output += '[';
+        output += subpart->get_debug_label();
+        output += ']';
+    }
+    return output;
+}
+
 void value_accessor::set_root_value(value_ptr root_value) {
     this->root_value = root_value;
 }
@@ -170,6 +188,7 @@ bool value_accessor::is_value_known() const {
     for (auto subpart : subparts) {
         if (!subpart->is_value_known()) return false;
     }
+    return true;
 }
 
 const_data_type_ptr value_accessor::get_type() const {

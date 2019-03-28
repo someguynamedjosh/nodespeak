@@ -24,6 +24,38 @@ std::ostream &operator<<(std::ostream &stream, loop_range_aug const&to_print) {
 }
 #pragma GCC diagnostic pop
 
+void print_value(std::string const&indent, std::ostream &stream, value const&to_print) {
+    stream << indent << "Label: " << to_print.get_debug_label() << std::endl;
+    stream << indent << "Type: " << to_print.get_type() << " (";
+    to_print.get_type()->print_repr(stream);
+    stream << ")" << std::endl;
+    if (to_print.is_value_known()) {
+        stream << indent << "Value: ";
+        to_print.get_type()->format(stream, to_print.get_data());
+        stream << std::endl;
+    }
+    if (to_print.is_proxy()) {
+        stream << indent << "Proxy for: ";
+        stream << &to_print.get_real_value() << std::endl;
+    }
+}
+
+void print_value(std::string const&indent, std::ostream &stream, value_accessor const&to_print) {
+    stream << indent << "Label: " << to_print.get_debug_label() << std::endl;
+    stream << indent << "Type: " << to_print.get_type() << " (";
+    to_print.get_type()->print_repr(stream);
+    stream << ")" << std::endl;
+    if (to_print.is_value_known()) {
+        stream << indent << "Value: ";
+        to_print.get_type()->format(stream, to_print.get_data());
+        stream << std::endl;
+    }
+    if (to_print.get_root_value()->is_proxy()) {
+        stream << indent << "Proxy for: ";
+        stream << &to_print.get_root_value()->get_real_value() << std::endl;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,24 +135,12 @@ void resolved_command::set_callee(resolved_scope_ptr callee) {
 
 std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) {
     for (auto value : to_print.ins) {
-        stream << "      Input: " << value << " (type ";
-        value->get_type()->print_repr(stream);
-        stream << ")";
-        if (value->is_value_known()) {
-            stream << " = ";
-            value->get_type()->format(stream, value->get_data());
-        }
-        stream << std::endl;
+        stream << "      Input: " << std::endl;
+        print_value("        ", stream, *value);
     }
     for (auto value : to_print.outs) {
-        stream << "      Output: " << value << " (type ";
-        value->get_type()->print_repr(stream);
-        stream << ")";
-        if (value->is_value_known()) {
-            stream << " = ";
-            value->get_type()->format(stream, value->get_data());
-        }
-        stream << std::endl;
+        stream << "      Output: " << std::endl;
+        print_value("        ", stream, *value);
     }
     for (auto lambda : to_print.lambdas) {
         stream << "      Lambda: " << lambda.body << " is " << lambda.name
@@ -168,46 +188,16 @@ const scope_ptr scope::get_parent() const {
     return parent;
 }
 
-void print_value(std::ostream &stream, value const&to_print) {
-    stream << "      Type: " << to_print.get_type() << " (";
-    to_print.get_type()->print_repr(stream);
-    stream << ")" << std::endl;
-    if (to_print.is_value_known()) {
-        stream << "      Value: ";
-        to_print.get_type()->format(stream, to_print.get_data());
-        stream << std::endl;
-    }
-    if (to_print.is_proxy()) {
-        stream << "      Proxy for: ";
-        stream << &to_print.get_real_value() << std::endl;
-    }
-}
-
-void print_value(std::ostream &stream, value_accessor const&to_print) {
-    stream << "      Type: " << to_print.get_type() << " (";
-    to_print.get_type()->print_repr(stream);
-    stream << ")" << std::endl;
-    if (to_print.is_value_known()) {
-        stream << "      Value: ";
-        to_print.get_type()->format(stream, to_print.get_data());
-        stream << std::endl;
-    }
-    if (to_print.get_root_value()->is_proxy()) {
-        stream << "      Proxy for: ";
-        stream << &to_print.get_root_value()->get_real_value() << std::endl;
-    }
-}
-
 std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     stream << to_print.get_debug_path() << " is Scope:" << std::endl;
     stream << "  Parent: " << to_print.parent.get() << std::endl;
     stream << "  Inputs:" << std::endl;
     for (auto in : to_print.ins) {
-        print_value(stream, *in);
+        print_value("      ", stream, *in);
     }
     stream << "  Outputs:" << std::endl;
     for (auto out : to_print.outs) {
-        print_value(stream, *out);
+        print_value("      ", stream, *out);
     }
     stream << "  Types:" << std::endl;
     for (auto type : to_print.types) {
@@ -226,12 +216,12 @@ std::ostream &operator<<(std::ostream &stream, scope const&to_print) {
     for (unsigned int i = 0; i < to_print.temp_vars.size(); i++) {
         stream << "    " << to_print.temp_vars[i] << " is !TEMP" << (i + 1) 
             << ":" << std::endl;
-        print_value(stream, *to_print.temp_vars[i]);
+        print_value("      ", stream, *to_print.temp_vars[i]);
     }
     for (auto var : to_print.vars) {
         stream << "    " << var.second << " is " << var.first << ":" 
             << std::endl;
-        print_value(stream, *var.second);
+        print_value("      ", stream, *var.second);
     }
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
@@ -483,11 +473,11 @@ std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print) {
     stream << "  Parent: " << to_print.parent.get() << std::endl;
     stream << "  Inputs:" << std::endl;
     for (auto in : to_print.ins) {
-        print_value(stream, *in);
+        print_value("    ", stream, *in);
     }
     stream << "  Outputs:" << std::endl;
     for (auto out : to_print.outs) {
-        print_value(stream, *out);
+        print_value("    ", stream, *out);
     }
     stream << "  Commands:" << std::endl;
     for (auto command : to_print.commands) {
