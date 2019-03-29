@@ -50,6 +50,9 @@ void ast_converter::operator()(variable_expression const&expr) const {
 }
 
 void ast_converter::operator()(std::vector<expression> const&expr) const {
+    // TODO: There is no good way to deduce the type of arrays later in the code.
+    // The whole thing will need to be refactored so that types get resolved as
+    // the intermediate code is built up.
     auto copy_to{std::make_shared<intr::value>(
         std::make_shared<intr::array_data_type>(
             blt()->DEDUCE_LATER, expr.size()
