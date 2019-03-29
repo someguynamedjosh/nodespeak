@@ -169,11 +169,11 @@ value_ptr value_accessor::get_root_value() const {
     return root_value;
 }
 
-void value_accessor::add_subpart(const_value_ptr subpart) {
+void value_accessor::add_subpart(const_value_accessor_ptr subpart) {
     subparts.push_back(subpart);
 }
 
-std::vector<const_value_ptr> const&value_accessor::get_subparts() const {
+std::vector<const_value_accessor_ptr> const&value_accessor::get_subparts() const {
     return subparts;
 }
 

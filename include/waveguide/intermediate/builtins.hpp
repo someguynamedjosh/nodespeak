@@ -25,7 +25,7 @@ public:
         ADD, MUL, RECIP, MOD, BAND, BOR, BXOR,
         ITOF, BTOF, BTOI, ITOB, FTOI, FTOB,
         EQ, NEQ, LTE, GTE, LT, GT, AND, OR, XOR,
-        COPY, COPY_TO_INDEX, COPY_FROM_INDEX, RETURN,
+        COPY, RETURN,
         LOG, DEF, IF, FOR, FOR_EACH, WHILE;
 };
 

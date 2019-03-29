@@ -20,7 +20,7 @@ void ast_converter::operator()(assign_statement const&stat) const {
     recurse(stat.value);
     copy->add_input(data->current_value);
     recurse(stat.assign_to);
-    copy->add_input(data->current_value);
+    copy->add_output(data->current_value);
     add_command(copy);
 }
 

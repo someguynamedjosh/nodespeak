@@ -65,7 +65,7 @@ class value_accessor {
 private:
     // TODO: Remove this value in production builds.
     value_ptr root_value{nullptr};
-    std::vector<const_value_ptr> subparts{};
+    std::vector<const_value_accessor_ptr> subparts{};
 public:
     value_accessor();
     value_accessor(value_ptr root_value);
@@ -74,8 +74,8 @@ public:
     void set_root_value(value_ptr root_value);
     value_ptr get_root_value() const;
 
-    void add_subpart(const_value_ptr subpart);
-    std::vector<const_value_ptr> const&get_subparts() const;
+    void add_subpart(const_value_accessor_ptr subpart);
+    std::vector<const_value_accessor_ptr> const&get_subparts() const;
 
     bool is_value_known() const;
     const_data_type_ptr get_type() const;

@@ -39,19 +39,14 @@ void ast_converter::operator()(variable_expression const&expr) const {
             "There is no variable in scope with the name '" + expr.name + "'."
         };
     }
+    auto old_value = data->current_value;
+    push_data();
     for (auto index_expr : expr.array_accesses) {
-        auto output_value{std::make_shared<intr::value>(blt()->DEDUCE_LATER)};
-        declare_temp_var(output_value);
-        auto copy_command{
-            std::make_shared<intr::command>(blt()->COPY_FROM_INDEX)
-        };
-        copy_command->add_input(data->current_value);
         recurse(index_expr);
-        copy_command->add_input(data->current_value);
-        copy_command->add_output(access(output_value));
-        add_command(copy_command);
-        data->current_value = access(output_value);
+        old_value->add_subpart(data->current_value);
     }
+    pop_data();
+    data->current_value = old_value;
 }
 
 void ast_converter::operator()(std::vector<expression> const&expr) const {
@@ -63,10 +58,11 @@ void ast_converter::operator()(std::vector<expression> const&expr) const {
     declare_temp_var(copy_to);
     for (uint i = 0; i < expr.size(); i++) {
         recurse(expr[i]);
-        auto insert{std::make_shared<intr::command>(blt()->COPY_TO_INDEX)};
+        auto insert{std::make_shared<intr::command>(blt()->COPY)};
         insert->add_input(data->current_value);
-        insert->add_input(int_literal(i));
-        insert->add_output(access(copy_to));
+        auto accessor = access(copy_to);
+        accessor->add_subpart(int_literal(i));
+        insert->add_output(accessor);
         add_command(insert);
     }
     data->current_value = access(copy_to);

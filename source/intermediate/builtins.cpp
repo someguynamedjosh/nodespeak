@@ -54,8 +54,7 @@ builtins::builtins()
     LT{new scope()}, GT{new scope()}, AND{new scope()}, OR{new scope()},
     XOR{new scope()},
 
-    COPY{new scope()}, COPY_TO_INDEX{new scope{}}, COPY_FROM_INDEX{new scope{}},
-	RETURN{new scope()},
+    COPY{new scope()}, RETURN{new scope()},
 
 	LOG{new scope()}, DEF{new scope()}, IF{new scope()}, FOR{new scope()}, 
 	FOR_EACH{new scope()}, WHILE{new scope()} {
@@ -96,12 +95,6 @@ builtins::builtins()
 	vague_data_type_ptr int_type{new vague_basic_data_type{"Int"}};
 	vague_data_type_ptr bool_type{new vague_basic_data_type{"Bool"}};
 	add_ax_io(COPY, "!TYPE", "!TYPE");
-	COPY_TO_INDEX->add_input("a", wildcard_type);
-	COPY_TO_INDEX->add_input("index", int_type);
-	COPY_TO_INDEX->add_output("x", wildcard_type);
-	COPY_FROM_INDEX->add_input("a", wildcard_type);
-	COPY_FROM_INDEX->add_input("index", int_type);
-	COPY_FROM_INDEX->add_output("x", wildcard_type);
 	// RETURN has no inputs, no outputs.
 
 	LOG->add_input("a", wildcard_type);
@@ -148,8 +141,6 @@ void builtins::add_to_scope(scope_ptr scope) {
 	scope->declare_func("!XOR", XOR);
 
 	scope->declare_func("!COPY", COPY);
-	scope->declare_func("!COPY_TO_INDEX", COPY_TO_INDEX);
-	scope->declare_func("!COPY_FROM_INDEX", COPY_FROM_INDEX);
 	scope->declare_func("!RETURN", RETURN);
 
 	scope->declare_func("log", LOG);
