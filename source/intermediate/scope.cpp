@@ -88,11 +88,11 @@ void abstract_command::clear_outputs() {
     outs.clear();
 }
 
-std::vector<command_lambda> const&abstract_command::get_lambdas() const {
+std::vector<scope_ptr> const&abstract_command::get_lambdas() const {
     return lambdas;
 }
 
-void abstract_command::add_lambda(command_lambda &lambda) {
+void abstract_command::add_lambda(scope_ptr lambda) {
     lambdas.push_back(lambda);
 }
 
@@ -143,8 +143,7 @@ std::ostream &operator<<(std::ostream &stream, abstract_command const&to_print) 
         print_value("        ", stream, *value);
     }
     for (auto lambda : to_print.lambdas) {
-        stream << "      Lambda: " << lambda.body << " is " << lambda.name
-            << std::endl;
+        stream << "      Lambda: " << lambda.get() << std::endl;
     }
     return stream;
 }

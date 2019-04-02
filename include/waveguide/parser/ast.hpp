@@ -65,12 +65,14 @@ struct function_statement;
 struct assign_statement;
 struct var_dec_statement;
 struct return_statement;
+struct function_dec;
 
 using statement_variant = x3::variant<
     x3::forward_ast<function_statement>,
     x3::forward_ast<assign_statement>,
     x3::forward_ast<var_dec_statement>,
-    x3::forward_ast<return_statement>>;
+    x3::forward_ast<return_statement>,
+    x3::forward_ast<function_dec>>;
 struct statement: statement_variant, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
@@ -112,7 +114,6 @@ struct function_parameter_dec: x3::position_tagged {
 struct function_dec: x3::position_tagged {
     std::string name;
     std::vector<function_parameter_dec> inputs, outputs;
-    std::vector<x3::forward_ast<function_dec>> lambdas;
     std::vector<statement> body;
 };
 
@@ -155,11 +156,16 @@ struct function_expression_output: fso_variant {
         fso_variant(expr) { }
 };
 
+struct lambda_dec: x3::position_tagged {
+    std::vector<function_parameter_dec> inputs, outputs;
+    std::vector<statement> body;
+};
+
 struct function_expression: x3::position_tagged {
     std::string function_name;
     std::vector<expression> inputs;
     std::vector<function_expression_output> outputs;
-    std::vector<function_dec> lambdas;
+    std::vector<lambda_dec> lambdas;
 };
 
 

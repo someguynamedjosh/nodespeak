@@ -86,13 +86,14 @@ void ast_converter::operator()(function_expression const&expr) const {
                 + expr.function_name + "'."
         };
     }
-    if (func == blt()->DEF) {
-        data->is_lambda = false;
-        for (auto const&lambda : expr.lambdas) {
-            recurse(lambda);
-        }
-        return;
-    }
+    // TODO: Replace this with actual def syntax.
+    // if (func == blt()->DEF) {
+    //     data->is_lambda = false;
+    //     for (auto const&lambda : expr.lambdas) {
+    //         recurse(lambda);
+    //     }
+    //     return;
+    // }
     auto command{std::make_shared<intr::command>(func)};
     for (auto const&input : expr.inputs) {
         recurse(input);

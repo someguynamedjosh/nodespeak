@@ -40,14 +40,31 @@ struct ast_printer: boost::static_visitor<> {
             first = false;
             (*this)(output);
         }
-        std::cout << ") [";
-        first = true;
-        for (auto const&lambda : dec.lambdas) {
+        std::cout << ") {";
+        if (dec.body.size() > 0) std::cout << std::endl;
+        for (auto const&stat : dec.body) {
+            recurse(stat);
+        }
+        if (dec.body.size() > 0) print_indent();
+        std::cout << "}";
+    }
+
+    void operator()(lambda_dec const&dec) const {
+        std::cout << "lambda <";
+        bool first = true;
+        for (auto const&input : dec.inputs) {
             if (!first) std::cout << ", ";
             first = false;
-            (*this)(lambda);
+            (*this)(input);
         }
-        std::cout << "] { ";
+        std::cout << ">:<";
+        first = true;
+        for (auto const&output : dec.outputs) {
+            if (!first) std::cout << ", ";
+            first = false;
+            (*this)(output);
+        }
+        std::cout << "> { ";
         if (dec.body.size() > 0) std::cout << std::endl;
         for (auto const&stat : dec.body) {
             recurse(stat);

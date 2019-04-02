@@ -57,15 +57,34 @@ void ast_converter::operator()(function_dec const&dec) const {
     recurse(dec.body);
     pop_data();
 
-    if (data->is_lambda) {
-        intr::command_lambda lambda;
-        lambda.name = dec.name;
-        lambda.body = func_scope;
-        data->current_scope->declare_temp_func(lambda.body);
-        data->current_scope->get_commands().back()->add_lambda(lambda);
-    } else {
-        data->current_scope->declare_func(dec.name, func_scope);
+    // if (data->is_lambda) {
+    //     intr::command_lambda lambda;
+    //     lambda.name = dec.name;
+    //     lambda.body = func_scope;
+    //     data->current_scope->declare_temp_func(lambda.body);
+    //     data->current_scope->get_commands().back()->add_lambda(lambda);
+    // } else {
+    data->current_scope->declare_func(dec.name, func_scope);
+    // }
+}
+
+void ast_converter::operator()(lambda_dec const&dec) const {
+    auto func_scope = std::make_shared<intr::scope>(data->current_scope);
+
+    push_data();
+    data->current_scope = func_scope;
+    data->fpd_is_input = true;
+    for (auto fpd : dec.inputs) {
+        recurse(fpd);
     }
+    data->fpd_is_input = false;
+    for (auto fpd : dec.outputs) {
+        recurse(fpd);
+    }
+    recurse(dec.body);
+    pop_data();
+
+    data->current_scope->get_commands().back()->add_lambda(func_scope);
 }
 
 void ast_converter::operator()(data_type const&type) const {

@@ -67,17 +67,12 @@ typedef boost::variant<do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug>
     augmentation;
 typedef std::shared_ptr<augmentation> augmentation_ptr;
 
-struct command_lambda {
-    std::string name;
-    scope_ptr body;
-};
-
 class abstract_command {
 private:
     typedef const_value_accessor_ptr arg_ptr;
     typedef std::vector<arg_ptr> arg_list;
     arg_list ins, outs;
-    std::vector<command_lambda> lambdas;
+    std::vector<scope_ptr> lambdas;
     augmentation_ptr aug{nullptr};
 public:
     abstract_command();
@@ -93,8 +88,8 @@ public:
     void add_output(arg_ptr output);
     void clear_outputs();
 
-    std::vector<command_lambda> const&get_lambdas() const;
-    void add_lambda(command_lambda &lambda);
+    std::vector<scope_ptr> const&get_lambdas() const;
+    void add_lambda(scope_ptr lambda);
     void clear_lambdas();
 
     const augmentation_ptr get_augmentation() const;
