@@ -87,6 +87,10 @@ void ast_converter::operator()(lambda_dec const&dec) const {
     data->current_scope->get_commands().back()->add_lambda(func_scope);
 }
 
+void ast_converter::operator()(adjective const&adj) const {
+    // TODO: Do something.
+}
+
 void ast_converter::operator()(data_type const&type) const {
     data->current_type = lookup_type(type.name);
     if (!data->current_type) {

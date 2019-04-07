@@ -100,13 +100,9 @@ builtins::builtins()
 	LOG->add_input("a", wildcard_type);
 	// DEF has no inputs, no outputs.
 	IF->add_input("condition", bool_type);
-	IF->add_output("return", wildcard_type);
 	FOR->add_input("times", int_type);
-	FOR->add_output("return", wildcard_type);
 	FOR_EACH->add_input("values", wildcard2_type);
-	FOR_EACH->add_output("return", wildcard_type);
 	WHILE->add_input("condition", bool_type);
-	WHILE->add_output("return", wildcard_type);
 }
 
 void builtins::add_to_scope(scope_ptr scope) {

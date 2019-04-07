@@ -10,6 +10,8 @@
 namespace waveguide {
 namespace intermediate {
 
+class adjective;
+class command_lambda;
 class abstract_command;
 class command;
 class resolved_command;
@@ -20,6 +22,8 @@ class vague_data_type;
 class value;
 class value_accessor;
 
+typedef std::shared_ptr<adjective> adjective_ptr;
+typedef std::shared_ptr<command_lambda> command_lambda_ptr;
 typedef std::shared_ptr<command> command_ptr;
 typedef std::shared_ptr<resolved_command> resolved_command_ptr;
 typedef std::shared_ptr<data_type> data_type_ptr;
@@ -67,12 +71,51 @@ typedef boost::variant<do_if_aug, do_if_not_aug, loop_for_aug, loop_range_aug>
     augmentation;
 typedef std::shared_ptr<augmentation> augmentation_ptr;
 
+class adjective {
+private:
+    typedef const_value_accessor_ptr arg_ptr;
+    typedef std::vector<arg_ptr> arg_list;
+    arg_list ins, outs;
+    std::string name;
+public:
+    adjective();
+    adjective(std::string name);
+
+    std::string const&get_name() const;
+    void set_name(std::string name);
+
+    arg_list const&get_inputs() const;
+    void add_input(arg_ptr input);
+    void clear_inputs();
+
+    arg_list const&get_outputs() const;
+    void add_output(arg_ptr output);
+    void clear_outputs();
+};
+
+class command_lambda {
+private:
+    typedef std::vector<adjective_ptr> adjective_list;
+    adjective_list adjectives;
+    scope_ptr scope;
+public:
+    command_lambda();
+    command_lambda(scope_ptr scope);
+
+    scope_ptr get_scope() const;
+    void set_scope(scope_ptr scope);
+
+    adjective_list const&get_adjectives() const;
+    void add_adjective(adjective_ptr adjective);
+    void clear_adjectives();
+};
+
 class abstract_command {
 private:
     typedef const_value_accessor_ptr arg_ptr;
     typedef std::vector<arg_ptr> arg_list;
     arg_list ins, outs;
-    std::vector<scope_ptr> lambdas;
+    std::vector<command_lambda_ptr> lambdas;
     augmentation_ptr aug{nullptr};
 public:
     abstract_command();
@@ -88,9 +131,10 @@ public:
     void add_output(arg_ptr output);
     void clear_outputs();
 
-    std::vector<scope_ptr> const&get_lambdas() const;
-    void add_lambda(scope_ptr lambda);
+    std::vector<command_lambda_ptr> const&get_lambdas() const;
+    void add_lambda(command_lambda_ptr lambda);
     void clear_lambdas();
+    void add_adjective(adjective_ptr adjective);
 
     const augmentation_ptr get_augmentation() const;
 };

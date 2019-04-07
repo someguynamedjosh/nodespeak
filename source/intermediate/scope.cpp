@@ -88,12 +88,21 @@ void abstract_command::clear_outputs() {
     outs.clear();
 }
 
-std::vector<scope_ptr> const&abstract_command::get_lambdas() const {
+std::vector<command_lambda_ptr> const&abstract_command::get_lambdas() const {
     return lambdas;
 }
 
-void abstract_command::add_lambda(scope_ptr lambda) {
+void abstract_command::add_lambda(command_lambda_ptr lambda) {
     lambdas.push_back(lambda);
+}
+
+void abstract_command::clear_lambdas() {
+    lambdas.clear();
+}
+
+void abstract_command::add_adjective(adjective_ptr adjective) {
+    assert(lambdas.size() > 0);
+    lambdas.back()->add_adjective(adjective);
 }
 
 const augmentation_ptr abstract_command::get_augmentation() const {

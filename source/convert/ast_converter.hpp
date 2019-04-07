@@ -110,6 +110,7 @@ struct ast_converter: util::static_visitor<ast_converter, ast_converter_data> {
     void operator()(function_parameter_dec const&dec) const;
     void operator()(function_dec const&dec) const;
     void operator()(lambda_dec const&dec) const;
+    void operator()(adjective const&dec) const;
     void operator()(data_type const&type) const;
     void operator()(vague_data_type const&type) const;
     void operator()(vague_number_expression const&type) const;

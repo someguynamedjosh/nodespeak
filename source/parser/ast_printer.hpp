@@ -121,14 +121,8 @@ struct ast_printer: boost::static_visitor<> {
             first = false;
             recurse(output);
         }
-        std::cout << ") [";
-        first = true;
-        for (auto const&lambda : expr.lambdas) {
-            if (!first) std::cout << ", ";
-            first = false;
-            (*this)(lambda);
-        }
-        std::cout << "]";
+        std::cout << ")";
+        // TODO: Print lambdas and adjectives.
     }
 
     void operator()(operator_list_expression const&expr) const {

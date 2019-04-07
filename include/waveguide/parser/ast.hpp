@@ -161,11 +161,19 @@ struct lambda_dec: x3::position_tagged {
     std::vector<statement> body;
 };
 
+struct adjective: x3::position_tagged {
+    std::string name;
+    std::vector<expression> inputs;
+    std::vector<function_expression_output> outputs;
+};
+
+typedef x3::variant<lambda_dec, adjective> function_expression_extension;
+
 struct function_expression: x3::position_tagged {
     std::string function_name;
     std::vector<expression> inputs;
     std::vector<function_expression_output> outputs;
-    std::vector<lambda_dec> lambdas;
+    std::vector<function_expression_extension> extensions;
 };
 
 

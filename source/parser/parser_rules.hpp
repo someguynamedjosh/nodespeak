@@ -45,8 +45,10 @@ RULE(signed_expr, ast::expression);
 RULE(basic_expr, ast::expression);
 RULE(array_expr, std::vector<ast::expression>);
 RULE(variable_expr, ast::variable_expression);
-RULE(function_expression_output, ast::function_expression_output);
 RULE(lambda_dec, ast::lambda_dec);
+RULE(adjective, ast::adjective);
+RULE(function_expr_extension, ast::function_expression_extension);
+RULE(function_expr_output, ast::function_expression_output);
 RULE(function_expr, ast::function_expression);
 RULE(noin_function_expr, ast::function_expression);
 RULE(justl_function_expr, ast::function_expression);
@@ -172,7 +174,7 @@ auto const variable_expr_def =
     identifier >> *('[' > expr > ']');
 
 // Output of a function expression
-auto const function_expression_output_def = 
+auto const function_expr_output_def = 
     data_type >> identifier
     | variable_expr;
 
@@ -181,31 +183,38 @@ auto const function_expr_def =
     justl_function_expr | noin_function_expr | default_function_expr;
 
 auto const lambda_dec_def = 
-        -('<' > -(function_input_dec % ',') > '>')
-        >> -(lit(':') > (
-            ('<' > -(function_input_dec % ',') > '>')
-        ))
-        >> ('{' > *statement > '}');
+    -('<' > -(function_input_dec % ',') > '>')
+    >> -(lit(':') > (
+        ('<' > -(function_input_dec % ',') > '>')
+    ))
+    >> ('{' > *statement > '}');
+
+auto const adjective_def = 
+    identifier
+    >> -('(' > -(expr % ',') > ')')
+    >> -(lit(':') > '(' > -(function_expr_output % ',') > ')');
+
+auto const function_expr_extension_def = lambda_dec | adjective;
 
 auto const justl_function_expr_def = (
     identifier
-        >> repeat(0)[expr]
-        >> repeat(0)[function_expression_output]
-        >> +lambda_dec
+    >> repeat(0)[expr]
+    >> repeat(0)[function_expr_output]
+    >> +function_expr_extension
 );
 
 auto const noin_function_expr_def = (
     identifier
-        >> repeat(0)[expr]
-        >> (lit(':') > '(' > -(function_expression_output % ',') > ')')
-        >> *lambda_dec
+    >> repeat(0)[expr]
+    >> (lit(':') > '(' > -(function_expr_output % ',') > ')')
+    >> *function_expr_extension
 );
 
 auto const default_function_expr_def = (
     identifier
-        >> ('(' > -(expr % ',') > ')')
-        >> -(lit(':') > '(' > -(function_expression_output % ',') > ')')
-        >> *lambda_dec
+    >> ('(' > -(expr % ',') > ')')
+    >> -(lit(':') > '(' > -(function_expr_output % ',') > ')')
+    >> *function_expr_extension
 );
 
 
@@ -304,8 +313,9 @@ BOOST_SPIRIT_DEFINE(logic1_expr, logic1_op, logic2_expr, logic2_op, logic3_expr,
     blogic3_op, equal_expr, equal_op, compare_expr, compare_op, add_expr,
     add_op, multiply_expr, multiply_op)
 BOOST_SPIRIT_DEFINE(signed_expr, basic_expr, array_expr, variable_expr, 
-    function_expr, function_expression_output, noin_function_expr, lambda_dec,
-    justl_function_expr, default_function_expr)
+    function_expr, function_expr_output, lambda_dec, adjective, 
+    function_expr_extension, noin_function_expr, justl_function_expr, 
+    default_function_expr)
 BOOST_SPIRIT_DEFINE(data_type)
 BOOST_SPIRIT_DEFINE(vague_add_expr, vague_multiply_expr, vague_signed_expr,
     vague_basic_expr, vague_number_expr, vague_variable_expr, vague_data_type)

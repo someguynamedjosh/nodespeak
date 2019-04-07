@@ -104,9 +104,9 @@ void ast_converter::operator()(function_expression const&expr) const {
         command->add_output(data->current_value);
     }
     add_command(command);
-    for (auto const&lambda : expr.lambdas) {
+    for (auto const&extension: expr.extensions) {
         data->is_lambda = true;
-        recurse(lambda);
+        recurse(extension);
     }
 }
 

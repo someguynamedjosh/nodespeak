@@ -54,8 +54,13 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    waveguide::ast::adjective,
+    name, inputs, outputs
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::function_expression,
-    function_name, inputs, outputs, lambdas
+    function_name, inputs, outputs, extensions
 )
 
 
