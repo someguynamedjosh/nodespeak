@@ -56,6 +56,72 @@ void print_value(std::string const&indent, std::ostream &stream, value_accessor 
     }
 }
 
+
+
+adjective::adjective() { }
+
+adjective::adjective(std::string name)
+    : name{name} { }
+
+std::string const&adjective::get_name() const {
+    return name;
+}
+
+void adjective::set_name(std::string name) {
+    this->name = name;
+}
+
+adjective::arg_list const&adjective::get_inputs() const {
+    return ins;
+}
+
+void adjective::add_input(adjective::arg_ptr input) {
+    ins.push_back(input);
+}
+
+void adjective::clear_inputs() {
+    ins.clear();
+}
+
+adjective::arg_list const&adjective::get_outputs() const {
+    return outs;
+}
+
+void adjective::add_output(adjective::arg_ptr output) {
+    outs.push_back(output);
+}
+
+void adjective::clear_outputs() {
+    outs.clear();
+}
+
+
+
+command_lambda::command_lambda() { }
+
+command_lambda::command_lambda(scope_ptr scope)
+    : scope{scope} { }
+
+scope_ptr command_lambda::get_scope() const {
+    return scope;
+}
+
+void command_lambda::set_scope(scope_ptr scope) {
+    this->scope = scope;
+}
+
+command_lambda::adjective_list const&command_lambda::get_adjectives() const {
+    return adjectives;
+}
+
+void command_lambda::add_adjective(adjective_ptr adjective) {
+    adjectives.push_back(adjective);
+}
+
+void command_lambda::clear_adjectives() {
+    adjectives.clear();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Com::command
 ////////////////////////////////////////////////////////////////////////////////
@@ -497,6 +563,7 @@ std::ostream &operator<<(std::ostream &stream, resolved_scope const&to_print) {
     std::set<resolved_scope_ptr> child_scopes;
     for (auto command : to_print.commands) {
         child_scopes.insert(command->get_callee());
+        // TODO: Print lambdas.
     }
     for (auto callee : child_scopes) {
         stream << std::endl << *callee;

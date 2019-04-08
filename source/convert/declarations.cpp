@@ -84,7 +84,8 @@ void ast_converter::operator()(lambda_dec const&dec) const {
     recurse(dec.body);
     pop_data();
 
-    data->current_scope->get_commands().back()->add_lambda(func_scope);
+    auto lambda{std::make_shared<intr::command_lambda>(func_scope)};
+    data->current_scope->get_commands().back()->add_lambda(lambda);
 }
 
 void ast_converter::operator()(adjective const&adj) const {
