@@ -3,15 +3,15 @@
 #include <memory>
 
 namespace waveguide {
-namespace intermediate {
+namespace vague {
 
 class builtins;
-class data_type;
+class template_data_type;
 class scope;
 
-typedef std::shared_ptr<builtins> builtins_ptr;
-typedef std::shared_ptr<data_type> data_type_ptr;
-typedef std::shared_ptr<scope> scope_ptr;
+using builtins_ptr = std::shared_ptr<builtins>;
+using scope_ptr = std::shared_ptr<scope>;
+using template_data_type_ptr = std::shared_ptr<template_data_type>;
 
 class builtins {
 private:
@@ -20,7 +20,7 @@ private:
 public:
     static builtins_ptr get_instance();
     void add_to_scope(scope_ptr scope);
-    data_type_ptr INT, FLOAT, BOOL, DEDUCE_LATER;
+    template_data_type_ptr INT, FLOAT, BOOL, DEDUCE_LATER;
     scope_ptr
         ADD, MUL, RECIP, MOD, BAND, BOR, BXOR,
         ITOF, BTOF, BTOI, ITOB, FTOI, FTOB,

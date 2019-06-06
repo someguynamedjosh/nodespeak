@@ -19,7 +19,8 @@ using context_type = x3::context<
 BOOST_SPIRIT_INSTANTIATE(
     root_rule_type, 
     iterator_type,
-    context_type)
+    context_type
+) //;
 
 parse_result parse(std::string input) {
     parse_result result;

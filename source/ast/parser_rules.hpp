@@ -3,8 +3,8 @@
 #include <boost/spirit/home/x3.hpp>
 #include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 
-#include <waveguide/parser/ast.hpp>
-#include "ast_adapted.hpp"
+#include <waveguide/ast/types.hpp>
+#include "fusion_types.hpp"
 #include "parser.hpp"
 #include "parser_error.hpp"
 
@@ -259,9 +259,9 @@ auto const vague_data_type_def =
 
 
 
-auto const statement_def =
-    return_statement | var_dec_statement | function_statement 
-    | assign_statement | function_dec;
+auto const statement_def = return_statement;
+    //return_statement | var_dec_statement | function_statement 
+    //| assign_statement | function_dec;
 
 auto const function_statement_def =
     function_expr >> ';';

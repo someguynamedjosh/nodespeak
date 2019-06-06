@@ -1,14 +1,13 @@
-#include <waveguide/intermediate/builtins.hpp>
+#include <waveguide/vague/builtins.hpp>
 
-#include <waveguide/intermediate/data_type.hpp>
-#include <waveguide/intermediate/scope.hpp>
-#include <waveguide/intermediate/type_template.hpp>
-#include <waveguide/intermediate/value.hpp>
+#include <waveguide/vague/scope.hpp>
+#include <waveguide/vague/type_template.hpp>
+#include <waveguide/vague/value.hpp>
 
 #include "util/aliases.hpp"
 
 namespace waveguide {
-namespace intermediate {
+namespace vague {
 
 builtins_ptr builtins::instance{nullptr};
 
@@ -19,30 +18,30 @@ builtins_ptr builtins::get_instance() {
     return instance;
 }
 
-void add_ax_io(scope_ptr add_to, std::string in_type, std::string out_type) {
-	vague_data_type_ptr in_type_template = std::make_shared<vague_basic_data_type>(in_type);
-	vague_data_type_ptr out_type_template = std::make_shared<vague_basic_data_type>(out_type);
+void add_ax_io(
+	scope_ptr add_to, template_data_type_ptr in_type_template, 
+	template_data_type_ptr out_type_template
+) {
 	add_to->add_input("a", in_type_template);
 	add_to->add_output("x", out_type_template);
 
 }
 
-void add_abx_io(scope_ptr add_to, std::string in_type, std::string out_type) {
-	vague_data_type_ptr in_type_template{new vague_basic_data_type{in_type}};
-	vague_data_type_ptr out_type_template{new vague_basic_data_type{out_type}};
+void add_abx_io(
+	scope_ptr add_to, template_data_type_ptr in_type_template, 
+	template_data_type_ptr out_type_template
+) {
 	add_to->add_input("a", in_type_template);
 	add_to->add_input("b", in_type_template);
 	add_to->add_output("x", out_type_template);
 }
-
-void add_uniform_abx_io(scope_ptr add_to) {
-	add_abx_io(add_to, "!TYPE", "!TYPE");
-}
     
 builtins::builtins()
-    : INT{new int_data_type()}, FLOAT{new float_data_type()}, 
-    BOOL{new bool_data_type()}, 
-    DEDUCE_LATER{new abstract_data_type("DEDUCE_LATER")},
+    : INT{new template_named_data_type("Int")}, 
+	FLOAT{new template_named_data_type("Float")}, 
+	BOOL{new template_named_data_type("Bool")}, 
+	// TODO: Implement abstract template data type.
+    DEDUCE_LATER{new template_wildcard_data_type("!DEDUCE_LATER")},
 
     ADD{new scope()}, MUL{new scope()}, RECIP{new scope()}, MOD{new scope()},
     BAND{new scope()}, BOR{new scope()}, BXOR{new scope()},
@@ -64,45 +63,43 @@ builtins::builtins()
 	// Uniform ABX IO is two inputs (a, b) and one output (x) that should all 
 	// have the same (unknown / templated) data type.
 	// AX IO is one input (a) and one output (x).
-	add_uniform_abx_io(ADD);
-	add_uniform_abx_io(MUL);
-	add_ax_io(RECIP, "Float", "Float");
-	add_uniform_abx_io(MOD);
-	add_uniform_abx_io(BAND);
-	add_uniform_abx_io(BOR);
-	add_uniform_abx_io(BXOR);
+	auto wildcard{std::make_shared<template_wildcard_data_type>("!TYPE")};
+	auto wildcard2{std::make_shared<template_wildcard_data_type>("!TYPE2")};
 
-	add_ax_io(ITOF, "Int", "Float");
-	add_ax_io(BTOF, "Bool", "Float");
-	add_ax_io(BTOI, "Bool", "Int");
-	add_ax_io(ITOB, "Int", "Bool");
-	add_ax_io(FTOI, "Float", "Int");
-	add_ax_io(FTOB, "Float", "Bool");
+	add_abx_io(ADD, wildcard, wildcard);
+	add_abx_io(MUL, wildcard, wildcard);
+	add_abx_io(RECIP, FLOAT, FLOAT);
+	add_abx_io(MOD, wildcard, wildcard);
+	add_abx_io(BAND, wildcard, wildcard);
+	add_abx_io(BOR, wildcard, wildcard);
+	add_abx_io(BXOR, wildcard, wildcard);
 
-	add_abx_io(EQ, "!TYPE", "Bool");
-	add_abx_io(NEQ, "!TYPE", "Bool");
-	add_abx_io(LTE, "!TYPE", "Bool");
-	add_abx_io(GTE, "!TYPE", "Bool");
-	add_abx_io(LT, "!TYPE", "Bool");
-	add_abx_io(GT, "!TYPE", "Bool");
+	add_ax_io(ITOF, INT, FLOAT);
+	add_ax_io(BTOF, BOOL, FLOAT);
+	add_ax_io(BTOI, BOOL, INT);
+	add_ax_io(ITOB, INT, BOOL);
+	add_ax_io(FTOI, FLOAT, INT);
+	add_ax_io(FTOB, FLOAT, BOOL);
 
-	add_abx_io(AND, "Bool", "Bool");
-	add_abx_io(OR, "Bool", "Bool");
-	add_abx_io(XOR, "Bool", "Bool");
+	add_abx_io(EQ, wildcard, BOOL);
+	add_abx_io(NEQ, wildcard, BOOL);
+	add_abx_io(LTE, wildcard, BOOL);
+	add_abx_io(GTE, wildcard, BOOL);
+	add_abx_io(LT, wildcard, BOOL);
+	add_abx_io(GT, wildcard, BOOL);
 
-	vague_data_type_ptr wildcard_type{new vague_basic_data_type{"!TYPE"}};
-	vague_data_type_ptr wildcard2_type{new vague_basic_data_type{"!TYPE2"}};
-	vague_data_type_ptr int_type{new vague_basic_data_type{"Int"}};
-	vague_data_type_ptr bool_type{new vague_basic_data_type{"Bool"}};
-	add_ax_io(COPY, "!TYPE", "!TYPE");
+	add_abx_io(AND, BOOL, BOOL);
+	add_abx_io(OR, BOOL, BOOL);
+	add_abx_io(XOR, BOOL, BOOL);
+
+	add_ax_io(COPY, wildcard, wildcard);
 	// RETURN has no inputs, no outputs.
-
-	LOG->add_input("a", wildcard_type);
+	LOG->add_input("a", wildcard);
 	// DEF has no inputs, no outputs.
-	IF->add_input("condition", bool_type);
-	FOR->add_input("times", int_type);
-	FOR_EACH->add_input("values", wildcard2_type);
-	WHILE->add_input("condition", bool_type);
+	IF->add_input("condition", BOOL);
+	FOR->add_input("times", INT);
+	FOR_EACH->add_input("values", wildcard);
+	WHILE->add_input("condition", BOOL);
 }
 
 void builtins::add_to_scope(scope_ptr scope) {

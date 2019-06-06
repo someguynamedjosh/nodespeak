@@ -1,6 +1,6 @@
 #include "ast_printer.hpp"
 
-#include <waveguide/parser/ast_printer.hpp>
+#include <waveguide/ast/ast_printer.hpp>
 
 namespace waveguide {
 namespace ast {

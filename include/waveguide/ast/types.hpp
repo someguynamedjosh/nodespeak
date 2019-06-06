@@ -61,18 +61,19 @@ struct vague_operator_list_expression {
 
 
 
-struct function_statement;
-struct assign_statement;
-struct var_dec_statement;
-struct return_statement;
-struct function_dec;
+class function_statement;
+class assign_statement;
+class var_dec_statement;
+class return_statement;
+class function_dec;
 
 using statement_variant = x3::variant<
     x3::forward_ast<function_statement>,
     x3::forward_ast<assign_statement>,
     x3::forward_ast<var_dec_statement>,
     x3::forward_ast<return_statement>,
-    x3::forward_ast<function_dec>>;
+    x3::forward_ast<function_dec>
+>;
 struct statement: statement_variant, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
@@ -92,7 +93,8 @@ struct expression: x3::variant<
     x3::forward_ast<function_expression>, 
     x3::forward_ast<variable_expression>,
     x3::forward_ast<operator_list_expression>, 
-    x3::forward_ast<signed_expression>>, x3::position_tagged {
+    x3::forward_ast<signed_expression>
+>, x3::position_tagged {
     using base_type::base_type;
     using base_type::operator=;
 };

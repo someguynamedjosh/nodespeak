@@ -3,7 +3,7 @@
 #include "parser.hpp"
 
 namespace waveguide {
-namespace parser {
+namespace ast {
 
 namespace x3 = boost::spirit::x3;
 

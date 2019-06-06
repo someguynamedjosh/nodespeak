@@ -2,7 +2,7 @@
 
 #include <boost/fusion/include/adapt_struct.hpp>
 
-#include <waveguide/parser/ast.hpp>
+#include <waveguide/ast/types.hpp>
 
 BOOST_FUSION_ADAPT_STRUCT(
     waveguide::ast::data_type,
