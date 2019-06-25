@@ -230,6 +230,10 @@ Pretty simple, like most languages:
 
 `a * b` is multiplication
 
+`a % b` is modulo (remainder), works for both floats and ints.
+
+`a ** b` is power (a to the power of b.)
+
 Slight deviation from most languages, more pythonic:
 
 `a / b` is floating-point division, the operands will be cast to float.
@@ -258,7 +262,7 @@ Like most languages again:
 
 ### Logic
 
-More pythonic with this one, to reserve more symbols for more mathy stuff:
+More pythonic with this one, to reserve more symbols for mathy stuff:
 
 `a and b` performs a logical short-circuit and operation.
 
