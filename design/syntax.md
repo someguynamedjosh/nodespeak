@@ -67,6 +67,7 @@ A variable can be defined much like other languages:
 
 `Int one = 1, two = 2;`
 
+**TO BE IMPLEMENTED LATER**
 Since expressions can result in types, expressions can be used to define the
 type of a variable. To do so, surround the expression in curly brackets.
 
@@ -118,6 +119,104 @@ fn main {
 This will cause an error because the inputs to the `if` call cannot be
 determined at compile time, yet its lambdas are manipulating values that are
 only available at compile time.
+
+### Array Data Types
+Array types are defined with a syntax that may seem backwards compared to other
+languages:
+```rust
+[5][4][3]Int int_array_3d;
+```
+There is a good reason for this. First, an explanation of exactly what this
+example is describing: a variable that holds a 5-element array with elements of
+type (4-element array of type (3-element array of type Int)). From this, we can
+see that the 5-element array is the biggest type, and Int is the smallest type.
+If we sort these vertically by size, we get the following diagram:
+```rust
+[5]
+   [4]
+      [3]
+         Int
+```
+Nice and ordered. If we were to do it like other languages:
+```rust
+Int[5][4][3] bad_array;
+```
+We get this diagram:
+```rust
+   [5]
+      [4]
+         [3]
+Int
+```
+Well, that's not too terrible. A little unintuitive, but not enough to warrant
+completely reversing the syntax. However, if we look at template parameters,
+things start to get weird. Let's suppose that for this example,
+```rust
+T === [3]Int;
+```
+In other words, the type `T` represents a 3-element array of `Int`s. If we
+wanted to create our original data type (`[5][4][3]Int`) using `T` and our
+better syntax, it would look like this:
+```rust
+[5][4]T;
+```
+It is easy to determine the actual data type this resolves to just by swapping
+out T with what it represents:
+```rust
+[5][4][3]Int;
+```
+This again gives us the nice ordered diagram from the beginning. Now let's try
+to do the same using a more traditional syntax:
+```rust
+T === Int[3];
+T[5][4];
+```
+This fundamentally represents the same data type. `T` is a 3-element array of
+`Int`s. The final data type is a 5-element array of 4-element arrays of type T.
+However, if we try the simple trick of replacing the template parameter with
+what it represents to determine its actual data type, we get:
+```rust
+Int[3][5][4];
+```
+Yuck. And to quantify that yuckiness:
+```rust
+      [5]
+         [4]
+   [3]
+Int
+```
+It's all over the place. By using a traditional array syntax, it opens up
+the possibility of specifying array sizes in arbitrary order, which is very 
+unintuitive. This is why the backwards-looking syntax was selected.
+
+One final note on arrays is that there are no dynamically-sized arrays. All
+arrays must have a size defined at compile time. Because of waveguide's builtin
+compile-time simplification, any expression that can be resolved at compile time
+can be used to specify the size of an array. This can be as simple as:
+```rust
+Int[4] array;
+```
+As idiomatic as:
+```rust
+const FILTER_SIZE = 512;
+Int[FILTER_SIZE] kernel;
+```
+or as complex as:
+```rust
+fn fibbonacci(Int iterations):(Int output) {
+    Int before_output = 1, temp;
+    output = 1;
+    repeat(iterations) {
+        temp = output;
+        output += before_output;
+        before_output = temp;
+    }
+}
+Int[fibbonacci(12)] fibbonacci_array;
+```
+Note that, unlike other languages, there is no special syntax needed to make
+the function `fibbonacci` work at compile time. That's the power of waveguide's
+built-in interpreter.
 
 ## Expressions
 
@@ -241,7 +340,8 @@ single-return-only paradigm of many popular languages.
 `sort(3.0, 1.0):(biggest, smallest);` This will call the method `sort`, giving
 it the inputs `3.0` and `1.0`, putting the outputs of the function call in the
 variables `biggest` and `smallest`. This is one of the really useful things
-about functions in waveguide, they can have more than one output.
+about functions in waveguide, there is minimal overhead to add multiple outputs
+to a function.
 
 `sin(1.0):(exampleArray[5]);` Anything you can put on the left of an equals
 sign, you can put into the output of a function call.
@@ -258,9 +358,10 @@ that if you want to 'return' from a lambda, you use `break()` instead of
 `return()`. If you were to use `return()`, it would use the return method from
 whatever function you are in. For example, if you put `return()` in an `if`
 call inside the definition for `main`, then it would cause the `main` function
-to return. `break()` would return from the lambda inside the `if` statement.
+to return. `break()` would return from the lambda inside the `if` function.
 Note that, unlike other languages, there *must* be a semicolon at the end of the
-`if` call.
+`if` call, since it is a function in waveguide, while in other languages it is a
+statement.
 
 `repeat(10) (Int iteration) { print(iteration); };` Lambdas can have inputs and
 outputs. They are specified just like function inputs and outputs.
@@ -274,7 +375,7 @@ brevity in most cases.
 Adjectives are specified by the author of the function, and are used to modify
 either the behavior of the overall function or the behavior of lambdas coming
 after the adjective. In this case, the `else` adjective signals to the `if`
-statement that the lambda containing the call to `things()` should only be
+function that the lambda containing the call to `things()` should only be
 executed if all the other conditions are false.
 
 `if(false) { stuff(); } elif(true) { things(); } else { nothing(); };` This is
@@ -289,10 +390,16 @@ conditions before it are `false`.
 arguments. This would be equivalent to `try() { stuff(); };`.
 
 Note that although the above suggests you could do something like 
-`really long function call thing with no arguments or code blocks;`, this would
-cause ambiguity in the grammar, making the compiler harder to write. Instead, a
-restriction is enforced that every function call must either specify inputs,
-outputs, or a code block with no adjectives before it. This covers 99.9% of use
-cases. These are all examples of legal calls: `func {} adj1 adj2;`,
-`func() adj1 adj2;`, `func:() adj1 adj2;`. These are not legal: `func adj1 {};`,
-`func adj1(in1, in2) { };`, `func;`.
+`really long function call thing with no arguments or code blocks;`, (where 
+`really` is the name of the function, and the remainder of the words are 
+adjectives) this would cause ambiguity in the grammar, making the compiler 
+impossible to write. Instead, a restriction is enforced that every function call
+must either specify inputs, outputs, or a code block with no adjectives before 
+it. This covers 99.9% of use cases. These are all examples of legal calls: 
+`func {} adj1 adj2;`, `func() adj1 adj2;`, `func:() adj1 adj2;`. These are not 
+legal: `func adj1;`, `func adj1(in1, in2) { };`, `func;`. This illustrates the
+ambiguity problem, because `func adj1;` actually creates a variable named `adj1`
+of type `func`, and `func;` is a valid statement which has no effect (and will
+produce a compiler warning.) This is because all expressions followed by
+semicolons are valid statements, due to the fact that many have side effects. 
+(Remember, `if` is technically just a function call, making it an expression.)
