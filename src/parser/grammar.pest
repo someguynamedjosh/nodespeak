@@ -20,12 +20,24 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 // Expressions
 
-expr_part = _{ literal | func_expr | identifier | "(" ~ expr ~ ")" }
+array_literal = { "[" ~ (expr ~ ("," ~ expr)*)? ~ "]" }
+
+expr_part_1 = _{ 
+    literal | func_expr | identifier | "(" ~ expr ~ ")" | array_literal 
+}
+
+negate = { "-" ~ expr_part_1 }
+
+expr_part_2 = _{
+    negate | expr_part_1
+}
+
+expr_part = _{ expr_part_2 }
 
 // Operator precedence is done after parsing, because it is inneficient to build
 // it into the grammar.
 operator = { 
-    "^" | "*" | "//" | "/" | "%" | "+" | "-"
+    "**" | "*" | "//" | "/" | "%" | "+" | "-"
     | "<=" | ">=" | "<" | ">" | "==" | "!="
     | "band" | "bnand" | "bor" | "bnor" | "bxor" | "bxnor"
     | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
@@ -55,7 +67,7 @@ func_expr = { identifier ~ (
 named_data_type = { identifier }
 dynamic_data_type = { "{" ~ expr ~ "}" }
 basic_data_type = _{ named_data_type | dynamic_data_type }
-array_data_type = { basic_data_type ~ ("[" ~ expr ~ "]")+ }
+array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
 data_type = _{ array_data_type | basic_data_type }
 
 // Statements.
@@ -82,4 +94,4 @@ statement = _{
     | code_block
 }
 
-test = _{ SOI ~ statement ~ EOI }
+root = { SOI ~ statement* ~ EOI }
