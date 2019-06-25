@@ -210,7 +210,7 @@ fn fibbonacci(Int iterations):(Int output) {
         temp = output;
         output += before_output;
         before_output = temp;
-    }
+    };
 }
 Int[fibbonacci(12)] fibbonacci_array;
 ```
@@ -306,7 +306,7 @@ fn factorial(Int iterations):(Int output) {
     output = 1;
     repeat(iterations) (factor) {
         output = output * factor;
-    }
+    };
 }
 ```
 If you were to input a `Float` into this function:
@@ -580,6 +580,218 @@ semicolons are valid statements, due to the fact that many have side effects.
 (Remember, `if` is technically just a function call, making it an expression.)
 
 ### Templates
+
+### Introduction
 Waveguide has a powerful template syntax that allows for a large amount of 
 flexibility when writing functions. First, let's consider a function that adds
-two numbers of arbitrary types:
+two values of arbitrary types:
+```rust
+fn add(T? value_one, T? value_two):T {
+    return(value_one + value_two);
+}
+```
+The question mark after the letter T indicates that it is a template parameter.
+Let's look at what happens when this function is called:
+```rust
+Int result = add(12.3, 3);
+```
+First the actual data type represented by T must be determined. BCT rules are
+used to determine this. The only types considered in the BCT calculation are
+the types of parameters marked with the question mark. In this case, only the
+type of the two inputs (`Float` and `Int` respectively) are considered.
+According to BCT rules, `T` resolves to `Float`. The output type must then be
+`Float`. The actual data type of the output is not considered, because it does
+not have a question mark after it. 
+
+### Ommitting The Question Mark
+A more extreme example of ommiting the question mark:
+```rust
+fn add(T value_one, T? value_two):T {
+    return(value_one + value_two);
+}
+```
+When we call this function the same way we did before:
+```rust
+Int result = add(12.3, 3);
+```
+Now only the second data type (`Int`) is considered in the BCT calculation, so
+`T` resolves to `Int`. The first input is then cast from `Float` to `Int`, and
+the return type is `Int`. The result of this function call would be `15`. While
+using this feature in this way has made our add function more confusing, there
+are more complicated situations where this feature becomes more beneficial.
+Because of the double-edged nature of this feature, strong caution is advised
+before deciding to use it. A small elaboration on why this feature works:
+```rust
+fn give_me_an_int(Int input) { ... }
+```
+This declares an input of type `Int`.
+```rust
+fn give_me_a_t(T input) { ... }
+```
+This declares an input of type `T` (which can be defined earlier in the code.)
+```rust
+fn give_me_anything(T? input) { ... }
+```
+This declares an input of unknown type, and also declares the type `T`, so that
+it can be used in other parts of the function signature or in the body of the 
+function itself. Therefore:
+```rust
+fn give_me_something(T input1, T? input2) { ... }
+```
+This function first declares the type `T`, which can now be used in other parts
+of the function signature or in the body. The value of `T` will then be set
+whenever the function is used.
+
+### Using Template Types In The Body
+Since using the question marks technically declare a new type, you can use those
+types inside the body of the function. For example, consider this overly verbose
+addition function:
+```rust
+fn overly_verbose_addition(T? input1, T? input2):T {
+    T result = input1 + input2;
+    return(result);
+}
+```
+Note that curly brackets did not have to be used since `T` is a fully-fledged 
+type name. Now consider this useless addition of an array:
+```rust
+fn overly_complicated_addition(T? input1, T? input2):T {
+    [3]T buffer;
+    buffer[0] = input1;
+    buffer[1] = input2;
+    buffer[2] = buffer[0] + buffer[1];
+    return(buffer[2]);
+}
+```
+Again, since `T` is a type name, you can declare an array of `T`. Now consider
+we call our overly-complicated addition function like this:
+```rust
+[256]Int buffer1, buffer2, output;
+overly_complicated_addition(buffer1, buffer2):(output);
+```
+In this case, `T` resolves to `[256]Int`, making our function body equivalent
+to this:
+```rust
+fn overly_complicated_addition([256]Int input1, [256]Int input2):[256]Int {
+    [3][256]Int buffer;
+    buffer[0] = input1;
+    buffer[1] = input2;
+    buffer[2] = buffer[0] + buffer[1];
+    return(buffer[2]);
+}
+```
+As you can see, the function makes sense just by dropping `[256]Int` in place of
+`T`, demonstrating the advantages of the backwards array declaration syntax.
+
+### Array Templates
+**TO BE IMPLEMENTED LATER.**
+Not to be confused with the previous example, array templates are templates that
+look specifically for arrays of types. There are a handful of template features
+we can use to specify arrays as inputs:
+```rust
+fn accepts_triplet([3]T? input) { ... }
+```
+This accepts a 3-element array of an unknown type. This function could be called
+like so:
+```rust
+accepts_triplet([1, 2, 3]); # T == Int
+accepts_triplet([1., 2., 3.]); # T == Float
+accepts_triplet([[1], [2], [3]]); # T == [1]Int
+```
+The size of the array can be specified using any expression that can be resolved
+at compile time. The size can also be a template parameter itself:
+```rust
+fn accepts_array([SIZE?]T? input) { ... }
+accepts_array([1, 2, 3]); # T == Int, SIZE == 3
+accepts_array([[1, 2, 3]]); # T == [3]Int, SIZE == 1
+```
+You can even combine this with basic math:
+```rust
+fn accepts_array([SIZE? + 1]T? input) { ... }
+accepts_array([1, 2, 3]); # T == Int, SIZE == 2
+accepts_array([[1, 2, 3]]); # T == [3]Int, SIZE == 0
+```
+However, you can only use + - * and // on size template parameters due to the 
+fact that the compiler needs to be able to perform algebra to determine their 
+value. The operands of these, however, can be either a full-blown expression or
+a size template parameter. Size template parameters cannot appear inside a 
+full-blown expression. For example:
+```rust
+# Okay, only uses basic math.
+fn example1([SIZE? + 1]T? input) { ... }
+# Okay, SIZE? does not appear inside the complex expression.
+fn example2([SIZE? + factorial(4)]T? input) { ... }
+# Not okay, factorial() is not +, -, *, or //, so cannot have a size template
+# parameter in it. This is because factorial() only describes how to go from the
+# SIZE? parameter to the actual array size, but the compiler needs to perform
+# the reverse.
+fn example3([factorial(SIZE?)]T? input) { ... }
+# More extreme example. Reversing a good hash can take until the end of the
+# universe. That's impractical for a compiler, so we don't allow any complex
+# expressions to prevent this problem.
+fn example4([super_secure_hash(SIZE?)]T? input) { ... }
+```
+You can, however, use the template parameter, without the question mark, as an
+input to a complex expression:
+```rust
+fn example5([SIZE?]T? input1, [factorial(SIZE)]T? input2) { ... }
+```
+For example, if `input1` has a size of 4, then the compiler will require
+`input2` to have a size of `factorial(4)`, which is `24`. Note that this syntax
+is valid because the compiler does not have to perform the reverse of the
+factorial function. `SIZE` is already determined based on the size of the first
+array, allowing the compiler to plug it in forwards into factorial, instead of
+backwards. This is also possible in part because, unlike type template 
+parameters, size template parameters do no kind of casting calculation to 
+determine their final value. Instead, they must be matched exactly by the input. 
+This is due to the ambiguity and resulting illegality of casting between two 
+arrays of different sizes. For example:
+```rust
+fn compare_arrays([SIZE?]T? input1, [SIZE?]T? input2);
+
+compare_arrays([1, 2], [1, 3]); # Valid.
+compare_arrays([1, 2], [3.0, 4.0]); # Valid (T becomes Float, input1 gets cast.)
+compare_arrays([1], [2, 3]); # INVALID! The possible values for SIZE are 1 and 2
+```
+One final piece of syntax allows accepting arrays of programmatic depth:
+```rust
+fn arbitrary_depth([SIZE?[DEPTH?]]T? input) { ... }
+
+[4][2]Int buffer;
+arbitrary_depth(buffer); # SIZE == [4, 2], DEPTH == 2, T == Int
+[4][4][4]Int cube;
+arbitrary_depth(cube); # SIZE == [4, 4, 4], DEPTH == 3, T == Int
+Int value;
+arbitrary_depth(value); # SIZE == [], DEPTH = 0, T == Int
+```
+`SIZE` is now an array and `DEPTH` is an `Int`. You can use these both in other
+parts of the function signature:
+```rust
+fn arbitrary_depth([SIZE?[DEPTH?]]T? input):([DEPTH?]T? output) { ... }
+```
+Note here that because array sizes are strictly enforced, it does not make a
+difference whether or not you put a question mark at the end of the second use
+of `DEPTH`, although since it is not being used as a part of a complex
+expression, it is recommended to put a question mark to help clarify that it is
+a template parameter, and not a constant defined elsewhere.
+
+One final note: just like type template parameters, size template parameters can 
+be used in the function body:
+```rust
+fn sum([SIZE?]T? input):(T output) {
+    output = 0;
+    repeat(SIZE) (index) {
+        output = output + input[index];
+    }:
+}
+```
+In this case, suppose our input is of type `[10][3]Int`. The code above would be
+equivalent to:
+```rust
+fn sum([10][3]Int input):([3]Int output) {
+    output = 0; # This will be automatically casted to [0, 0, 0].
+    repeat(10) (index) {
+        output = output + input[index];
+    };
+}
+```
