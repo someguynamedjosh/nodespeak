@@ -70,6 +70,25 @@ basic_data_type = _{ named_data_type | dynamic_data_type }
 array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
 data_type = _{ array_data_type | basic_data_type }
 
+// Function definitions (techincally part of statements.)
+
+named_function_parameter = { data_type ~ identifier }
+function_inputs = { "(" ~ (
+    named_function_parameter ~ ("," ~ named_function_parameter)*
+)? ~ ")" }
+function_outputs = { ":" ~ "(" ~ (
+    named_function_parameter ~ ("," ~ named_function_parameter)*
+)? ~ ")" }
+single_function_output = { ":" ~ data_type }
+
+function_signature = {
+    (function_inputs ~ (function_outputs | single_function_output)?)
+    | (function_outputs | single_function_output)?
+}
+function_definition = { 
+    "fn" ~ identifier ~ function_signature ~ returnable_code_block 
+}
+
 // Statements.
 
 empty_variable = { identifier }
@@ -90,8 +109,8 @@ code_block = { "{" ~ statement* ~ "}" }
 returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
 
 statement = _{ 
-    create_variable_statement | assign_statement | raw_expr_statement  
-    | code_block
+    function_definition | code_block | create_variable_statement 
+    | assign_statement | raw_expr_statement  
 }
 
 root = { SOI ~ statement* ~ EOI }

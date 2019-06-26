@@ -173,4 +173,13 @@ mod tests {
         assert!(!is_valid("a = 08"));
         assert!(!is_valid("a = 0xG"));
     }
+
+    #[test]
+    fn function_definition() {
+        assert!(is_valid("fn main { }"));
+        assert!(is_valid("fn main() { }"));
+        assert!(is_valid("fn main:() { }"));
+        assert!(is_valid("fn main:(Int a) { }"));
+        assert!(is_valid("fn main:Int { }"));
+    }
 }
