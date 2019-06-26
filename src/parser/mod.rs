@@ -8,7 +8,10 @@ use pest::error::Error;
 #[grammar = "parser/grammar.pest"]
 struct WaveguideParser;
 
-pub fn parse(text: &str) -> Result<Pairs<Rule>, Error<Rule>> {
+pub type ParseResult<'a> = Pairs<'a, Rule>;
+pub type ParseError = Error<Rule>;
+
+pub fn parse(text: &str) -> Result<ParseResult, ParseError> {
     WaveguideParser::parse(Rule::root, text)
 }
 
