@@ -4,6 +4,7 @@ extern crate pest_derive;
 use std::fs;
 
 mod parser;
+mod vague;
 
 fn main() {
     let code = fs::read_to_string("examples/arithmetic.wg")
