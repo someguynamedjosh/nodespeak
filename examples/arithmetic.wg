@@ -1,4 +1,4 @@
-fn main() {
+fn main {
     Int twelve = 12, thirteen = 13;
     Int sum = twelve + thirteen;
     Int difference = twelve - thirteen;

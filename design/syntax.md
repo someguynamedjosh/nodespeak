@@ -506,6 +506,14 @@ internally generate a variable with a syntactically invalid name, so the only
 way to set it is with the return function. This syntax is most similar to the
 single-return-only paradigm of many popular languages.
 
+```rust
+fn test {
+    assert(2 + 2 == 4);
+}
+```
+Sometimes you don't need inputs or outputs for your function. You don't have to
+define them if you don't need them.
+
 ### Usage
 
 `result = sin(1.0);` Pretty typical syntax here, computes the sine of 1.0.
