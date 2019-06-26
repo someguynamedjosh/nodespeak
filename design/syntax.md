@@ -579,7 +579,7 @@ produce a compiler warning.) This is because all expressions followed by
 semicolons are valid statements, due to the fact that many have side effects. 
 (Remember, `if` is technically just a function call, making it an expression.)
 
-### Templates
+## Templates
 
 ### Introduction
 Waveguide has a powerful template syntax that allows for a large amount of 
@@ -600,51 +600,12 @@ used to determine this. The only types considered in the BCT calculation are
 the types of parameters marked with the question mark. In this case, only the
 type of the two inputs (`Float` and `Int` respectively) are considered.
 According to BCT rules, `T` resolves to `Float`. The output type must then be
-`Float`. The actual data type of the output is not considered, because it does
-not have a question mark after it. 
-
-### Ommitting The Question Mark
-A more extreme example of ommiting the question mark:
-```rust
-fn add(T value_one, T? value_two):T {
-    return(value_one + value_two);
-}
-```
-When we call this function the same way we did before:
-```rust
-Int result = add(12.3, 3);
-```
-Now only the second data type (`Int`) is considered in the BCT calculation, so
-`T` resolves to `Int`. The first input is then cast from `Float` to `Int`, and
-the return type is `Int`. The result of this function call would be `15`. While
-using this feature in this way has made our add function more confusing, there
-are more complicated situations where this feature becomes more beneficial.
-Because of the double-edged nature of this feature, strong caution is advised
-before deciding to use it. A small elaboration on why this feature works:
-```rust
-fn give_me_an_int(Int input) { ... }
-```
-This declares an input of type `Int`.
-```rust
-fn give_me_a_t(T input) { ... }
-```
-This declares an input of type `T` (which can be defined earlier in the code.)
-```rust
-fn give_me_anything(T? input) { ... }
-```
-This declares an input of unknown type, and also declares the type `T`, so that
-it can be used in other parts of the function signature or in the body of the 
-function itself. Therefore:
-```rust
-fn give_me_something(T input1, T? input2) { ... }
-```
-This function first declares the type `T`, which can now be used in other parts
-of the function signature or in the body. The value of `T` will then be set
-whenever the function is used.
+`Float`. 
 
 ### Using Template Types In The Body
-Since using the question marks technically declare a new type, you can use those
-types inside the body of the function. For example, consider this overly verbose
+Using a question mark internally declares a new type, which you can use like any
+other type name. (This is why `T` can be used without a question mark as the
+output of our example function.) For example, consider this overly verbose
 addition function:
 ```rust
 fn overly_verbose_addition(T? input1, T? input2):T {
@@ -653,7 +614,8 @@ fn overly_verbose_addition(T? input1, T? input2):T {
 }
 ```
 Note that curly brackets did not have to be used since `T` is a fully-fledged 
-type name. Now consider this useless addition of an array:
+type name, not just a variable holding a type. Now consider this useless 
+addition of an array:
 ```rust
 fn overly_complicated_addition(T? input1, T? input2):T {
     [3]T buffer;
@@ -663,7 +625,7 @@ fn overly_complicated_addition(T? input1, T? input2):T {
     return(buffer[2]);
 }
 ```
-Again, since `T` is a type name, you can declare an array of `T`. Now consider
+Also, since `T` is a type name, you can declare an array of `T`. Now consider
 we call our overly-complicated addition function like this:
 ```rust
 [256]Int buffer1, buffer2, output;
@@ -705,47 +667,20 @@ fn accepts_array([SIZE?]T? input) { ... }
 accepts_array([1, 2, 3]); # T == Int, SIZE == 3
 accepts_array([[1, 2, 3]]); # T == [3]Int, SIZE == 1
 ```
-You can even combine this with basic math:
+You can even combine this with any expression that can be resolved at compile
+time:
 ```rust
-fn accepts_array([SIZE? + 1]T? input) { ... }
-accepts_array([1, 2, 3]); # T == Int, SIZE == 2
-accepts_array([[1, 2, 3]]); # T == [3]Int, SIZE == 0
+fn accepts_array([SIZE?]T? input1, [fibbonacci(SIZE)]T? input2) { ... }
+accepts_array([1, 2], [3]); # T == Int, SIZE == 2
+accepts_array([[1, 2, 3]], [[3]]); # T == [3]Int, SIZE == 1
 ```
-However, you can only use + - * and // on size template parameters due to the 
-fact that the compiler needs to be able to perform algebra to determine their 
-value. The operands of these, however, can be either a full-blown expression or
-a size template parameter. Size template parameters cannot appear inside a 
-full-blown expression. For example:
-```rust
-# Okay, only uses basic math.
-fn example1([SIZE? + 1]T? input) { ... }
-# Okay, SIZE? does not appear inside the complex expression.
-fn example2([SIZE? + factorial(4)]T? input) { ... }
-# Not okay, factorial() is not +, -, *, or //, so cannot have a size template
-# parameter in it. This is because factorial() only describes how to go from the
-# SIZE? parameter to the actual array size, but the compiler needs to perform
-# the reverse.
-fn example3([factorial(SIZE?)]T? input) { ... }
-# More extreme example. Reversing a good hash can take until the end of the
-# universe. That's impractical for a compiler, so we don't allow any complex
-# expressions to prevent this problem.
-fn example4([super_secure_hash(SIZE?)]T? input) { ... }
-```
-You can, however, use the template parameter, without the question mark, as an
-input to a complex expression:
-```rust
-fn example5([SIZE?]T? input1, [factorial(SIZE)]T? input2) { ... }
-```
-For example, if `input1` has a size of 4, then the compiler will require
-`input2` to have a size of `factorial(4)`, which is `24`. Note that this syntax
-is valid because the compiler does not have to perform the reverse of the
-factorial function. `SIZE` is already determined based on the size of the first
-array, allowing the compiler to plug it in forwards into factorial, instead of
-backwards. This is also possible in part because, unlike type template 
-parameters, size template parameters do no kind of casting calculation to 
-determine their final value. Instead, they must be matched exactly by the input. 
-This is due to the ambiguity and resulting illegality of casting between two 
-arrays of different sizes. For example:
+However, make note that only the first appearence of `SIZE` has a question mark.
+This will be explained soon.
+
+Unlike type template parameters, size template parameters do no kind of casting 
+calculation to determine their final value. Instead, they must be matched 
+exactly by the input. This is due to the ambiguity and resulting illegality of 
+casting between two arrays of different sizes. For example:
 ```rust
 fn compare_arrays([SIZE?]T? input1, [SIZE?]T? input2);
 
@@ -753,7 +688,40 @@ compare_arrays([1, 2], [1, 3]); # Valid.
 compare_arrays([1, 2], [3.0, 4.0]); # Valid (T becomes Float, input1 gets cast.)
 compare_arrays([1], [2, 3]); # INVALID! The possible values for SIZE are 1 and 2
 ```
-One final piece of syntax allows accepting arrays of programmatic depth:
+Let's look at what happens when our template accepts arrays of different depths:
+```rust
+fn find_element([SIZE?]T? array, T? element):Int {
+    repeat(SIZE) (index) {
+        if(array[index] == element) {
+            return(index);
+        };
+    };
+}
+
+[10]Int array;
+Int element;
+find_element(array, element); # SIZE == 10, T == Int
+
+[5][2]Int array;
+[2]Int element;
+find_element(array, element); # SIZE == 5, T == [2]Int
+
+[5][4]Int array;
+[2]Int element;
+find_element(array, element); # Illegal, inputs for T are [4]Int and [2]Int,
+                              # which does not match any BCT rule.
+
+[5][1]Int array;
+[4]Int element;
+find_element(array, element); # SIZE == 5, T == [4]Int
+                              # (array is cast to [5][4]Int)
+
+[5][4]Int array;
+Int element; # or [1]Int element, it will work the same way.
+find_element(array, element); # SIZE == 5, T == [4]Int
+                              # (element is cast to [4]Int)
+```
+One final piece of syntax allows accepting arrays of variable depth:
 ```rust
 fn arbitrary_depth([SIZE?[DEPTH?]]T? input) { ... }
 
@@ -767,14 +735,8 @@ arbitrary_depth(value); # SIZE == [], DEPTH = 0, T == Int
 `SIZE` is now an array and `DEPTH` is an `Int`. You can use these both in other
 parts of the function signature:
 ```rust
-fn arbitrary_depth([SIZE?[DEPTH?]]T? input):([DEPTH?]T? output) { ... }
+fn arbitrary_depth([SIZE?[DEPTH?]]T? input):([DEPTH]T output) { ... }
 ```
-Note here that because array sizes are strictly enforced, it does not make a
-difference whether or not you put a question mark at the end of the second use
-of `DEPTH`, although since it is not being used as a part of a complex
-expression, it is recommended to put a question mark to help clarify that it is
-a template parameter, and not a constant defined elsewhere.
-
 One final note: just like type template parameters, size template parameters can 
 be used in the function body:
 ```rust
@@ -782,7 +744,7 @@ fn sum([SIZE?]T? input):(T output) {
     output = 0;
     repeat(SIZE) (index) {
         output = output + input[index];
-    }:
+    };
 }
 ```
 In this case, suppose our input is of type `[10][3]Int`. The code above would be
@@ -794,4 +756,61 @@ fn sum([10][3]Int input):([3]Int output) {
         output = output + input[index];
     };
 }
+```
+
+### Where To Use The Question Mark
+The question mark is only used for parts of a template expression that should be
+used to determine the value of a particular template parameter. Outputs of a 
+function cannot have question marks, and most inputs usually use question marks.
+Question marks in templates for inputs are only invalid when the template
+parameter is being used as an input for an expression. For example:
+```rust
+fn illegal_question_mark([factorial(SIZE?)]Int input) { ... }
+```
+This is because the question mark indicates that the compiler should try and
+determine the value of that parameter based on the actual data type that is
+inputted. The above syntax says that the compiler must find a value for `SIZE`
+such that `factorial(SIZE)` equals the size of the array that was given to the
+function. This requires the compiler to perform the reverse of the `factorial`
+function. Since this problem is not solvable in the general case in a reasonable
+amount of time, it has been chosen to not implement any kind of solver into the
+compiler for these situations. Instead, the question mark should only be used in
+cases where the compiler can trivially determine its value:
+```rust
+fn legal_question_mark([SIZE?]Int input) { ... }
+fn legal_question_mark_2([SIZE?]Int input, [factorial(SIZE)]Int input2) { ... }
+```
+Note that this restriction does not forbid complex template parameters. In the
+case of `legal_question_mark_2`, the compiler can still enforce the oddball 
+factorial size constraint because it can already trivially determine the value
+of `SIZE` from the first input. Complex constraints are only a problem when
+every occurence of a template parameter involves some complicated expression.
+This case can, however, always be avoided by algebraic manipulation by the
+programmer. For example, consider:
+```rust
+fn illegal_signature([SIZE? + 1]Int input1, [SIZE? - 1]Int input2) { ... }
+```
+Both inputs are invalid because they are using the question mark inside an 
+expression. The above code can be changed to something like this:
+```rust
+fn legal_signature([SIZE?]Int input1, [SIZE - 2]Int input2) {
+    const REAL_SIZE = SIZE - 1;
+}
+```
+Note that the question mark no longer appears in any expressions, and the size
+constraints behave identically to the illegal ones in `illegal_signature`.
+Additionally, the constant `REAL_SIZE` will have the same value as `SIZE` would
+have for the `illegal_signature` version.
+
+These restrictions also apply to template type parameters, although since types
+are rarely used in expressions, it is more common to see every instance of a
+type parameter suffixed with a question mark:
+```rust
+fn example([SIZE?]T? array1, [SIZE + 5]T? array2) { ... }
+```
+Also note that question marks can never be used in definitions of outputs. All
+outputs must be deterministic to help alleviate ambiguity:
+```rust
+fn legal([SIZE?]T? input):[SIZE]T { ... }
+fn illegal([SIZE?]T? input):[OUT_SIZE?]U? { ... }
 ```
