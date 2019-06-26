@@ -1,12 +1,2 @@
-__pycache__
-*.swp
-.*.swo
-*.tab.*
-*.output
-lex.yy.c
-.vim*
-a.out
-build
-*.old
-samples/.*.wg
-.vscode/ipch
+/target
+**/*.rs.bk

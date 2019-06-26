@@ -1,0 +1,97 @@
+WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
+
+dec_int = @{ (ASCII_DIGIT | "_")+ }
+bin_int = @{ "0b" ~ (ASCII_BIN_DIGIT | "_")+ }
+oct_int = @{ "0o" ~ (ASCII_OCT_DIGIT | "_")+ }
+hex_int = @{ "0x" ~ (ASCII_HEX_DIGIT | "_")+ }
+legacy_oct_int = @{ "0" ~ (ASCII_OCT_DIGIT | "_")+ }
+
+int = _{ bin_int | hex_int | oct_int | legacy_oct_int | dec_int }
+dec_digit = _{ ASCII_DIGIT | "_" }
+float = @{
+    (dec_digit* ~ "." ~ dec_digit+ ~ ("e" ~ ("+" | "-")? ~ dec_digit+)?)
+    | (dec_digit+ ~ "." ~ ("e" ~ ("+" | "-")? ~ dec_digit+)?)
+    | (dec_digit+ ~ "e" ~ ("+" | "-")? ~ dec_digit+)
+}
+
+literal = _{ float | int }
+
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// Expressions
+
+array_literal = { "[" ~ (expr ~ ("," ~ expr)*)? ~ "]" }
+
+expr_part_1 = _{ 
+    literal | func_expr | identifier | "(" ~ expr ~ ")" | array_literal 
+}
+
+negate = { "-" ~ expr_part_1 }
+
+expr_part_2 = _{
+    negate | expr_part_1
+}
+
+expr_part = _{ expr_part_2 }
+
+// Operator precedence is done after parsing, because it is inneficient to build
+// it into the grammar.
+operator = { 
+    "**" | "*" | "//" | "/" | "%" | "+" | "-"
+    | "<=" | ">=" | "<" | ">" | "==" | "!="
+    | "band" | "bnand" | "bor" | "bnor" | "bxor" | "bxnor"
+    | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
+}
+
+expr = _{ expr_part ~ (operator ~ expr_part)* }
+
+// Function calls (technically part of expressions.)
+
+func_input_list = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
+func_output_return_inline = { "return" }
+func_output_var_dec = { data_type ~ identifier }
+func_output = _{ func_output_return_inline | func_output_var_dec | assign_expr }
+func_output_list = { ":(" ~ (func_output ~ ("," ~ func_output)*)? ~ ")" }
+func_lambda = { func_input_list? ~ func_output_list? ~ returnable_code_block }
+lambda_adjective = { identifier ~ func_input_list? ~ func_output_list? }
+func_expr_extra_list = _{ (func_lambda | lambda_adjective)* }
+func_expr = { identifier ~ (
+    (func_input_list ~ func_output_list? ~ func_expr_extra_list)
+    | (func_input_list? ~ func_output_list ~ func_expr_extra_list)
+    | (func_input_list? ~ func_output_list? ~ func_lambda 
+        ~ func_expr_extra_list)
+) }
+
+// Data types.
+
+named_data_type = { identifier }
+dynamic_data_type = { "{" ~ expr ~ "}" }
+basic_data_type = _{ named_data_type | dynamic_data_type }
+array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
+data_type = _{ array_data_type | basic_data_type }
+
+// Statements.
+
+empty_variable = { identifier }
+assigned_variable = { identifier ~ "=" ~ expr }
+create_variable = _{ assigned_variable | empty_variable }
+create_variable_statement = { 
+    data_type ~ create_variable ~ ("," ~ create_variable)* ~ ";"
+}
+
+assign_array_access = { "[" ~ expr ~ "]" }
+assign_expr = { identifier ~ (assign_array_access)* }
+assign_statement = { assign_expr ~ "=" ~ expr ~ ";" }
+
+raw_expr_statement = { expr ~ ";" }
+
+code_block = { "{" ~ statement* ~ "}" }
+
+returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
+
+statement = _{ 
+    create_variable_statement | assign_statement | raw_expr_statement  
+    | code_block
+}
+
+root = { SOI ~ statement* ~ EOI }
