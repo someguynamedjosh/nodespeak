@@ -108,7 +108,7 @@ code_block = { "{" ~ statement* ~ "}" }
 
 returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
 
-statement = _{ 
+statement = { 
     function_definition | code_block | create_variable_statement 
     | assign_statement | raw_expr_statement  
 }

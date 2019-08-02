@@ -22,26 +22,64 @@ pub mod convert {
     use super::*;
     use crate::vague::*;
 
-    fn add_function_inputs<'p>(
+    // Creates a variable, returns its id.
+    fn parse_named_function_parameter(
+        program: &mut Program,
+        func_scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> EntityId {
+        let variable = VariableEntity::new();
+        let mut name = Option::None;
+        for part in input.into_inner() {
+            match part.as_rule() {
+                Rule::data_type => (), // TODO: Use data type.
+                Rule::identifier => name = Option::Some(part.as_str()),
+                _ => unreachable!(),
+            }
+        }
+        let id = program.adopt_entity(Entity::Variable(variable));
+        program.define_symbol(func_scope, name.unwrap(), id);
+        id
+    }
+
+    fn add_function_inputs(
         program: &mut Program,
         func: &mut FunctionEntity,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) {
         for child in input.into_inner() {
-            let variable = VariableEntity::new();
-            let mut name = Option::None;
-            for part in child.into_inner() {
-                match part.as_rule() {
-                    Rule::data_type => (), // TODO: Use data type.
-                    Rule::identifier => name = Option::Some(part.as_str()),
-                    _ => unreachable!(),
-                }
-            }
-            let var = program.adopt_entity(Entity::Variable(variable));
-            program.define_symbol(func_scope, name.unwrap(), var);
-            func.add_input(var);
+            func.add_input(parse_named_function_parameter(program, func_scope, child));
         }
+    }
+
+    fn add_function_outputs(
+        program: &mut Program,
+        func: &mut FunctionEntity,
+        func_scope: ScopeId,
+        input: Pair<Rule>,
+    ) {
+        for child in input.into_inner() {
+            func.add_output(parse_named_function_parameter(program, func_scope, child));
+        }
+    }
+
+    fn add_function_output(
+        program: &mut Program,
+        func: &mut FunctionEntity,
+        func_scope: ScopeId,
+        input: Pair<Rule>,
+    ) {
+        let variable = VariableEntity::new();
+        for part in input.into_inner() {
+            match part.as_rule() {
+                Rule::data_type => (), // TODO: Use data type.
+                _ => unreachable!(),
+            }
+        }
+        let var_id = program.adopt_entity(Entity::Variable(variable));
+        program.define_symbol(func_scope, "!return_value", var_id);
+        func.add_output(var_id);
     }
 
     fn convert_function_signature(
@@ -53,7 +91,26 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::function_inputs => add_function_inputs(program, func, func_scope, child),
-                _ => unimplemented!(),
+                Rule::function_outputs => add_function_outputs(program, func, func_scope, child),
+                Rule::single_function_output => {
+                    add_function_output(program, func, func_scope, child)
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    fn convert_returnable_code_block(
+        program: &mut Program,
+        scope: ScopeId,
+        return_var: Option<EntityId>,
+        input: Pair<Rule>,
+    ) {
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::statement => convert_statement(program, scope, child),
+                Rule::expr => unimplemented!(),
+                _ => unreachable!(),
             }
         }
     }
@@ -68,7 +125,15 @@ pub mod convert {
                 Rule::function_signature => {
                     convert_function_signature(program, &mut function, func_scope, child);
                 }
-                _ => unimplemented!(),
+                Rule::returnable_code_block => {
+                    convert_returnable_code_block(
+                        program,
+                        func_scope,
+                        function.get_single_output(),
+                        child,
+                    );
+                }
+                _ => unreachable!(),
             }
         }
         let function = program.adopt_entity(Entity::Function(function));
@@ -77,9 +142,15 @@ pub mod convert {
     }
 
     fn convert_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
-        match input.as_rule() {
-            Rule::function_definition => convert_function_definition(program, scope, input),
-            _ => unimplemented!(),
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::function_definition => convert_function_definition(program, scope, child),
+                Rule::code_block => unimplemented!(),
+                Rule::create_variable_statement => unimplemented!(),
+                Rule::assign_statement => unimplemented!(),
+                Rule::raw_expr_statement => unimplemented!(),
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -91,7 +162,8 @@ pub mod convert {
         for statement in root.into_inner() {
             match statement.as_rule() {
                 Rule::EOI => continue,
-                _ => convert_statement(&mut program, scope, statement),
+                Rule::statement => convert_statement(&mut program, scope, statement),
+                _ => unreachable!(),
             }
         }
 

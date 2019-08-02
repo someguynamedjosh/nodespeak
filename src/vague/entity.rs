@@ -32,6 +32,14 @@ impl FunctionEntity {
     pub fn add_output(&mut self, output: EntityId) {
         self.outputs.push(output);
     }
+
+    pub fn get_single_output(&self) -> Option<EntityId> {
+        if self.outputs.len() == 1 {
+            Option::Some(self.inputs[0])
+        } else {
+            Option::None
+        }
+    }
 }
 
 #[derive(Debug)]
