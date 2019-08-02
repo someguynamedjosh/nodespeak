@@ -9,7 +9,8 @@ mod vague;
 fn main() {
     let code = fs::read_to_string("examples/arithmetic.wg")
         .expect("Cannot read arithmetic.wg.");
-    let parse_result = parser::parse(&code)
+    let mut ast_result = parser::parse(&code)
         .expect("Cannot parse arithmetic.wg.");
-    println!("{:#?}", parse_result);
+    let vague_program = parser::convert_ast_to_vague(&mut ast_result);
+    println!("{:#?}", vague_program);
 }
