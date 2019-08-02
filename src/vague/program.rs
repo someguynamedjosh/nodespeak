@@ -1,4 +1,4 @@
-use crate::vague::{Entity, Scope};
+use crate::vague::{Entity, FuncCall, Scope};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
@@ -62,6 +62,11 @@ impl Program {
         // is the only way to access that ID, because all the other methods that
         // return ScopeIds also create the scopes their IDs are pointing to.
         ScopeId::new(0)
+    }
+
+    pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) {
+        assert!(add_to.get_raw() < self.scopes.len());
+        self.scopes[add_to.get_raw()].body.push(call);
     }
 
     pub fn lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<EntityId> {
