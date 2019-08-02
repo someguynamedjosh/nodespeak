@@ -1,4 +1,4 @@
-use crate::vague::{Entity, FuncCall, Scope};
+use crate::vague::{add_builtins, Builtins, Entity, FuncCall, Scope};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
@@ -34,14 +34,22 @@ impl EntityId {
 pub struct Program {
     scopes: Vec<Scope>,
     entities: Vec<Entity>,
+    builtins: Option<Builtins>,
 }
 
 impl Program {
     pub fn new() -> Program {
-        Program {
+        let mut prog = Program {
             scopes: vec![Scope::new()],
             entities: Vec::new(),
-        }
+            builtins: Option::None,
+        };
+        prog.builtins = Option::Some(add_builtins(&mut prog));
+        prog
+    }
+
+    pub fn get_builtins(&self) -> &Builtins {
+        self.builtins.as_ref().unwrap()
     }
 
     pub fn create_scope(&mut self) -> ScopeId {

@@ -5,5 +5,6 @@ authors = ["Code_Cube <Code_Cube@gitlab.com>"]
 edition = "2018"
 
 [dependencies]
+readonly = "0.1.4"
 pest = "2.1.1"
 pest_derive = "2.1.0"

@@ -46,4 +46,5 @@ impl FunctionEntity {
 pub enum Entity {
     Variable(VariableEntity),
     Function(FunctionEntity),
+    BuiltinFunction(String),
 }
