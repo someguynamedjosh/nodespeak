@@ -1,4 +1,4 @@
-use crate::vague::{Entity, EntityId, Program};
+use crate::vague::{DataType, Entity, EntityId, Program};
 
 #[readonly::make]
 #[derive(Debug)]
@@ -37,6 +37,10 @@ pub struct Builtins {
     pub not_func: EntityId,
 
     pub return_func: EntityId,
+
+    pub automatic_type: EntityId,
+    pub int_type: EntityId,
+    pub float_type: EntityId,
 }
 
 // Adds built-in methods to the root scope.
@@ -79,6 +83,10 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         not_func: program.adopt_entity(Entity::BuiltinFunction("not".to_owned())),
 
         return_func: program.adopt_entity(Entity::BuiltinFunction("return".to_owned())),
+
+        automatic_type: program.adopt_entity(Entity::DataType(DataType::Automatic)),
+        int_type: program.adopt_entity(Entity::DataType(DataType::Int)),
+        float_type: program.adopt_entity(Entity::DataType(DataType::Float)),
     };
 
     // TODO: Once we add support for templates, properly create the inputs
@@ -118,6 +126,10 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     program.define_symbol(scope, "!NOT", builtins.not_func);
 
     program.define_symbol(scope, "!RETURN", builtins.return_func);
+
+    program.define_symbol(scope, "Auto", builtins.automatic_type);
+    program.define_symbol(scope, "Int", builtins.int_type);
+    program.define_symbol(scope, "Float", builtins.float_type);
 
     builtins
 }

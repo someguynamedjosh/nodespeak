@@ -1,11 +1,19 @@
 use crate::vague::{EntityId, ScopeId};
 
 #[derive(Debug)]
-pub struct VariableEntity {}
+pub struct VariableEntity {
+    data_type: EntityId,
+}
 
 impl VariableEntity {
-    pub fn new() -> VariableEntity {
-        VariableEntity {}
+    pub fn new(data_type: EntityId) -> VariableEntity {
+        VariableEntity {
+            data_type: data_type,
+        }
+    }
+
+    pub fn get_data_type(&self) -> EntityId {
+        self.data_type
     }
 }
 
@@ -43,10 +51,27 @@ impl FunctionEntity {
 }
 
 #[derive(Debug)]
+pub struct ArrayDataType {
+    base: DataType,
+    size: EntityId,
+}
+
+#[derive(Debug)]
+pub enum DataType {
+    Automatic,
+    Int,
+    Float,
+    DataType_,
+    Function_,
+    Array(Box<ArrayDataType>),
+}
+
+#[derive(Debug)]
 pub enum Entity {
     Variable(VariableEntity),
     Function(FunctionEntity),
     BuiltinFunction(String),
     IntLiteral(i64),
     FloatLiteral(f64),
+    DataType(DataType),
 }

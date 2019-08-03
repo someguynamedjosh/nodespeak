@@ -66,7 +66,7 @@ func_expr = { identifier ~ (
 
 named_data_type = { identifier }
 dynamic_data_type = { "{" ~ expr ~ "}" }
-basic_data_type = _{ named_data_type | dynamic_data_type }
+basic_data_type = { named_data_type | dynamic_data_type }
 array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
 data_type = { array_data_type | basic_data_type }
 
