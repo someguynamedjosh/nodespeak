@@ -1,4 +1,4 @@
-use crate::vague::{add_builtins, Builtins, Entity, FuncCall, Scope};
+use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, Scope};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
@@ -134,5 +134,9 @@ impl Program {
         let id = self.adopt_entity(definition);
         self.define_intermediate(scope, id);
         id
+    }
+
+    pub fn make_intermediate_auto_var(&mut self, scope: ScopeId) -> EntityId {
+        self.adopt_and_define_intermediate(scope, make_var(self.get_builtins().automatic_type))
     }
 }

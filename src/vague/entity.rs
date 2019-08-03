@@ -176,3 +176,7 @@ pub enum Entity {
     FloatLiteral(f64),
     DataType(DataType),
 }
+
+pub fn make_var(data_type: EntityId) -> Entity {
+    Entity::Variable(VariableEntity::new(data_type))
+}

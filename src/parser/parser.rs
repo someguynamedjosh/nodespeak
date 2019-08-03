@@ -48,12 +48,7 @@ pub mod convert {
                     )
                 }
                 Rule::expr => {
-                    let output = VarAccess::new(program.adopt_and_define_intermediate(
-                        scope,
-                        Entity::Variable(VariableEntity::new(
-                            program.get_builtins().automatic_type,
-                        )),
-                    ));
+                    let output = VarAccess::new(program.make_intermediate_auto_var(scope));
                     convert_expression(program, scope, output.clone(), child);
                     return output;
                 }
@@ -305,12 +300,7 @@ pub mod convert {
                             break;
                         } else {
                             let func = operator_to_op_fn(&operator, program.get_builtins());
-                            let var = program.adopt_and_define_intermediate(
-                                scope,
-                                Entity::Variable(VariableEntity::new(
-                                    program.get_builtins().automatic_type,
-                                )),
-                            );
+                            let var = program.make_intermediate_auto_var(scope);
                             let output = VarAccess::new(var);
                             let mut call = FuncCall::new(func);
                             // Popping reverses the order, hence this is necessary.
@@ -337,10 +327,7 @@ pub mod convert {
             let output = if operator_stack.len() == 1 {
                 final_output.clone()
             } else {
-                let var = program.adopt_and_define_intermediate(
-                    scope,
-                    Entity::Variable(VariableEntity::new(program.get_builtins().automatic_type)),
-                );
+                let var = program.make_intermediate_auto_var(scope);
                 VarAccess::new(var)
             };
             let mut call = FuncCall::new(func);
@@ -450,12 +437,7 @@ pub mod convert {
                 Rule::expr => {
                     let result_var = match return_var.as_ref() {
                         Option::Some(access) => access.clone(),
-                        Option::None => VarAccess::new(program.adopt_and_define_intermediate(
-                            scope,
-                            Entity::Variable(VariableEntity::new(
-                                program.get_builtins().automatic_type,
-                            )),
-                        )),
+                        Option::None => VarAccess::new(program.make_intermediate_auto_var(scope)),
                     };
                     convert_expression(program, scope, result_var, child);
                 }

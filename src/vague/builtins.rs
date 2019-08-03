@@ -1,5 +1,6 @@
 use crate::vague::{
-    BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program, VariableEntity,
+    make_var, BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program,
+    VariableEntity,
 };
 
 #[readonly::make]
@@ -65,21 +66,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "TYPE",
             Entity::DataType(DataType::AwaitingTemplate),
         );
-        let in1 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "in1",
-            Entity::Variable(VariableEntity::new(parameter)),
-        );
-        let in2 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "in2",
-            Entity::Variable(VariableEntity::new(parameter)),
-        );
-        let out = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "out",
-            Entity::Variable(VariableEntity::new(parameter)),
-        );
+        let in1 = program.adopt_and_define_symbol(bfe.get_scope(), "in1", make_var(parameter));
+        let in2 = program.adopt_and_define_symbol(bfe.get_scope(), "in2", make_var(parameter));
+        let out = program.adopt_and_define_symbol(bfe.get_scope(), "out", make_var(parameter));
         bfe.add_template_parameter(parameter);
         bfe.add_input(in1);
         bfe.add_input(in2);
@@ -89,21 +78,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
 
     let make_logic_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
         let mut bfe = BuiltinFunctionEntity::new(func, program);
-        let in1 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "in1",
-            Entity::Variable(VariableEntity::new(bool_type)),
-        );
-        let in2 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "in2",
-            Entity::Variable(VariableEntity::new(bool_type)),
-        );
-        let out = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "out",
-            Entity::Variable(VariableEntity::new(bool_type)),
-        );
+        let in1 = program.adopt_and_define_symbol(bfe.get_scope(), "in1", make_var(bool_type));
+        let in2 = program.adopt_and_define_symbol(bfe.get_scope(), "in2", make_var(bool_type));
+        let out = program.adopt_and_define_symbol(bfe.get_scope(), "out", make_var(bool_type));
         bfe.add_input(in1);
         bfe.add_input(in2);
         bfe.add_output(out);
@@ -113,16 +90,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let make_convert_func =
         |program: &mut Program, func: BuiltinFunction, name: &str, in_type, out_type| {
             let mut bfe = BuiltinFunctionEntity::new(func, program);
-            let in1 = program.adopt_and_define_symbol(
-                bfe.get_scope(),
-                "in1",
-                Entity::Variable(VariableEntity::new(in_type)),
-            );
-            let out = program.adopt_and_define_symbol(
-                bfe.get_scope(),
-                "out",
-                Entity::Variable(VariableEntity::new(out_type)),
-            );
+            let in1 = program.adopt_and_define_symbol(bfe.get_scope(), "in1", make_var(in_type));
+            let out = program.adopt_and_define_symbol(bfe.get_scope(), "out", make_var(out_type));
             bfe.add_input(in1);
             bfe.add_output(out);
             program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
@@ -135,21 +104,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "TYPE",
             Entity::DataType(DataType::AwaitingTemplate),
         );
-        let in1 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "compare",
-            Entity::Variable(VariableEntity::new(parameter)),
-        );
-        let in2 = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "to",
-            Entity::Variable(VariableEntity::new(parameter)),
-        );
-        let out = program.adopt_and_define_symbol(
-            bfe.get_scope(),
-            "result",
-            Entity::Variable(VariableEntity::new(bool_type)),
-        );
+        let in1 = program.adopt_and_define_symbol(bfe.get_scope(), "compare", make_var(parameter));
+        let in2 = program.adopt_and_define_symbol(bfe.get_scope(), "to", make_var(parameter));
+        let out = program.adopt_and_define_symbol(bfe.get_scope(), "result", make_var(bool_type));
         bfe.add_template_parameter(parameter);
         bfe.add_input(in1);
         bfe.add_input(in2);
