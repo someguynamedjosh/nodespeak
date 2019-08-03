@@ -39,16 +39,13 @@ impl FunctionEntity {
         }
     }
 
-    pub fn register_template_parameter(&mut self, template_parameter: EntityId) {
+    pub fn add_template_parameter(&mut self, template_parameter: EntityId) {
         self.template_parameters.push(template_parameter);
     }
 
     pub fn get_template_descriptor(&mut self, program: &mut Program) -> ScopeId {
         if self.template_descriptor.is_none() {
-            match program.get_scope_parent(self.body) {
-                Option::Some(parent) => self.template_descriptor = Option::Some(program.create_child_scope(parent)),
-                Option::None => self.template_descriptor = Option::Some(program.create_scope()),
-            }
+            self.template_descriptor = Option::Some(program.create_child_scope(self.body));
         }
         self.template_descriptor.unwrap()
     }
@@ -70,7 +67,7 @@ impl FunctionEntity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum BuiltinFunction {
     Add,
     Subtract,
@@ -79,6 +76,7 @@ pub enum BuiltinFunction {
     IntDiv,
     Modulo,
     Power,
+    Reciprocal,
 
     BAnd,
     BOr,
@@ -122,8 +120,8 @@ impl BuiltinFunctionEntity {
         }
     }
 
-    pub fn register_template_parameter(&mut self, template_parameter: EntityId) {
-        self.base.register_template_parameter(template_parameter);
+    pub fn add_template_parameter(&mut self, template_parameter: EntityId) {
+        self.base.add_template_parameter(template_parameter);
     }
 
     pub fn get_template_descriptor(&mut self, program: &mut Program) -> ScopeId {
@@ -143,7 +141,11 @@ impl BuiltinFunctionEntity {
     }
 
     pub fn get_func(&self) -> BuiltinFunction {
-        self.func
+        self.func.clone()
+    }
+
+    pub fn get_scope(&self) -> ScopeId {
+        self.base.body
     }
 }
 
@@ -157,6 +159,7 @@ pub struct ArrayDataType {
 pub enum DataType {
     Automatic,
     AwaitingTemplate,
+    Bool,
     Int,
     Float,
     DataType_,

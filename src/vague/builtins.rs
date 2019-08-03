@@ -1,4 +1,6 @@
-use crate::vague::{BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program};
+use crate::vague::{
+    BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program, VariableEntity,
+};
 
 #[readonly::make]
 #[derive(Debug)]
@@ -39,6 +41,7 @@ pub struct Builtins {
     pub return_func: EntityId,
 
     pub automatic_type: EntityId,
+    pub bool_type: EntityId,
     pub int_type: EntityId,
     pub float_type: EntityId,
 }
@@ -46,96 +49,200 @@ pub struct Builtins {
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_root_scope();
-    let make_aa_a_func = |func: BuiltinFunction| {
-        let bfe = BuiltinFunctionEntity::new(func, program);
-        let ttype = Entity::DataType(DataType::AwaitingTemplate);
-        bfe.register_template_parameter(ttype);
-        Entity::BuiltinFunction(bfe)
+
+    let automatic_type =
+        program.adopt_and_define_symbol(scope, "Auto", Entity::DataType(DataType::Automatic));
+    let bool_type =
+        program.adopt_and_define_symbol(scope, "Bool", Entity::DataType(DataType::Bool));
+    let int_type = program.adopt_and_define_symbol(scope, "Int", Entity::DataType(DataType::Int));
+    let float_type =
+        program.adopt_and_define_symbol(scope, "Float", Entity::DataType(DataType::Float));
+
+    let make_aa_a_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+        let mut bfe = BuiltinFunctionEntity::new(func, program);
+        let parameter = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "TYPE",
+            Entity::DataType(DataType::AwaitingTemplate),
+        );
+        let in1 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "in1",
+            Entity::Variable(VariableEntity::new(parameter)),
+        );
+        let in2 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "in2",
+            Entity::Variable(VariableEntity::new(parameter)),
+        );
+        let out = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "out",
+            Entity::Variable(VariableEntity::new(parameter)),
+        );
+        bfe.add_template_parameter(parameter);
+        bfe.add_input(in1);
+        bfe.add_input(in2);
+        bfe.add_output(out);
+        program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
     };
+
+    let make_logic_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+        let mut bfe = BuiltinFunctionEntity::new(func, program);
+        let in1 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "in1",
+            Entity::Variable(VariableEntity::new(bool_type)),
+        );
+        let in2 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "in2",
+            Entity::Variable(VariableEntity::new(bool_type)),
+        );
+        let out = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "out",
+            Entity::Variable(VariableEntity::new(bool_type)),
+        );
+        bfe.add_input(in1);
+        bfe.add_input(in2);
+        bfe.add_output(out);
+        program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
+    };
+
+    let make_convert_func =
+        |program: &mut Program, func: BuiltinFunction, name: &str, in_type, out_type| {
+            let mut bfe = BuiltinFunctionEntity::new(func, program);
+            let in1 = program.adopt_and_define_symbol(
+                bfe.get_scope(),
+                "in1",
+                Entity::Variable(VariableEntity::new(in_type)),
+            );
+            let out = program.adopt_and_define_symbol(
+                bfe.get_scope(),
+                "out",
+                Entity::Variable(VariableEntity::new(out_type)),
+            );
+            bfe.add_input(in1);
+            bfe.add_output(out);
+            program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
+        };
+
+    let make_comparison_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+        let mut bfe = BuiltinFunctionEntity::new(func, program);
+        let parameter = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "TYPE",
+            Entity::DataType(DataType::AwaitingTemplate),
+        );
+        let in1 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "compare",
+            Entity::Variable(VariableEntity::new(parameter)),
+        );
+        let in2 = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "to",
+            Entity::Variable(VariableEntity::new(parameter)),
+        );
+        let out = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "result",
+            Entity::Variable(VariableEntity::new(bool_type)),
+        );
+        bfe.add_template_parameter(parameter);
+        bfe.add_input(in1);
+        bfe.add_input(in2);
+        bfe.add_output(out);
+        program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
+    };
+
     let builtins = Builtins {
-        add_func: program.adopt_entity(Entity::BuiltinFunction("add".to_owned())),
-        sub_func: program.adopt_entity(Entity::BuiltinFunction("sub".to_owned())),
-        mul_func: program.adopt_entity(Entity::BuiltinFunction("mul".to_owned())),
-        div_func: program.adopt_entity(Entity::BuiltinFunction("div".to_owned())),
-        int_div_func: program.adopt_entity(Entity::BuiltinFunction("int_div".to_owned())),
-        recip_func: program.adopt_entity(Entity::BuiltinFunction("recip".to_owned())),
-        mod_func: program.adopt_entity(Entity::BuiltinFunction("mod".to_owned())),
-        pow_func: program.adopt_entity(Entity::BuiltinFunction("pow".to_owned())),
+        add_func: make_aa_a_func(program, BuiltinFunction::Add, "!add"),
+        sub_func: make_aa_a_func(program, BuiltinFunction::Subtract, "!subtract"),
+        mul_func: make_aa_a_func(program, BuiltinFunction::Multiply, "!multiply"),
+        div_func: make_aa_a_func(program, BuiltinFunction::Divide, "!divide"),
+        int_div_func: make_aa_a_func(program, BuiltinFunction::IntDiv, "!int_div"),
+        mod_func: make_aa_a_func(program, BuiltinFunction::Modulo, "!modulo"),
+        pow_func: make_aa_a_func(program, BuiltinFunction::Power, "!power"),
+        recip_func: make_aa_a_func(program, BuiltinFunction::Reciprocal, "!reciprocal"),
 
-        band_func: program.adopt_entity(Entity::BuiltinFunction("band".to_owned())),
-        bor_func: program.adopt_entity(Entity::BuiltinFunction("bor".to_owned())),
-        bxor_func: program.adopt_entity(Entity::BuiltinFunction("bxor".to_owned())),
-        bnot_func: program.adopt_entity(Entity::BuiltinFunction("bnot".to_owned())),
+        band_func: make_aa_a_func(program, BuiltinFunction::BAnd, "!band"),
+        bor_func: make_aa_a_func(program, BuiltinFunction::BOr, "!bor"),
+        bxor_func: make_aa_a_func(program, BuiltinFunction::BXor, "!bxor"),
+        bnot_func: make_aa_a_func(program, BuiltinFunction::BNot, "!bnot"),
 
-        int_to_float_func: program.adopt_entity(Entity::BuiltinFunction("int_to_float".to_owned())),
-        bool_to_float_func: program
-            .adopt_entity(Entity::BuiltinFunction("bool_to_float".to_owned())),
-        bool_to_int_func: program.adopt_entity(Entity::BuiltinFunction("bool_to_int".to_owned())),
-        int_to_bool_func: program.adopt_entity(Entity::BuiltinFunction("int_to_bool".to_owned())),
-        float_to_int_func: program.adopt_entity(Entity::BuiltinFunction("float_to_int".to_owned())),
-        float_to_bool_func: program
-            .adopt_entity(Entity::BuiltinFunction("float_to_bool".to_owned())),
+        int_to_float_func: make_convert_func(
+            program,
+            BuiltinFunction::IntToFloat,
+            "!int_to_float",
+            int_type,
+            float_type,
+        ),
+        float_to_int_func: make_convert_func(
+            program,
+            BuiltinFunction::FloatToInt,
+            "!float_to_int",
+            float_type,
+            int_type,
+        ),
+        bool_to_float_func: make_convert_func(
+            program,
+            BuiltinFunction::BoolToFloat,
+            "!bool_to_float",
+            bool_type,
+            float_type,
+        ),
+        float_to_bool_func: make_convert_func(
+            program,
+            BuiltinFunction::FloatToBool,
+            "!float_to_bool",
+            float_type,
+            bool_type,
+        ),
+        bool_to_int_func: make_convert_func(
+            program,
+            BuiltinFunction::BoolToInt,
+            "!bool_to_int",
+            bool_type,
+            int_type,
+        ),
+        int_to_bool_func: make_convert_func(
+            program,
+            BuiltinFunction::IntToBool,
+            "!int_to_bool",
+            int_type,
+            bool_type,
+        ),
 
-        eq_func: program.adopt_entity(Entity::BuiltinFunction("eq".to_owned())),
-        neq_func: program.adopt_entity(Entity::BuiltinFunction("neq".to_owned())),
-        lte_func: program.adopt_entity(Entity::BuiltinFunction("lte".to_owned())),
-        gte_func: program.adopt_entity(Entity::BuiltinFunction("gte".to_owned())),
-        lt_func: program.adopt_entity(Entity::BuiltinFunction("lt".to_owned())),
-        gt_func: program.adopt_entity(Entity::BuiltinFunction("gt".to_owned())),
+        eq_func: make_comparison_func(program, BuiltinFunction::Equal, "!equal"),
+        neq_func: make_comparison_func(program, BuiltinFunction::NotEqual, "!not_equal"),
+        lte_func: make_comparison_func(
+            program,
+            BuiltinFunction::LessThanOrEqual,
+            "!less_than_or_equal",
+        ),
+        gte_func: make_comparison_func(
+            program,
+            BuiltinFunction::GreaterThanOrEqual,
+            "!greater_than_or_equal",
+        ),
+        lt_func: make_comparison_func(program, BuiltinFunction::LessThan, "!less_than"),
+        gt_func: make_comparison_func(program, BuiltinFunction::GreaterThan, "!greater_than"),
 
-        and_func: program.adopt_entity(Entity::BuiltinFunction("and".to_owned())),
-        or_func: program.adopt_entity(Entity::BuiltinFunction("or".to_owned())),
-        xor_func: program.adopt_entity(Entity::BuiltinFunction("xor".to_owned())),
-        not_func: program.adopt_entity(Entity::BuiltinFunction("not".to_owned())),
+        and_func: make_logic_func(program, BuiltinFunction::And, "!and"),
+        or_func: make_logic_func(program, BuiltinFunction::Or, "!or"),
+        xor_func: make_logic_func(program, BuiltinFunction::Xor, "!xor"),
+        not_func: make_logic_func(program, BuiltinFunction::Not, "!not"),
 
-        return_func: program.adopt_entity(Entity::BuiltinFunction("return".to_owned())),
+        // TODO: A proper return signature for this absolute mess of an all-purpose function.
+        return_func: make_aa_a_func(program, BuiltinFunction::Return, "return"),
 
-        automatic_type: program.adopt_entity(Entity::DataType(DataType::Automatic)),
-        int_type: program.adopt_entity(Entity::DataType(DataType::Int)),
-        float_type: program.adopt_entity(Entity::DataType(DataType::Float)),
+        automatic_type: automatic_type,
+        bool_type: bool_type,
+        int_type: int_type,
+        float_type: float_type,
     };
-
-    // TODO: Once we add support for templates, properly create the inputs
-    // and outputs for all these functions.
-
-    program.define_symbol(scope, "!ADD", builtins.add_func);
-    program.define_symbol(scope, "!SUB", builtins.sub_func);
-    program.define_symbol(scope, "!MUL", builtins.mul_func);
-    program.define_symbol(scope, "!DIV", builtins.div_func);
-    program.define_symbol(scope, "!INT_DIV", builtins.int_div_func);
-    program.define_symbol(scope, "!RECIP", builtins.recip_func);
-    program.define_symbol(scope, "!MOD", builtins.mod_func);
-    program.define_symbol(scope, "!POW", builtins.pow_func);
-
-    program.define_symbol(scope, "!BAND", builtins.band_func);
-    program.define_symbol(scope, "!BOR", builtins.bor_func);
-    program.define_symbol(scope, "!BXOR", builtins.bxor_func);
-    program.define_symbol(scope, "!BNOT", builtins.bnot_func);
-
-    program.define_symbol(scope, "!INT_TO_FLOAT", builtins.int_to_float_func);
-    program.define_symbol(scope, "!BOOL_TO_FLOAT", builtins.bool_to_float_func);
-    program.define_symbol(scope, "!BOOL_TO_INT", builtins.bool_to_int_func);
-    program.define_symbol(scope, "!INT_TO_BOOL", builtins.int_to_bool_func);
-    program.define_symbol(scope, "!FLOAT_TO_INT", builtins.float_to_int_func);
-    program.define_symbol(scope, "!FLOAT_TO_BOOL", builtins.float_to_bool_func);
-
-    program.define_symbol(scope, "!EQ", builtins.eq_func);
-    program.define_symbol(scope, "!NEQ", builtins.neq_func);
-    program.define_symbol(scope, "!LTE", builtins.lte_func);
-    program.define_symbol(scope, "!GTE", builtins.gte_func);
-    program.define_symbol(scope, "!LT", builtins.lt_func);
-    program.define_symbol(scope, "!GT", builtins.gt_func);
-
-    program.define_symbol(scope, "!AND", builtins.and_func);
-    program.define_symbol(scope, "!OR", builtins.or_func);
-    program.define_symbol(scope, "!XOR", builtins.xor_func);
-    program.define_symbol(scope, "!NOT", builtins.not_func);
-
-    program.define_symbol(scope, "!RETURN", builtins.return_func);
-
-    program.define_symbol(scope, "Auto", builtins.automatic_type);
-    program.define_symbol(scope, "Int", builtins.int_type);
-    program.define_symbol(scope, "Float", builtins.float_type);
 
     builtins
 }

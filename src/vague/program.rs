@@ -115,13 +115,22 @@ impl Program {
         id
     }
 
-    pub fn adopt_and_define_symbol(&mut self, scope: ScopeId, symbol: &str, definition: Entity) -> EntityId {
+    pub fn adopt_and_define_symbol(
+        &mut self,
+        scope: ScopeId,
+        symbol: &str,
+        definition: Entity,
+    ) -> EntityId {
         let id = self.adopt_entity(definition);
         self.define_symbol(scope, symbol, id);
         id
     }
 
-    pub fn adopt_and_define_intermediate(&mut self, scope: ScopeId, definition: Entity) -> EntityId {
+    pub fn adopt_and_define_intermediate(
+        &mut self,
+        scope: ScopeId,
+        definition: Entity,
+    ) -> EntityId {
         let id = self.adopt_entity(definition);
         self.define_intermediate(scope, id);
         id

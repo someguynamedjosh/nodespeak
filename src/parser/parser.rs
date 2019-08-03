@@ -48,9 +48,12 @@ pub mod convert {
                     )
                 }
                 Rule::expr => {
-                    let output = VarAccess::new(program.adopt_and_define_intermediate(scope, Entity::Variable(
-                        VariableEntity::new(program.get_builtins().automatic_type),
-                    )));
+                    let output = VarAccess::new(program.adopt_and_define_intermediate(
+                        scope,
+                        Entity::Variable(VariableEntity::new(
+                            program.get_builtins().automatic_type,
+                        )),
+                    ));
                     convert_expression(program, scope, output.clone(), child);
                     return output;
                 }
@@ -302,9 +305,12 @@ pub mod convert {
                             break;
                         } else {
                             let func = operator_to_op_fn(&operator, program.get_builtins());
-                            let var = program.adopt_and_define_intermediate(scope, Entity::Variable(VariableEntity::new(
-                                program.get_builtins().automatic_type,
-                            )));
+                            let var = program.adopt_and_define_intermediate(
+                                scope,
+                                Entity::Variable(VariableEntity::new(
+                                    program.get_builtins().automatic_type,
+                                )),
+                            );
                             let output = VarAccess::new(var);
                             let mut call = FuncCall::new(func);
                             // Popping reverses the order, hence this is necessary.
@@ -331,9 +337,10 @@ pub mod convert {
             let output = if operator_stack.len() == 1 {
                 final_output.clone()
             } else {
-                let var = program.adopt_and_define_intermediate(scope, Entity::Variable(VariableEntity::new(
-                    program.get_builtins().automatic_type,
-                )));
+                let var = program.adopt_and_define_intermediate(
+                    scope,
+                    Entity::Variable(VariableEntity::new(program.get_builtins().automatic_type)),
+                );
                 VarAccess::new(var)
             };
             let mut call = FuncCall::new(func);
@@ -406,7 +413,11 @@ pub mod convert {
             }
         }
         let variable = VariableEntity::new(data_type.unwrap());
-        func.add_output(program.adopt_and_define_symbol(func_scope, "!return_value", Entity::Variable(variable)));
+        func.add_output(program.adopt_and_define_symbol(
+            func_scope,
+            "!return_value",
+            Entity::Variable(variable),
+        ));
     }
 
     fn convert_function_signature(
@@ -439,9 +450,12 @@ pub mod convert {
                 Rule::expr => {
                     let result_var = match return_var.as_ref() {
                         Option::Some(access) => access.clone(),
-                        Option::None => VarAccess::new(program.adopt_and_define_intermediate(scope, Entity::Variable(
-                            VariableEntity::new(program.get_builtins().automatic_type),
-                        ))),
+                        Option::None => VarAccess::new(program.adopt_and_define_intermediate(
+                            scope,
+                            Entity::Variable(VariableEntity::new(
+                                program.get_builtins().automatic_type,
+                            )),
+                        )),
                     };
                     convert_expression(program, scope, result_var, child);
                 }
@@ -476,7 +490,8 @@ pub mod convert {
             }
         }
         // If name is None, there is a bug in the parser.
-        let function = program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Function(function));
+        let function =
+            program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Function(function));
     }
 
     // TODO: Take in data type.
