@@ -1,4 +1,4 @@
-use crate::vague::{EntityId, ScopeId};
+use crate::vague::{EntityId, Program, ScopeId};
 
 #[derive(Debug)]
 pub struct VariableEntity {
@@ -22,6 +22,10 @@ pub struct FunctionEntity {
     inputs: Vec<EntityId>,
     outputs: Vec<EntityId>,
     body: ScopeId,
+    // Put code into this scope to describe how template parameters should be set up and used.
+    template_descriptor: Option<ScopeId>,
+    // Variables or data types that are created inside the function's signature. This is necessary to distinguish template parameters from variables declared in the function body.
+    template_parameters: Vec<EntityId>,
 }
 
 impl FunctionEntity {
@@ -30,7 +34,23 @@ impl FunctionEntity {
             inputs: Vec::new(),
             outputs: Vec::new(),
             body: body,
+            template_descriptor: Option::None,
+            template_parameters: Vec::new(),
         }
+    }
+
+    pub fn register_template_parameter(&mut self, template_parameter: EntityId) {
+        self.template_parameters.push(template_parameter);
+    }
+
+    pub fn get_template_descriptor(&mut self, program: &mut Program) -> ScopeId {
+        if self.template_descriptor.is_none() {
+            match program.get_scope_parent(self.body) {
+                Option::Some(parent) => self.template_descriptor = Option::Some(program.create_child_scope(parent)),
+                Option::None => self.template_descriptor = Option::Some(program.create_scope()),
+            }
+        }
+        self.template_descriptor.unwrap()
     }
 
     pub fn add_input(&mut self, input: EntityId) {
@@ -51,6 +71,83 @@ impl FunctionEntity {
 }
 
 #[derive(Debug)]
+pub enum BuiltinFunction {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    IntDiv,
+    Modulo,
+    Power,
+
+    BAnd,
+    BOr,
+    BXor,
+    BNot,
+
+    IntToFloat,
+    FloatToInt,
+    IntToBool,
+    BoolToInt,
+    FloatToBool,
+    BoolToFloat,
+
+    Equal,
+    NotEqual,
+    LessThanOrEqual,
+    LessThan,
+    GreaterThanOrEqual,
+    GreaterThan,
+
+    And,
+    Or,
+    Xor,
+    Not,
+
+    Return,
+}
+
+#[derive(Debug)]
+pub struct BuiltinFunctionEntity {
+    base: FunctionEntity,
+    func: BuiltinFunction,
+}
+
+impl BuiltinFunctionEntity {
+    pub fn new(func: BuiltinFunction, program: &mut Program) -> BuiltinFunctionEntity {
+        let scope = program.create_scope();
+        BuiltinFunctionEntity {
+            base: FunctionEntity::new(scope),
+            func: func,
+        }
+    }
+
+    pub fn register_template_parameter(&mut self, template_parameter: EntityId) {
+        self.base.register_template_parameter(template_parameter);
+    }
+
+    pub fn get_template_descriptor(&mut self, program: &mut Program) -> ScopeId {
+        self.base.get_template_descriptor(program)
+    }
+
+    pub fn add_input(&mut self, input: EntityId) {
+        self.base.add_input(input);
+    }
+
+    pub fn add_output(&mut self, output: EntityId) {
+        self.base.add_output(output);
+    }
+
+    pub fn get_single_output(&self) -> Option<EntityId> {
+        self.base.get_single_output()
+    }
+
+    pub fn get_func(&self) -> BuiltinFunction {
+        self.func
+    }
+}
+
+#[derive(Debug)]
 pub struct ArrayDataType {
     base: DataType,
     size: EntityId,
@@ -59,6 +156,7 @@ pub struct ArrayDataType {
 #[derive(Debug)]
 pub enum DataType {
     Automatic,
+    AwaitingTemplate,
     Int,
     Float,
     DataType_,
@@ -70,7 +168,7 @@ pub enum DataType {
 pub enum Entity {
     Variable(VariableEntity),
     Function(FunctionEntity),
-    BuiltinFunction(String),
+    BuiltinFunction(BuiltinFunctionEntity),
     IntLiteral(i64),
     FloatLiteral(f64),
     DataType(DataType),

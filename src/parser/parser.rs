@@ -48,7 +48,7 @@ pub mod convert {
                     )
                 }
                 Rule::expr => {
-                    let output = VarAccess::new(program.adopt_entity(Entity::Variable(
+                    let output = VarAccess::new(program.adopt_and_define_intermediate(scope, Entity::Variable(
                         VariableEntity::new(program.get_builtins().automatic_type),
                     )));
                     convert_expression(program, scope, output.clone(), child);
@@ -302,7 +302,7 @@ pub mod convert {
                             break;
                         } else {
                             let func = operator_to_op_fn(&operator, program.get_builtins());
-                            let var = program.adopt_entity(Entity::Variable(VariableEntity::new(
+                            let var = program.adopt_and_define_intermediate(scope, Entity::Variable(VariableEntity::new(
                                 program.get_builtins().automatic_type,
                             )));
                             let output = VarAccess::new(var);
@@ -331,7 +331,7 @@ pub mod convert {
             let output = if operator_stack.len() == 1 {
                 final_output.clone()
             } else {
-                let var = program.adopt_entity(Entity::Variable(VariableEntity::new(
+                let var = program.adopt_and_define_intermediate(scope, Entity::Variable(VariableEntity::new(
                     program.get_builtins().automatic_type,
                 )));
                 VarAccess::new(var)
@@ -365,9 +365,7 @@ pub mod convert {
             }
         }
         let variable = VariableEntity::new(data_type.unwrap());
-        let id = program.adopt_entity(Entity::Variable(variable));
-        program.define_symbol(func_scope, name.unwrap(), id);
-        id
+        program.adopt_and_define_symbol(func_scope, name.unwrap(), Entity::Variable(variable))
     }
 
     fn add_function_inputs(
@@ -408,9 +406,7 @@ pub mod convert {
             }
         }
         let variable = VariableEntity::new(data_type.unwrap());
-        let var_id = program.adopt_entity(Entity::Variable(variable));
-        program.define_symbol(func_scope, "!return_value", var_id);
-        func.add_output(var_id);
+        func.add_output(program.adopt_and_define_symbol(func_scope, "!return_value", Entity::Variable(variable)));
     }
 
     fn convert_function_signature(
@@ -443,7 +439,7 @@ pub mod convert {
                 Rule::expr => {
                     let result_var = match return_var.as_ref() {
                         Option::Some(access) => access.clone(),
-                        Option::None => VarAccess::new(program.adopt_entity(Entity::Variable(
+                        Option::None => VarAccess::new(program.adopt_and_define_intermediate(scope, Entity::Variable(
                             VariableEntity::new(program.get_builtins().automatic_type),
                         ))),
                     };
@@ -479,9 +475,8 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let function = program.adopt_entity(Entity::Function(function));
         // If name is None, there is a bug in the parser.
-        program.define_symbol(scope, name.unwrap(), function);
+        let function = program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Function(function));
     }
 
     // TODO: Take in data type.
@@ -519,8 +514,7 @@ pub mod convert {
             }
         }
         let variable = VariableEntity::new(data_type);
-        let id = program.adopt_entity(Entity::Variable(variable));
-        program.define_symbol(scope, name.unwrap(), id);
+        let id = program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Variable(variable));
     }
 
     fn convert_basic_data_type(

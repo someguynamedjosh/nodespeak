@@ -72,6 +72,11 @@ impl Program {
         ScopeId::new(0)
     }
 
+    pub fn get_scope_parent(&self, child: ScopeId) -> Option<ScopeId> {
+        assert!(child.get_raw() < self.scopes.len());
+        self.scopes[child.get_raw()].parent
+    }
+
     pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) {
         assert!(add_to.get_raw() < self.scopes.len());
         self.scopes[add_to.get_raw()].body.push(call);
@@ -98,9 +103,27 @@ impl Program {
             .insert(symbol.to_owned(), definition);
     }
 
+    pub fn define_intermediate(&mut self, scope: ScopeId, definition: EntityId) {
+        assert!(definition.get_raw() < self.entities.len());
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].intermediates.push(definition);
+    }
+
     pub fn adopt_entity(&mut self, entity: Entity) -> EntityId {
         let id = EntityId::new(self.entities.len());
         self.entities.push(entity);
+        id
+    }
+
+    pub fn adopt_and_define_symbol(&mut self, scope: ScopeId, symbol: &str, definition: Entity) -> EntityId {
+        let id = self.adopt_entity(definition);
+        self.define_symbol(scope, symbol, id);
+        id
+    }
+
+    pub fn adopt_and_define_intermediate(&mut self, scope: ScopeId, definition: Entity) -> EntityId {
+        let id = self.adopt_entity(definition);
+        self.define_intermediate(scope, id);
         id
     }
 }

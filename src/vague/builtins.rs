@@ -1,4 +1,4 @@
-use crate::vague::{DataType, Entity, EntityId, Program};
+use crate::vague::{BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program};
 
 #[readonly::make]
 #[derive(Debug)]
@@ -46,6 +46,12 @@ pub struct Builtins {
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_root_scope();
+    let make_aa_a_func = |func: BuiltinFunction| {
+        let bfe = BuiltinFunctionEntity::new(func, program);
+        let ttype = Entity::DataType(DataType::AwaitingTemplate);
+        bfe.register_template_parameter(ttype);
+        Entity::BuiltinFunction(bfe)
+    };
     let builtins = Builtins {
         add_func: program.adopt_entity(Entity::BuiltinFunction("add".to_owned())),
         sub_func: program.adopt_entity(Entity::BuiltinFunction("sub".to_owned())),
