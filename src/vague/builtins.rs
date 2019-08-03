@@ -39,6 +39,7 @@ pub struct Builtins {
     pub xor_func: EntityId,
     pub not_func: EntityId,
 
+    pub copy_func: EntityId,
     pub return_func: EntityId,
 
     pub automatic_type: EntityId,
@@ -58,6 +59,21 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let int_type = program.adopt_and_define_symbol(scope, "Int", Entity::DataType(DataType::Int));
     let float_type =
         program.adopt_and_define_symbol(scope, "Float", Entity::DataType(DataType::Float));
+
+    let make_a_a_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+        let mut bfe = BuiltinFunctionEntity::new(func, program);
+        let parameter = program.adopt_and_define_symbol(
+            bfe.get_scope(),
+            "TYPE",
+            Entity::DataType(DataType::AwaitingTemplate),
+        );
+        let in1 = program.adopt_and_define_symbol(bfe.get_scope(), "in1", make_var(parameter));
+        let out = program.adopt_and_define_symbol(bfe.get_scope(), "out", make_var(parameter));
+        bfe.add_template_parameter(parameter);
+        bfe.add_input(in1);
+        bfe.add_output(out);
+        program.adopt_and_define_symbol(scope, name, Entity::BuiltinFunction(bfe))
+    };
 
     let make_aa_a_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
         let mut bfe = BuiltinFunctionEntity::new(func, program);
@@ -192,6 +208,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         xor_func: make_logic_func(program, BuiltinFunction::Xor, "!xor"),
         not_func: make_logic_func(program, BuiltinFunction::Not, "!not"),
 
+        copy_func: make_a_a_func(program, BuiltinFunction::Copy, "!copy"),
         // TODO: A proper return signature for this absolute mess of an all-purpose function.
         return_func: make_aa_a_func(program, BuiltinFunction::Return, "return"),
 

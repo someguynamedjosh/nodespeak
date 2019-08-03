@@ -155,14 +155,14 @@ root = data_stack[0]
         
 class Entity:
     def __init__(self):
-        self.defining_scope = None
+        self.defining_scope = -1
         self.name = 'UNNAMED'
         self.type_name = ''
     
     def describe(self):
         global scopes
         scope_name = 'nowhere'
-        if self.defining_scope != None:
+        if self.defining_scope != -1:
             scope_name = 'in ' + scopes[self.defining_scope].get_name()
         return self.name + ' (' + self.type_name + ' defined ' + scope_name + ')' + self.extra()
     

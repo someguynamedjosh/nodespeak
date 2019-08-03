@@ -317,6 +317,21 @@ pub mod convert {
             }
         }
 
+        // Whenever we have an expression that has at least one operator, it is
+        // guaranteed that all the input will be consumed before all the
+        // operators have been popped. The loop below this statement handles
+        // that case. This if statement is here to ensure that expressions with
+        // no operators still get incorporated into the program. Without it,
+        // the result of whatever the single term is would not be copied to the
+        // output variable.
+        if operator_stack.len() == 1 {
+            let mut call = FuncCall::new(program.get_builtins().copy_func);
+            call.add_input(operand_stack.pop().unwrap());
+            call.add_output(final_output);
+            program.add_func_call(scope, call);
+            return;
+        }
+
         // The last operator is the sentinel, we don't actually want to pop it.
         while operator_stack.len() > 1 {
             let top_op = operator_stack.pop().unwrap();

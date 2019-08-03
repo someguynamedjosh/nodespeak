@@ -102,6 +102,7 @@ pub enum BuiltinFunction {
     Xor,
     Not,
 
+    Copy,
     Return,
 }
 
