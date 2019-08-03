@@ -4,9 +4,13 @@ use crate::vague::{Entity, EntityId, Program};
 #[derive(Debug)]
 pub struct Builtins {
     pub add_func: EntityId,
+    pub sub_func: EntityId,
     pub mul_func: EntityId,
+    pub div_func: EntityId,
+    pub int_div_func: EntityId,
     pub recip_func: EntityId,
     pub mod_func: EntityId,
+    pub pow_func: EntityId,
 
     pub band_func: EntityId,
     pub bor_func: EntityId,
@@ -40,9 +44,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_root_scope();
     let builtins = Builtins {
         add_func: program.adopt_entity(Entity::BuiltinFunction("add".to_owned())),
+        sub_func: program.adopt_entity(Entity::BuiltinFunction("sub".to_owned())),
         mul_func: program.adopt_entity(Entity::BuiltinFunction("mul".to_owned())),
+        div_func: program.adopt_entity(Entity::BuiltinFunction("div".to_owned())),
+        int_div_func: program.adopt_entity(Entity::BuiltinFunction("int_div".to_owned())),
         recip_func: program.adopt_entity(Entity::BuiltinFunction("recip".to_owned())),
         mod_func: program.adopt_entity(Entity::BuiltinFunction("mod".to_owned())),
+        pow_func: program.adopt_entity(Entity::BuiltinFunction("pow".to_owned())),
 
         band_func: program.adopt_entity(Entity::BuiltinFunction("band".to_owned())),
         bor_func: program.adopt_entity(Entity::BuiltinFunction("bor".to_owned())),
@@ -50,11 +58,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         bnot_func: program.adopt_entity(Entity::BuiltinFunction("bnot".to_owned())),
 
         int_to_float_func: program.adopt_entity(Entity::BuiltinFunction("int_to_float".to_owned())),
-        bool_to_float_func: program.adopt_entity(Entity::BuiltinFunction("bool_to_float".to_owned())),
+        bool_to_float_func: program
+            .adopt_entity(Entity::BuiltinFunction("bool_to_float".to_owned())),
         bool_to_int_func: program.adopt_entity(Entity::BuiltinFunction("bool_to_int".to_owned())),
         int_to_bool_func: program.adopt_entity(Entity::BuiltinFunction("int_to_bool".to_owned())),
         float_to_int_func: program.adopt_entity(Entity::BuiltinFunction("float_to_int".to_owned())),
-        float_to_bool_func: program.adopt_entity(Entity::BuiltinFunction("float_to_bool".to_owned())),
+        float_to_bool_func: program
+            .adopt_entity(Entity::BuiltinFunction("float_to_bool".to_owned())),
 
         eq_func: program.adopt_entity(Entity::BuiltinFunction("eq".to_owned())),
         neq_func: program.adopt_entity(Entity::BuiltinFunction("neq".to_owned())),
@@ -75,9 +85,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     // and outputs for all these functions.
 
     program.define_symbol(scope, "!ADD", builtins.add_func);
+    program.define_symbol(scope, "!SUB", builtins.sub_func);
     program.define_symbol(scope, "!MUL", builtins.mul_func);
+    program.define_symbol(scope, "!DIV", builtins.div_func);
+    program.define_symbol(scope, "!INT_DIV", builtins.int_div_func);
     program.define_symbol(scope, "!RECIP", builtins.recip_func);
     program.define_symbol(scope, "!MOD", builtins.mod_func);
+    program.define_symbol(scope, "!POW", builtins.pow_func);
 
     program.define_symbol(scope, "!BAND", builtins.band_func);
     program.define_symbol(scope, "!BOR", builtins.bor_func);
@@ -102,7 +116,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     program.define_symbol(scope, "!OR", builtins.or_func);
     program.define_symbol(scope, "!XOR", builtins.xor_func);
     program.define_symbol(scope, "!NOT", builtins.not_func);
-    
+
     program.define_symbol(scope, "!RETURN", builtins.return_func);
 
     builtins

@@ -22,7 +22,7 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 array_literal = { "[" ~ (expr ~ ("," ~ expr)*)? ~ "]" }
 
-expr_part_1 = _{ 
+expr_part_1 = { 
     literal | func_expr | identifier | "(" ~ expr ~ ")" | array_literal 
 }
 
@@ -32,7 +32,7 @@ expr_part_2 = _{
     negate | expr_part_1
 }
 
-expr_part = _{ expr_part_2 }
+expr_part = { expr_part_2 }
 
 // Operator precedence is done after parsing, because it is inneficient to build
 // it into the grammar.
@@ -43,7 +43,7 @@ operator = {
     | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
 }
 
-expr = _{ expr_part ~ (operator ~ expr_part)* }
+expr = { expr_part ~ (operator ~ expr_part)* }
 
 // Function calls (technically part of expressions.)
 
@@ -68,7 +68,7 @@ named_data_type = { identifier }
 dynamic_data_type = { "{" ~ expr ~ "}" }
 basic_data_type = _{ named_data_type | dynamic_data_type }
 array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
-data_type = _{ array_data_type | basic_data_type }
+data_type = { array_data_type | basic_data_type }
 
 // Function definitions (techincally part of statements.)
 

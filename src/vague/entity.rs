@@ -47,4 +47,6 @@ pub enum Entity {
     Variable(VariableEntity),
     Function(FunctionEntity),
     BuiltinFunction(String),
+    IntLiteral(i64),
+    FloatLiteral(f64),
 }

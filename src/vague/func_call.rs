@@ -1,6 +1,6 @@
 use crate::vague::EntityId;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct VarAccess {
     base: EntityId,
     indexes: Vec<EntityId>,
@@ -10,7 +10,7 @@ impl VarAccess {
     pub fn new(base: EntityId) -> VarAccess {
         VarAccess {
             base: base,
-            indexes: Vec::new()
+            indexes: Vec::new(),
         }
     }
 
