@@ -102,6 +102,7 @@ pub enum BuiltinFunction {
     Xor,
     Not,
 
+    Assert,
     Copy,
     Return,
 }
@@ -114,7 +115,7 @@ pub struct BuiltinFunctionEntity {
 
 impl BuiltinFunctionEntity {
     pub fn new(func: BuiltinFunction, program: &mut Program) -> BuiltinFunctionEntity {
-        let scope = program.create_scope();
+        let scope = program.create_child_scope(program.get_root_scope());
         BuiltinFunctionEntity {
             base: FunctionEntity::new(scope),
             func: func,
