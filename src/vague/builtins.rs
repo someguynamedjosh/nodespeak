@@ -221,7 +221,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         assert_func: make_c_func(program, BuiltinFunction::Assert, "assert", bool_type),
         copy_func: make_a_a_func(program, BuiltinFunction::Copy, "!copy"),
         // TODO: A proper return signature for this absolute mess of an all-purpose function.
-        return_func: make_aa_a_func(program, BuiltinFunction::Return, "return"),
+        return_func: make_aa_a_func(program, BuiltinFunction::Return, "!return"),
 
         automatic_type: automatic_type,
         bool_type: bool_type,

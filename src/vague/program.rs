@@ -1,4 +1,4 @@
-use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, Scope};
+use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, FunctionEntity, Scope};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
@@ -92,6 +92,50 @@ impl Program {
                 Option::Some(parent) => self.lookup_symbol(parent, symbol),
                 Option::None => Option::None,
             },
+        }
+    }
+
+    // Tries to find the smallest function that contains the specified scope.
+    // If there is none (e.g. the scope provided is the root), Option::None is
+    // returned.
+    pub fn lookup_parent_function(&self, scope: ScopeId) -> Option<EntityId> {
+        // TODO: This is very inefficient.
+        let mut real_scope = scope.get_raw();
+        loop {
+            let mut index: usize = 0;
+            for entity in self.entities.iter() {
+                if let Entity::Function(function_entity) = entity {
+                    if function_entity.get_body().get_raw() == real_scope {
+                        return Option::Some(EntityId::new(index));
+                    }
+                }
+                index += 1;
+            }
+            match self.scopes[real_scope].parent {
+                Option::None => return Option::None,
+                Option::Some(id) => real_scope = id.get_raw(),
+            };
+        }
+    }
+
+    // Tries to find the smallest function that contains the specified scope.
+    // If there is none (e.g. the scope provided is the root), Option::None is
+    // returned.
+    pub fn lookup_and_clone_parent_function(&self, scope: ScopeId) -> Option<FunctionEntity> {
+        // TODO: This is very inefficient.
+        let mut real_scope = scope.get_raw();
+        loop {
+            for entity in self.entities.iter() {
+                if let Entity::Function(function_entity) = entity {
+                    if function_entity.get_body().get_raw() == real_scope {
+                        return Option::Some(function_entity.clone());
+                    }
+                }
+            }
+            match self.scopes[real_scope].parent {
+                Option::None => return Option::None,
+                Option::Some(id) => real_scope = id.get_raw(),
+            };
         }
     }
 

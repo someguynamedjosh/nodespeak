@@ -465,46 +465,42 @@ at examples:
 ```rust
 fn double(Int input):(Int output) {
     output = input * 2;
-    return();
 }
 ```
 Functions are declared similarly to rust, by prefixing the definition with the
 `fn` keyword. The keyword is followed by the name of the function, then a
 description of the inputs and outputs of the function. After that, a code block
-surrounded in curly brackets contains the actual code for the function. Note
-that to return a value, there is no 'return' keyword. Instead, we use the
-special method 'return'. This only looks like a function though, as it has no
-programatic definition. It only exists in the compiler. 
+surrounded in curly brackets contains the actual code for the function. 
 
 ```rust
 fn double(Int input):(Int output) {
-    return(input * 2);
+    return input * 2;
 }
 ```
 It is often the case that we can find the value of the outputs at the same time
-that we want to return. In this case, the return function can be used similarly
-to other languages. It will automatically set the values of all output values
-using the input argments it receives.
+that we want to return. In this case, a return statement can be used similarly
+to other languages. It will automatically set the values of all output values.
+In this case, there is only one output value.
 
 ```rust
 fn doubleAndTriple(Int input):(Int doubled, Int tripled) {
-    return(input * 2, input * 3);
+    return input * 2, input * 3;
 }
 ```
-This works for multiple outputs, too.
+In the case of multiple outputs, seperate each value with a comma.
 
 ```rust
 fn add(Int a, Int b):Int {
-    return(a + b);
+    return a + b;
 }
 ```
-There are many times where we do not care about the name of the output. Though
+There are some times where we do not care about the name of the output. Though
 it is usually recommended to provide a name for readability reasons, there are
 some methods that are so self-explanatory that they do not require one. In this
 case, the type of the output can be provided without parenthesis. This will
 internally generate a variable with a syntactically invalid name, so the only
-way to set it is with the return function. This syntax is most similar to the
-single-return-only paradigm of many popular languages.
+way to set its value is with the return function. This syntax is most similar to 
+the single-return-only paradigm of many popular languages.
 
 ```rust
 fn test {
@@ -537,14 +533,36 @@ function call.
 `if(true) { stuff(); };` `if` is a function. true is provided for the first
 argument. The section of code after it is a **lambda**, which is like a
 miniature function. It can contain any code that a function body can, except 
-that if you want to 'return' from a lambda, you use `break()` instead of
-`return()`. If you were to use `return()`, it would use the return method from
-whatever function you are in. For example, if you put `return()` in an `if`
-call inside the definition for `main`, then it would cause the `main` function
-to return. `break()` would return from the lambda inside the `if` function.
-Note that, unlike other languages, there *must* be a semicolon at the end of the
-`if` call, since it is a function in waveguide, while in other languages it is a
-statement.
+that if you want to 'return' from a lambda, you use a `break` statement instead 
+of a `return` statement. If you were to use `return`, it would cause whatever
+function the code is in to return instead of just the lambda. For example, if 
+you put `return` in an `if` call inside the definition for `main`, then it would 
+cause the `main` function to return. `break` would return from the lambda inside 
+the `if` function. Note that, unlike other languages, there *must* be a 
+semicolon at the end of the `if` call, since it is a function in waveguide, 
+while in other languages it is a statement. Here's a code block demonstrating
+all the principles mentioned:
+```rust
+fn main():Int {
+    Int value1 = 128, value2;
+    // value2 will be set to 256 in this case.
+    if (value1 == 128) {
+        value2 = 256;
+        break;
+        // This code will not be executed because we have already exited the 
+        // lambda due to the break statement.
+        value2 = 0;
+    };
+    // a call to main() will return 12345 in this case.
+    if (value2 == 256) {
+        return 12345;
+    } else {
+        return 0;
+    }
+    // Nothing else will be executed because we have already returned from the
+    // overall function.
+}
+```
 
 `repeat(10) (Int iteration) { print(iteration); };` Lambdas can have inputs and
 outputs. They are specified just like function inputs and outputs.
@@ -595,7 +613,7 @@ flexibility when writing functions. First, let's consider a function that adds
 two values of arbitrary types:
 ```rust
 fn add(T? value_one, T? value_two):T {
-    return(value_one + value_two);
+    return value_one + value_two;
 }
 ```
 The question mark after the letter T indicates that it is a template parameter.
@@ -618,7 +636,7 @@ addition function:
 ```rust
 fn overly_verbose_addition(T? input1, T? input2):T {
     T result = input1 + input2;
-    return(result);
+    return result;
 }
 ```
 Note that curly brackets did not have to be used since `T` is a fully-fledged 
@@ -630,7 +648,7 @@ fn overly_complicated_addition(T? input1, T? input2):T {
     buffer[0] = input1;
     buffer[1] = input2;
     buffer[2] = buffer[0] + buffer[1];
-    return(buffer[2]);
+    return buffer[2];
 }
 ```
 Also, since `T` is a type name, you can declare an array of `T`. Now consider
@@ -647,7 +665,7 @@ fn overly_complicated_addition([256]Int input1, [256]Int input2):[256]Int {
     buffer[0] = input1;
     buffer[1] = input2;
     buffer[2] = buffer[0] + buffer[1];
-    return(buffer[2]);
+    return buffer[2];
 }
 ```
 As you can see, the function makes sense just by dropping `[256]Int` in place of
@@ -701,7 +719,7 @@ Let's look at what happens when our template accepts arrays of different depths:
 fn find_element([SIZE?]T? array, T? element):Int {
     repeat(SIZE) (index) {
         if(array[index] == element) {
-            return(index);
+            return index;
         };
     };
 }

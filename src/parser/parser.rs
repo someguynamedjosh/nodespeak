@@ -26,7 +26,12 @@ pub mod convert {
         input.replace("_", "").parse().unwrap()
     }
 
-    fn convert_func_expr_input_list(program: &mut Program, scope: ScopeId, func_call: &mut FuncCall, input: Pair<Rule>) {
+    fn convert_func_expr_input_list(
+        program: &mut Program,
+        scope: ScopeId,
+        func_call: &mut FuncCall,
+        input: Pair<Rule>,
+    ) {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
@@ -34,7 +39,26 @@ pub mod convert {
                     convert_expression(program, scope, arg_var.clone(), child);
                     func_call.add_input(arg_var);
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    fn convert_func_expr_output_list(
+        program: &mut Program,
+        scope: ScopeId,
+        func_call: &mut FuncCall,
+        input: Pair<Rule>,
+    ) {
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::func_output_return_inline => unimplemented!(),
+                Rule::func_output_var_dec => unimplemented!(),
+                Rule::assign_expr => {
+                    let into = convert_assign_expr(program, scope, child);
+                    func_call.add_output(into);
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -45,18 +69,34 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 // TODO: Real error message.
-                Rule::identifier => func_call = Option::Some(FuncCall::new(program.lookup_symbol(scope, child.as_str()).unwrap())),
-                Rule::func_input_list => convert_func_expr_input_list(program, scope, func_call.as_mut().unwrap(), child),
-                Rule::func_output_list => unimplemented!(),
+                Rule::identifier => {
+                    func_call = Option::Some(FuncCall::new(
+                        program.lookup_symbol(scope, child.as_str()).unwrap(),
+                    ))
+                }
+                Rule::func_input_list => {
+                    convert_func_expr_input_list(program, scope, func_call.as_mut().unwrap(), child)
+                }
+                Rule::func_output_list => convert_func_expr_output_list(
+                    program,
+                    scope,
+                    func_call.as_mut().unwrap(),
+                    child,
+                ),
                 Rule::func_lambda => unimplemented!(),
                 Rule::lambda_adjective => unimplemented!(),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
         program.add_func_call(scope, func_call.unwrap());
         match output_var {
             Option::Some(value) => VarAccess::new(value),
-            Option::None => VarAccess::new(program.adopt_and_define_intermediate(scope, make_var(program.get_builtins().void_type)))
+            Option::None => {
+                VarAccess::new(program.adopt_and_define_intermediate(
+                    scope,
+                    make_var(program.get_builtins().void_type),
+                ))
+            }
         }
     }
 
@@ -112,6 +152,7 @@ pub mod convert {
         unreachable!();
     }
 
+    #[derive(Clone)]
     struct Operator {
         pub id: u32,
         pub precedence: u32,
@@ -328,7 +369,7 @@ pub mod convert {
                     let operator = op_str_to_operator(op_str);
                     // TODO: Implement right-associative operators.
                     loop {
-                        let top_op_prec = operator_stack.last().unwrap().precedence;
+                        let top_op_prec = operator_stack.last().cloned().unwrap().precedence;
                         if operator.precedence >= top_op_prec {
                             operator_stack.push(operator);
                             break;
@@ -396,9 +437,13 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 // TODO: Real error message.
-                Rule::identifier => result = Option::Some(VarAccess::new(program.lookup_symbol(scope, child.as_str()).unwrap())),
+                Rule::identifier => {
+                    result = Option::Some(VarAccess::new(
+                        program.lookup_symbol(scope, child.as_str()).unwrap(),
+                    ))
+                }
                 Rule::assign_array_access => unimplemented!(),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
         result.unwrap()
@@ -520,23 +565,25 @@ pub mod convert {
                     convert_function_signature(program, &mut function, func_scope, child);
                 }
                 Rule::returnable_code_block => {
-                    convert_returnable_code_block(
-                        program,
-                        func_scope,
-                        function.get_single_output().and_then(
-                            |id: EntityId| -> Option<VarAccess> {
-                                Option::Some(VarAccess::new(id))
-                            },
-                        ),
-                        child,
+                    let output_value = function.get_single_output().and_then(
+                        |id: EntityId| -> Option<VarAccess> { Option::Some(VarAccess::new(id)) },
                     );
+                    // So that code inside the body can refer to the function.
+                    // If name is None, there is a bug in the parser.
+                    program.adopt_and_define_symbol(
+                        scope,
+                        name.unwrap(),
+                        Entity::Function(function),
+                    );
+                    convert_returnable_code_block(program, func_scope, output_value, child);
+                    // This branch arm can only be called once but I don't know how to tell rustc that,
+                    // so we use a break statement for that purpose. Since the code block is the last element
+                    // parsed anyway, it doesn't change how the code works.
+                    break;
                 }
                 _ => unreachable!(),
             }
         }
-        // If name is None, there is a bug in the parser.
-        let function =
-            program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Function(function));
     }
 
     // TODO: Take in data type.
@@ -642,11 +689,34 @@ pub mod convert {
         }
     }
 
+    fn convert_return_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
+        let mut index = 0;
+        // TODO: Real error if we aren't inside a function.
+        let func = program.lookup_and_clone_parent_function(scope).unwrap();
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::expr => {
+                    // TODO: Real error if the programmer specified the wrong number of return values.
+                    convert_expression(
+                        program,
+                        scope,
+                        VarAccess::new(func.get_output(index)),
+                        child,
+                    );
+                    index += 1;
+                }
+                _ => unreachable!(),
+            }
+        }
+        program.add_func_call(scope, FuncCall::new(program.get_builtins().return_func));
+    }
+
     fn convert_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::function_definition => convert_function_definition(program, scope, child),
                 Rule::code_block => unimplemented!(),
+                Rule::return_statement => convert_return_statement(program, scope, child),
                 Rule::create_variable_statement => {
                     convert_create_variable_statement(program, scope, child)
                 }
@@ -655,13 +725,13 @@ pub mod convert {
                     let assign_expr = iter.next().unwrap();
                     debug_assert!(match assign_expr.as_rule() {
                         Rule::assign_expr => true,
-                        _ => false
+                        _ => false,
                     });
                     let output = convert_assign_expr(program, scope, assign_expr);
                     let expr = iter.next().unwrap();
                     debug_assert!(match expr.as_rule() {
                         Rule::expr => true,
-                        _ => false
+                        _ => false,
                     });
                     convert_expression(program, scope, output, expr);
                 }

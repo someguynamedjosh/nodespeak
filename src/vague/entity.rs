@@ -17,7 +17,7 @@ impl VariableEntity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FunctionEntity {
     inputs: Vec<EntityId>,
     outputs: Vec<EntityId>,
@@ -54,8 +54,24 @@ impl FunctionEntity {
         self.inputs.push(input);
     }
 
+    pub fn get_input(&self, index: usize) -> EntityId {
+        return self.inputs[index];
+    }
+
+    pub fn get_num_inputs(&self) -> usize {
+        return self.inputs.len();
+    }
+
     pub fn add_output(&mut self, output: EntityId) {
         self.outputs.push(output);
+    }
+
+    pub fn get_output(&self, index: usize) -> EntityId {
+        return self.outputs[index];
+    }
+
+    pub fn get_num_outputs(&self) -> usize {
+        return self.outputs.len();
     }
 
     pub fn get_single_output(&self) -> Option<EntityId> {
@@ -64,6 +80,10 @@ impl FunctionEntity {
         } else {
             Option::None
         }
+    }
+
+    pub fn get_body(&self) -> ScopeId {
+        self.body
     }
 }
 
