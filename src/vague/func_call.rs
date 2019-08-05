@@ -17,6 +17,10 @@ impl VarAccess {
     pub fn add_index(&mut self, index: EntityId) {
         self.indexes.push(index);
     }
+
+    pub fn get_base(&self) -> EntityId {
+        self.base
+    }
 }
 
 #[derive(Debug)]

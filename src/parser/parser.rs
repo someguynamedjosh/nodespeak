@@ -26,6 +26,40 @@ pub mod convert {
         input.replace("_", "").parse().unwrap()
     }
 
+    fn convert_func_expr_input_list(program: &mut Program, scope: ScopeId, func_call: &mut FuncCall, input: Pair<Rule>) {
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::expr => {
+                    let arg_var = VarAccess::new(program.make_intermediate_auto_var(scope));
+                    convert_expression(program, scope, arg_var.clone(), child);
+                    func_call.add_input(arg_var);
+                }
+                _ => unreachable!()
+            }
+        }
+    }
+
+    fn convert_func_expr(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
+        let mut output_var = Option::None;
+        let mut func_call = Option::None;
+        for child in input.into_inner() {
+            match child.as_rule() {
+                // TODO: Real error message.
+                Rule::identifier => func_call = Option::Some(FuncCall::new(program.lookup_symbol(scope, child.as_str()).unwrap())),
+                Rule::func_input_list => convert_func_expr_input_list(program, scope, func_call.as_mut().unwrap(), child),
+                Rule::func_output_list => unimplemented!(),
+                Rule::func_lambda => unimplemented!(),
+                Rule::lambda_adjective => unimplemented!(),
+                _ => unreachable!()
+            }
+        }
+        program.add_func_call(scope, func_call.unwrap());
+        match output_var {
+            Option::Some(value) => VarAccess::new(value),
+            Option::None => VarAccess::new(program.adopt_and_define_intermediate(scope, make_var(program.get_builtins().void_type)))
+        }
+    }
+
     fn convert_expr_part_1(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
         for child in input.into_inner() {
             match child.as_rule() {
@@ -38,7 +72,7 @@ pub mod convert {
                     return VarAccess::new(program.adopt_entity(val));
                 }
                 Rule::float => unimplemented!(),
-                Rule::func_expr => unimplemented!(),
+                Rule::func_expr => return convert_func_expr(program, scope, child),
                 // TODO: Real error message.
                 Rule::identifier => {
                     return VarAccess::new(
@@ -89,89 +123,89 @@ pub mod convert {
         precedence: 0,
         left_assoc: true,
     };
-    const ADD: Operator = Operator {
-        id: 01,
-        precedence: 1,
-        left_assoc: true,
-    };
-    const SUBTRACT: Operator = Operator {
-        id: 02,
-        precedence: 1,
-        left_assoc: true,
+    const POWER: Operator = Operator {
+        id: 07,
+        precedence: 19,
+        left_assoc: false,
     };
     const MULTIPLY: Operator = Operator {
         id: 03,
-        precedence: 2,
+        precedence: 18,
         left_assoc: true,
     };
     const DIVIDE: Operator = Operator {
         id: 04,
-        precedence: 2,
+        precedence: 18,
         left_assoc: true,
     };
     const INT_DIV: Operator = Operator {
         id: 05,
-        precedence: 2,
+        precedence: 18,
         left_assoc: true,
     };
     const MODULO: Operator = Operator {
         id: 06,
-        precedence: 2,
+        precedence: 18,
         left_assoc: true,
     };
-    const POWER: Operator = Operator {
-        id: 07,
-        precedence: 3,
-        left_assoc: false,
+    const ADD: Operator = Operator {
+        id: 01,
+        precedence: 17,
+        left_assoc: true,
+    };
+    const SUBTRACT: Operator = Operator {
+        id: 02,
+        precedence: 17,
+        left_assoc: true,
     };
     const LTE: Operator = Operator {
         id: 08,
-        precedence: 4,
+        precedence: 16,
         left_assoc: true,
     };
     const LT: Operator = Operator {
         id: 09,
-        precedence: 4,
+        precedence: 16,
         left_assoc: true,
     };
     const GTE: Operator = Operator {
         id: 10,
-        precedence: 4,
+        precedence: 16,
         left_assoc: true,
     };
     const GT: Operator = Operator {
         id: 11,
-        precedence: 4,
+        precedence: 16,
         left_assoc: true,
     };
     const EQ: Operator = Operator {
         id: 12,
-        precedence: 5,
+        precedence: 15,
         left_assoc: true,
     };
     const NEQ: Operator = Operator {
         id: 13,
-        precedence: 5,
+        precedence: 15,
         left_assoc: true,
     };
     const BAND: Operator = Operator {
         id: 14,
-        precedence: 6,
+        precedence: 14,
         left_assoc: true,
     };
     const BXOR: Operator = Operator {
         id: 15,
-        precedence: 7,
+        precedence: 13,
         left_assoc: true,
     };
     const BOR: Operator = Operator {
         id: 16,
-        precedence: 8,
+        precedence: 12,
         left_assoc: true,
     };
     const AND: Operator = Operator {
         id: 17,
-        precedence: 9,
+        precedence: 11,
         left_assoc: true,
     };
     const XOR: Operator = Operator {
@@ -181,7 +215,7 @@ pub mod convert {
     };
     const OR: Operator = Operator {
         id: 19,
-        precedence: 11,
+        precedence: 9,
         left_assoc: true,
     };
 
@@ -293,13 +327,14 @@ pub mod convert {
                     let op_str = child.as_str();
                     let operator = op_str_to_operator(op_str);
                     // TODO: Implement right-associative operators.
-                    let top_op = operator_stack.last().unwrap();
                     loop {
-                        if operator.precedence >= top_op.precedence {
+                        let top_op_prec = operator_stack.last().unwrap().precedence;
+                        if operator.precedence >= top_op_prec {
                             operator_stack.push(operator);
                             break;
                         } else {
-                            let func = operator_to_op_fn(&operator, program.get_builtins());
+                            let top_op = operator_stack.pop().unwrap();
+                            let func = operator_to_op_fn(&top_op, program.get_builtins());
                             let var = program.make_intermediate_auto_var(scope);
                             let output = VarAccess::new(var);
                             let mut call = FuncCall::new(func);
@@ -603,7 +638,10 @@ pub mod convert {
                     convert_create_variable_statement(program, scope, child)
                 }
                 Rule::assign_statement => unimplemented!(),
-                Rule::raw_expr_statement => unimplemented!(),
+                Rule::expr => {
+                    let result = VarAccess::new(program.make_intermediate_auto_var(scope));
+                    convert_expression(program, scope, result, child);
+                }
                 _ => unreachable!(),
             }
         }

@@ -1,6 +1,5 @@
 use crate::vague::{
     make_var, BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program,
-    VariableEntity,
 };
 
 #[readonly::make]
@@ -47,6 +46,7 @@ pub struct Builtins {
     pub bool_type: EntityId,
     pub int_type: EntityId,
     pub float_type: EntityId,
+    pub void_type: EntityId,
 }
 
 // Adds built-in methods to the root scope.
@@ -60,6 +60,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let int_type = program.adopt_and_define_symbol(scope, "Int", Entity::DataType(DataType::Int));
     let float_type =
         program.adopt_and_define_symbol(scope, "Float", Entity::DataType(DataType::Float));
+    let void_type =
+        program.adopt_and_define_symbol(scope, "Void", Entity::DataType(DataType::Void));
 
     let make_c_func = |program: &mut Program, func: BuiltinFunction, name: &str, in_type| {
         let mut bfe = BuiltinFunctionEntity::new(func, program);
@@ -225,6 +227,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         bool_type: bool_type,
         int_type: int_type,
         float_type: float_type,
+        void_type: void_type,
     };
 
     builtins

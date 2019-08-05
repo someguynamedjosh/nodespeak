@@ -164,6 +164,7 @@ pub enum DataType {
     Bool,
     Int,
     Float,
+    Void,
     DataType_,
     Function_,
     Array(Box<ArrayDataType>),

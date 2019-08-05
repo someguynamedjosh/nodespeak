@@ -102,7 +102,7 @@ assign_array_access = { "[" ~ expr ~ "]" }
 assign_expr = { identifier ~ (assign_array_access)* }
 assign_statement = { assign_expr ~ "=" ~ expr ~ ";" }
 
-raw_expr_statement = { expr ~ ";" }
+raw_expr_statement = _{ expr ~ ";" }
 
 code_block = { "{" ~ statement* ~ "}" }
 

@@ -1,6 +1,9 @@
 fn main {
     Int twelve = 12, thirteen = 13;
-    Int sum = twelve + thirteen;
-    Int difference = twelve - thirteen;
-    Float ratio = twelve / thirteen;
+    assert(twelve == 12);
+    assert(thirteen == 13);
+    assert(twelve + thirteen == 25);
+    assert(thirteen - twelve == 1);
+    assert(twelve * thirteen == 156);
+    assert(thirteen % twelve == 1);
 }
