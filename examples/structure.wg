@@ -1,0 +1,14 @@
+fn test2(Int a, Int b):(Int result) {
+    result = 0;
+    result = result + a;
+    result = result + b;
+}
+
+fn test1(Int a, Int b):Int {
+    test2(a, b)
+}
+
+fn main {
+    Int sum = test1(10, 15);
+    assert(sum == 25);
+}

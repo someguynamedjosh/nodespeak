@@ -391,6 +391,19 @@ pub mod convert {
         }
     }
 
+    fn convert_assign_expr(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
+        let mut result = Option::None;
+        for child in input.into_inner() {
+            match child.as_rule() {
+                // TODO: Real error message.
+                Rule::identifier => result = Option::Some(VarAccess::new(program.lookup_symbol(scope, child.as_str()).unwrap())),
+                Rule::assign_array_access => unimplemented!(),
+                _ => unreachable!()
+            }
+        }
+        result.unwrap()
+    }
+
     // Creates a variable, returns its id.
     fn parse_named_function_parameter(
         program: &mut Program,
@@ -637,7 +650,21 @@ pub mod convert {
                 Rule::create_variable_statement => {
                     convert_create_variable_statement(program, scope, child)
                 }
-                Rule::assign_statement => unimplemented!(),
+                Rule::assign_statement => {
+                    let mut iter = child.into_inner();
+                    let assign_expr = iter.next().unwrap();
+                    debug_assert!(match assign_expr.as_rule() {
+                        Rule::assign_expr => true,
+                        _ => false
+                    });
+                    let output = convert_assign_expr(program, scope, assign_expr);
+                    let expr = iter.next().unwrap();
+                    debug_assert!(match expr.as_rule() {
+                        Rule::expr => true,
+                        _ => false
+                    });
+                    convert_expression(program, scope, output, expr);
+                }
                 Rule::expr => {
                     let result = VarAccess::new(program.make_intermediate_auto_var(scope));
                     convert_expression(program, scope, result, child);

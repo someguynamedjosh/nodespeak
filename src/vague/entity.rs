@@ -60,7 +60,7 @@ impl FunctionEntity {
 
     pub fn get_single_output(&self) -> Option<EntityId> {
         if self.outputs.len() == 1 {
-            Option::Some(self.inputs[0])
+            Option::Some(self.outputs[0])
         } else {
             Option::None
         }
