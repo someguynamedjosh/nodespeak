@@ -330,8 +330,10 @@ applied in any order.
 
 1. `T + T -> T`
 2. `Float + Int -> Float`
-3. `[x]T + U -> [x]{T + U}`
-4. `[x]T + [x]U -> [x]{T + U}`
+3. `Float + Bool -> Float`
+4. `Int + Bool -> Int`
+5. `[x]T + [x]U -> [x]{T + U}`
+6. `[x]T + U -> [x]{T + U}`
 
 These rules are applied in order and recursively. If the end of the list is
 reached because none of the rules apply, the cast is considered invalid and a
@@ -344,7 +346,7 @@ Consider `Int + Float`.
 - According to rule 2, this becomes `Float`.
 
 Consider `[5]Int + Float`.
-- According to rule 3, this becomes `[5]{Int + Float}`.
+- According to rule 6, this becomes `[5]{Int + Float}`.
 - According to rule 2, this becomes `[5]Float`.
 - Note that this type is different from both inputs.
 
@@ -352,12 +354,12 @@ Consider `[5]Int + [5]Int`.
 - According to rule 1, this becomes `[5]Int`.
 
 Consider `[10][3]Int + Float`.
-- According to rule 3, this becomes `[10]{[3]Int + Float}`.
-- According to rule 3, this becomes `[10][3]{Int + Float}`.
+- According to rule 6, this becomes `[10]{[3]Int + Float}`.
+- According to rule 6, this becomes `[10][3]{Int + Float}`.
 - According to rule 2, this becomes `[10][3]Float`.
 
 Consider `[10][3]Int + [3]Int`.
-- According to rule 3, this becomes `[10]{[3]Int + [3]Int}`.
+- According to rule 6, this becomes `[10]{[3]Int + [3]Int}`.
 - According to rule 1, this becomes `[10][3]Int`.
 
 Consider `[5]Int + [3]Int`.

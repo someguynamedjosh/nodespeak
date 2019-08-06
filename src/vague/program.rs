@@ -1,6 +1,6 @@
 use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, FunctionEntity, Scope, KnownData};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScopeId {
     raw_id: usize,
 }
@@ -15,7 +15,7 @@ impl ScopeId {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EntityId {
     raw_id: usize,
 }
