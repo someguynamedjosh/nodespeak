@@ -195,6 +195,7 @@ pub enum Entity {
     Variable(VariableEntity),
     Function(FunctionEntity),
     BuiltinFunction(BuiltinFunctionEntity),
+    BoolLiteral(bool),
     IntLiteral(i64),
     FloatLiteral(f64),
     DataType(DataType),

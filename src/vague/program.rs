@@ -1,4 +1,4 @@
-use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, FunctionEntity, Scope};
+use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, FunctionEntity, Scope, KnownData};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeId {
@@ -34,6 +34,7 @@ impl EntityId {
 pub struct Program {
     scopes: Vec<Scope>,
     entities: Vec<Entity>,
+    entity_data: Vec<KnownData>,
     builtins: Option<Builtins>,
 }
 
@@ -42,6 +43,7 @@ impl Program {
         let mut prog = Program {
             scopes: vec![Scope::new()],
             entities: Vec::new(),
+            entity_data: Vec::new(),
             builtins: Option::None,
         };
         prog.builtins = Option::Some(add_builtins(&mut prog));
@@ -155,8 +157,24 @@ impl Program {
 
     pub fn adopt_entity(&mut self, entity: Entity) -> EntityId {
         let id = EntityId::new(self.entities.len());
+        match entity {
+            Entity::IntLiteral(value) => self.entity_data.push(KnownData::Int(value)),
+            Entity::FloatLiteral(value) => self.entity_data.push(KnownData::Float(value)),
+            Entity::BoolLiteral(value) => self.entity_data.push(KnownData::Bool(value)),
+            _ => self.entity_data.push(KnownData::Empty)
+        }
         self.entities.push(entity);
         id
+    }
+
+    pub fn get_entity_data(&self, entity: EntityId) -> &KnownData {
+        assert!(entity.get_raw() < self.entities.len());
+        &self.entity_data[entity.get_raw()]
+    }
+
+    pub fn set_entity_data(&mut self, entity: EntityId, data: KnownData) {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entity_data[entity.get_raw()] = data;
     }
 
     pub fn adopt_and_define_symbol(
