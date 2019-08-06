@@ -2,7 +2,7 @@ use crate::vague::{DataType, KnownData};
 
 pub fn biggest_common_type(a: DataType, b: DataType) -> DataType {
     // BCT rule 1
-    if a == b { 
+    if a == b {
         a
     // BCT rule 2
     } else if a == DataType::Float && b == DataType::Int {
@@ -33,13 +33,13 @@ pub fn perform_cast(data: KnownData, from: DataType, to: DataType) -> KnownData 
     } else if from == DataType::Int && to == DataType::Float {
         match data {
             KnownData::Int(value) => KnownData::Float(value as f64),
-            _ => panic!("Provided data did not match provided type!")
+            _ => panic!("Provided data did not match provided type!"),
         }
     // Cast rule 2
     } else if from == DataType::Float && to == DataType::Int {
         match data {
             KnownData::Float(value) => KnownData::Int(value.floor() as i64),
-            _ => panic!("Provided data did not match provided type!")
+            _ => panic!("Provided data did not match provided type!"),
         }
     } else {
         KnownData::Empty

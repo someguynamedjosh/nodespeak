@@ -1,4 +1,6 @@
-use crate::vague::{add_builtins, make_var, Builtins, DataType, Entity, FuncCall, FunctionEntity, Scope, KnownData};
+use crate::vague::{
+    add_builtins, make_var, Builtins, DataType, Entity, FuncCall, FunctionEntity, KnownData, Scope,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScopeId {
@@ -161,7 +163,7 @@ impl Program {
             Entity::IntLiteral(value) => self.entity_data.push(KnownData::Int(value)),
             Entity::FloatLiteral(value) => self.entity_data.push(KnownData::Float(value)),
             Entity::BoolLiteral(value) => self.entity_data.push(KnownData::Bool(value)),
-            _ => self.entity_data.push(KnownData::Empty)
+            _ => self.entity_data.push(KnownData::Empty),
         }
         self.entities.push(entity);
         id
@@ -187,10 +189,10 @@ impl Program {
                 let data_type_entity = &self.entities[var.get_data_type().get_raw()];
                 match data_type_entity {
                     Entity::DataType(data_type) => data_type.clone(),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
-            _ => DataType::Void
+            _ => DataType::Void,
         }
     }
 

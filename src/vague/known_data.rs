@@ -4,5 +4,5 @@ pub enum KnownData {
     Int(i64),
     Float(f64),
     Bool(bool),
-    Array(Vec<KnownData>)
+    Array(Vec<KnownData>),
 }
