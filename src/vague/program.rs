@@ -1,4 +1,4 @@
-use crate::vague::{add_builtins, make_var, Builtins, Entity, FuncCall, FunctionEntity, Scope, KnownData};
+use crate::vague::{add_builtins, make_var, Builtins, DataType, Entity, FuncCall, FunctionEntity, Scope, KnownData};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScopeId {
@@ -175,6 +175,23 @@ impl Program {
     pub fn set_entity_data(&mut self, entity: EntityId, data: KnownData) {
         assert!(entity.get_raw() < self.entities.len());
         self.entity_data[entity.get_raw()] = data;
+    }
+
+    pub fn get_entity_data_type(&self, entity: EntityId) -> DataType {
+        assert!(entity.get_raw() < self.entities.len());
+        match &self.entities[entity.get_raw()] {
+            Entity::BoolLiteral(_value) => DataType::Bool,
+            Entity::IntLiteral(_value) => DataType::Int,
+            Entity::FloatLiteral(_value) => DataType::Float,
+            Entity::Variable(var) => {
+                let data_type_entity = &self.entities[var.get_data_type().get_raw()];
+                match data_type_entity {
+                    Entity::DataType(data_type) => data_type.clone(),
+                    _ => unreachable!()
+                }
+            }
+            _ => DataType::Void
+        }
     }
 
     pub fn adopt_and_define_symbol(

@@ -171,13 +171,13 @@ impl BuiltinFunctionEntity {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ArrayDataType {
     base: DataType,
     size: EntityId,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
     Automatic,
     AwaitingTemplate,
