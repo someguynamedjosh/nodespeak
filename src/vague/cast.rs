@@ -1,23 +1,23 @@
 use crate::vague::{DataType, KnownData};
 
-pub fn biggest_common_type(a: DataType, b: DataType) -> DataType {
+pub fn biggest_common_type(a: &DataType, b: &DataType) -> DataType {
     // BCT rule 1
     if a == b {
-        a
+        a.clone()
     // BCT rule 2
-    } else if a == DataType::Float && b == DataType::Int {
+    } else if a == &DataType::Float && b == &DataType::Int {
         DataType::Float
-    } else if b == DataType::Float && a == DataType::Int {
+    } else if b == &DataType::Float && a == &DataType::Int {
         DataType::Float
     // BCT rule 3
-    } else if a == DataType::Float && b == DataType::Bool {
+    } else if a == &DataType::Float && b == &DataType::Bool {
         DataType::Float
-    } else if b == DataType::Float && a == DataType::Bool {
+    } else if b == &DataType::Float && a == &DataType::Bool {
         DataType::Float
     // BCT rule 4
-    } else if a == DataType::Int && b == DataType::Bool {
+    } else if a == &DataType::Int && b == &DataType::Bool {
         DataType::Int
-    } else if b == DataType::Int && a == DataType::Bool {
+    } else if b == &DataType::Int && a == &DataType::Bool {
         DataType::Int
     } else {
         DataType::Void
