@@ -43,6 +43,10 @@ impl FunctionEntity {
         self.template_parameters.push(template_parameter);
     }
 
+    pub fn iterate_over_template_parameters(&self) -> std::slice::Iter<EntityId> {
+        self.template_parameters.iter()
+    }
+
     pub fn get_template_descriptor(&mut self, program: &mut Program) -> ScopeId {
         if self.template_descriptor.is_none() {
             self.template_descriptor = Option::Some(program.create_child_scope(self.body));
@@ -166,6 +170,10 @@ impl BuiltinFunctionEntity {
         self.func.clone()
     }
 
+    pub fn get_base(&self) -> FunctionEntity {
+        self.base.clone()
+    }
+
     pub fn get_scope(&self) -> ScopeId {
         self.base.body
     }
@@ -188,6 +196,24 @@ pub enum DataType {
     DataType_,
     Function_,
     Array(Box<ArrayDataType>),
+}
+
+impl DataType {
+    pub fn is_automatic(&self) -> bool {
+        match self {
+            DataType::Automatic => true,
+            DataType::Array(data) => data.base.is_automatic(),
+            _ => false,
+        }
+    }
+
+    pub fn is_awaiting_template(&self) -> bool {
+        match self {
+            DataType::AwaitingTemplate => true,
+            DataType::Array(data) => data.base.is_awaiting_template(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]

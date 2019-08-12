@@ -46,4 +46,16 @@ impl FuncCall {
     pub fn add_output(&mut self, output: VarAccess) {
         self.outputs.push(output);
     }
+
+    pub fn get_function(&self) -> EntityId {
+        self.function
+    }
+
+    pub fn iterate_over_inputs(&self) -> std::slice::Iter<VarAccess> {
+        self.inputs.iter()
+    }
+
+    pub fn iterate_over_outputs(&self) -> std::slice::Iter<VarAccess> {
+        self.outputs.iter()
+    }
 }

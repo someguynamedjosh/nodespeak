@@ -1,8 +1,9 @@
 use crate::vague::{
     add_builtins, make_var, Builtins, DataType, Entity, FuncCall, FunctionEntity, KnownData, Scope,
 };
+use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ScopeId {
     raw_id: usize,
 }
@@ -17,7 +18,7 @@ impl ScopeId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct EntityId {
     raw_id: usize,
 }
@@ -84,6 +85,20 @@ impl Program {
     pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) {
         assert!(add_to.get_raw() < self.scopes.len());
         self.scopes[add_to.get_raw()].body.push(call);
+    }
+
+    pub fn iterate_over_scope_body(&self, scope: ScopeId) -> std::slice::Iter<FuncCall> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].body.iter()
+    }
+
+    pub fn shallow_lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<EntityId> {
+        assert!(scope.get_raw() < self.scopes.len());
+        let real_scope = &self.scopes[scope.get_raw()];
+        match real_scope.symbols.get(symbol) {
+            Option::Some(value) => Option::Some(*value),
+            Option::None => Option::None,
+        }
     }
 
     pub fn lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<EntityId> {
@@ -157,6 +172,43 @@ impl Program {
         self.scopes[scope.get_raw()].intermediates.push(definition);
     }
 
+    pub fn iterate_over_entities_defined_by(
+        &self,
+        scope: ScopeId,
+    ) -> std::iter::Chain<
+        std::collections::hash_map::Values<String, EntityId>,
+        std::slice::Iter<EntityId>,
+    > {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()]
+            .symbols
+            .values()
+            .chain(self.scopes[scope.get_raw()].intermediates.iter())
+    }
+
+    pub fn iterate_over_symbols_in(
+        &self,
+        scope: ScopeId,
+    ) -> std::collections::hash_map::Iter<String, EntityId> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].symbols.iter()
+    }
+
+    pub fn clone_symbols_in(&self, scope: ScopeId) -> HashMap<String, EntityId> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].symbols.clone()
+    }
+
+    pub fn iterate_over_intermediates_in(&self, scope: ScopeId) -> std::slice::Iter<EntityId> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].intermediates.iter()
+    }
+
+    pub fn clone_intermediates_in(&self, scope: ScopeId) -> Vec<EntityId> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].intermediates.clone()
+    }
+
     pub fn adopt_entity(&mut self, entity: Entity) -> EntityId {
         let id = EntityId::new(self.entities.len());
         match entity {
@@ -167,6 +219,11 @@ impl Program {
         }
         self.entities.push(entity);
         id
+    }
+
+    pub fn borrow_entity(&self, entity: EntityId) -> &Entity {
+        assert!(entity.get_raw() < self.entities.len());
+        &self.entities[entity.get_raw()]
     }
 
     pub fn get_entity_data(&self, entity: EntityId) -> &KnownData {
