@@ -318,12 +318,13 @@ for scope_source in scope_sources:
                     # TODO: Properly handle var access objects.
                     outputs.append(int(output.get('base').get('raw_id')))
             scope.body.append(FuncCall(function, inputs, outputs))
-    for symbol in scope_source.get('symbols').keys():
-        real_name = symbol[1:-1] # Strip quotations.
-        entity_id = scope_source.get('symbols').get(symbol).get('raw_id')
-        index = int(entity_id)
-        entities[index].name = real_name
-        entities[index].defining_scope = current_index
+    if type(scope_source.get('symbols')) is not str:
+        for symbol in scope_source.get('symbols').keys():
+            real_name = symbol[1:-1] # Strip quotations.
+            entity_id = scope_source.get('symbols').get(symbol).get('raw_id')
+            index = int(entity_id)
+            entities[index].name = real_name
+            entities[index].defining_scope = current_index
     if (scope_source.get('intermediates') == '[]'):
         continue
     for iindex, intermediate in enumerate(scope_source.get('intermediates').items):
