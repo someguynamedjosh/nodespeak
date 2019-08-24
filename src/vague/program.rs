@@ -87,6 +87,11 @@ impl Program {
         self.scopes[add_to.get_raw()].body.push(call);
     }
 
+    pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<FuncCall> {
+        assert!(scope.get_raw() < self.scopes.len());
+        self.scopes[scope.get_raw()].body.clone()
+    }
+
     pub fn iterate_over_scope_body(&self, scope: ScopeId) -> std::slice::Iter<FuncCall> {
         assert!(scope.get_raw() < self.scopes.len());
         self.scopes[scope.get_raw()].body.iter()
@@ -172,6 +177,11 @@ impl Program {
         self.scopes[scope.get_raw()].intermediates.push(definition);
     }
 
+    pub fn redefine_entity(&mut self, old_entity: EntityId, new_definition: Entity) {
+        assert!(old_entity.get_raw() < self.entities.len());
+        self.entities[old_entity.get_raw()] = new_definition;
+    }
+
     pub fn iterate_over_entities_defined_by(
         &self,
         scope: ScopeId,
@@ -209,16 +219,26 @@ impl Program {
         self.scopes[scope.get_raw()].intermediates.clone()
     }
 
+    fn create_data(entity: &Entity) -> KnownData {
+        match entity {
+            Entity::IntLiteral(value) => KnownData::Int(*value),
+            Entity::FloatLiteral(value) => KnownData::Float(*value),
+            Entity::BoolLiteral(value) => KnownData::Bool(*value),
+            _ => KnownData::Empty,
+        }
+    }
+
     pub fn adopt_entity(&mut self, entity: Entity) -> EntityId {
         let id = EntityId::new(self.entities.len());
-        match entity {
-            Entity::IntLiteral(value) => self.entity_data.push(KnownData::Int(value)),
-            Entity::FloatLiteral(value) => self.entity_data.push(KnownData::Float(value)),
-            Entity::BoolLiteral(value) => self.entity_data.push(KnownData::Bool(value)),
-            _ => self.entity_data.push(KnownData::Empty),
-        }
+        self.entity_data.push(Self::create_data(&entity));
         self.entities.push(entity);
         id
+    }
+
+    pub fn modify_entity(&mut self, entity: EntityId, modified: Entity) {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entity_data[entity.get_raw()] = Self::create_data(&modified);
+        self.entities[entity.get_raw()] = modified;
     }
 
     pub fn borrow_entity(&self, entity: EntityId) -> &Entity {

@@ -21,9 +21,13 @@ impl VarAccess {
     pub fn get_base(&self) -> EntityId {
         self.base
     }
+
+    pub fn iterate_over_indexes(&self) -> std::slice::Iter<EntityId> {
+        self.indexes.iter()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FuncCall {
     function: EntityId,
     inputs: Vec<VarAccess>,
