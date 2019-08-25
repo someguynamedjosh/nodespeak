@@ -230,9 +230,13 @@ class FloatLiteral(Entity):
         self.type_name = 'FloatLiteral'
 
 class DataTypeEntity(Entity):
-    def __init__(self):
+    def __init__(self, contained_type):
         Entity.__init__(self)
+        self.contained_type = contained_type
         self.type_name = 'DataType'
+    
+    def extra(self):
+        return ' {defined as ' + self.contained_type + '}'
 
 entities = []
 for entity_source in root.get('entities').items:
@@ -254,7 +258,7 @@ for entity_source in root.get('entities').items:
     elif name == 'FloatLiteral':
         entity = FloatLiteral()
     elif name == 'DataType':
-        entity = DataTypeEntity()
+        entity = DataTypeEntity(entity_source.items[0])
     entities.append(entity)
 
 class Scope:
