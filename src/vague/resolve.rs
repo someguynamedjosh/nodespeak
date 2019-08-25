@@ -1,5 +1,6 @@
 use crate::vague::{
-    biggest_common_type, make_var, DataType, Entity, EntityId, FuncCall, FunctionEntity, Program, ScopeId, VarAccess
+    biggest_common_type, make_var, DataType, Entity, EntityId, FuncCall, FunctionEntity, Program,
+    ScopeId, VarAccess,
 };
 use std::collections::HashMap;
 // This file intended to convert scopes containing automatic / template variables
@@ -40,7 +41,10 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn pop_table(&mut self) {
-        self.conversion_table = self.conversion_stack.pop().expect("Encountered extra unexpected stack pop");
+        self.conversion_table = self
+            .conversion_stack
+            .pop()
+            .expect("Encountered extra unexpected stack pop");
     }
 
     fn add_conversion(&mut self, from: EntityId, to: EntityId) {
@@ -142,8 +146,10 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_automatic_type(automatic_type: &DataType, actual_type: &DataType) -> DataType {
         match automatic_type {
             DataType::Automatic => actual_type.clone(),
-            DataType::Array(_specs) => unimplemented!("Resolving complex automatic data types is unimplemented."),
-            _ => unreachable!("automatic_type should always be an automatic data type.")
+            DataType::Array(_specs) => {
+                unimplemented!("Resolving complex automatic data types is unimplemented.")
+            }
+            _ => unreachable!("automatic_type should always be an automatic data type."),
         }
     }
 
@@ -153,7 +159,9 @@ impl<'a> ScopeResolver<'a> {
             let func_target;
             // Get the FunctionEntity the function call is func_targeting.
             match self.program.borrow_entity(func_call.get_function()) {
-                Entity::Variable(_data) => unimplemented!("Calling a function variable is unimplemented."),
+                Entity::Variable(_data) => {
+                    unimplemented!("Calling a function variable is unimplemented.")
+                }
                 Entity::Function(data) => func_target = data.clone(),
                 Entity::BuiltinFunction(data) => func_target = data.get_base(),
                 _ => unreachable!(),
@@ -198,25 +206,29 @@ impl<'a> ScopeResolver<'a> {
                 }
                 return None;
             };
-            
+
             // Iterate over all the inputs to the function call.
             for (index, input) in func_call.iterate_over_inputs().enumerate() {
                 let func_target_input = func_target.get_input(index);
                 match get_type_index(self.program, func_target_input) {
                     Option::None => {
                         // If we didn't find anything, then no more processing is necessary
-                        // for this output.
+                        // for this input.
                         continue;
-                    },
+                    }
                     Option::Some(matching_type_index) => {
                         // Otherwise, find the data type of the value given in the function
                         // call and add it as a possibility.
                         let possibility = self.program.get_entity_data_type(input.get_base());
                         match &real_types[matching_type_index] {
-                            Option::None => real_types[matching_type_index] = Option::Some(possibility),
+                            Option::None => {
+                                real_types[matching_type_index] = Option::Some(possibility)
+                            }
                             Option::Some(other_possibility) => {
-                                real_types[matching_type_index] =
-                                    Option::Some(biggest_common_type(&possibility, other_possibility))
+                                real_types[matching_type_index] = Option::Some(biggest_common_type(
+                                    &possibility,
+                                    other_possibility,
+                                ))
                             }
                         }
                     }
@@ -231,16 +243,20 @@ impl<'a> ScopeResolver<'a> {
                         // If we didn't find anything, then no more processing is necessary
                         // for this output.
                         continue;
-                    },
+                    }
                     Option::Some(matching_type_index) => {
                         // Otherwise, find the data type of the value given in the function
                         // call and add it as a possibility.
                         let possibility = self.program.get_entity_data_type(output.get_base());
                         match &real_types[matching_type_index] {
-                            Option::None => real_types[matching_type_index] = Option::Some(possibility),
+                            Option::None => {
+                                real_types[matching_type_index] = Option::Some(possibility)
+                            }
                             Option::Some(other_possibility) => {
-                                real_types[matching_type_index] =
-                                    Option::Some(biggest_common_type(&possibility, other_possibility))
+                                real_types[matching_type_index] = Option::Some(biggest_common_type(
+                                    &possibility,
+                                    other_possibility,
+                                ))
                             }
                         }
                     }
@@ -264,21 +280,59 @@ impl<'a> ScopeResolver<'a> {
                 let temp_holder;
                 let target_type = match get_type_index(self.program, func_target_input) {
                     Option::None => {
-                        // It is not a template parameter, so just use the 
+                        // It is not a template parameter, so just use the
                         // literal type of the input.
                         temp_holder = self.program.get_entity_data_type(func_target_input);
                         &temp_holder
-                    },
+                    }
                     Option::Some(matching_type_index) => {
                         // It is a template parameter, so find out what that
                         // template paramter resolved to.
-                        real_types[matching_type_index].as_ref()
-                            .expect("Unresolved template parameters should have been handled earlier.")
+                        real_types[matching_type_index].as_ref().expect(
+                            "Unresolved template parameters should have been handled earlier.",
+                        )
                     }
                 };
                 let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
-                let resolved_type_entity = self.program.adopt_and_define_intermediate(target, Entity::DataType(resolved_type));
-                self.program.redefine_entity(input.get_base(), make_var(resolved_type_entity));
+                let resolved_type_entity = self
+                    .program
+                    .adopt_and_define_intermediate(target, Entity::DataType(resolved_type));
+                self.program
+                    .redefine_entity(input.get_base(), make_var(resolved_type_entity));
+            }
+            for (index, output) in func_call.iterate_over_outputs().enumerate() {
+                // If the output doesn't use an automatic data type, no resolving
+                // is necessary.
+                // TODO: Resolving of automatic data types when there is array
+                // element or object member access. Currently, this code only
+                // works on raw variables.
+                let automatic_type = self.program.get_entity_data_type(output.get_base());
+                if !automatic_type.is_automatic() {
+                    continue;
+                }
+                let func_target_output = func_target.get_output(index);
+                let temp_holder;
+                let target_type = match get_type_index(self.program, func_target_output) {
+                    Option::None => {
+                        // It is not a template parameter, so just use the
+                        // literal type of the output.
+                        temp_holder = self.program.get_entity_data_type(func_target_output);
+                        &temp_holder
+                    }
+                    Option::Some(matching_type_index) => {
+                        // It is a template parameter, so find out what that
+                        // template paramter resolved to.
+                        real_types[matching_type_index].as_ref().expect(
+                            "Unresolved template parameters should have been handled earlier.",
+                        )
+                    }
+                };
+                let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
+                let resolved_type_entity = self
+                    .program
+                    .adopt_and_define_intermediate(target, Entity::DataType(resolved_type));
+                self.program
+                    .redefine_entity(output.get_base(), make_var(resolved_type_entity));
             }
             self.program.add_func_call(target, func_call);
         } // End iterating over func calls.
@@ -288,14 +342,15 @@ impl<'a> ScopeResolver<'a> {
                 let function = match self.program.borrow_entity(func_id) {
                     Entity::Function(data) => data,
                     // TODO: Error if main is not a function.
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 let body_id = function.get_body();
                 drop(function);
                 let resolved = self.resolve(body_id, Option::Some(target));
                 // TODO: Copy inputs and outputs.
                 let new_main = FunctionEntity::new(resolved);
-                self.program.adopt_and_define_symbol(target, "main", Entity::Function(new_main));
+                self.program
+                    .adopt_and_define_symbol(target, "main", Entity::Function(new_main));
             }
         }
     }
