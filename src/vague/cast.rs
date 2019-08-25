@@ -1,8 +1,14 @@
 use crate::vague::{DataType, KnownData};
 
 pub fn biggest_common_type(a: &DataType, b: &DataType) -> DataType {
+    // BCT rule 0
+    if a == &DataType::Automatic {
+        b.clone()
+    } else if b == &DataType::Automatic {
+        a.clone()
+    }
     // BCT rule 1
-    if a == b {
+    else if a == b {
         a.clone()
     // BCT rule 2
     } else if a == &DataType::Float && b == &DataType::Int {

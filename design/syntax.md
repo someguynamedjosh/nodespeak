@@ -328,6 +328,7 @@ like `T + U`, it means to recursively apply the rules on `T` and `U` to
 determine the common type. All rules are commutative, meaning the oprands can be
 applied in any order.
 
+0. `T + Auto -> T`
 1. `T + T -> T`
 2. `Float + Int -> Float`
 3. `Float + Bool -> Float`
