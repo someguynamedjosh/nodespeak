@@ -1,4 +1,4 @@
-use crate::vague::{EntityId, FuncCall, ScopeId};
+use crate::structure::{EntityId, FuncCall, ScopeId};
 use std::collections::HashMap;
 
 #[derive(Debug)]

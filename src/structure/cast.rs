@@ -1,4 +1,4 @@
-use crate::vague::{DataType, KnownData};
+use crate::structure::{DataType, KnownData};
 
 pub fn biggest_common_type(a: &DataType, b: &DataType) -> DataType {
     // BCT rule 0

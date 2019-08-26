@@ -24,7 +24,7 @@ pub fn parse(text: &str) -> Result<ParseResult, ParseError> {
 // generated Rule enum.
 pub mod convert {
     use super::*;
-    use crate::vague::*;
+    use crate::structure::*;
 
     fn parse_dec_int(input: &str) -> i64 {
         input.replace("_", "").parse().unwrap()
@@ -843,7 +843,7 @@ pub mod convert {
         Result::Ok(())
     }
 
-    pub fn convert_ast_to_vague(input: &mut ParseResult) -> Result<Program, CompileProblem> {
+    pub fn convert_ast_to_structure(input: &mut ParseResult) -> Result<Program, CompileProblem> {
         let root = input.next().unwrap();
         let mut program = Program::new();
         let scope = program.get_root_scope();

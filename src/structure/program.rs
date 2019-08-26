@@ -1,4 +1,4 @@
-use crate::vague::{
+use crate::structure::{
     add_builtins, make_var, Builtins, DataType, Entity, FuncCall, FunctionEntity, KnownData, Scope,
 };
 use std::collections::HashMap;

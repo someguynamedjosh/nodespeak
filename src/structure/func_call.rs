@@ -1,4 +1,4 @@
-use crate::vague::EntityId;
+use crate::structure::EntityId;
 
 #[derive(Clone, Debug)]
 pub struct VarAccess {

@@ -1,4 +1,4 @@
-use crate::vague::{
+use crate::structure::{
     biggest_common_type, make_var, DataType, Entity, EntityId, FuncCall, FunctionEntity, Program,
     ScopeId, VarAccess,
 };

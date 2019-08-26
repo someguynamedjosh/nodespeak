@@ -1,4 +1,4 @@
-use crate::vague::{
+use crate::structure::{
     make_var, BuiltinFunction, BuiltinFunctionEntity, DataType, Entity, EntityId, Program,
 };
 

@@ -1,4 +1,4 @@
-use crate::vague::{EntityId, Program, ScopeId};
+use crate::structure::{EntityId, Program, ScopeId};
 
 #[derive(Debug)]
 pub struct VariableEntity {
