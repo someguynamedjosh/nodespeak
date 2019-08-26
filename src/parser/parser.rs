@@ -166,9 +166,9 @@ pub mod convert {
                 Rule::func_expr => return convert_func_expr(program, scope, force_output, child),
                 // TODO: Real error message.
                 Rule::identifier => {
-                    return Result::Ok(VarAccess::new(
-                        lookup_symbol_with_error(&program, scope, &child)?
-                    ))
+                    return Result::Ok(VarAccess::new(lookup_symbol_with_error(
+                        &program, scope, &child,
+                    )?))
                 }
                 Rule::expr => {
                     let output = VarAccess::new(program.make_intermediate_auto_var(scope));
@@ -737,7 +737,11 @@ pub mod convert {
         unimplemented!();
     }
 
-    fn convert_data_type(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<EntityId, CompileProblem> {
+    fn convert_data_type(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<EntityId, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::array_data_type => return convert_array_data_type(program, scope, child),

@@ -17,7 +17,7 @@ pub fn compile(source: &str) -> Result<CompileResult, String> {
         Result::Err(err) => {
             return Result::Err(format!(
                 "Compilation failed during structuring phase.\n\n{}",
-                err.terminal_format(source)
+                err.terminal_format()
             ));
         }
     };
