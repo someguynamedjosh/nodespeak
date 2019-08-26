@@ -155,14 +155,14 @@ impl<'a> ScopeResolver<'a> {
 
     fn resolve_function_call(&mut self, old_func_call: &FuncCall, target_scope: ScopeId) {
         let func_call = self.convert_func_call(&old_func_call);
-        let func_target_scope;
-        // Get the FunctionEntity the function call is func_target_scopeing.
+        let func_target;
+        // Get the FunctionEntity the function call is func_targeting.
         match self.program.borrow_entity(func_call.get_function()) {
             Entity::Variable(_data) => {
                 unimplemented!("Calling a function variable is unimplemented.")
             }
-            Entity::Function(data) => func_target_scope = data.clone(),
-            Entity::BuiltinFunction(data) => func_target_scope = data.get_base(),
+            Entity::Function(data) => func_target = data.clone(),
+            Entity::BuiltinFunction(data) => func_target = data.get_base(),
             _ => unreachable!(),
         }
 
@@ -170,7 +170,7 @@ impl<'a> ScopeResolver<'a> {
         let mut type_parameters = Vec::new();
         let mut type_parameter_indexes = Vec::new();
         let mut index = 0usize;
-        for template_parameter_id in func_target_scope.iterate_over_template_parameters() {
+        for template_parameter_id in func_target.iterate_over_template_parameters() {
             match self.program.borrow_entity(template_parameter_id.clone()) {
                 Entity::DataType(_type) => {
                     type_parameters.push(template_parameter_id.clone());
@@ -208,8 +208,8 @@ impl<'a> ScopeResolver<'a> {
 
         // Iterate over all the inputs to the function call.
         for (index, input) in func_call.iterate_over_inputs().enumerate() {
-            let func_target_scope_input = func_target_scope.get_input(index);
-            match get_type_index(self.program, func_target_scope_input) {
+            let func_target_input = func_target.get_input(index);
+            match get_type_index(self.program, func_target_input) {
                 Option::None => {
                     // If we didn't find anything, then no more processing is necessary
                     // for this input.
@@ -236,8 +236,8 @@ impl<'a> ScopeResolver<'a> {
 
         // Iterate over all the outputs to the function call.
         for (index, output) in func_call.iterate_over_outputs().enumerate() {
-            let func_target_scope_output = func_target_scope.get_output(index);
-            match get_type_index(self.program, func_target_scope_output) {
+            let func_target_output = func_target.get_output(index);
+            match get_type_index(self.program, func_target_output) {
                 Option::None => {
                     // If we didn't find anything, then no more processing is necessary
                     // for this output.
@@ -275,13 +275,13 @@ impl<'a> ScopeResolver<'a> {
             if !automatic_type.is_automatic() {
                 continue;
             }
-            let func_target_scope_input = func_target_scope.get_input(index);
+            let func_target_input = func_target.get_input(index);
             let temp_holder;
-            let target_scope_type = match get_type_index(self.program, func_target_scope_input) {
+            let target_type = match get_type_index(self.program, func_target_input) {
                 Option::None => {
                     // It is not a template parameter, so just use the
                     // literal type of the input.
-                    temp_holder = self.program.get_entity_data_type(func_target_scope_input);
+                    temp_holder = self.program.get_entity_data_type(func_target_input);
                     &temp_holder
                 }
                 Option::Some(matching_type_index) => {
@@ -292,7 +292,7 @@ impl<'a> ScopeResolver<'a> {
                     )
                 }
             };
-            let resolved_type = Self::resolve_automatic_type(&automatic_type, target_scope_type);
+            let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
             let resolved_type_entity = self
                 .program
                 .adopt_and_define_intermediate(target_scope, Entity::DataType(resolved_type));
@@ -309,13 +309,13 @@ impl<'a> ScopeResolver<'a> {
             if !automatic_type.is_automatic() {
                 continue;
             }
-            let func_target_scope_output = func_target_scope.get_output(index);
+            let func_target_output = func_target.get_output(index);
             let temp_holder;
-            let target_scope_type = match get_type_index(self.program, func_target_scope_output) {
+            let target_type = match get_type_index(self.program, func_target_output) {
                 Option::None => {
                     // It is not a template parameter, so just use the
                     // literal type of the output.
-                    temp_holder = self.program.get_entity_data_type(func_target_scope_output);
+                    temp_holder = self.program.get_entity_data_type(func_target_output);
                     &temp_holder
                 }
                 Option::Some(matching_type_index) => {
@@ -326,7 +326,7 @@ impl<'a> ScopeResolver<'a> {
                     )
                 }
             };
-            let resolved_type = Self::resolve_automatic_type(&automatic_type, target_scope_type);
+            let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
             let resolved_type_entity = self
                 .program
                 .adopt_and_define_intermediate(target_scope, Entity::DataType(resolved_type));
