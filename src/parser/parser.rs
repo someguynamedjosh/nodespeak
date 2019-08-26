@@ -58,7 +58,7 @@ pub mod convert {
                 Rule::func_output_return_inline => unimplemented!(),
                 Rule::func_output_var_dec => unimplemented!(),
                 Rule::assign_expr => {
-                    let into = convert_assign_expr(program, scope, child);
+                    let into = convert_assign_expr(program, scope, child)?;
                     func_call.add_output(into);
                 }
                 _ => unreachable!(),
@@ -67,7 +67,7 @@ pub mod convert {
         Result::Ok(())
     }
 
-    fn convert_func_expr(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> VarAccess {
+    fn convert_func_expr(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> Result<VarAccess, CompileProblem> {
         let mut output_var = Option::None;
         let mut func_call = Option::None;
         let mut explicit_output_list = false;
@@ -80,7 +80,7 @@ pub mod convert {
                     ))
                 }
                 Rule::func_input_list => {
-                    convert_func_expr_input_list(program, scope, func_call.as_mut().unwrap(), child)
+                    convert_func_expr_input_list(program, scope, func_call.as_mut().unwrap(), child)?
                 }
                 // TODO: Inline return.
                 Rule::func_output_list => {
@@ -90,7 +90,7 @@ pub mod convert {
                         scope,
                         func_call.as_mut().unwrap(),
                         child,
-                    )
+                    )?
                 },
                 Rule::func_lambda => unimplemented!(),
                 Rule::lambda_adjective => unimplemented!(),
@@ -110,7 +110,7 @@ pub mod convert {
             }
         }
         program.add_func_call(scope, func_call.unwrap());
-        match output_var {
+        Result::Ok(match output_var {
             Option::Some(value) => VarAccess::new(value),
             Option::None => {
                 VarAccess::new(program.adopt_and_define_intermediate(
@@ -118,10 +118,10 @@ pub mod convert {
                     make_var(program.get_builtins().void_type),
                 ))
             }
-        }
+        })
     }
 
-    fn convert_expr_part_1(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> VarAccess {
+    fn convert_expr_part_1(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::bin_int => unimplemented!(),
@@ -130,22 +130,22 @@ pub mod convert {
                 Rule::legacy_oct_int => unimplemented!(),
                 Rule::dec_int => {
                     let val = Entity::IntLiteral(parse_dec_int(child.as_str()));
-                    return VarAccess::new(program.adopt_entity(val));
+                    return Result::Ok(VarAccess::new(program.adopt_entity(val)));
                 }
                 Rule::float => unimplemented!(),
                 Rule::func_expr => return convert_func_expr(program, scope, force_output, child),
                 // TODO: Real error message.
                 Rule::identifier => {
-                    return VarAccess::new(
+                    return Result::Ok(VarAccess::new(
                         program
                             .lookup_symbol(scope, child.as_str())
                             .expect("Symbol not defined!"),
-                    )
+                    ))
                 }
                 Rule::expr => {
                     let output = VarAccess::new(program.make_intermediate_auto_var(scope));
                     convert_expression(program, scope, output.clone(), true, child);
-                    return output;
+                    return Result::Ok(output);
                 }
                 Rule::array_literal => unimplemented!(),
                 _ => unreachable!(),
@@ -154,11 +154,11 @@ pub mod convert {
         unreachable!();
     }
 
-    fn convert_negate(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
+    fn convert_negate(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<VarAccess, CompileProblem> {
         unimplemented!();
     }
 
-    fn convert_expr_part(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> VarAccess {
+    fn convert_expr_part(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::negate => {
@@ -383,7 +383,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr_part => {
-                    let result = convert_expr_part(program, scope, force_output, child);
+                    let result = convert_expr_part(program, scope, force_output, child)?;
                     operand_stack.push(result);
                 }
                 Rule::operator => {
@@ -427,7 +427,7 @@ pub mod convert {
             call.add_input(operand_stack.pop().unwrap());
             call.add_output(final_output);
             program.add_func_call(scope, call);
-            return;
+            return Result::Ok(());
         }
 
         // The last operator is the sentinel, we don't actually want to pop it.
@@ -455,7 +455,7 @@ pub mod convert {
         Result::Ok(())
     }
 
-    fn convert_assign_expr(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
+    fn convert_assign_expr(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<VarAccess, CompileProblem> {
         let mut result = Option::None;
         for child in input.into_inner() {
             match child.as_rule() {
@@ -469,7 +469,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        result.unwrap()
+        Result::Ok(result.unwrap())
     }
 
     // Creates a variable, returns its id.
@@ -477,7 +477,7 @@ pub mod convert {
         program: &mut Program,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) -> EntityId {
+    ) -> Result<EntityId, CompileProblem> {
         let mut name = Option::None;
         let mut data_type = Option::None;
         for part in input.into_inner() {
@@ -490,7 +490,7 @@ pub mod convert {
             }
         }
         let variable = VariableEntity::new(data_type.unwrap());
-        program.adopt_and_define_symbol(func_scope, name.unwrap(), Entity::Variable(variable))
+        Result::Ok(program.adopt_and_define_symbol(func_scope, name.unwrap(), Entity::Variable(variable)))
     }
 
     fn add_function_inputs(
@@ -500,7 +500,7 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            func.add_input(parse_named_function_parameter(program, func_scope, child));
+            func.add_input(parse_named_function_parameter(program, func_scope, child)?);
         }
         Result::Ok(())
     }
@@ -512,7 +512,7 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            func.add_output(parse_named_function_parameter(program, func_scope, child));
+            func.add_output(parse_named_function_parameter(program, func_scope, child)?);
         }
         Result::Ok(())
     }
@@ -538,6 +538,7 @@ pub mod convert {
             "!return_value",
             Entity::Variable(variable),
         ));
+        Result::Ok(())
     }
 
     fn convert_function_signature(
@@ -548,10 +549,10 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::function_inputs => add_function_inputs(program, func, func_scope, child),
-                Rule::function_outputs => add_function_outputs(program, func, func_scope, child),
+                Rule::function_inputs => add_function_inputs(program, func, func_scope, child)?,
+                Rule::function_outputs => add_function_outputs(program, func, func_scope, child)?,
                 Rule::single_function_output => {
-                    add_function_output(program, func, func_scope, child)
+                    add_function_output(program, func, func_scope, child)?
                 }
                 _ => unreachable!(),
             }
@@ -567,13 +568,13 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::statement => convert_statement(program, scope, child),
+                Rule::statement => convert_statement(program, scope, child)?,
                 Rule::expr => {
                     let result_var = match return_var.as_ref() {
                         Option::Some(access) => access.clone(),
                         Option::None => VarAccess::new(program.make_intermediate_auto_var(scope)),
                     };
-                    convert_expression(program, scope, result_var, true, child);
+                    convert_expression(program, scope, result_var, true, child)?;
                 }
                 _ => unreachable!(),
             }
@@ -627,7 +628,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
-                Rule::expr => convert_expression(program, scope, VarAccess::new(id), true, child),
+                Rule::expr => convert_expression(program, scope, VarAccess::new(id), true, child)?,
                 _ => unreachable!(),
             }
         }
@@ -709,10 +710,10 @@ pub mod convert {
                     data_type = Option::Some(convert_data_type(program, scope, child))
                 } // TODO: Include data type.
                 Rule::assigned_variable => {
-                    convert_assigned_variable(program, scope, data_type.unwrap(), child)
+                    convert_assigned_variable(program, scope, data_type.unwrap(), child)?
                 }
                 Rule::empty_variable => {
-                    convert_empty_variable(program, scope, data_type.unwrap(), child)
+                    convert_empty_variable(program, scope, data_type.unwrap(), child)?
                 }
                 _ => unreachable!(),
             }
@@ -741,16 +742,17 @@ pub mod convert {
             }
         }
         program.add_func_call(scope, FuncCall::new(program.get_builtins().return_func));
+        Result::Ok(())
     }
 
     fn convert_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::function_definition => convert_function_definition(program, scope, child),
+                Rule::function_definition => convert_function_definition(program, scope, child)?,
                 Rule::code_block => unimplemented!(),
-                Rule::return_statement => convert_return_statement(program, scope, child),
+                Rule::return_statement => convert_return_statement(program, scope, child)?,
                 Rule::create_variable_statement => {
-                    convert_create_variable_statement(program, scope, child)
+                    convert_create_variable_statement(program, scope, child)?
                 }
                 Rule::assign_statement => {
                     let mut iter = child.into_inner();
@@ -759,7 +761,7 @@ pub mod convert {
                         Rule::assign_expr => true,
                         _ => false,
                     });
-                    let output = convert_assign_expr(program, scope, assign_expr);
+                    let output = convert_assign_expr(program, scope, assign_expr)?;
                     let expr = iter.next().unwrap();
                     debug_assert!(match expr.as_rule() {
                         Rule::expr => true,
@@ -785,7 +787,7 @@ pub mod convert {
         for statement in root.into_inner() {
             match statement.as_rule() {
                 Rule::EOI => continue,
-                Rule::statement => convert_statement(&mut program, scope, statement),
+                Rule::statement => convert_statement(&mut program, scope, statement)?,
                 _ => unreachable!(),
             }
         }
