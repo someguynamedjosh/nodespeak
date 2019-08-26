@@ -1,6 +1,6 @@
 use colored::*;
-use pest::RuleType;
 use pest::iterators::Pair;
+use pest::RuleType;
 
 pub struct FilePosition {
     start_pos: usize,
@@ -29,20 +29,20 @@ impl FilePosition {
 
 pub struct ProblemDescriptor {
     position: FilePosition,
-    caption: String
+    caption: String,
 }
 
 impl ProblemDescriptor {
     fn new(position: FilePosition, caption: &str) -> ProblemDescriptor {
         ProblemDescriptor {
             position,
-            caption: caption.to_owned()
+            caption: caption.to_owned(),
         }
     }
 }
 
 pub struct CompileProblem {
-    descriptors: Vec<ProblemDescriptor>
+    descriptors: Vec<ProblemDescriptor>,
 }
 
 fn wrap_80_ch(input: &str) -> String {
@@ -78,8 +78,12 @@ fn wrap_80_ch(input: &str) -> String {
 impl CompileProblem {
     fn new() -> CompileProblem {
         CompileProblem {
-            descriptors: Vec::new()
+            descriptors: Vec::new(),
         }
+    }
+
+    fn from_descriptors(descriptors: Vec<ProblemDescriptor>) -> CompileProblem {
+        CompileProblem { descriptors }
     }
 
     fn add_descriptor(&mut self, descriptor: ProblemDescriptor) {
@@ -91,8 +95,17 @@ impl CompileProblem {
         for descriptor in self.descriptors.iter() {
             output.push_str(&wrap_80_ch(&descriptor.caption));
             let position = &descriptor.position;
-            output.push_str(&format!("\nAt: source:{}:{}", position.start_line, position.start_column));
+            output.push_str(&format!(
+                "\nAt: source:{}:{}",
+                position.start_line, position.start_column
+            ));
         }
         output.red().to_string()
     }
+}
+
+pub fn no_entity_with_name(pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(pos, "ERROR: Invalid Entity Name\nThere is no function, variable, or namespace visible in this scope with the specified name.")
+    ])
 }

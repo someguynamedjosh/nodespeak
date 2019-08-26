@@ -7,7 +7,7 @@ pub mod vague;
 
 pub struct CompileResult {
     pub program: vague::Program,
-    pub root_scope: vague::ScopeId
+    pub root_scope: vague::ScopeId,
 }
 
 pub fn compile(source: &str) -> Result<CompileResult, String> {
@@ -25,6 +25,6 @@ pub fn compile(source: &str) -> Result<CompileResult, String> {
     let new_root = vague::resolve_scope(&mut program, root_scope);
     Result::Ok(CompileResult {
         program: program,
-        root_scope: new_root
+        root_scope: new_root,
     })
 }
