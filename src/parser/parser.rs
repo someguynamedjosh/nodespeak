@@ -1,5 +1,7 @@
 extern crate pest;
 
+use crate::problem::CompileProblem;
+
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
@@ -31,7 +33,7 @@ pub mod convert {
         scope: ScopeId,
         func_call: &mut FuncCall,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
@@ -42,6 +44,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
     fn convert_func_expr_output_list(
@@ -49,7 +52,7 @@ pub mod convert {
         scope: ScopeId,
         func_call: &mut FuncCall,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::func_output_return_inline => unimplemented!(),
@@ -61,6 +64,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
     fn convert_func_expr(program: &mut Program, scope: ScopeId, force_output: bool, input: Pair<Rule>) -> VarAccess {
@@ -371,7 +375,7 @@ pub mod convert {
         final_output: VarAccess,
         force_output: bool,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         let mut operand_stack = Vec::with_capacity(64);
         let mut operator_stack = Vec::with_capacity(64);
         operator_stack.push(SENTINEL);
@@ -448,6 +452,7 @@ pub mod convert {
             program.add_func_call(scope, call);
             operand_stack.push(output);
         }
+        Result::Ok(())
     }
 
     fn convert_assign_expr(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> VarAccess {
@@ -493,10 +498,11 @@ pub mod convert {
         func: &mut FunctionEntity,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             func.add_input(parse_named_function_parameter(program, func_scope, child));
         }
+        Result::Ok(())
     }
 
     fn add_function_outputs(
@@ -504,10 +510,11 @@ pub mod convert {
         func: &mut FunctionEntity,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             func.add_output(parse_named_function_parameter(program, func_scope, child));
         }
+        Result::Ok(())
     }
 
     fn add_function_output(
@@ -515,7 +522,7 @@ pub mod convert {
         func: &mut FunctionEntity,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
         for part in input.into_inner() {
             match part.as_rule() {
@@ -538,7 +545,7 @@ pub mod convert {
         func: &mut FunctionEntity,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::function_inputs => add_function_inputs(program, func, func_scope, child),
@@ -549,6 +556,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
     fn convert_returnable_code_block(
@@ -556,7 +564,7 @@ pub mod convert {
         scope: ScopeId,
         return_var: Option<VarAccess>,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::statement => convert_statement(program, scope, child),
@@ -570,9 +578,10 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
-    fn convert_function_definition(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
+    fn convert_function_definition(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         let func_scope = program.create_child_scope(scope);
         let mut function = FunctionEntity::new(func_scope);
@@ -602,6 +611,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
     // TODO: Take in data type.
@@ -610,7 +620,7 @@ pub mod convert {
         scope: ScopeId,
         data_type: EntityId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         let variable = VariableEntity::new(data_type);
         let id = program.adopt_entity(Entity::Variable(variable));
@@ -622,6 +632,7 @@ pub mod convert {
             }
         }
         program.define_symbol(scope, name.unwrap(), id);
+        Result::Ok(())
     }
 
     // TODO: Take in data type.
@@ -630,7 +641,7 @@ pub mod convert {
         scope: ScopeId,
         data_type: EntityId,
         input: Pair<Rule>,
-    ) {
+    ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         for child in input.into_inner() {
             match child.as_rule() {
@@ -640,6 +651,7 @@ pub mod convert {
         }
         let variable = VariableEntity::new(data_type);
         let id = program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Variable(variable));
+        Result::Ok(())
     }
 
     fn convert_basic_data_type(
@@ -689,7 +701,7 @@ pub mod convert {
         unreachable!();
     }
 
-    fn convert_create_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
+    fn convert_create_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
         for child in input.into_inner() {
             match child.as_rule() {
@@ -705,9 +717,10 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
-    fn convert_return_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
+    fn convert_return_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         let mut index = 0;
         // TODO: Real error if we aren't inside a function.
         let func = program.lookup_and_clone_parent_function(scope).unwrap();
@@ -730,7 +743,7 @@ pub mod convert {
         program.add_func_call(scope, FuncCall::new(program.get_builtins().return_func));
     }
 
-    fn convert_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) {
+    fn convert_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::function_definition => convert_function_definition(program, scope, child),
@@ -761,9 +774,10 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
+        Result::Ok(())
     }
 
-    pub fn convert_ast_to_vague(input: &mut ParseResult) -> Program {
+    pub fn convert_ast_to_vague(input: &mut ParseResult) -> Result<Program, CompileProblem> {
         let root = input.next().unwrap();
         let mut program = Program::new();
         let scope = program.get_root_scope();
@@ -776,7 +790,7 @@ pub mod convert {
             }
         }
 
-        program
+        Result::Ok(program)
     }
 }
 

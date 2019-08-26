@@ -4,6 +4,7 @@ extern crate pest_derive;
 use std::fs;
 
 mod parser;
+mod problem;
 mod vague;
 
 fn main() {
@@ -13,5 +14,5 @@ fn main() {
     let root_scope = vague_program.get_root_scope();
     let resolved_root = vague::resolve_scope(&mut vague_program, root_scope);
     // The program includes both the vague and resolved scopes.
-    println!("{:#?}", vague_program);
+    // println!("{:#?}", vague_program);
 }
