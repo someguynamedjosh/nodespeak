@@ -55,9 +55,9 @@ pub struct CompileProblem {
     descriptors: Vec<ProblemDescriptor>,
 }
 
-const ERROR_WIDTH: usize = 60;
+const FALLBACK_ERROR_WIDTH: usize = 60;
 
-fn wrap_text(input: &str, offset: usize) -> String {
+fn wrap_text(input: &str, width: usize, offset: usize) -> String {
     let mut output = "".to_owned();
     let mut word = "".to_owned();
     let mut line_length = offset;
@@ -65,7 +65,7 @@ fn wrap_text(input: &str, offset: usize) -> String {
     for ch in input.chars() {
         if ch == ' ' {
             let word_length = word.len();
-            if line_length + word_length > ERROR_WIDTH {
+            if line_length + word_length > width {
                 output.push('\n');
                 line_length = 0;
             }
@@ -107,7 +107,8 @@ impl CompileProblem {
         self.descriptors.push(descriptor)
     }
 
-    pub fn terminal_format(&self) -> String {
+    pub fn format(&self, width: Option<usize>) -> String {
+        let width = width.unwrap_or(FALLBACK_ERROR_WIDTH);
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
             output.push_str(&match descriptor.ptype {
@@ -115,13 +116,13 @@ impl CompileProblem {
                 ProblemType::Warning => "WARNING: ".bright_yellow().to_string(),
                 ProblemType::Hint => "HINT: ".bright_cyan().to_string(),
             });
-            output.push_str(&wrap_text(&descriptor.caption, 10));
+            output.push_str(&wrap_text(&descriptor.caption, width, 10));
             output.push_str("\n");
 
             let position = &descriptor.position;
             let spacing = position.end_line.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
-            output.push_str(&format!("{:-^1$}\n", "", ERROR_WIDTH).blue().to_string());
+            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
             output.push_str(&format!(
                 "{}{}{}source:{}:{}\n",
                 "|".blue().to_string(),
@@ -130,7 +131,7 @@ impl CompileProblem {
                 position.start_line,
                 position.start_column,
             ));
-            output.push_str(&format!("{:-^1$}\n", "", ERROR_WIDTH).blue().to_string());
+            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
             for (line, content) in position.source.iter().enumerate() {
                 output.push_str(
                     &format!("| {: >1$} | ", (line + position.start_line), spacing)
@@ -155,13 +156,13 @@ impl CompileProblem {
                     }
                     x += 1;
                     column += 1;
-                    if x > ERROR_WIDTH {
+                    if x > width {
                         output.push_str(&format!("\n|{}| ", spaces).blue().to_string());
                         x = start_x;
                     }
                 }
             }
-            output.push_str(&format!("{:-^1$}\n", "", ERROR_WIDTH).blue().to_string());
+            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
         }
         output
     }

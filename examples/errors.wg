@@ -1,0 +1,9 @@
+fn main {
+    Int correct = 12;
+    int incorrect = 12;
+
+    assert(correct == 12);
+    assert(nonexistant == 12);
+}
+
+return this_is_bad, should_give_error;
