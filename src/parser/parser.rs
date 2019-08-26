@@ -1,6 +1,8 @@
 extern crate pest;
 
+use crate::problem;
 use crate::problem::CompileProblem;
+use crate::problem::FilePosition;
 
 use pest::error::Error;
 use pest::iterators::Pair;
@@ -38,7 +40,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::expr => {
                     let arg_var = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, arg_var.clone(), true, child);
+                    convert_expression(program, scope, arg_var.clone(), true, child)?;
                     func_call.add_input(arg_var);
                 }
                 _ => unreachable!(),
@@ -67,6 +69,19 @@ pub mod convert {
         Result::Ok(())
     }
 
+    fn lookup_symbol_with_error(
+        program: &Program,
+        scope: ScopeId,
+        symbol: &Pair<Rule>,
+    ) -> Result<EntityId, CompileProblem> {
+        match program.lookup_symbol(scope, symbol.as_str()) {
+            Option::Some(entity) => Result::Ok(entity),
+            Option::None => Result::Err(problem::no_entity_with_name(FilePosition::from_pair(
+                symbol,
+            ))),
+        }
+    }
+
     fn convert_func_expr(
         program: &mut Program,
         scope: ScopeId,
@@ -80,9 +95,9 @@ pub mod convert {
             match child.as_rule() {
                 // TODO: Real error message.
                 Rule::identifier => {
-                    func_call = Option::Some(FuncCall::new(
-                        program.lookup_symbol(scope, child.as_str()).unwrap(),
-                    ))
+                    func_call = Option::Some(FuncCall::new(lookup_symbol_with_error(
+                        &program, scope, &child,
+                    )?))
                 }
                 Rule::func_input_list => convert_func_expr_input_list(
                     program,
@@ -152,14 +167,12 @@ pub mod convert {
                 // TODO: Real error message.
                 Rule::identifier => {
                     return Result::Ok(VarAccess::new(
-                        program
-                            .lookup_symbol(scope, child.as_str())
-                            .expect("Symbol not defined!"),
+                        lookup_symbol_with_error(&program, scope, &child)?
                     ))
                 }
                 Rule::expr => {
                     let output = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, output.clone(), true, child);
+                    convert_expression(program, scope, output.clone(), true, child)?;
                     return Result::Ok(output);
                 }
                 Rule::array_literal => unimplemented!(),
@@ -489,9 +502,9 @@ pub mod convert {
             match child.as_rule() {
                 // TODO: Real error message.
                 Rule::identifier => {
-                    result = Option::Some(VarAccess::new(
-                        program.lookup_symbol(scope, child.as_str()).unwrap(),
-                    ))
+                    result = Option::Some(VarAccess::new(lookup_symbol_with_error(
+                        &program, scope, &child,
+                    )?))
                 }
                 Rule::assign_array_access => unimplemented!(),
                 _ => unreachable!(),
@@ -511,7 +524,7 @@ pub mod convert {
         for part in input.into_inner() {
             match part.as_rule() {
                 Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, func_scope, part))
+                    data_type = Option::Some(convert_data_type(program, func_scope, part)?)
                 }
                 Rule::identifier => name = Option::Some(part.as_str()),
                 _ => unreachable!(),
@@ -559,7 +572,7 @@ pub mod convert {
         for part in input.into_inner() {
             match part.as_rule() {
                 Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, func_scope, part))
+                    data_type = Option::Some(convert_data_type(program, func_scope, part)?)
                 }
                 _ => unreachable!(),
             }
@@ -626,7 +639,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
                 Rule::function_signature => {
-                    convert_function_signature(program, &mut function, func_scope, child);
+                    convert_function_signature(program, &mut function, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
                     let output_value = function.get_single_output().and_then(
@@ -639,7 +652,7 @@ pub mod convert {
                         name.unwrap(),
                         Entity::Function(function),
                     );
-                    convert_returnable_code_block(program, func_scope, output_value, child);
+                    convert_returnable_code_block(program, func_scope, output_value, child)?;
                     // This branch arm can only be called once but I don't know how to tell rustc that,
                     // so we use a break statement for that purpose. Since the code block is the last element
                     // parsed anyway, it doesn't change how the code works.
@@ -695,17 +708,14 @@ pub mod convert {
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> EntityId {
+    ) -> Result<EntityId, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::named_data_type => {
                     for sub_child in child.into_inner() {
                         match sub_child.as_rule() {
-                            // TODO: Real error.
                             Rule::identifier => {
-                                return program
-                                    .lookup_symbol(scope, sub_child.as_str())
-                                    .expect("Datatype not defined!")
+                                return lookup_symbol_with_error(&program, scope, &sub_child)
                             }
                             _ => unreachable!(),
                         }
@@ -723,11 +733,11 @@ pub mod convert {
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> EntityId {
+    ) -> Result<EntityId, CompileProblem> {
         unimplemented!();
     }
 
-    fn convert_data_type(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> EntityId {
+    fn convert_data_type(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<EntityId, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::array_data_type => return convert_array_data_type(program, scope, child),
@@ -747,7 +757,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, scope, child))
+                    data_type = Option::Some(convert_data_type(program, scope, child)?)
                 } // TODO: Include data type.
                 Rule::assigned_variable => {
                     convert_assigned_variable(program, scope, data_type.unwrap(), child)?
@@ -768,7 +778,9 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         let mut index = 0;
         // TODO: Real error if we aren't inside a function.
-        let func = program.lookup_and_clone_parent_function(scope).unwrap();
+        let func = program
+            .lookup_and_clone_parent_function(scope)
+            .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
@@ -779,7 +791,7 @@ pub mod convert {
                         VarAccess::new(func.get_output(index)),
                         true,
                         child,
-                    );
+                    )?;
                     index += 1;
                 }
                 _ => unreachable!(),
@@ -815,11 +827,11 @@ pub mod convert {
                         Rule::expr => true,
                         _ => false,
                     });
-                    convert_expression(program, scope, output, true, expr);
+                    convert_expression(program, scope, output, true, expr)?;
                 }
                 Rule::expr => {
                     let result = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, result, false, child);
+                    convert_expression(program, scope, result, false, child)?;
                 }
                 _ => unreachable!(),
             }

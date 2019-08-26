@@ -61,6 +61,9 @@ fn wrap_80_ch(input: &str) -> String {
             output.push_str(&word);
             output.push(' ');
             word = "".to_owned();
+        } else if ch == '\n' {
+            output.push('\n');
+            line_length = 0;
         } else {
             word.push(ch)
         }
@@ -105,7 +108,16 @@ impl CompileProblem {
 }
 
 pub fn no_entity_with_name(pos: FilePosition) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(pos, "ERROR: Invalid Entity Name\nThere is no function, variable, or namespace visible in this scope with the specified name.")
-    ])
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(pos, concat!(
+        "ERROR: Invalid Entity Name\nThere is no function, variable, or data type visible in this ",
+        "scope with the specified name.",
+    ))])
+}
+
+pub fn return_from_root(pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(pos, concat!(
+        "ERROR: Return Outside Function\nReturn statements can only be used inside of function ",
+        "definitions. The code snippet below was understood to be a part of the root scope of the ",
+        "file.",
+    ))])
 }
