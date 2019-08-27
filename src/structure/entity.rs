@@ -66,6 +66,10 @@ impl FunctionEntity {
         return self.inputs.len();
     }
 
+    pub fn iterate_over_inputs(&self) -> std::slice::Iter<EntityId> {
+        self.inputs.iter()
+    }
+
     pub fn add_output(&mut self, output: EntityId) {
         self.outputs.push(output);
     }
@@ -76,6 +80,10 @@ impl FunctionEntity {
 
     pub fn get_num_outputs(&self) -> usize {
         return self.outputs.len();
+    }
+
+    pub fn iterate_over_outputs(&self) -> std::slice::Iter<EntityId> {
+        self.outputs.iter()
     }
 
     pub fn get_single_output(&self) -> Option<EntityId> {

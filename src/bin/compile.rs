@@ -18,8 +18,9 @@ fn main() {
             }
         };
         match waveguide::compile(&code) {
-            Result::Ok(_program) => {
-                println!("Compilation completed sucessfully.");
+            Result::Ok(program) => {
+                //println!("Compilation completed sucessfully.");
+                println!("{:#?}", program.program);
             }
             Result::Err(err) => {
                 eprintln!("{}", err);

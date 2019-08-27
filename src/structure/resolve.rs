@@ -110,7 +110,21 @@ impl<'a> ScopeResolver<'a> {
                         );
                         self.add_conversion(id, copied_var);
                     } else {
-                        self.program.define_symbol(copy, &*name_value_pair.0, id);
+                        let converted = self.convert(data.get_data_type());
+                        if converted == data.get_data_type() {
+                            // We can just copy it directly since the data type does not need to be
+                            // converted.
+                            self.program.define_symbol(copy, &*name_value_pair.0, id);
+                        } else {
+                            let copied_var = self.program.adopt_and_define_symbol(
+                                copy,
+                                &*name_value_pair.0,
+                                // We don't need to clone the data type since we're just going to change
+                                // it later anyway.
+                                make_var(converted),
+                            );
+                            self.add_conversion(id, copied_var);
+                        }
                     }
                 }
                 // Just copy it for now. Conversion only needs to be done when
@@ -154,15 +168,22 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn resolve_function_call(&mut self, old_func_call: &FuncCall, target_scope: ScopeId) {
-        let func_call = self.convert_func_call(&old_func_call);
+        let mut func_call = self.convert_func_call(&old_func_call);
         let func_target;
+        let is_builtin;
         // Get the FunctionEntity the function call is func_targeting.
         match self.program.borrow_entity(func_call.get_function()) {
             Entity::Variable(_data) => {
                 unimplemented!("Calling a function variable is unimplemented.")
             }
-            Entity::Function(data) => func_target = data.clone(),
-            Entity::BuiltinFunction(data) => func_target = data.get_base(),
+            Entity::Function(data) => {
+                func_target = data.clone();
+                is_builtin = false;
+            }
+            Entity::BuiltinFunction(data) => {
+                func_target = data.get_base();
+                is_builtin = true;
+            }
             _ => unreachable!(),
         }
 
@@ -253,8 +274,46 @@ impl<'a> ScopeResolver<'a> {
                 }
             }
         }
+        
+        // TODO: Error if any data types could not be resolved, including for builtin funcs.
 
-        // TODO: Error if any data types could not be resolved.
+        // Create a copy of the function body and resolve it using the computed actual values for
+        // each template parameter, then switch the function call to call the new body. We don't
+        // do this for builtin functions though, since they don't technically have a body.
+        if !is_builtin {
+            self.push_table();
+            let mut adopted_types = Vec::new();
+            for index in 0..type_parameters.len() {
+                let type_parameter = type_parameters[index];
+                let real_type = real_types[index].as_ref().expect(
+                    // Well not really, but it's a todo.
+                    "We just checked that all types could be resolved."
+                );
+                let adopted_type = self.program.adopt_entity(Entity::DataType(real_type.clone()));
+                adopted_types.push(adopted_type);
+                self.add_conversion(type_parameter, adopted_type);
+            }
+            let func_scope = func_target.get_body();
+            let parent = self.program.get_scope_parent(func_scope).expect(
+                "All scopes that are bodies of functions have parent scopes."
+            );
+            let new_scope = self.initial_copy(func_scope, Option::Some(parent));
+            self.resolve_body(func_scope, new_scope);
+            let mut new_function = FunctionEntity::new(new_scope);
+            for input in func_target.iterate_over_inputs() {
+                new_function.add_input(self.convert(*input));
+            }
+            for output in func_target.iterate_over_outputs() {
+                new_function.add_output(self.convert(*output));
+            }
+            for adopted_type in adopted_types.into_iter() {
+                self.program.define_intermediate(new_scope, adopted_type);
+            }
+            let new_id = self.program.adopt_and_define_intermediate(parent, Entity::Function(new_function));
+            self.pop_table();
+            // TODO: Maybe generate a name for the new function?
+            func_call.set_function(new_id);
+        }
 
         // Resolve any inputs or outputs with automatic data types.
         for (index, input) in func_call.iterate_over_inputs().enumerate() {

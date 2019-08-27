@@ -205,7 +205,7 @@ impl Program {
                 Entity::IntLiteral(_value) => true,
                 Entity::FloatLiteral(_value) => true,
                 Entity::BoolLiteral(_value) => true,
-                _ => false
+                _ => false,
             },
             temporary: KnownData::Unknown,
             temporary_read: false,
@@ -252,7 +252,7 @@ impl Program {
         self.entity_data[entity.get_raw()].permanent = true;
     }
 
-    /// Checks if the data of the specified entity remains unchanged from the initial value 
+    /// Checks if the data of the specified entity remains unchanged from the initial value
     /// throughout the entire program.
     pub fn is_initial_data_permanent(&mut self, entity: EntityId) -> bool {
         assert!(entity.get_raw() < self.entities.len());
@@ -309,17 +309,18 @@ impl Program {
 
     /// Checks if the current temporary value for the specified entity was valid throughout the
     /// entire program.
-    /// 
+    ///
     /// Only use this after the entirety of a program has been interpreted.
     pub fn was_temporary_data_permanent(&self, entity: EntityId) -> bool {
         assert!(entity.get_raw() < self.entities.len());
         let data = &self.entity_data[entity.get_raw()];
-        !(data.multiple_temporary_values || match data.temporary {
-            // If the data was unknown, we have to assume it can change. Likely it is a value that
-            // will be determined during run time.
-            KnownData::Unknown => true,
-            _ => false,
-        })
+        !(data.multiple_temporary_values
+            || match data.temporary {
+                // If the data was unknown, we have to assume it can change. Likely it is a value that
+                // will be determined during run time.
+                KnownData::Unknown => true,
+                _ => false,
+            })
     }
 
     /// If the temporary data for the specified data was valid throughout the entire program,

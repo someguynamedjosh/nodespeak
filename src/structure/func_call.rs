@@ -43,6 +43,10 @@ impl FuncCall {
         }
     }
 
+    pub fn set_function(&mut self, function: EntityId) {
+        self.function = function;
+    }
+
     pub fn add_input(&mut self, input: VarAccess) {
         self.inputs.push(input);
     }
