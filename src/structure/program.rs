@@ -46,6 +46,11 @@ struct EntityData {
     initial: KnownData,
     permanent: bool,
     temporary: KnownData,
+    /// True if the temporary value has been read.
+    temporary_read: bool,
+    /// True if more than one temporary value has been read. This happens 95% of the time when the
+    /// temporary value is written to after it has been read, and happens in no other case.
+    multiple_temporary_values: bool,
 }
 
 #[derive(Debug)]
@@ -202,7 +207,9 @@ impl Program {
                 Entity::BoolLiteral(_value) => true,
                 _ => false
             },
-            temporary: KnownData::Unknown
+            temporary: KnownData::Unknown,
+            temporary_read: false,
+            multiple_temporary_values: false,
         }
     }
 
@@ -258,16 +265,22 @@ impl Program {
     /// of a variable that does not have a permanent value across the entire program.
     pub fn set_temporary_data(&mut self, entity: EntityId, data: KnownData) {
         assert!(entity.get_raw() < self.entities.len());
-        self.entity_data[entity.get_raw()].temporary = data;
+        let int_data = &mut self.entity_data[entity.get_raw()];
+        if int_data.temporary_read {
+            int_data.multiple_temporary_values = true;
+        }
+        int_data.temporary = data;
     }
 
     /// Retrieves a temporary value for the related entity, set by set_temporary_data.
     ///
     /// This is used during interpretation and simplification to keep track of the current value
     /// of a variable that does not have a permanent value across the entire program.
-    pub fn get_temporary_data(&self, entity: EntityId) -> &KnownData {
+    pub fn get_temporary_data(&mut self, entity: EntityId) -> &KnownData {
         assert!(entity.get_raw() < self.entities.len());
-        &self.entity_data[entity.get_raw()].temporary
+        let data = &mut self.entity_data[entity.get_raw()];
+        data.temporary_read = true;
+        &data.temporary
     }
 
     /// Resets the temporary data of an entity to be the permanent data of that entity.
@@ -277,6 +290,8 @@ impl Program {
         assert!(entity.get_raw() < self.entities.len());
         let data = &mut self.entity_data[entity.get_raw()];
         data.temporary = data.initial.clone();
+        data.temporary_read = false;
+        data.multiple_temporary_values = false;
     }
 
     /// Resets the temporary data of every entity to their permanent data values.
@@ -287,6 +302,41 @@ impl Program {
         for index in 0..self.entity_data.len() {
             let data = &mut self.entity_data[index];
             data.temporary = data.initial.clone();
+            data.temporary_read = false;
+            data.multiple_temporary_values = false;
+        }
+    }
+
+    /// Checks if the current temporary value for the specified entity was valid throughout the
+    /// entire program.
+    /// 
+    /// Only use this after the entirety of a program has been interpreted.
+    pub fn was_temporary_data_permanent(&self, entity: EntityId) -> bool {
+        assert!(entity.get_raw() < self.entities.len());
+        let data = &self.entity_data[entity.get_raw()];
+        !(data.multiple_temporary_values || match data.temporary {
+            // If the data was unknown, we have to assume it can change. Likely it is a value that
+            // will be determined during run time.
+            KnownData::Unknown => true,
+            _ => false,
+        })
+    }
+
+    /// If the temporary data for the specified data was valid throughout the entire program,
+    /// then sets the initial data of the variable to the temporary data and marks the initial data
+    /// as permanent.
+    pub fn solidify_temporary_data_if_permanent(&mut self, entity: EntityId) {
+        if self.was_temporary_data_permanent(entity) {
+            let data = &mut self.entity_data[entity.get_raw()];
+            data.initial = data.temporary.clone();
+            data.permanent = true;
+        }
+    }
+
+    /// Applies solidify_temporary_data_if_permanent to all entities.
+    pub fn solidify_each_temporary_data_if_permanent(&mut self) {
+        for index in 0..self.entity_data.len() {
+            self.solidify_temporary_data_if_permanent(EntityId::new(index));
         }
     }
 
