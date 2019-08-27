@@ -4,7 +4,7 @@ use crate::structure::{
 use std::collections::HashMap;
 
 /// Refers to a [`Scope`] stored in a [`Program`].
-/// 
+///
 /// You'll notice that this struct requires no lifetime. This was chosen to allow for easy
 /// implementation of tree-like and cyclic data structures inside the library.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -23,7 +23,7 @@ impl ScopeId {
 }
 
 /// Refers to an [`Entity`] stored in a [`Program`].
-/// 
+///
 /// You'll notice that this struct requires no lifetime. This was chosen to allow for easy
 /// implementation of tree-like and cyclic data structures inside the library.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -41,13 +41,20 @@ impl EntityId {
     }
 }
 
+#[derive(Clone, Debug)]
+struct EntityData {
+    initial: KnownData,
+    permanent: bool,
+    temporary: KnownData,
+}
+
 #[derive(Debug)]
 /// Represents an entire program written in the Waveguide language.
 pub struct Program {
     scopes: Vec<Scope>,
     root_scope: ScopeId,
     entities: Vec<Entity>,
-    entity_data: Vec<KnownData>,
+    entity_data: Vec<EntityData>,
     builtins: Option<Builtins>,
 }
 
@@ -67,14 +74,6 @@ impl Program {
     // ===SCOPES====================================================================================
 
     /// Creates a new scope that has no parent.
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// let program = Program::new();
-    /// let new_scope = program.create_scope();
-    /// let child_scope = program.create_child_scope(new_scope);
-    /// ```
     pub fn create_scope(&mut self) -> ScopeId {
         let id = ScopeId::new(self.scopes.len());
         self.scopes.push(Scope::new());
@@ -169,9 +168,9 @@ impl Program {
         }
     }
 
-    pub fn redefine_entity(&mut self, old_entity: EntityId, new_definition: Entity) {
-        assert!(old_entity.get_raw() < self.entities.len());
-        self.entities[old_entity.get_raw()] = new_definition;
+    pub fn modify_entity(&mut self, entity: EntityId, modified: Entity) {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entities[entity.get_raw()] = modified;
     }
 
     pub fn iterate_over_entities_defined_by(
@@ -188,12 +187,22 @@ impl Program {
             .chain(self.scopes[scope.get_raw()].intermediates.iter())
     }
 
-    fn create_data_for(entity: &Entity) -> KnownData {
-        match entity {
-            Entity::IntLiteral(value) => KnownData::Int(*value),
-            Entity::FloatLiteral(value) => KnownData::Float(*value),
-            Entity::BoolLiteral(value) => KnownData::Bool(*value),
-            _ => KnownData::Empty,
+    fn create_data_for(entity: &Entity) -> EntityData {
+        EntityData {
+            initial: match entity {
+                Entity::IntLiteral(value) => KnownData::Int(*value),
+                Entity::FloatLiteral(value) => KnownData::Float(*value),
+                Entity::BoolLiteral(value) => KnownData::Bool(*value),
+                // TODO: Initial values for variables.
+                _ => KnownData::Unknown,
+            },
+            permanent: match entity {
+                Entity::IntLiteral(_value) => true,
+                Entity::FloatLiteral(_value) => true,
+                Entity::BoolLiteral(_value) => true,
+                _ => false
+            },
+            temporary: KnownData::Unknown
         }
     }
 
@@ -204,25 +213,81 @@ impl Program {
         id
     }
 
-    pub fn modify_entity(&mut self, entity: EntityId, modified: Entity) {
-        assert!(entity.get_raw() < self.entities.len());
-        self.entity_data[entity.get_raw()] = Self::create_data_for(&modified);
-        self.entities[entity.get_raw()] = modified;
-    }
-
     pub fn borrow_entity(&self, entity: EntityId) -> &Entity {
         assert!(entity.get_raw() < self.entities.len());
         &self.entities[entity.get_raw()]
     }
 
-    pub fn get_entity_data(&self, entity: EntityId) -> &KnownData {
+    // ===DATA STORAGE==============================================================================
+
+    /// Sets the value that the specified entity is known to have at the start of the program.
+    ///
+    /// By default, all variables are given appropriate default values for their data types. Literal
+    /// entities such as [`Entity::IntLiteral`] are set to whatever the value of the literal is.
+    pub fn set_initial_data(&mut self, entity: EntityId, data: KnownData) {
         assert!(entity.get_raw() < self.entities.len());
-        &self.entity_data[entity.get_raw()]
+        self.entity_data[entity.get_raw()].initial = data;
     }
 
-    pub fn set_entity_data(&mut self, entity: EntityId, data: KnownData) {
+    /// Gets the value that the specified entity is known to have at the start of the program.
+    ///
+    /// By default, all variables are given appropriate default values for their data types. Literal
+    /// entities such as [`Entity::IntLiteral`] are set to whatever the value of the literal is.
+    pub fn get_initial_data(&self, entity: EntityId) -> &KnownData {
         assert!(entity.get_raw() < self.entities.len());
-        self.entity_data[entity.get_raw()] = data;
+        &self.entity_data[entity.get_raw()].initial
+    }
+
+    /// Marks the specified entity as having a value that remains unchanged from its initial value
+    /// throughout the entire program.
+    pub fn mark_initial_data_as_permanent(&mut self, entity: EntityId) {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entity_data[entity.get_raw()].permanent = true;
+    }
+
+    /// Checks if the data of the specified entity remains unchanged from the initial value 
+    /// throughout the entire program.
+    pub fn is_initial_data_permanent(&mut self, entity: EntityId) -> bool {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entity_data[entity.get_raw()].permanent
+    }
+
+    /// Stores a temporary value for the related entity.
+    ///
+    /// This is used during interpretation and simplification to keep track of the current value
+    /// of a variable that does not have a permanent value across the entire program.
+    pub fn set_temporary_data(&mut self, entity: EntityId, data: KnownData) {
+        assert!(entity.get_raw() < self.entities.len());
+        self.entity_data[entity.get_raw()].temporary = data;
+    }
+
+    /// Retrieves a temporary value for the related entity, set by set_temporary_data.
+    ///
+    /// This is used during interpretation and simplification to keep track of the current value
+    /// of a variable that does not have a permanent value across the entire program.
+    pub fn get_temporary_data(&self, entity: EntityId) -> &KnownData {
+        assert!(entity.get_raw() < self.entities.len());
+        &self.entity_data[entity.get_raw()].temporary
+    }
+
+    /// Resets the temporary data of an entity to be the permanent data of that entity.
+    ///
+    /// Equivalent to calling `set_temporary_data(entity, get_permanent_data(entity))
+    pub fn reset_temporary_data(&mut self, entity: EntityId) {
+        assert!(entity.get_raw() < self.entities.len());
+        let data = &mut self.entity_data[entity.get_raw()];
+        data.temporary = data.initial.clone();
+    }
+
+    /// Resets the temporary data of every entity to their permanent data values.
+    ///
+    /// This should be used before beginning interpretation or simplification to reset all values
+    /// to a value they are known to have at the beginning of the program.
+    pub fn reset_all_temporary_data(&mut self) {
+        for index in 0..self.entity_data.len() {
+            let data = &mut self.entity_data[index];
+            data.temporary = data.initial.clone();
+        }
     }
 
     // ===UTILITIES=================================================================================

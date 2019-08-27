@@ -1,6 +1,6 @@
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum KnownData {
-    Empty,
+    Unknown,
     Int(i64),
     Float(f64),
     Bool(bool),

@@ -220,14 +220,10 @@ impl<'a> ScopeResolver<'a> {
                     // call and add it as a possibility.
                     let possibility = self.program.get_entity_data_type(input.get_base());
                     match &real_types[matching_type_index] {
-                        Option::None => {
-                            real_types[matching_type_index] = Option::Some(possibility)
-                        }
+                        Option::None => real_types[matching_type_index] = Option::Some(possibility),
                         Option::Some(other_possibility) => {
-                            real_types[matching_type_index] = Option::Some(biggest_common_type(
-                                &possibility,
-                                other_possibility,
-                            ))
+                            real_types[matching_type_index] =
+                                Option::Some(biggest_common_type(&possibility, other_possibility))
                         }
                     }
                 }
@@ -248,14 +244,10 @@ impl<'a> ScopeResolver<'a> {
                     // call and add it as a possibility.
                     let possibility = self.program.get_entity_data_type(output.get_base());
                     match &real_types[matching_type_index] {
-                        Option::None => {
-                            real_types[matching_type_index] = Option::Some(possibility)
-                        }
+                        Option::None => real_types[matching_type_index] = Option::Some(possibility),
                         Option::Some(other_possibility) => {
-                            real_types[matching_type_index] = Option::Some(biggest_common_type(
-                                &possibility,
-                                other_possibility,
-                            ))
+                            real_types[matching_type_index] =
+                                Option::Some(biggest_common_type(&possibility, other_possibility))
                         }
                     }
                 }
@@ -287,9 +279,9 @@ impl<'a> ScopeResolver<'a> {
                 Option::Some(matching_type_index) => {
                     // It is a template parameter, so find out what that
                     // template paramter resolved to.
-                    real_types[matching_type_index].as_ref().expect(
-                        "Unresolved template parameters should have been handled earlier.",
-                    )
+                    real_types[matching_type_index]
+                        .as_ref()
+                        .expect("Unresolved template parameters should have been handled earlier.")
                 }
             };
             let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
@@ -297,7 +289,7 @@ impl<'a> ScopeResolver<'a> {
                 .program
                 .adopt_and_define_intermediate(target_scope, Entity::DataType(resolved_type));
             self.program
-                .redefine_entity(input.get_base(), make_var(resolved_type_entity));
+                .modify_entity(input.get_base(), make_var(resolved_type_entity));
         }
         for (index, output) in func_call.iterate_over_outputs().enumerate() {
             // If the output doesn't use an automatic data type, no resolving
@@ -321,9 +313,9 @@ impl<'a> ScopeResolver<'a> {
                 Option::Some(matching_type_index) => {
                     // It is a template parameter, so find out what that
                     // template paramter resolved to.
-                    real_types[matching_type_index].as_ref().expect(
-                        "Unresolved template parameters should have been handled earlier.",
-                    )
+                    real_types[matching_type_index]
+                        .as_ref()
+                        .expect("Unresolved template parameters should have been handled earlier.")
                 }
             };
             let resolved_type = Self::resolve_automatic_type(&automatic_type, target_type);
@@ -331,7 +323,7 @@ impl<'a> ScopeResolver<'a> {
                 .program
                 .adopt_and_define_intermediate(target_scope, Entity::DataType(resolved_type));
             self.program
-                .redefine_entity(output.get_base(), make_var(resolved_type_entity));
+                .modify_entity(output.get_base(), make_var(resolved_type_entity));
         }
         self.program.add_func_call(target_scope, func_call);
     }
@@ -339,7 +331,7 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_body(&mut self, source: ScopeId, target: ScopeId) {
         for old_func_call in self.program.clone_scope_body(source).iter() {
             self.resolve_function_call(old_func_call, target);
-        } 
+        }
 
         if let Option::None = self.program.get_scope_parent(source) {
             if let Option::Some(func_id) = self.program.shallow_lookup_symbol(source, "main") {

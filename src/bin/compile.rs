@@ -20,11 +20,11 @@ fn main() {
         match waveguide::compile(&code) {
             Result::Ok(_program) => {
                 println!("Compilation completed sucessfully.");
-            },
+            }
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
-            },
+            }
         }
     }
 }

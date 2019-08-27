@@ -48,7 +48,7 @@ pub fn perform_cast(data: KnownData, from: DataType, to: DataType) -> KnownData 
             _ => panic!("Provided data did not match provided type!"),
         }
     } else {
-        KnownData::Empty
+        KnownData::Unknown
     }
     // TODO: Implement rules 4-6, same reason as biggest_common_type.
 }
