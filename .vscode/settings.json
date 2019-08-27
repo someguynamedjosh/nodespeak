@@ -1,3 +1,9 @@
 {
-  "editor.tabSize": 4
+  "editor.tabSize": 4,
+  "files.watcherExclude": {
+    "**/target/debug": true,
+    "**/target/doc": true,
+    "**/target/release": true,
+    "**/target/rls": true
+  }
 }
