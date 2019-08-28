@@ -27,9 +27,9 @@ pub fn compile(source: &str) -> Result<CompileResult, String> {
         }
     };
     let root_scope = program.get_root_scope();
-    let new_root = structure::resolve_scope(&mut program, root_scope);
+    // let new_root = structure::resolve_scope(&mut program, root_scope);
     Result::Ok(CompileResult {
         program: program,
-        root_scope: new_root,
+        root_scope, //: new_root,
     })
 }

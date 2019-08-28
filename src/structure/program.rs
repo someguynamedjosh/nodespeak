@@ -1,5 +1,5 @@
 use crate::structure::{
-    add_builtins, Builtins, DataType, FuncCall, KnownData, Scope, Variable,
+    add_builtins, Builtins, FuncCall, FunctionData, KnownData, Scope, Variable,
 };
 use std::collections::HashMap;
 
@@ -291,8 +291,10 @@ impl Program {
             let mut index: usize = 0;
             for variable in self.variables.iter() {
                 if variable.is_permanent() {
-                    if let KnownData::Function{..} = variable.borrow_initial_value() {
-                        return Option::Some(VariableId(index));
+                    if let KnownData::Function(data) = variable.borrow_initial_value() {
+                        if data.body == scope {
+                            return Option::Some(VariableId(index));
+                        }
                     }
                 }
                 index += 1;
@@ -306,7 +308,25 @@ impl Program {
 
     // Tries to find a function variable which uses the specified scope as a
     // function body. If nothing is found, Option::None is returned.
-    pub fn lookup_and_clone_parent_function(&self, scope: ScopeId) -> Option<KnownData> {
-        self.find_parent_function(scope).map(|id| self.borrow_initial_value(id).clone())
+    pub fn lookup_and_clone_parent_function(&self, scope: ScopeId) -> Option<FunctionData> {
+        // TODO: This is very inefficient.
+        // TODO: This function might be useless and buggy, need to review how it
+        // is used in the rest of the code.
+        let mut real_scope = scope.0;
+        loop {
+            for variable in self.variables.iter() {
+                if variable.is_permanent() {
+                    if let KnownData::Function(data) = variable.borrow_initial_value() {
+                        if data.body == scope {
+                            return Option::Some(data.clone());
+                        }
+                    }
+                }
+            }
+            match self.scopes[real_scope].parent {
+                Option::None => return Option::None,
+                Option::Some(id) => real_scope = id.0,
+            };
+        }
     }
 }

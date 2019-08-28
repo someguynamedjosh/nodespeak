@@ -73,7 +73,7 @@ pub mod convert {
         program: &Program,
         scope: ScopeId,
         symbol: &Pair<Rule>,
-    ) -> Result<EntityId, CompileProblem> {
+    ) -> Result<VariableId, CompileProblem> {
         match program.lookup_symbol(scope, symbol.as_str()) {
             Option::Some(entity) => Result::Ok(entity),
             Option::None => Result::Err(problem::no_entity_with_name(FilePosition::from_pair(
@@ -138,10 +138,7 @@ pub mod convert {
         Result::Ok(match output_var {
             Option::Some(value) => VarAccess::new(value),
             Option::None => {
-                VarAccess::new(program.adopt_and_define_intermediate(
-                    scope,
-                    make_var(program.get_builtins().void_type),
-                ))
+                VarAccess::new(program.adopt_and_define_intermediate(scope, Variable::void()))
             }
         })
     }
@@ -159,8 +156,9 @@ pub mod convert {
                 Rule::oct_int => unimplemented!(),
                 Rule::legacy_oct_int => unimplemented!(),
                 Rule::dec_int => {
-                    let val = Entity::IntLiteral(parse_dec_int(child.as_str()));
-                    return Result::Ok(VarAccess::new(program.adopt_entity(val)));
+                    let value = parse_dec_int(child.as_str());
+                    let var = program.adopt_variable(Variable::int_literal(value));
+                    return Result::Ok(VarAccess::new(var));
                 }
                 Rule::float => unimplemented!(),
                 Rule::func_expr => return convert_func_expr(program, scope, force_output, child),
@@ -362,7 +360,7 @@ pub mod convert {
         }
     }
 
-    fn operator_to_op_fn(operator: &Operator, blt: &Builtins) -> EntityId {
+    fn operator_to_op_fn(operator: &Operator, blt: &Builtins) -> VariableId {
         if operator.id == ADD.id {
             blt.add_func
         } else if operator.id == SUBTRACT.id {
@@ -518,7 +516,7 @@ pub mod convert {
         program: &mut Program,
         func_scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<EntityId, CompileProblem> {
+    ) -> Result<VariableId, CompileProblem> {
         let mut name = Option::None;
         let mut data_type = Option::None;
         for part in input.into_inner() {
@@ -530,17 +528,13 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let variable = VariableEntity::new(data_type.unwrap());
-        Result::Ok(program.adopt_and_define_symbol(
-            func_scope,
-            name.unwrap(),
-            Entity::Variable(variable),
-        ))
+        let variable = Variable::variable(data_type.unwrap(), None);
+        Result::Ok(program.adopt_and_define_symbol(func_scope, name.unwrap(), variable))
     }
 
     fn add_function_inputs(
         program: &mut Program,
-        func: &mut FunctionEntity,
+        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -552,7 +546,7 @@ pub mod convert {
 
     fn add_function_outputs(
         program: &mut Program,
-        func: &mut FunctionEntity,
+        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -564,7 +558,7 @@ pub mod convert {
 
     fn add_function_output(
         program: &mut Program,
-        func: &mut FunctionEntity,
+        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -577,18 +571,14 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let variable = VariableEntity::new(data_type.unwrap());
-        func.add_output(program.adopt_and_define_symbol(
-            func_scope,
-            "!return_value",
-            Entity::Variable(variable),
-        ));
+        let variable = Variable::variable(data_type.unwrap(), None);
+        func.add_output(program.adopt_and_define_symbol(func_scope, "!return_value", variable));
         Result::Ok(())
     }
 
     fn convert_function_signature(
         program: &mut Program,
-        func: &mut FunctionEntity,
+        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -634,7 +624,7 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         let func_scope = program.create_child_scope(scope);
-        let mut function = FunctionEntity::new(func_scope);
+        let mut function = FunctionData::new(func_scope);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
@@ -643,14 +633,14 @@ pub mod convert {
                 }
                 Rule::returnable_code_block => {
                     let output_value = function.get_single_output().and_then(
-                        |id: EntityId| -> Option<VarAccess> { Option::Some(VarAccess::new(id)) },
+                        |id: VariableId| -> Option<VarAccess> { Option::Some(VarAccess::new(id)) },
                     );
                     // So that code inside the body can refer to the function.
                     // If name is None, there is a bug in the parser.
                     program.adopt_and_define_symbol(
                         scope,
                         name.unwrap(),
-                        Entity::Function(function),
+                        Variable::function_def(function),
                     );
                     convert_returnable_code_block(program, func_scope, output_value, child)?;
                     // This branch arm can only be called once but I don't know how to tell rustc that,
@@ -664,32 +654,31 @@ pub mod convert {
         Result::Ok(())
     }
 
-    // TODO: Take in data type.
     fn convert_assigned_variable(
         program: &mut Program,
         scope: ScopeId,
-        data_type: EntityId,
+        data_type: DataType,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
-        let variable = VariableEntity::new(data_type);
-        let id = program.adopt_entity(Entity::Variable(variable));
+        let variable_id = program.adopt_variable(Variable::variable(data_type, None));
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
-                Rule::expr => convert_expression(program, scope, VarAccess::new(id), true, child)?,
+                Rule::expr => {
+                    convert_expression(program, scope, VarAccess::new(variable_id), true, child)?
+                }
                 _ => unreachable!(),
             }
         }
-        program.define_symbol(scope, name.unwrap(), id);
+        program.define_symbol(scope, name.unwrap(), variable_id);
         Result::Ok(())
     }
 
-    // TODO: Take in data type.
     fn convert_empty_variable(
         program: &mut Program,
         scope: ScopeId,
-        data_type: EntityId,
+        data_type: DataType,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
@@ -699,8 +688,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let variable = VariableEntity::new(data_type);
-        let id = program.adopt_and_define_symbol(scope, name.unwrap(), Entity::Variable(variable));
+        program.adopt_and_define_symbol(scope, name.unwrap(), Variable::variable(data_type, None));
         Result::Ok(())
     }
 
@@ -708,32 +696,40 @@ pub mod convert {
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<EntityId, CompileProblem> {
-        for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::named_data_type => {
-                    for sub_child in child.into_inner() {
-                        match sub_child.as_rule() {
-                            Rule::identifier => {
-                                return lookup_symbol_with_error(&program, scope, &sub_child)
-                            }
-                            _ => unreachable!(),
-                        }
+    ) -> Result<DataType, CompileProblem> {
+        let type_variable_id;
+        let child = input
+            .into_inner()
+            .next()
+            .expect("Grammar requires one child.");
+        match child.as_rule() {
+            Rule::named_data_type => {
+                let sub_child = child
+                    .into_inner()
+                    .next()
+                    .expect("Grammar requires one child.");
+                match sub_child.as_rule() {
+                    Rule::identifier => {
+                        type_variable_id = lookup_symbol_with_error(&program, scope, &sub_child)?;
                     }
-                    unreachable!();
+                    _ => unreachable!(),
                 }
-                Rule::dynamic_data_type => unimplemented!(),
-                _ => unreachable!(),
             }
+            Rule::dynamic_data_type => unimplemented!(),
+            _ => unreachable!(),
         }
-        unreachable!();
+        let type_variable = program.borrow_variable(type_variable_id);
+        Result::Ok(match type_variable.borrow_initial_value() {
+            KnownData::DataType(real_type) => real_type.clone(),
+            _ => DataType::Dynamic(type_variable_id),
+        })
     }
 
     fn convert_array_data_type(
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<EntityId, CompileProblem> {
+    ) -> Result<DataType, CompileProblem> {
         unimplemented!();
     }
 
@@ -741,7 +737,7 @@ pub mod convert {
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<EntityId, CompileProblem> {
+    ) -> Result<DataType, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::array_data_type => return convert_array_data_type(program, scope, child),
@@ -763,12 +759,22 @@ pub mod convert {
                 Rule::data_type => {
                     data_type = Option::Some(convert_data_type(program, scope, child)?)
                 } // TODO: Include data type.
-                Rule::assigned_variable => {
-                    convert_assigned_variable(program, scope, data_type.unwrap(), child)?
-                }
-                Rule::empty_variable => {
-                    convert_empty_variable(program, scope, data_type.unwrap(), child)?
-                }
+                Rule::assigned_variable => convert_assigned_variable(
+                    program,
+                    scope,
+                    data_type
+                        .clone()
+                        .expect("Grammar requires data type before variable."),
+                    child,
+                )?,
+                Rule::empty_variable => convert_empty_variable(
+                    program,
+                    scope,
+                    data_type
+                        .clone()
+                        .expect("Grammar requires data type before variable."),
+                    child,
+                )?,
                 _ => unreachable!(),
             }
         }

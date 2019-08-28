@@ -1,9 +1,10 @@
-use crate::structure::{ScopeId, VariableId};
+use crate::structure::{BuiltinFunction, ScopeId, VariableId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
     Automatic,
     Dynamic(VariableId),
+    LoadTemplateParameter(VariableId),
     Bool,
     Int,
     Float,
@@ -24,6 +25,70 @@ impl DataType {
 }
 
 #[derive(Clone, Debug)]
+pub struct FunctionData {
+    pub body: ScopeId,
+    pub builtin: Option<BuiltinFunction>,
+    pub inputs: Vec<VariableId>,
+    pub outputs: Vec<VariableId>,
+}
+
+impl FunctionData {
+    pub fn new(body: ScopeId) -> FunctionData {
+        FunctionData {
+            body,
+            builtin: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
+
+    pub fn builtin(body: ScopeId, builtin: BuiltinFunction) -> FunctionData {
+        FunctionData {
+            body,
+            builtin: Option::Some(builtin),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
+
+    pub fn get_body(&self) -> ScopeId {
+        self.body
+    }
+
+    pub fn is_builtin(&self) -> bool {
+        self.builtin.is_some()
+    }
+
+    pub fn get_builtin(&self) -> &Option<BuiltinFunction> {
+        &self.builtin
+    }
+
+    pub fn add_input(&mut self, input: VariableId) {
+        self.inputs.push(input)
+    }
+
+    pub fn get_input(&self, index: usize) -> VariableId {
+        self.inputs[index]
+    }
+
+    pub fn add_output(&mut self, output: VariableId) {
+        self.outputs.push(output)
+    }
+
+    pub fn get_output(&self, index: usize) -> VariableId {
+        self.outputs[index]
+    }
+
+    pub fn get_single_output(&self) -> Option<VariableId> {
+        if self.outputs.len() == 1 {
+            Option::Some(self.outputs[0].clone())
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum KnownData {
     Void,
     Unknown,
@@ -31,11 +96,8 @@ pub enum KnownData {
     Int(i64),
     Float(f64),
     DataType(DataType),
-    Function {
-        body: ScopeId,
-        inputs: Vec<VariableId>,
-        outputs: Vec<VariableId>,
-    }, // Array(Vec<KnownData>),
+    Function(FunctionData),
+    // Array(Vec<KnownData>),
 }
 
 impl KnownData {
@@ -43,9 +105,11 @@ impl KnownData {
         match dtype {
             DataType::Automatic => KnownData::Unknown,
             DataType::Dynamic(_source) => KnownData::Unknown,
+            DataType::LoadTemplateParameter(_source) => KnownData::Unknown,
             DataType::Bool => KnownData::Bool(false),
             DataType::Int => KnownData::Int(0),
             DataType::Float => KnownData::Float(0.0),
+            DataType::Void => KnownData::Void,
             DataType::DataType_ => KnownData::Unknown,
             DataType::Function_ => KnownData::Unknown,
         }
@@ -70,8 +134,8 @@ impl Variable {
         permanent: bool,
     ) -> Variable {
         Variable {
-            data_type,
             initial_value: initial_value.unwrap_or_else(|| KnownData::default_for_type(&data_type)),
+            data_type,
             permanent,
             temporary_value: KnownData::Unknown,
             temporary_read: false,
@@ -85,6 +149,14 @@ impl Variable {
 
     pub fn constant(data_type: DataType, value: KnownData) -> Variable {
         Self::new_impl(data_type, Option::Some(value), true)
+    }
+
+    pub fn function_def(function_data: FunctionData) -> Variable {
+        Self::constant(DataType::Function_, KnownData::Function(function_data))
+    }
+
+    pub fn data_type(value: DataType) -> Variable {
+        Self::constant(DataType::DataType_, KnownData::DataType(value))
     }
 
     pub fn automatic() -> Variable {
@@ -101,6 +173,10 @@ impl Variable {
 
     pub fn float_literal(value: f64) -> Variable {
         Variable::constant(DataType::Float, KnownData::Float(value))
+    }
+
+    pub fn void() -> Variable {
+        Variable::variable(DataType::Void, Option::None)
     }
 
     pub fn set_initial_value(&mut self, value: KnownData) {
@@ -126,7 +202,7 @@ impl Variable {
         }
     }
 
-    pub fn borrow_temporary_value(&self) -> &KnownData {
+    pub fn borrow_temporary_value(&mut self) -> &KnownData {
         self.temporary_read = true;
         &self.temporary_value
     }

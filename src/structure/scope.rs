@@ -1,4 +1,4 @@
-use crate::structure::{VariableId, FuncCall, ScopeId};
+use crate::structure::{FuncCall, ScopeId, VariableId};
 use std::collections::HashMap;
 
 #[derive(Debug)]
