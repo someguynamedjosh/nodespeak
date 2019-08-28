@@ -1,41 +1,41 @@
-use crate::structure::EntityId;
+use crate::structure::VariableId;
 
 #[derive(Clone, Debug)]
 pub struct VarAccess {
-    base: EntityId,
-    indexes: Vec<EntityId>,
+    base: VariableId,
+    indexes: Vec<VariableId>,
 }
 
 impl VarAccess {
-    pub fn new(base: EntityId) -> VarAccess {
+    pub fn new(base: VariableId) -> VarAccess {
         VarAccess {
             base: base,
             indexes: Vec::new(),
         }
     }
 
-    pub fn add_index(&mut self, index: EntityId) {
+    pub fn add_index(&mut self, index: VariableId) {
         self.indexes.push(index);
     }
 
-    pub fn get_base(&self) -> EntityId {
+    pub fn get_base(&self) -> VariableId {
         self.base
     }
 
-    pub fn iterate_over_indexes(&self) -> std::slice::Iter<EntityId> {
+    pub fn iterate_over_indexes(&self) -> std::slice::Iter<VariableId> {
         self.indexes.iter()
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct FuncCall {
-    function: EntityId,
+    function: VariableId,
     inputs: Vec<VarAccess>,
     outputs: Vec<VarAccess>,
 }
 
 impl FuncCall {
-    pub fn new(function: EntityId) -> FuncCall {
+    pub fn new(function: VariableId) -> FuncCall {
         FuncCall {
             function: function,
             inputs: Vec::new(),
@@ -43,7 +43,7 @@ impl FuncCall {
         }
     }
 
-    pub fn set_function(&mut self, function: EntityId) {
+    pub fn set_function(&mut self, function: VariableId) {
         self.function = function;
     }
 
@@ -55,7 +55,7 @@ impl FuncCall {
         self.outputs.push(output);
     }
 
-    pub fn get_function(&self) -> EntityId {
+    pub fn get_function(&self) -> VariableId {
         self.function
     }
 

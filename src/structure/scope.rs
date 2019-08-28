@@ -1,10 +1,10 @@
-use crate::structure::{EntityId, FuncCall, ScopeId};
+use crate::structure::{VariableId, FuncCall, ScopeId};
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Scope {
-    pub symbols: HashMap<String, EntityId>,
-    pub intermediates: Vec<EntityId>,
+    pub symbols: HashMap<String, VariableId>,
+    pub intermediates: Vec<VariableId>,
     pub body: Vec<FuncCall>,
     pub parent: Option<ScopeId>,
 }
