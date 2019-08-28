@@ -87,16 +87,14 @@ time, they are prefixed with an underscore. Whenever a variable with one of
 these types is referenced in the code, its value must be determinable at compile
 time. This means that the following code is valid:
 ```rust
-fn main {
-    _DataType type;
-    if(true) {
-        type = Float;
-    } else {
-        type = Int;
-    };
-    {type} variable = 1;
-    print(variable);
-}
+_DataType type;
+if(true) {
+    type = Float;
+} else {
+    type = Int;
+};
+{type} variable = 1;
+print(variable);
 ```
 Since the inputs to `if` are able to be determined at compile time, its effect
 can be determined at compile time, in turn allowing the value of `type` to be 
@@ -105,16 +103,14 @@ biggest strength of waveguide, allowing for features that would normally require
 runtime type information without the overhead of RTTI. However, because RTTI is
 not used, the following is not valid:
 ```rust
-fn main {
-    _DataType type;
-    if(randomBool()) {
-        type = Float;
-    } else {
-        type = Int;
-    };
-    {type} variable = 1;
-    print(variable);
-}
+_DataType type;
+if(randomBool()) {
+    type = Float;
+} else {
+    type = Int;
+};
+{type} variable = 1;
+print(variable);
 ```
 This will cause an error because the inputs to the `if` call cannot be
 determined at compile time, yet its lambdas are manipulating values that are
@@ -539,14 +535,14 @@ miniature function. It can contain any code that a function body can, except
 that if you want to 'return' from a lambda, you use a `break` statement instead 
 of a `return` statement. If you were to use `return`, it would cause whatever
 function the code is in to return instead of just the lambda. For example, if 
-you put `return` in an `if` call inside the definition for `main`, then it would 
-cause the `main` function to return. `break` would return from the lambda inside 
+you put `return` in an `if` call inside the definition for `demo`, then it would 
+cause the `demo` function to return. `break` would return from the lambda inside 
 the `if` function. Note that, unlike other languages, there *must* be a 
 semicolon at the end of the `if` call, since it is a function in waveguide, 
 while in other languages it is a statement. Here's a code block demonstrating
 all the principles mentioned:
 ```rust
-fn main():Int {
+fn demo():Int {
     Int value1 = 128, value2;
     // value2 will be set to 256 in this case.
     if (value1 == 128) {
@@ -556,7 +552,7 @@ fn main():Int {
         // lambda due to the break statement.
         value2 = 0;
     };
-    // a call to main() will return 12345 in this case.
+    // a call to demo() will return 12345 in this case.
     if (value2 == 256) {
         return 12345;
     } else {

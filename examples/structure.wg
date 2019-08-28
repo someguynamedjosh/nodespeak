@@ -12,10 +12,8 @@ fn swap(Int a, Int b):(Int c, Int d) {
     return b, a;
 }
 
-fn main {
-    Int sum = test1(10, 15);
-    assert(sum == 25);
-    Auto other = 10;
-    swap(sum, other):(sum, other);
-    assert(sum == 10);
-}
+Int sum = test1(10, 15);
+assert(sum == 25);
+Auto other = 10;
+swap(sum, other):(sum, other);
+assert(sum == 10);
