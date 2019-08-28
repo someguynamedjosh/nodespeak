@@ -153,11 +153,19 @@ for line in lines:
 
 root = data_stack[0]
         
-class Entity:
-    def __init__(self):
+class Variable:
+    def __init__(self, source):
         self.defining_scope = -1
         self.name = 'UNNAMED'
         self.type_name = ''
+        self.matching_scope = None
+        type_declaration = source.get('data_type')
+        if type(type_declaration) == type(''):
+            self.type_name = type_declaration
+            if self.type_name == 'Function_':
+                self.matching_scope = int(source.get('initial_value').get(0).get('body').get(0))
+        else:
+            self.type_name = 'todo...'
     
     def describe(self):
         global scopes
@@ -170,96 +178,14 @@ class Entity:
         return ''
     
     def finalize(self):
-        pass
-
-class VariableEntity(Entity):
-    def __init__(self, data_type_id):
-        Entity.__init__(self)
-        self.data_type_id = int(data_type_id)
-        self.data_type_name = 'UNDISCOVERED'
-        self.type_name = 'Variable'
-    
-    def extra(self):
-        global entities
-        return ' {type: ' + entities[self.data_type_id].describe() + '}'
-
-class FunctionEntity(Entity):
-    def __init__(self):
-        Entity.__init__(self)
-        self.type_name = 'Function'
-        self.body = -1
-    
-    def extra(self):
         global scopes
-        name = '(nonexistant)'
-        if self.body > -1:
-            name = scopes[self.body].get_name()
-        return ' {body: ' + name + '}'
-    
-    def finalize(self):
-        global scopes
-        if self.body > -1:
-            scopes[self.body].name = self.name
+        if self.matching_scope is not None:
+            scopes[self.matching_scope].name = self.name
 
-class BuiltinFunction(Entity):
-    def __init__(self):
-        Entity.__init__(self)
-        self.type_name = 'BuiltinFunction'
-        self.body = -1
-    
-    def extra(self):
-        global scopes
-        name = '(nonexistant)'
-        if self.body > -1:
-            name = scopes[self.body].get_name()
-        return ' {body: ' + name + '}'
-    
-    def finalize(self):
-        global scopes
-        if self.body > -1:
-            scopes[self.body].name = self.name
-
-class IntLiteral(Entity):
-    def __init__(self):
-        Entity.__init__(self)
-        self.type_name = 'IntLiteral'
-
-class FloatLiteral(Entity):
-    def __init__(self):
-        Entity.__init__(self)
-        self.type_name = 'FloatLiteral'
-
-class DataTypeEntity(Entity):
-    def __init__(self, contained_type):
-        Entity.__init__(self)
-        self.contained_type = contained_type
-        self.type_name = 'DataType'
-    
-    def extra(self):
-        return ' {defined as ' + self.contained_type + '}'
-
-entities = []
-for entity_source in root.get('entities').items:
-    name = entity_source.name
-    entity = None
-    if name == 'Variable':
-        struct = entity_source.get(0)
-        entity = VariableEntity(struct.get('data_type').get('raw_id'))
-    elif name == 'Function':
-        entity = FunctionEntity()
-        struct = entity_source.get(0)
-        entity.body = int(struct.get('body').get('raw_id'))
-    elif name == 'BuiltinFunction':
-        entity = BuiltinFunction()
-        struct = entity_source.get(0).get('base')
-        entity.body = int(struct.get('body').get('raw_id'))
-    elif name == 'IntLiteral':
-        entity = IntLiteral()
-    elif name == 'FloatLiteral':
-        entity = FloatLiteral()
-    elif name == 'DataType':
-        entity = DataTypeEntity(entity_source.items[0])
-    entities.append(entity)
+variables = []
+for variable_source in root.get('variables').items:
+    variable = Variable(variable_source)
+    variables.append(variable)
 
 class Scope:
     def __init__(self):
@@ -275,7 +201,7 @@ class Scope:
             return scopes[self.parent].get_name() + '.' + self.name
         
     def describe(self):
-        out = 'SCOPE ' + self.get_name() + '\n'
+        out = 'SCOPE for ' + self.get_name() + '\n'
         out += ' body:\n'
         for call in self.body:
             out += '  ' + call.describe().replace('\n', '\n  ') + '\n'
@@ -288,12 +214,12 @@ class FuncCall:
         self.outputs = outputs
     
     def describe(self):
-        global entities
-        out = 'call ' + entities[self.function].describe() + '\n'
+        global variables
+        out = 'call ' + variables[self.function].describe() + '\n'
         for index, value in enumerate(self.inputs):
-            out += '  i' + str(index + 1) + ': ' + entities[value].describe() + '\n'
+            out += '  i' + str(index + 1) + ': ' + variables[value].describe() + '\n'
         for index, value in enumerate(self.outputs):
-            out += '  o' + str(index + 1) + ': ' + entities[value].describe() + '\n'
+            out += '  o' + str(index + 1) + ': ' + variables[value].describe() + '\n'
         return out[:-1] # Strip trailing whitespace.
 
 
@@ -307,37 +233,37 @@ for scope_source in scope_sources:
         scope.name = 'root'
     parent_source = scope_source.get('parent')
     if parent_source != 'None':
-        scope.parent = int(parent_source.get(0).get('raw_id'))
+        scope.parent = int(parent_source.get(0).get(0))
     scopes.append(scope)
     if scope_source.get('body') != '[]':
         for call in scope_source.get('body').items:
-            function = int(call.get('function').get('raw_id'))
+            function = int(call.get('function').get(0))
             inputs, outputs = [], []
             if call.get('inputs') != '[]':
                 for iinput in call.get('inputs').items:
                     # TODO: Properly handle var access objects.
-                    inputs.append(int(iinput.get('base').get('raw_id')))
+                    inputs.append(int(iinput.get('base').get(0)))
             if call.get('outputs') != '[]':
                 for output in call.get('outputs').items:
                     # TODO: Properly handle var access objects.
-                    outputs.append(int(output.get('base').get('raw_id')))
+                    outputs.append(int(output.get('base').get(0)))
             scope.body.append(FuncCall(function, inputs, outputs))
     if type(scope_source.get('symbols')) is not str:
         for symbol in scope_source.get('symbols').keys():
             real_name = symbol[1:-1] # Strip quotations.
-            entity_id = scope_source.get('symbols').get(symbol).get('raw_id')
-            index = int(entity_id)
-            entities[index].name = real_name
-            entities[index].defining_scope = current_index
+            variable_id = scope_source.get('symbols').get(symbol).get(0)
+            index = int(variable_id)
+            variables[index].name = real_name
+            variables[index].defining_scope = current_index
     if (scope_source.get('intermediates') == '[]'):
         continue
     for iindex, intermediate in enumerate(scope_source.get('intermediates').items):
-        entity_id = intermediate.get('raw_id')
-        index = int(entity_id)
-        entities[index].name = '!intermediate_' + str(iindex)
-        entities[index].defining_scope = current_index
+        variable_id = intermediate.get(0)
+        index = int(variable_id)
+        variables[index].name = '!intermediate_' + str(iindex)
+        variables[index].defining_scope = current_index
 
-for entity in entities:
-    entity.finalize()
+for variable in variables:
+    variable.finalize()
 for scope in scopes:
     print(scope.describe())

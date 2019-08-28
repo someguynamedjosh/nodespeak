@@ -5,5 +5,6 @@
     "**/target/doc": true,
     "**/target/release": true,
     "**/target/rls": true
-  }
+  },
+  "terminal.integrated.scrollback": 4000
 }
