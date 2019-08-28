@@ -157,30 +157,42 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let make_logic_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
         let func_scope = program.create_scope();
         let mut func_data = FunctionData::builtin(func_scope, func);
-        let in1 =
-            program.adopt_and_define_symbol(func_scope, "in1", Variable::variable(DataType::Bool, None));
-        let in2 =
-            program.adopt_and_define_symbol(func_scope, "in2", Variable::variable(DataType::Bool, None));
-        let out =
-            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(DataType::Bool, None));
+        let in1 = program.adopt_and_define_symbol(
+            func_scope,
+            "in1",
+            Variable::variable(DataType::Bool, None),
+        );
+        let in2 = program.adopt_and_define_symbol(
+            func_scope,
+            "in2",
+            Variable::variable(DataType::Bool, None),
+        );
+        let out = program.adopt_and_define_symbol(
+            func_scope,
+            "out",
+            Variable::variable(DataType::Bool, None),
+        );
         func_data.add_input(in1);
         func_data.add_input(in2);
         func_data.add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_convert_func =
-        |program: &mut Program, func: BuiltinFunction, name: &str, in_type, out_type| {
-            let func_scope = program.create_scope();
-            let mut func_data = FunctionData::builtin(func_scope, func);
-            let in1 =
-                program.adopt_and_define_symbol(func_scope, "in1", Variable::variable(in_type, None));
-            let out =
-                program.adopt_and_define_symbol(func_scope, "out", Variable::variable(out_type, None));
-            func_data.add_input(in1);
-            func_data.add_output(out);
-            program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
-        };
+    let make_convert_func = |program: &mut Program,
+                             func: BuiltinFunction,
+                             name: &str,
+                             in_type,
+                             out_type| {
+        let func_scope = program.create_scope();
+        let mut func_data = FunctionData::builtin(func_scope, func);
+        let in1 =
+            program.adopt_and_define_symbol(func_scope, "in1", Variable::variable(in_type, None));
+        let out =
+            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(out_type, None));
+        func_data.add_input(in1);
+        func_data.add_output(out);
+        program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
+    };
 
     let make_comparison_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
         let func_scope = program.create_scope();
@@ -198,8 +210,11 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         );
         let in2 =
             program.adopt_and_define_symbol(func_scope, "in2", Variable::variable(data_type, None));
-        let out =
-            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(DataType::Bool, None));
+        let out = program.adopt_and_define_symbol(
+            func_scope,
+            "out",
+            Variable::variable(DataType::Bool, None),
+        );
         func_data.add_input(in1);
         func_data.add_input(in2);
         func_data.add_output(out);

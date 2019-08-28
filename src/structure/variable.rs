@@ -26,10 +26,10 @@ impl DataType {
 
 #[derive(Clone, Debug)]
 pub struct FunctionData {
-    pub body: ScopeId,
-    pub builtin: Option<BuiltinFunction>,
-    pub inputs: Vec<VariableId>,
-    pub outputs: Vec<VariableId>,
+    body: ScopeId,
+    builtin: Option<BuiltinFunction>,
+    inputs: Vec<VariableId>,
+    outputs: Vec<VariableId>,
 }
 
 impl FunctionData {
@@ -71,12 +71,20 @@ impl FunctionData {
         self.inputs[index]
     }
 
+    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
+        &self.inputs
+    }
+
     pub fn add_output(&mut self, output: VariableId) {
         self.outputs.push(output)
     }
 
     pub fn get_output(&self, index: usize) -> VariableId {
         self.outputs[index]
+    }
+
+    pub fn borrow_outputs(&self) -> &Vec<VariableId> {
+        &self.outputs
     }
 
     pub fn get_single_output(&self) -> Option<VariableId> {
@@ -116,7 +124,7 @@ impl KnownData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Variable {
     data_type: DataType,
     initial_value: KnownData,
@@ -177,6 +185,14 @@ impl Variable {
 
     pub fn void() -> Variable {
         Variable::variable(DataType::Void, Option::None)
+    }
+
+    pub fn set_data_type(&mut self, data_type: DataType) {
+        self.data_type = data_type;
+    }
+
+    pub fn borrow_data_type(&self) -> &DataType {
+        &self.data_type
     }
 
     pub fn set_initial_value(&mut self, value: KnownData) {

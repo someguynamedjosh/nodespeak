@@ -51,8 +51,16 @@ impl FuncCall {
         self.inputs.push(input);
     }
 
+    pub fn borrow_inputs(&self) -> &Vec<VarAccess> {
+        &self.inputs
+    }
+
     pub fn add_output(&mut self, output: VarAccess) {
         self.outputs.push(output);
+    }
+
+    pub fn borrow_outputs(&self) -> &Vec<VarAccess> {
+        &self.outputs
     }
 
     pub fn get_function(&self) -> VariableId {

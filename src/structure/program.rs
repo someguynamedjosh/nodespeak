@@ -1,5 +1,5 @@
 use crate::structure::{
-    add_builtins, Builtins, FuncCall, FunctionData, KnownData, Scope, Variable,
+    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, Variable,
 };
 use std::collections::HashMap;
 
@@ -107,7 +107,7 @@ impl Program {
         self.scopes[scope.0].intermediates.clone()
     }
 
-    // ===SYMBOLS/ENTITIES==========================================================================
+    // ===SYMBOLS/VARIABLES=========================================================================
 
     pub fn shallow_lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
         assert!(scope.0 < self.scopes.len());
@@ -159,6 +159,11 @@ impl Program {
     pub fn borrow_variable(&self, variable: VariableId) -> &Variable {
         assert!(variable.0 < self.variables.len());
         &self.variables[variable.0]
+    }
+
+    pub fn set_data_type(&mut self, variable: VariableId, data_type: DataType) {
+        assert!(variable.0 < self.variables.len());
+        self.variables[variable.0].set_data_type(data_type);
     }
 
     // ===DATA STORAGE==============================================================================
@@ -292,7 +297,7 @@ impl Program {
             for variable in self.variables.iter() {
                 if variable.is_permanent() {
                     if let KnownData::Function(data) = variable.borrow_initial_value() {
-                        if data.body == scope {
+                        if data.get_body() == scope {
                             return Option::Some(VariableId(index));
                         }
                     }
@@ -317,7 +322,7 @@ impl Program {
             for variable in self.variables.iter() {
                 if variable.is_permanent() {
                     if let KnownData::Function(data) = variable.borrow_initial_value() {
-                        if data.body == scope {
+                        if data.get_body() == scope {
                             return Option::Some(data.clone());
                         }
                     }
