@@ -1,6 +1,6 @@
 use crate::structure;
 use crate::structure::{
-    DataType, FuncCall, FunctionData, KnownData, Program, ScopeId, VarAccess, VariableId, Variable
+    DataType, FuncCall, FunctionData, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
 use std::collections::HashMap;
 
@@ -132,6 +132,8 @@ impl<'a> ScopeResolver<'a> {
                 template_parameter,
                 structure::biggest_common_type(&table[&template_parameter], value),
             );
+        } else {
+            table.insert(template_parameter, value.clone());
         }
     }
 
@@ -191,9 +193,31 @@ impl<'a> ScopeResolver<'a> {
         match parameter_type {
             // If the parameter type directly contributes to a template parameter...
             DataType::LoadTemplateParameter(type_var) => {
+                // And if the argument type isn't automatic...
                 Self::combine_type_into_table(*type_var, argument_type, type_parameters);
             }
             _ => (),
+        }
+    }
+
+    fn resolve_automatic_type(&mut self, target: &VarAccess, real_type: DataType) {
+        // For now, we don't have code to handle arrays.
+        assert!(target.borrow_indexes().len() == 0);
+        self.program.set_data_type(target.get_base(), real_type);
+    }
+
+    fn resolve_templated_type(
+        data_type: &DataType,
+        type_params: &HashMap<VariableId, DataType>,
+        int_params: &HashMap<VariableId, i64>,
+    ) -> DataType {
+        eprintln!("{:?} for {:?}", type_params, data_type);
+        match data_type {
+            DataType::Dynamic(target) | DataType::LoadTemplateParameter(target) => type_params
+                .get(target)
+                .expect("Caller should have checked that all template parameters were resolved.")
+                .clone(),
+            _ => data_type.clone(),
         }
     }
 
@@ -205,6 +229,7 @@ impl<'a> ScopeResolver<'a> {
             KnownData::Function(data) => func_target = data.clone(),
             _ => panic!("TODO nice error for a function being vague."),
         }
+        eprintln!("{:?}", func_target);
 
         // TODO: Error if number of inputs and outputs do not match.
         let mut type_params = HashMap::new();
@@ -235,6 +260,7 @@ impl<'a> ScopeResolver<'a> {
         // parameters and arguments, we can zip the parameter and argument iterators together and
         // know that each argument will correspond with the appropriate parameter.
         for (param_type, arg_type) in param_types.zip(arg_types) {
+            eprintln!("{:?} {:?}", param_type, arg_type);
             // Figure out how to modify what we think the template parameters should be based on the
             // data type of the argument being used to set the parameter.
             Self::resolve_template_parameters(
@@ -245,12 +271,94 @@ impl<'a> ScopeResolver<'a> {
             );
         }
 
-        // Create a copy of the function body and set all the function parameters inside it. If the
-        // function is builtin, we can skip this step since they don't have a real function body.
-        if !func_target.is_builtin() {
-            // TODO: Proper parent?
+        // Create a copy of the function body and set all the function parameters inside it. Then
+        // use that to resolve automatic variables and cast any arguments if needed. For builtin
+        // functions, we use a different method because cloning their scopes all the time would be
+        // very costly.
+        if func_target.is_builtin() {
+            let resolved_input_types: Vec<DataType> = func_target
+                .borrow_inputs()
+                .iter()
+                .map(|input_id| {
+                    Self::resolve_templated_type(
+                        self.program.borrow_variable(*input_id).borrow_data_type(),
+                        &type_params,
+                        &int_params,
+                    )
+                })
+                .collect();
+            let resolved_output_types: Vec<DataType> = func_target
+                .borrow_outputs()
+                .iter()
+                .map(|output_id| {
+                    Self::resolve_templated_type(
+                        self.program.borrow_variable(*output_id).borrow_data_type(),
+                        &type_params,
+                        &int_params,
+                    )
+                })
+                .collect();
+            let mut new_new_func_call = FuncCall::new(new_func_call.get_function());
+
+            // Resolve the data type of any outputs that are automatic.
+            for (index, output_accessor) in new_func_call.borrow_outputs().iter().enumerate() {
+                if output_accessor
+                    .borrow_data_type(self.program)
+                    .is_automatic()
+                {
+                    self.resolve_automatic_type(
+                        output_accessor,
+                        resolved_output_types[index].clone(),
+                    );
+                }
+            }
+
+            // Cast any inputs to the function call.
+            for (index, input_accessor) in new_func_call.borrow_inputs().iter().enumerate() {
+                let input_type = &resolved_input_types[index];
+                if input_accessor.borrow_data_type(self.program) == input_type {
+                    // If the data types are identical, no casting is required.
+                    new_new_func_call.add_input(input_accessor.clone());
+                    continue;
+                }
+                let casted_var = Variable::variable(input_type.clone(), None);
+                let casted_id = self
+                    .program
+                    .adopt_and_define_intermediate(output, casted_var);
+                structure::create_cast(
+                    self.program,
+                    output,
+                    input_accessor.clone(),
+                    VarAccess::new(casted_id),
+                );
+                new_new_func_call.add_input(VarAccess::new(casted_id));
+            }
+            // Figure out what outputs will need to be casted. We can't cast them yet because
+            // the actual function needs to be executed first before we will have outputs to cast.
+            // We can't do this later because once we add the function call to the scope, we won't
+            // be able to modify it anymore.
+            let mut output_casts: Vec<(VarAccess, VarAccess)> = Vec::new();
+            for (index, output_accessor) in new_func_call.borrow_outputs().iter().enumerate() {
+                let output_type = &resolved_output_types[index];
+                if output_accessor.borrow_data_type(self.program) == output_type {
+                    new_new_func_call.add_output(output_accessor.clone());
+                    continue;
+                }
+                let output_holder = Variable::variable(output_type.clone(), None);
+                let holder_id = self
+                    .program
+                    .adopt_and_define_intermediate(output, output_holder);
+                output_casts.push((VarAccess::new(holder_id), output_accessor.clone()));
+                new_new_func_call.add_output(VarAccess::new(holder_id));
+            }
+            self.program.add_func_call(output, new_new_func_call);
+            for (from, to) in output_casts.into_iter() {
+                structure::create_cast(self.program, output, from, to);
+            }
+        } else {
             self.push_table();
             // Copy the function body.
+            // TODO: Proper parent?
             let copied = self.copy_scope(func_target.get_body(), None);
             // Set all the type parameters in the copied body to have the values we determined they
             // should have earlier.
@@ -270,14 +378,72 @@ impl<'a> ScopeResolver<'a> {
             // this new function to have resolved data types as well without requiring any extra
             // work.
             let new_function = self.convert_function(&func_target, copied);
-            let new_function_id = self
-                .program
-                .adopt_and_define_intermediate(output, Variable::function_def(new_function));
-            new_func_call.set_function(new_function_id);
+            let new_function_id = self.program.adopt_and_define_intermediate(
+                output,
+                Variable::function_def(new_function.clone()),
+            );
+            let mut new_new_func_call = FuncCall::new(new_function_id);
+
+            // Resolve the data type of any outputs that are automatic.
+            for (index, output_id) in new_func_call.borrow_outputs().iter().enumerate() {
+                if output_id.borrow_data_type(self.program).is_automatic() {
+                    let target_var = self.program.borrow_variable(new_function.get_output(index));
+                    let data_type = target_var.borrow_data_type().clone();
+                    self.resolve_automatic_type(output_id, data_type);
+                }
+            }
+
+            // Cast any inputs to the function call.
+            for (index, input_accessor) in new_func_call.borrow_inputs().iter().enumerate() {
+                let input_type = self
+                    .program
+                    .borrow_variable(new_function.get_input(index))
+                    .borrow_data_type();
+                if input_accessor.borrow_data_type(self.program) == input_type {
+                    // If the data types are identical, no casting is required.
+                    new_new_func_call.add_input(input_accessor.clone());
+                    continue;
+                }
+                let casted_var = Variable::variable(input_type.clone(), None);
+                let casted_id = self
+                    .program
+                    .adopt_and_define_intermediate(output, casted_var);
+                structure::create_cast(
+                    self.program,
+                    output,
+                    input_accessor.clone(),
+                    VarAccess::new(casted_id),
+                );
+                new_new_func_call.add_input(VarAccess::new(casted_id));
+            }
+            // Figure out what outputs will need to be casted. We can't cast them yet because
+            // the actual function needs to be executed first before we will have outputs to cast.
+            // We can't do this later because once we add the function call to the scope, we won't
+            // be able to modify it anymore.
+            let mut output_casts: Vec<(VarAccess, VarAccess)> = Vec::new();
+            for (index, output_accessor) in new_func_call.borrow_outputs().iter().enumerate() {
+                let output_type = self
+                    .program
+                    .borrow_variable(new_function.get_output(index))
+                    .borrow_data_type();
+                if output_accessor.borrow_data_type(self.program) == output_type {
+                    new_new_func_call.add_output(output_accessor.clone());
+                    continue;
+                }
+                let output_holder = Variable::variable(output_type.clone(), None);
+                let holder_id = self
+                    .program
+                    .adopt_and_define_intermediate(output, output_holder);
+                output_casts.push((VarAccess::new(holder_id), output_accessor.clone()));
+                new_new_func_call.add_output(VarAccess::new(holder_id));
+            }
+            self.program.add_func_call(output, new_new_func_call);
+            for (from, to) in output_casts.into_iter() {
+                structure::create_cast(self.program, output, from, to);
+            }
+
             self.pop_table();
         }
-
-        self.program.add_func_call(output, new_func_call);
     }
 
     fn resolve_body(&mut self, source: ScopeId, destination: ScopeId) {

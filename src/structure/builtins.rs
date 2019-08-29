@@ -96,6 +96,12 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         program.adopt_and_define_symbol(scope, "Float", Variable::data_type(DataType::Float));
     let void_type =
         program.adopt_and_define_symbol(scope, "Void", Variable::data_type(DataType::Void));
+    
+    let make_blank_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+        let func_scope = program.create_scope();
+        let func_data = FunctionData::builtin(func_scope, func);
+        program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
+    };
 
     let make_c_func = |program: &mut Program, func: BuiltinFunction, name: &str, in_type| {
         let func_scope = program.create_scope();
@@ -301,8 +307,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
 
         assert_func: make_c_func(program, BuiltinFunction::Assert, "assert", DataType::Bool),
         copy_func: make_a_a_func(program, BuiltinFunction::Copy, "!copy"),
-        // TODO: A proper return signature for this absolute mess of an all-purpose function.
-        return_func: make_aa_a_func(program, BuiltinFunction::Return, "!return"),
+        return_func: make_blank_func(program, BuiltinFunction::Return, "!return"),
 
         automatic_type: automatic_type,
         bool_type: bool_type,

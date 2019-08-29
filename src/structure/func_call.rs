@@ -1,4 +1,4 @@
-use crate::structure::VariableId;
+use crate::structure::{DataType, Program, VariableId};
 
 #[derive(Clone, Debug)]
 pub struct VarAccess {
@@ -18,12 +18,24 @@ impl VarAccess {
         self.indexes.push(index);
     }
 
+    pub fn borrow_indexes(&self) -> &Vec<VariableId> {
+        &self.indexes
+    }
+
     pub fn get_base(&self) -> VariableId {
         self.base
     }
 
     pub fn iterate_over_indexes(&self) -> std::slice::Iter<VariableId> {
         self.indexes.iter()
+    }
+
+    pub fn borrow_data_type<'a>(&'a self, program: &'a Program) -> &'a DataType {
+        let data_type = program.borrow_variable(self.base).borrow_data_type();
+        // For now, we don't have any code to manage arrays because arrays didn't exist at the time
+        // of writing this code.
+        assert!(self.indexes.len() == 0);
+        data_type
     }
 }
 
