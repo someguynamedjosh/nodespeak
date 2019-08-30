@@ -1,3 +1,4 @@
+use crate::problem::FilePosition;
 use crate::structure::{
     DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
@@ -63,7 +64,8 @@ fn simple_cast(
     to: VarAccess,
     func: VariableId,
 ) {
-    let mut func_call = FuncCall::new(func);
+    // TODO: Real position.
+    let mut func_call = FuncCall::new(func, FilePosition::placeholder());
     func_call.add_input(from);
     func_call.add_output(to);
     program.add_func_call(scope, func_call);

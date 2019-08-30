@@ -1,3 +1,4 @@
+use crate::problem::FilePosition;
 use crate::structure::{DataType, Program, VariableId};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,17 +43,27 @@ impl VarAccess {
 #[derive(Clone, Debug)]
 pub struct FuncCall {
     function: VariableId,
+    position: FilePosition,
     inputs: Vec<VarAccess>,
     outputs: Vec<VarAccess>,
 }
 
 impl FuncCall {
-    pub fn new(function: VariableId) -> FuncCall {
+    pub fn new(function: VariableId, position: FilePosition) -> FuncCall {
         FuncCall {
             function: function,
+            position,
             inputs: Vec::new(),
             outputs: Vec::new(),
         }
+    }
+
+    pub fn set_position(&mut self, new_position: FilePosition) {
+        self.position = new_position;
+    }
+
+    pub fn get_position(&self) -> &FilePosition {
+        &self.position
     }
 
     pub fn set_function(&mut self, function: VariableId) {

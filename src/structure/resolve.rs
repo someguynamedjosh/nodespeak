@@ -66,7 +66,10 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn convert_func_call(&self, call: &FuncCall) -> FuncCall {
-        let mut result = FuncCall::new(self.convert(call.get_function()));
+        let mut result = FuncCall::new(
+            self.convert(call.get_function()),
+            call.get_position().clone(),
+        );
         for input in call.iterate_over_inputs() {
             result.add_input(self.convert_var_access(input));
         }
@@ -302,7 +305,10 @@ impl<'a> ScopeResolver<'a> {
                     )
                 })
                 .collect();
-            let mut new_new_func_call = FuncCall::new(new_func_call.get_function());
+            let mut new_new_func_call = FuncCall::new(
+                new_func_call.get_function(),
+                new_func_call.get_position().clone(),
+            );
 
             // Resolve the data type of any outputs that are automatic.
             for (index, output_accessor) in new_func_call.borrow_outputs().iter().enumerate() {
@@ -386,7 +392,8 @@ impl<'a> ScopeResolver<'a> {
                 output,
                 Variable::function_def(new_function.clone()),
             );
-            let mut new_new_func_call = FuncCall::new(new_function_id);
+            let mut new_new_func_call =
+                FuncCall::new(new_function_id, new_func_call.get_position().clone());
 
             // Resolve the data type of any outputs that are automatic.
             for (index, output_id) in new_func_call.borrow_outputs().iter().enumerate() {

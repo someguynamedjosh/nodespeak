@@ -95,9 +95,10 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => {
-                    func_call = Option::Some(FuncCall::new(lookup_symbol_with_error(
-                        &program, scope, &child,
-                    )?))
+                    func_call = Option::Some(FuncCall::new(
+                        lookup_symbol_with_error(&program, scope, &child)?,
+                        input_pos.clone(),
+                    ))
                 }
                 Rule::func_input_list => convert_func_expr_input_list(
                     program,
@@ -473,7 +474,8 @@ pub mod convert {
                             let func = operator_to_op_fn(&top_op, program.get_builtins());
                             let var = program.make_intermediate_auto_var(scope);
                             let output = VarAccess::new(var);
-                            let mut call = FuncCall::new(func);
+                            // TODO: Real position.
+                            let mut call = FuncCall::new(func, FilePosition::placeholder());
                             // Popping reverses the order, hence this is necessary.
                             let other = operand_stack.pop();
                             call.add_input(operand_stack.pop().unwrap());
@@ -500,7 +502,11 @@ pub mod convert {
                 Option::Some(final_output) => {
                     let expression_output = operand_stack.pop().unwrap();
                     if expression_output != final_output {
-                        let mut call = FuncCall::new(program.get_builtins().copy_func);
+                        // TODO: Real position.
+                        let mut call = FuncCall::new(
+                            program.get_builtins().copy_func,
+                            FilePosition::placeholder(),
+                        );
                         call.add_input(expression_output);
                         call.add_output(final_output.clone());
                         program.add_func_call(scope, call);
@@ -530,7 +536,8 @@ pub mod convert {
                 let var = program.make_intermediate_auto_var(scope);
                 VarAccess::new(var)
             };
-            let mut call = FuncCall::new(func);
+            // TODO: Real position.
+            let mut call = FuncCall::new(func, FilePosition::placeholder());
             // Popping reverses the order, hence this is necessary.
             let other = operand_stack.pop();
             call.add_input(operand_stack.pop().unwrap());
@@ -905,7 +912,10 @@ pub mod convert {
                 index,
             ));
         }
-        program.add_func_call(scope, FuncCall::new(program.get_builtins().return_func));
+        program.add_func_call(
+            scope,
+            FuncCall::new(program.get_builtins().return_func, statement_position),
+        );
         Result::Ok(())
     }
 
