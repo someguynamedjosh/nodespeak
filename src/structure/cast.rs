@@ -97,7 +97,6 @@ pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: V
             program.get_builtins().float_to_int_func,
         );
     } else {
-        eprintln!("{:?} {:?}", from_type, to_type);
         panic!("TODO real error");
     }
 }

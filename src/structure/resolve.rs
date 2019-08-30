@@ -211,7 +211,6 @@ impl<'a> ScopeResolver<'a> {
         type_params: &HashMap<VariableId, DataType>,
         int_params: &HashMap<VariableId, i64>,
     ) -> DataType {
-        eprintln!("{:?} for {:?}", type_params, data_type);
         match data_type {
             DataType::Dynamic(target) | DataType::LoadTemplateParameter(target) => type_params
                 .get(target)
@@ -222,18 +221,24 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn resolve_function_call(&mut self, old_func_call: &FuncCall, output: ScopeId) {
-        let mut new_func_call = self.convert_func_call(old_func_call);
+        let new_func_call = self.convert_func_call(old_func_call);
         let func_var = self.program.borrow_variable(new_func_call.get_function());
         let func_target;
         match func_var.borrow_initial_value() {
             KnownData::Function(data) => func_target = data.clone(),
             _ => panic!("TODO nice error for a function being vague."),
         }
-        eprintln!("{:?}", func_target);
 
-        // TODO: Error if number of inputs and outputs do not match.
         let mut type_params = HashMap::new();
         let mut int_params = HashMap::new();
+
+        if func_target.borrow_inputs().len() != new_func_call.borrow_inputs().len() {
+            panic!("TODO Nice error")
+        }
+
+        if func_target.borrow_outputs().len() != new_func_call.borrow_outputs().len() {
+            panic!("TODO Nice error")
+        }
 
         // Get iterators for the input and output parameters in the function definition.
         let input_params = func_target.borrow_inputs().iter();
@@ -260,7 +265,6 @@ impl<'a> ScopeResolver<'a> {
         // parameters and arguments, we can zip the parameter and argument iterators together and
         // know that each argument will correspond with the appropriate parameter.
         for (param_type, arg_type) in param_types.zip(arg_types) {
-            eprintln!("{:?} {:?}", param_type, arg_type);
             // Figure out how to modify what we think the template parameters should be based on the
             // data type of the argument being used to set the parameter.
             Self::resolve_template_parameters(
