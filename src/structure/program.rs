@@ -1,3 +1,4 @@
+use crate::problem::FilePosition;
 use crate::structure::{
     add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, Variable,
 };
@@ -277,8 +278,12 @@ impl Program {
         id
     }
 
-    pub fn make_intermediate_auto_var(&mut self, scope: ScopeId) -> VariableId {
-        self.adopt_and_define_intermediate(scope, Variable::automatic())
+    pub fn make_intermediate_auto_var(
+        &mut self,
+        scope: ScopeId,
+        position: FilePosition,
+    ) -> VariableId {
+        self.adopt_and_define_intermediate(scope, Variable::automatic(position))
     }
 
     // Tries to find a function variable which uses the specified scope as a

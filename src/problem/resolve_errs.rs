@@ -18,16 +18,13 @@ pub fn wrong_number_of_inputs(
                     "arguments but the function it is calling has {} input ",
                     "parameters.",
                 ),
-                provided,
-                expected,
+                provided, expected,
             ),
         ),
         ProblemDescriptor::new(
             header_pos,
             Hint,
-            concat!(
-                "The header of the function being called is as follows:"
-            ),
+            concat!("The header of the function being called is as follows:"),
         ),
     ])
 }
@@ -48,16 +45,13 @@ pub fn wrong_number_of_outputs(
                     "arguments but the function it is calling has {} output ",
                     "parameters.",
                 ),
-                provided,
-                expected,
+                provided, expected,
             ),
         ),
         ProblemDescriptor::new(
             header_pos,
             Hint,
-            concat!(
-                "The header of the function being called is as follows:"
-            ),
+            concat!("The header of the function being called is as follows:"),
         ),
     ])
 }

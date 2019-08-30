@@ -1,9 +1,9 @@
+use crate::problem;
+use crate::problem::CompileProblem;
 use crate::structure;
 use crate::structure::{
     DataType, FuncCall, FunctionData, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
-use crate::problem::CompileProblem;
-use crate::problem;
 use std::collections::HashMap;
 
 pub fn resolve_scope(program: &mut Program, scope: ScopeId) -> Result<ScopeId, CompileProblem> {
@@ -60,7 +60,10 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn convert_var_access(&self, access: &VarAccess) -> VarAccess {
-        let mut new_access = VarAccess::new(self.convert(access.get_base()));
+        let mut new_access = VarAccess::new(
+            access.get_position().clone(),
+            self.convert(access.get_base()),
+        );
         for index in access.iterate_over_indexes() {
             new_access.add_index(self.convert(*index));
         }
@@ -93,7 +96,11 @@ impl<'a> ScopeResolver<'a> {
         result
     }
 
-    fn copy_scope(&mut self, source: ScopeId, parent: Option<ScopeId>) -> Result<ScopeId, CompileProblem> {
+    fn copy_scope(
+        &mut self,
+        source: ScopeId,
+        parent: Option<ScopeId>,
+    ) -> Result<ScopeId, CompileProblem> {
         let copy = match parent {
             Option::Some(parent_id) => self.program.create_child_scope(parent_id),
             Option::None => self.program.create_scope(),
@@ -225,7 +232,11 @@ impl<'a> ScopeResolver<'a> {
         }
     }
 
-    fn resolve_function_call(&mut self, old_func_call: &FuncCall, output: ScopeId) -> Result<(), CompileProblem> {
+    fn resolve_function_call(
+        &mut self,
+        old_func_call: &FuncCall,
+        output: ScopeId,
+    ) -> Result<(), CompileProblem> {
         let new_func_call = self.convert_func_call(old_func_call);
         let func_var = self.program.borrow_variable(new_func_call.get_function());
         let func_target;
@@ -343,17 +354,22 @@ impl<'a> ScopeResolver<'a> {
                     new_new_func_call.add_input(input_accessor.clone());
                     continue;
                 }
-                let casted_var = Variable::variable(input_type.clone(), None);
+                let casted_var = Variable::variable(
+                    input_accessor.get_position().clone(),
+                    input_type.clone(),
+                    None,
+                );
                 let casted_id = self
                     .program
                     .adopt_and_define_intermediate(output, casted_var);
+                let var_access = VarAccess::new(input_accessor.get_position().clone(), casted_id);
                 structure::create_cast(
                     self.program,
                     output,
                     input_accessor.clone(),
-                    VarAccess::new(casted_id),
+                    var_access.clone(),
                 );
-                new_new_func_call.add_input(VarAccess::new(casted_id));
+                new_new_func_call.add_input(var_access);
             }
             // Figure out what outputs will need to be casted. We can't cast them yet because
             // the actual function needs to be executed first before we will have outputs to cast.
@@ -366,12 +382,17 @@ impl<'a> ScopeResolver<'a> {
                     new_new_func_call.add_output(output_accessor.clone());
                     continue;
                 }
-                let output_holder = Variable::variable(output_type.clone(), None);
+                let output_holder = Variable::variable(
+                    output_accessor.get_position().clone(),
+                    output_type.clone(),
+                    None,
+                );
                 let holder_id = self
                     .program
                     .adopt_and_define_intermediate(output, output_holder);
-                output_casts.push((VarAccess::new(holder_id), output_accessor.clone()));
-                new_new_func_call.add_output(VarAccess::new(holder_id));
+                let var_access = VarAccess::new(output_accessor.get_position().clone(), holder_id);
+                output_casts.push((var_access.clone(), output_accessor.clone()));
+                new_new_func_call.add_output(var_access);
             }
             self.program.add_func_call(output, new_new_func_call);
             for (from, to) in output_casts.into_iter() {
@@ -427,17 +448,22 @@ impl<'a> ScopeResolver<'a> {
                     new_new_func_call.add_input(input_accessor.clone());
                     continue;
                 }
-                let casted_var = Variable::variable(input_type.clone(), None);
+                let casted_var = Variable::variable(
+                    input_accessor.get_position().clone(),
+                    input_type.clone(),
+                    None,
+                );
                 let casted_id = self
                     .program
                     .adopt_and_define_intermediate(output, casted_var);
+                let var_access = VarAccess::new(input_accessor.get_position().clone(), casted_id);
                 structure::create_cast(
                     self.program,
                     output,
                     input_accessor.clone(),
-                    VarAccess::new(casted_id),
+                    var_access.clone(),
                 );
-                new_new_func_call.add_input(VarAccess::new(casted_id));
+                new_new_func_call.add_input(var_access);
             }
             // Figure out what outputs will need to be casted. We can't cast them yet because
             // the actual function needs to be executed first before we will have outputs to cast.
@@ -453,12 +479,17 @@ impl<'a> ScopeResolver<'a> {
                     new_new_func_call.add_output(output_accessor.clone());
                     continue;
                 }
-                let output_holder = Variable::variable(output_type.clone(), None);
+                let output_holder = Variable::variable(
+                    output_accessor.get_position().clone(),
+                    output_type.clone(),
+                    None,
+                );
                 let holder_id = self
                     .program
                     .adopt_and_define_intermediate(output, output_holder);
-                output_casts.push((VarAccess::new(holder_id), output_accessor.clone()));
-                new_new_func_call.add_output(VarAccess::new(holder_id));
+                let var_access = VarAccess::new(output_accessor.get_position().clone(), holder_id);
+                output_casts.push((var_access.clone(), output_accessor.clone()));
+                new_new_func_call.add_output(var_access);
             }
             self.program.add_func_call(output, new_new_func_call);
             for (from, to) in output_casts.into_iter() {
@@ -471,7 +502,11 @@ impl<'a> ScopeResolver<'a> {
         Result::Ok(())
     }
 
-    fn resolve_body(&mut self, source: ScopeId, destination: ScopeId) -> Result<(), CompileProblem> {
+    fn resolve_body(
+        &mut self,
+        source: ScopeId,
+        destination: ScopeId,
+    ) -> Result<(), CompileProblem> {
         for old_func_call in self.program.clone_scope_body(source).into_iter() {
             self.resolve_function_call(&old_func_call, destination)?;
         }

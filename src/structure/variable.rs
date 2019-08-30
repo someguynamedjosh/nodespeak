@@ -138,6 +138,8 @@ impl KnownData {
 
 #[derive(Clone, Debug)]
 pub struct Variable {
+    definition: FilePosition,
+
     data_type: DataType,
     initial_value: KnownData,
     permanent: bool,
@@ -149,11 +151,13 @@ pub struct Variable {
 
 impl Variable {
     fn new_impl(
+        definition: FilePosition,
         data_type: DataType,
         initial_value: Option<KnownData>,
         permanent: bool,
     ) -> Variable {
         Variable {
+            definition,
             initial_value: initial_value.unwrap_or_else(|| KnownData::default_for_type(&data_type)),
             data_type,
             permanent,
@@ -163,40 +167,48 @@ impl Variable {
         }
     }
 
-    pub fn variable(data_type: DataType, initial_value: Option<KnownData>) -> Variable {
-        Self::new_impl(data_type, initial_value, false)
+    pub fn variable(
+        definition: FilePosition,
+        data_type: DataType,
+        initial_value: Option<KnownData>,
+    ) -> Variable {
+        Self::new_impl(definition, data_type, initial_value, false)
     }
 
-    pub fn constant(data_type: DataType, value: KnownData) -> Variable {
-        Self::new_impl(data_type, Option::Some(value), true)
+    pub fn constant(definition: FilePosition, data_type: DataType, value: KnownData) -> Variable {
+        Self::new_impl(definition, data_type, Option::Some(value), true)
     }
 
     pub fn function_def(function_data: FunctionData) -> Variable {
-        Self::constant(DataType::Function_, KnownData::Function(function_data))
+        Self::constant(
+            function_data.get_header().clone(),
+            DataType::Function_,
+            KnownData::Function(function_data),
+        )
     }
 
-    pub fn data_type(value: DataType) -> Variable {
-        Self::constant(DataType::DataType_, KnownData::DataType(value))
+    pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
+        Self::constant(definition, DataType::DataType_, KnownData::DataType(value))
     }
 
-    pub fn automatic() -> Variable {
-        Variable::variable(DataType::Automatic, Option::None)
+    pub fn automatic(definition: FilePosition) -> Variable {
+        Variable::variable(definition, DataType::Automatic, Option::None)
     }
 
-    pub fn bool_literal(value: bool) -> Variable {
-        Variable::constant(DataType::Bool, KnownData::Bool(value))
+    pub fn bool_literal(definition: FilePosition, value: bool) -> Variable {
+        Variable::constant(definition, DataType::Bool, KnownData::Bool(value))
     }
 
-    pub fn int_literal(value: i64) -> Variable {
-        Variable::constant(DataType::Int, KnownData::Int(value))
+    pub fn int_literal(definition: FilePosition, value: i64) -> Variable {
+        Variable::constant(definition, DataType::Int, KnownData::Int(value))
     }
 
-    pub fn float_literal(value: f64) -> Variable {
-        Variable::constant(DataType::Float, KnownData::Float(value))
+    pub fn float_literal(definition: FilePosition, value: f64) -> Variable {
+        Variable::constant(definition, DataType::Float, KnownData::Float(value))
     }
 
-    pub fn void() -> Variable {
-        Variable::variable(DataType::Void, Option::None)
+    pub fn void(definition: FilePosition) -> Variable {
+        Variable::variable(definition, DataType::Void, Option::None)
     }
 
     pub fn set_data_type(&mut self, data_type: DataType) {

@@ -137,8 +137,8 @@ pub mod convert {
             if let Option::Some(output_pos) = explicit_output_list {
                 return Result::Err(problem::missing_inline_return(input_pos, output_pos));
             }
-            let temp_var = program.make_intermediate_auto_var(scope);
-            let output_access = VarAccess::new(temp_var);
+            let temp_var = program.make_intermediate_auto_var(scope, input_pos.clone());
+            let output_access = VarAccess::new(input_pos.clone(), temp_var);
             output_var = Option::Some(temp_var);
             match func_call.as_mut() {
                 Option::Some(call) => call.add_output(output_access.clone()),
@@ -152,10 +152,11 @@ pub mod convert {
             Result::Ok(output_access.clone())
         } else {
             Result::Ok(match output_var {
-                Option::Some(value) => VarAccess::new(value),
-                Option::None => {
-                    VarAccess::new(program.adopt_and_define_intermediate(scope, Variable::void()))
-                }
+                Option::Some(value) => VarAccess::new(input_pos, value),
+                Option::None => VarAccess::new(
+                    input_pos.clone(),
+                    program.adopt_and_define_intermediate(scope, Variable::void(input_pos.clone())),
+                ),
             })
         }
     }
@@ -175,8 +176,11 @@ pub mod convert {
                 Rule::legacy_oct_int => unimplemented!(),
                 Rule::dec_int => {
                     let value = parse_dec_int(child.as_str());
-                    let var = program.adopt_variable(Variable::int_literal(value));
-                    return Result::Ok(VarAccess::new(var));
+                    let var = program.adopt_variable(Variable::int_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
                 }
                 Rule::float => unimplemented!(),
                 Rule::func_expr => {
@@ -189,9 +193,10 @@ pub mod convert {
                     )
                 }
                 Rule::identifier => {
-                    return Result::Ok(VarAccess::new(lookup_symbol_with_error(
-                        &program, scope, &child,
-                    )?))
+                    return Result::Ok(VarAccess::new(
+                        FilePosition::from_pair(&child),
+                        lookup_symbol_with_error(&program, scope, &child)?,
+                    ))
                 }
                 Rule::expr => {
                     let output =
@@ -472,8 +477,11 @@ pub mod convert {
                         } else {
                             let top_op = operator_stack.pop().unwrap();
                             let func = operator_to_op_fn(&top_op, program.get_builtins());
-                            let var = program.make_intermediate_auto_var(scope);
-                            let output = VarAccess::new(var);
+                            // TODO: Real position.
+                            let var = program
+                                .make_intermediate_auto_var(scope, FilePosition::placeholder());
+                            // TODO: Real position
+                            let output = VarAccess::new(FilePosition::placeholder(), var);
                             // TODO: Real position.
                             let mut call = FuncCall::new(func, FilePosition::placeholder());
                             // Popping reverses the order, hence this is necessary.
@@ -482,7 +490,8 @@ pub mod convert {
                             call.add_input(other.unwrap());
                             call.add_output(output);
                             program.add_func_call(scope, call);
-                            operand_stack.push(VarAccess::new(var));
+                            // TODO: real position.
+                            operand_stack.push(VarAccess::new(FilePosition::placeholder(), var));
                         }
                     }
                 }
@@ -528,13 +537,18 @@ pub mod convert {
                 match &preferred_output {
                     Option::Some(final_output) => final_output.clone(),
                     Option::None => {
-                        let var = program.make_intermediate_auto_var(scope);
-                        VarAccess::new(var)
+                        // TODO: Real position
+                        let var =
+                            program.make_intermediate_auto_var(scope, FilePosition::placeholder());
+                        // TODO: Real position
+                        VarAccess::new(FilePosition::placeholder(), var)
                     }
                 }
             } else {
-                let var = program.make_intermediate_auto_var(scope);
-                VarAccess::new(var)
+                // TODO: Real position
+                let var = program.make_intermediate_auto_var(scope, FilePosition::placeholder());
+                // TODO: Real position
+                VarAccess::new(FilePosition::placeholder(), var)
             };
             // TODO: Real position.
             let mut call = FuncCall::new(func, FilePosition::placeholder());
@@ -563,9 +577,10 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => {
-                    result = Option::Some(VarAccess::new(lookup_symbol_with_error(
-                        &program, scope, &child,
-                    )?))
+                    result = Option::Some(VarAccess::new(
+                        FilePosition::from_pair(&child),
+                        lookup_symbol_with_error(&program, scope, &child)?,
+                    ))
                 }
                 Rule::assign_array_access => unimplemented!(),
                 _ => unreachable!(),
@@ -582,6 +597,7 @@ pub mod convert {
     ) -> Result<VariableId, CompileProblem> {
         let mut name = Option::None;
         let mut data_type = Option::None;
+        let input_pos = FilePosition::from_pair(&input);
         for part in input.into_inner() {
             match part.as_rule() {
                 Rule::data_type => {
@@ -591,7 +607,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let variable = Variable::variable(data_type.unwrap(), None);
+        let variable = Variable::variable(input_pos, data_type.unwrap(), None);
         Result::Ok(program.adopt_and_define_symbol(func_scope, name.unwrap(), variable))
     }
 
@@ -626,6 +642,7 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
+        let input_pos = FilePosition::from_pair(&input);
         for part in input.into_inner() {
             match part.as_rule() {
                 Rule::data_type => {
@@ -634,7 +651,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        let variable = Variable::variable(data_type.unwrap(), None);
+        let variable = Variable::variable(input_pos, data_type.unwrap(), None);
         func.add_output(program.adopt_and_define_symbol(func_scope, "!return_value", variable));
         Result::Ok(())
     }
@@ -697,7 +714,9 @@ pub mod convert {
                 }
                 Rule::returnable_code_block => {
                     let output_value = function.get_single_output().and_then(
-                        |id: VariableId| -> Option<VarAccess> { Option::Some(VarAccess::new(id)) },
+                        |id: VariableId| -> Option<VarAccess> {
+                            Option::Some(VarAccess::new(FilePosition::from_pair(&child), id))
+                        },
                     );
                     function.set_header(real_header_position);
                     // So that code inside the body can refer to the function.
@@ -726,16 +745,21 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
-        let variable_id = program.adopt_variable(Variable::variable(data_type, None));
         let input_pos = FilePosition::from_pair(&input);
+        let variable_id =
+            program.adopt_variable(Variable::variable(input_pos.clone(), data_type, None));
+        let mut variable_position = FilePosition::placeholder();
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::identifier => name = Option::Some(child.as_str()),
+                Rule::identifier => {
+                    name = Option::Some(child.as_str());
+                    variable_position = FilePosition::from_pair(&child);
+                }
                 Rule::expr => {
                     convert_expression(
                         program,
                         scope,
-                        Option::Some(VarAccess::new(variable_id)),
+                        Option::Some(VarAccess::new(variable_position.clone(), variable_id)),
                         true,
                         child,
                     )
@@ -762,13 +786,18 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
+        let input_pos = FilePosition::from_pair(&input);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
                 _ => unreachable!(),
             }
         }
-        program.adopt_and_define_symbol(scope, name.unwrap(), Variable::variable(data_type, None));
+        program.adopt_and_define_symbol(
+            scope,
+            name.unwrap(),
+            Variable::variable(input_pos, data_type, None),
+        );
         Result::Ok(())
     }
 
@@ -887,7 +916,10 @@ pub mod convert {
                     convert_expression(
                         program,
                         scope,
-                        Option::Some(VarAccess::new(func.get_output(index))),
+                        Option::Some(VarAccess::new(
+                            FilePosition::from_pair(&child),
+                            func.get_output(index),
+                        )),
                         true,
                         child,
                     )

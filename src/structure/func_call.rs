@@ -1,18 +1,34 @@
 use crate::problem::FilePosition;
 use crate::structure::{DataType, Program, VariableId};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VarAccess {
+    position: FilePosition,
     base: VariableId,
     indexes: Vec<VariableId>,
 }
 
+impl PartialEq for VarAccess {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base && self.indexes == other.indexes
+    }
+}
+
 impl VarAccess {
-    pub fn new(base: VariableId) -> VarAccess {
+    pub fn new(position: FilePosition, base: VariableId) -> VarAccess {
         VarAccess {
+            position,
             base: base,
             indexes: Vec::new(),
         }
+    }
+
+    pub fn set_position(&mut self, new_position: FilePosition) {
+        self.position = new_position;
+    }
+
+    pub fn get_position(&self) -> &FilePosition {
+        &self.position
     }
 
     pub fn add_index(&mut self, index: VariableId) {

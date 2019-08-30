@@ -103,16 +103,31 @@ DataType_ Void;
 pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_root_scope();
 
-    let automatic_type =
-        program.adopt_and_define_symbol(scope, "Auto", Variable::data_type(DataType::Automatic));
-    let bool_type =
-        program.adopt_and_define_symbol(scope, "Bool", Variable::data_type(DataType::Bool));
-    let int_type =
-        program.adopt_and_define_symbol(scope, "Int", Variable::data_type(DataType::Int));
-    let float_type =
-        program.adopt_and_define_symbol(scope, "Float", Variable::data_type(DataType::Float));
-    let void_type =
-        program.adopt_and_define_symbol(scope, "Void", Variable::data_type(DataType::Void));
+    let automatic_type = program.adopt_and_define_symbol(
+        scope,
+        "Auto",
+        Variable::data_type(FilePosition::placeholder(), DataType::Automatic),
+    );
+    let bool_type = program.adopt_and_define_symbol(
+        scope,
+        "Bool",
+        Variable::data_type(FilePosition::placeholder(), DataType::Bool),
+    );
+    let int_type = program.adopt_and_define_symbol(
+        scope,
+        "Int",
+        Variable::data_type(FilePosition::placeholder(), DataType::Int),
+    );
+    let float_type = program.adopt_and_define_symbol(
+        scope,
+        "Float",
+        Variable::data_type(FilePosition::placeholder(), DataType::Float),
+    );
+    let void_type = program.adopt_and_define_symbol(
+        scope,
+        "Void",
+        Variable::data_type(FilePosition::placeholder(), DataType::Void),
+    );
 
     let make_blank_func = |program: &mut Program,
                            func: BuiltinFunction,
@@ -140,8 +155,11 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             func,
             FilePosition::for_builtin(header_start, header_end),
         );
-        let input =
-            program.adopt_and_define_symbol(func_scope, "input", Variable::variable(in_type, None));
+        let input = program.adopt_and_define_symbol(
+            func_scope,
+            "input",
+            Variable::variable(FilePosition::placeholder(), in_type, None),
+        );
         func_data.add_input(input);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
@@ -160,16 +178,19 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(DataType::DataType_, None),
+            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
         );
         let data_type = DataType::LoadTemplateParameter(parameter);
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
-            Variable::variable(data_type.clone(), None),
+            Variable::variable(FilePosition::placeholder(), data_type.clone(), None),
         );
-        let out =
-            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(data_type, None));
+        let out = program.adopt_and_define_symbol(
+            func_scope,
+            "out",
+            Variable::variable(FilePosition::placeholder(), data_type, None),
+        );
         func_data.add_input(in1);
         func_data.add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
@@ -189,21 +210,24 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(DataType::DataType_, None),
+            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
         );
         let data_type = DataType::LoadTemplateParameter(parameter);
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
-            Variable::variable(data_type.clone(), None),
+            Variable::variable(FilePosition::placeholder(), data_type.clone(), None),
         );
         let in2 = program.adopt_and_define_symbol(
             func_scope,
             "in2",
-            Variable::variable(data_type.clone(), None),
+            Variable::variable(FilePosition::placeholder(), data_type.clone(), None),
         );
-        let out =
-            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(data_type, None));
+        let out = program.adopt_and_define_symbol(
+            func_scope,
+            "out",
+            Variable::variable(FilePosition::placeholder(), data_type, None),
+        );
         func_data.add_input(in1);
         func_data.add_input(in2);
         func_data.add_output(out);
@@ -224,17 +248,17 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
-            Variable::variable(DataType::Bool, None),
+            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
         let in2 = program.adopt_and_define_symbol(
             func_scope,
             "in2",
-            Variable::variable(DataType::Bool, None),
+            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
         let out = program.adopt_and_define_symbol(
             func_scope,
             "out",
-            Variable::variable(DataType::Bool, None),
+            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
         func_data.add_input(in1);
         func_data.add_input(in2);
@@ -255,10 +279,16 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             func,
             FilePosition::for_builtin(header_start, header_end),
         );
-        let in1 =
-            program.adopt_and_define_symbol(func_scope, "in1", Variable::variable(in_type, None));
-        let out =
-            program.adopt_and_define_symbol(func_scope, "out", Variable::variable(out_type, None));
+        let in1 = program.adopt_and_define_symbol(
+            func_scope,
+            "in1",
+            Variable::variable(FilePosition::placeholder(), in_type, None),
+        );
+        let out = program.adopt_and_define_symbol(
+            func_scope,
+            "out",
+            Variable::variable(FilePosition::placeholder(), out_type, None),
+        );
         func_data.add_input(in1);
         func_data.add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
@@ -278,20 +308,23 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(DataType::DataType_, None),
+            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
         );
         let data_type = DataType::LoadTemplateParameter(parameter);
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
-            Variable::variable(data_type.clone(), None),
+            Variable::variable(FilePosition::placeholder(), data_type.clone(), None),
         );
-        let in2 =
-            program.adopt_and_define_symbol(func_scope, "in2", Variable::variable(data_type, None));
+        let in2 = program.adopt_and_define_symbol(
+            func_scope,
+            "in2",
+            Variable::variable(FilePosition::placeholder(), data_type, None),
+        );
         let out = program.adopt_and_define_symbol(
             func_scope,
             "out",
-            Variable::variable(DataType::Bool, None),
+            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
         func_data.add_input(in1);
         func_data.add_input(in2);

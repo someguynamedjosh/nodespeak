@@ -70,7 +70,11 @@ pub(super) struct ProblemDescriptor {
 }
 
 impl ProblemDescriptor {
-    pub(super) fn new(position: FilePosition, ptype: ProblemType, caption: &str) -> ProblemDescriptor {
+    pub(super) fn new(
+        position: FilePosition,
+        ptype: ProblemType,
+        caption: &str,
+    ) -> ProblemDescriptor {
         ProblemDescriptor {
             position,
             ptype,
