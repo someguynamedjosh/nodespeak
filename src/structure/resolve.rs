@@ -2,9 +2,11 @@ use crate::structure;
 use crate::structure::{
     DataType, FuncCall, FunctionData, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
+use crate::problem::CompileProblem;
+use crate::problem;
 use std::collections::HashMap;
 
-pub fn resolve_scope(program: &mut Program, scope: ScopeId) -> ScopeId {
+pub fn resolve_scope(program: &mut Program, scope: ScopeId) -> Result<ScopeId, CompileProblem> {
     let mut resolver = ScopeResolver::new(program);
     let result = resolver.entry_point(scope);
     result
@@ -91,7 +93,7 @@ impl<'a> ScopeResolver<'a> {
         result
     }
 
-    fn copy_scope(&mut self, source: ScopeId, parent: Option<ScopeId>) -> ScopeId {
+    fn copy_scope(&mut self, source: ScopeId, parent: Option<ScopeId>) -> Result<ScopeId, CompileProblem> {
         let copy = match parent {
             Option::Some(parent_id) => self.program.create_child_scope(parent_id),
             Option::None => self.program.create_scope(),
@@ -119,7 +121,7 @@ impl<'a> ScopeResolver<'a> {
             self.add_conversion(old, new)
         }
 
-        copy
+        Result::Ok(copy)
     }
 
     fn combine_type_into_table(
@@ -223,7 +225,7 @@ impl<'a> ScopeResolver<'a> {
         }
     }
 
-    fn resolve_function_call(&mut self, old_func_call: &FuncCall, output: ScopeId) {
+    fn resolve_function_call(&mut self, old_func_call: &FuncCall, output: ScopeId) -> Result<(), CompileProblem> {
         let new_func_call = self.convert_func_call(old_func_call);
         let func_var = self.program.borrow_variable(new_func_call.get_function());
         let func_target;
@@ -236,11 +238,21 @@ impl<'a> ScopeResolver<'a> {
         let mut int_params = HashMap::new();
 
         if func_target.borrow_inputs().len() != new_func_call.borrow_inputs().len() {
-            panic!("TODO Nice error")
+            return Result::Err(problem::wrong_number_of_inputs(
+                new_func_call.get_position().clone(),
+                func_target.get_header().clone(),
+                new_func_call.borrow_inputs().len(),
+                func_target.borrow_inputs().len(),
+            ));
         }
 
         if func_target.borrow_outputs().len() != new_func_call.borrow_outputs().len() {
-            panic!("TODO Nice error")
+            return Result::Err(problem::wrong_number_of_outputs(
+                new_func_call.get_position().clone(),
+                func_target.get_header().clone(),
+                new_func_call.borrow_outputs().len(),
+                func_target.borrow_outputs().len(),
+            ));
         }
 
         // Get iterators for the input and output parameters in the function definition.
@@ -369,7 +381,7 @@ impl<'a> ScopeResolver<'a> {
             self.push_table();
             // Copy the function body.
             // TODO: Proper parent?
-            let copied = self.copy_scope(func_target.get_body(), None);
+            let copied = self.copy_scope(func_target.get_body(), None)?;
             // Set all the type parameters in the copied body to have the values we determined they
             // should have earlier.
             for (type_parameter, resolved_value) in type_params.iter() {
@@ -382,7 +394,7 @@ impl<'a> ScopeResolver<'a> {
             // Get rid of any dynamic data types that were pointing to things we just resolved.
             self.resolve_dynamic_data_types(copied);
             // Resolve the function calls in the body.
-            self.resolve_body(func_target.get_body(), copied);
+            self.resolve_body(func_target.get_body(), copied)?;
             // Make a new function to hold the new function body. Our previous calls to copy the
             // scope and resolve its data types will also cause the data types of the parameters of
             // this new function to have resolved data types as well without requiring any extra
@@ -455,17 +467,20 @@ impl<'a> ScopeResolver<'a> {
 
             self.pop_table();
         }
+
+        Result::Ok(())
     }
 
-    fn resolve_body(&mut self, source: ScopeId, destination: ScopeId) {
+    fn resolve_body(&mut self, source: ScopeId, destination: ScopeId) -> Result<(), CompileProblem> {
         for old_func_call in self.program.clone_scope_body(source).into_iter() {
-            self.resolve_function_call(&old_func_call, destination);
+            self.resolve_function_call(&old_func_call, destination)?;
         }
+        Result::Ok(())
     }
 
-    fn entry_point(&mut self, target: ScopeId) -> ScopeId {
-        let copy = self.copy_scope(target, self.program.get_scope_parent(target));
-        self.resolve_body(target, copy);
-        copy
+    fn entry_point(&mut self, target: ScopeId) -> Result<ScopeId, CompileProblem> {
+        let copy = self.copy_scope(target, self.program.get_scope_parent(target))?;
+        self.resolve_body(target, copy)?;
+        Result::Ok(copy)
     }
 }

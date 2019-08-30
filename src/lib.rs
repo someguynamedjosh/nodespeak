@@ -43,6 +43,7 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
     // TODO: Handle multiple sources.
     // TODO: Pass name of source to parser.
     let mut ast_result = parser::parse(sources.borrow_sources()[1].1).expect("TODO Friendly error");
+
     let mut program = match parser::convert_ast_to_structure(&mut ast_result) {
         Result::Ok(program) => program,
         Result::Err(err) => {
@@ -53,8 +54,20 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
             ));
         }
     };
+
     let root_scope = program.get_root_scope();
-    let new_root = structure::resolve_scope(&mut program, root_scope);
+
+    let new_root = match structure::resolve_scope(&mut program, root_scope) {
+        Result::Ok(new_root) => new_root,
+        Result::Err(err) => {
+            let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
+            return Result::Err(format!(
+                "Compilation failed during resolving phase.\n\n{}",
+                err.format(width, sources)
+            ));
+        }
+    };
+
     Result::Ok(CompileResult {
         program: program,
         root_scope: new_root,
