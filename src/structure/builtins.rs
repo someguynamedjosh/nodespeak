@@ -96,7 +96,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         program.adopt_and_define_symbol(scope, "Float", Variable::data_type(DataType::Float));
     let void_type =
         program.adopt_and_define_symbol(scope, "Void", Variable::data_type(DataType::Void));
-    
+
     let make_blank_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
         let func_scope = program.create_scope();
         let func_data = FunctionData::builtin(func_scope, func);

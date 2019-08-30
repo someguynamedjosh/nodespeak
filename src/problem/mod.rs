@@ -12,8 +12,6 @@ pub struct FilePosition {
 impl FilePosition {
     pub fn from_pair<R: RuleType>(pair: &Pair<R>) -> FilePosition {
         let span = pair.as_span();
-        let start = span.start_pos().line_col();
-        let end = span.end_pos().line_col();
         FilePosition {
             start_pos: span.start(),
             end_pos: span.end(),
@@ -132,8 +130,7 @@ impl CompileProblem {
                 result.highlighted.push(character);
                 result.line_number = line;
                 result.column_number = column;
-                // IDK why the -1 is neccessary, but it is.
-            } else if index > start_char && index < end_char - 1 {
+            } else if index > start_char && index < end_char {
                 result.highlighted.push(character);
             } else if character != '\n' {
                 result.suffix.push(character);
@@ -177,26 +174,29 @@ impl CompileProblem {
                 grabbed.line_number,
                 grabbed.column_number,
             ));
-            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
+            output.push_str(&format!("{:-^1$}", "", width).blue().to_string());
             let highlight_start = grabbed.prefix.len();
             let highlight_end = highlight_start + grabbed.highlighted.len();
             let start_x = spacing + 5;
             let mut x = start_x;
-            let mut column = 1;
             let mut line = grabbed.line_number;
-            for (index, ch) in grabbed.prefix.add(&grabbed.highlighted.add(&grabbed.suffix)).chars().enumerate() {
+            for (index, ch) in grabbed
+                .prefix
+                .add(&grabbed.highlighted.add(&grabbed.suffix))
+                .chars()
+                .enumerate()
+            {
                 if ch == '\n' || index == 0 {
                     output.push_str(
-                        &format!("| {: >1$} | ", (line), spacing)
+                        &format!("\n| {: >1$} | ", (line), spacing)
                             .blue()
                             .to_string(),
                     );
                     x = start_x;
-                    column = 1;
                     line += 1;
-                } 
+                }
                 if ch != '\n' {
-                    if index < highlight_start || index > highlight_end {
+                    if index < highlight_start || index >= highlight_end {
                         output.push(ch);
                     } else {
                         output.push_str(&match descriptor.ptype {
@@ -206,7 +206,6 @@ impl CompileProblem {
                         });
                     }
                     x += 1;
-                    column += 1;
                     if x >= width {
                         output.push_str(&format!("\n|{}| ", spaces).blue().to_string());
                         x = start_x;
@@ -228,9 +227,9 @@ pub fn no_entity_with_name(pos: FilePosition) -> CompileProblem {
         pos,
         Error,
         concat!(
-        "Invalid Entity Name\nThere is no function, variable, or data type visible in this scope ",
-        "with the specified name.",
-    ),
+            "Invalid Entity Name\nThere is no function, variable, or data type visible in this ",
+            "scope with the specified name.",
+        ),
     )])
 }
 
@@ -239,9 +238,79 @@ pub fn return_from_root(pos: FilePosition) -> CompileProblem {
         pos,
         Error,
         concat!(
-        "Return Outside Function\nReturn statements can only be used inside of function ",
-        "definitions. The code snippet below was understood to be a part of the root scope of the ",
-        "file.",
-    ),
+            "Return Outside Function\nReturn statements can only be used inside of function ",
+            "definitions. The code snippet below was understood to be a part of the root scope ",
+            "of the file.",
+        ),
     )])
+}
+
+pub fn extra_return_value(
+    statement_pos: FilePosition,
+    extra_pos: FilePosition,
+    expected_num_values: usize,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            statement_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Too Many Return Values\nThe highlighted return statement specifies too many ",
+                    "values. The function it is a part of only has {} output values.",
+                ),
+                expected_num_values
+            ),
+        ),
+        ProblemDescriptor::new(
+            extra_pos,
+            Hint,
+            concat!("This value has no corresponding output."),
+        ),
+    ])
+}
+
+pub fn missing_return_values(
+    statement_pos: FilePosition,
+    expected_num_values: usize,
+    actual_num_values: usize,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        statement_pos,
+        Error,
+        &format!(
+            concat!(
+                "Not Enough Return Values\nReturn statements must either specify values for every ",
+                "output or specify no outputs. The highlighted return statement specifies values ",
+                "for {} outputs, but the function it is a part of has {} outputs.",
+            ),
+            actual_num_values, expected_num_values,
+        ),
+    )])
+}
+
+pub fn missing_inline_return(
+    func_call_pos: FilePosition,
+    output_list_pos: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            func_call_pos,
+            Error,
+            concat!(
+                "Missing Inline Return\nThe position of the highlighted function call requires it ",
+                "to have an inline output so that the output can be used in an expression or ",
+                "statement. However, there is no inline output argument in the output list.",
+            ),
+        ),
+        ProblemDescriptor::new(
+            output_list_pos,
+            Hint,
+            concat!(
+                "Try replacing one of the output arguments with the keyword 'inline'. If the ",
+                "function being called only has one output, you can also delete the output list ",
+                "entirely to automatically make the only output inline."
+            ),
+        ),
+    ])
 }

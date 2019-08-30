@@ -90,7 +90,8 @@ pub mod convert {
     ) -> Result<VarAccess, CompileProblem> {
         let mut output_var = Option::None;
         let mut func_call = Option::None;
-        let mut explicit_output_list = false;
+        let mut explicit_output_list = Option::None;
+        let input_pos = FilePosition::from_pair(&input);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => {
@@ -106,7 +107,7 @@ pub mod convert {
                 )?,
                 // TODO: Inline return.
                 Rule::func_output_list => {
-                    explicit_output_list = true;
+                    explicit_output_list = Option::Some(FilePosition::from_pair(&child));
                     convert_func_expr_output_list(
                         program,
                         scope,
@@ -121,8 +122,8 @@ pub mod convert {
         }
         if let Option::Some(output_access) = preferred_output {
             // TODO: Inline return.
-            if explicit_output_list {
-                panic!("TODO friendly error");
+            if let Option::Some(output_pos) = explicit_output_list {
+                return Result::Err(problem::missing_inline_return(input_pos, output_pos));
             }
             match func_call.as_mut() {
                 Option::Some(call) => call.add_output(output_access.clone()),
@@ -132,8 +133,8 @@ pub mod convert {
             }
         } else if force_func_output {
             // TODO: Inline return.
-            if explicit_output_list {
-                panic!("TODO friendly error");
+            if let Option::Some(output_pos) = explicit_output_list {
+                return Result::Err(problem::missing_inline_return(input_pos, output_pos));
             }
             let temp_var = program.make_intermediate_auto_var(scope);
             let output_access = VarAccess::new(temp_var);
@@ -177,15 +178,23 @@ pub mod convert {
                     return Result::Ok(VarAccess::new(var));
                 }
                 Rule::float => unimplemented!(),
-                Rule::func_expr => return convert_func_expr(program, scope, preferred_output, force_func_output, child),
-                // TODO: Real error message.
+                Rule::func_expr => {
+                    return convert_func_expr(
+                        program,
+                        scope,
+                        preferred_output,
+                        force_func_output,
+                        child,
+                    )
+                }
                 Rule::identifier => {
                     return Result::Ok(VarAccess::new(lookup_symbol_with_error(
                         &program, scope, &child,
                     )?))
                 }
                 Rule::expr => {
-                    let output = convert_expression(program, scope, preferred_output.clone(), true, child)?;
+                    let output =
+                        convert_expression(program, scope, preferred_output.clone(), true, child)?;
                     return Result::Ok(output);
                 }
                 Rule::array_literal => unimplemented!(),
@@ -216,7 +225,13 @@ pub mod convert {
                     return convert_negate(program, scope, child);
                 }
                 Rule::expr_part_1 => {
-                    return convert_expr_part_1(program, scope, preferred_output, force_func_output, child);
+                    return convert_expr_part_1(
+                        program,
+                        scope,
+                        preferred_output,
+                        force_func_output,
+                        child,
+                    );
                 }
                 _ => unreachable!(),
             }
@@ -435,7 +450,13 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr_part => {
-                    let result = convert_expr_part(program, scope, &preferred_output, force_func_output, child)?;
+                    let result = convert_expr_part(
+                        program,
+                        scope,
+                        &preferred_output,
+                        force_func_output,
+                        child,
+                    )?;
                     operand_stack.push(result);
                 }
                 Rule::operator => {
@@ -486,10 +507,8 @@ pub mod convert {
                     }
                     Result::Ok(final_output)
                 }
-                Option::None => {
-                    Result::Ok(operand_stack.pop().unwrap())
-                }
-            }
+                Option::None => Result::Ok(operand_stack.pop().unwrap()),
+            };
         }
 
         // The last operator is the sentinel, we don't actually want to pop it.
@@ -536,7 +555,6 @@ pub mod convert {
         let mut result = Option::None;
         for child in input.into_inner() {
             match child.as_rule() {
-                // TODO: Real error message.
                 Rule::identifier => {
                     result = Option::Some(VarAccess::new(lookup_symbol_with_error(
                         &program, scope, &child,
@@ -700,7 +718,13 @@ pub mod convert {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
                 Rule::expr => {
-                    convert_expression(program, scope, Option::Some(VarAccess::new(variable_id)), true, child)?;
+                    convert_expression(
+                        program,
+                        scope,
+                        Option::Some(VarAccess::new(variable_id)),
+                        true,
+                        child,
+                    )?;
                 }
                 _ => unreachable!(),
             }
@@ -821,14 +845,22 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         let mut index = 0;
-        // TODO: Real error if we aren't inside a function.
         let func = program
             .lookup_and_clone_parent_function(scope)
             .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
+        // In case we need to make an error, we can't borrow input once we enter the loop because
+        // the loop consumes it.
+        let statement_position = FilePosition::from_pair(&input);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
-                    // TODO: Real error if the programmer specified the wrong number of return values.
+                    if index >= func.borrow_outputs().len() {
+                        return Result::Err(problem::extra_return_value(
+                            statement_position,
+                            FilePosition::from_pair(&child),
+                            func.borrow_outputs().len(),
+                        ));
+                    }
                     convert_expression(
                         program,
                         scope,
@@ -840,6 +872,13 @@ pub mod convert {
                 }
                 _ => unreachable!(),
             }
+        }
+        if index != 0 && index < func.borrow_outputs().len() {
+            return Result::Err(problem::missing_return_values(
+                statement_position,
+                func.borrow_outputs().len(),
+                index,
+            ));
         }
         program.add_func_call(scope, FuncCall::new(program.get_builtins().return_func));
         Result::Ok(())
