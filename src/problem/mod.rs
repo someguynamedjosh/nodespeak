@@ -3,11 +3,13 @@ use pest::iterators::Pair;
 use pest::RuleType;
 use std::iter::FromIterator;
 use std::ops::Add;
+use crate::SourceSet;
 
 #[derive(Clone, Debug)]
 pub struct FilePosition {
     start_pos: usize,
     end_pos: usize,
+    file: usize,
 }
 
 impl FilePosition {
@@ -16,6 +18,16 @@ impl FilePosition {
         FilePosition {
             start_pos: span.start(),
             end_pos: span.end(),
+            // TODO: Modify this once we accept multiple files.
+            file: 1,
+        }
+    }
+
+    pub fn for_builtin(start: usize, end: usize) -> FilePosition {
+        FilePosition {
+            start_pos: start,
+            end_pos: end,
+            file: 0
         }
     }
 }
@@ -150,7 +162,7 @@ impl CompileProblem {
     }
 
     // This whole thing is a mess but it doesn't need to run fast.
-    pub fn format(&self, width: Option<usize>, source_code: &str) -> String {
+    pub fn format(&self, width: Option<usize>, sources: &SourceSet) -> String {
         let width = width.unwrap_or(FALLBACK_ERROR_WIDTH);
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
@@ -163,15 +175,17 @@ impl CompileProblem {
             output.push_str("\n");
 
             let position = &descriptor.position;
-            let grabbed = Self::grab_text(source_code, position);
+            let source_name = &sources.borrow_sources()[position.file].0;
+            let grabbed = Self::grab_text(sources.borrow_sources()[position.file].1, position);
             let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
             output.push_str(&format!(
-                "{}{}{}source:{}:{}\n",
+                "{}{}{}{}:{}:{}\n",
                 "|".blue().to_string(),
                 spaces,
                 "| ".blue().to_string(),
+                source_name,
                 grabbed.line_number,
                 grabbed.column_number,
             ));

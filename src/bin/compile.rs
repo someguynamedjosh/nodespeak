@@ -17,7 +17,8 @@ fn main() {
                 process::exit(74);
             }
         };
-        match waveguide::compile(&code) {
+        let source_set = waveguide::SourceSet::from_raw_string(&args[1], &code);
+        match waveguide::compile(&source_set) {
             Result::Ok(program) => {
                 //println!("Compilation completed sucessfully.");
                 println!("{:#?}", program.program);

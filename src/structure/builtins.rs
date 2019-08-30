@@ -82,6 +82,22 @@ pub struct Builtins {
     pub void_type: VariableId,
 }
 
+pub const FAKE_BUILTIN_SOURCE: &str = r#"
+builtin fn add(T? in1, T? in2):T;
+builtin fn subtract(T? in1, T? in2):T;
+builtin fn multiply(T? in1, T? in2):T;
+builtin fn divide(Float in1, Float in2):Float;
+builtin fn int_div(Int in1, Int in2):Int;
+builtin fn modulo(T? in1, T? in2):T;
+builtin fn power(T? in1, T? in2):T;
+
+DataType_ Auto;
+DataType_ Bool;
+DataType_ Int;
+DataType_ Float;
+DataType_ Void;
+"#;
+
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_root_scope();
