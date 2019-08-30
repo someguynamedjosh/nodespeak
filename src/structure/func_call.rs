@@ -1,6 +1,6 @@
 use crate::structure::{DataType, Program, VariableId};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VarAccess {
     base: VariableId,
     indexes: Vec<VariableId>,

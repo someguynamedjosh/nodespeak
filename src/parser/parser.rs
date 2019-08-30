@@ -39,8 +39,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
-                    let arg_var = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, arg_var.clone(), true, child)?;
+                    let arg_var = convert_expression(program, scope, None, true, child)?;
                     func_call.add_input(arg_var);
                 }
                 _ => unreachable!(),
@@ -85,7 +84,8 @@ pub mod convert {
     fn convert_func_expr(
         program: &mut Program,
         scope: ScopeId,
-        force_output: bool,
+        preferred_output: &Option<VarAccess>,
+        force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
         let mut output_var = Option::None;
@@ -93,7 +93,6 @@ pub mod convert {
         let mut explicit_output_list = false;
         for child in input.into_inner() {
             match child.as_rule() {
-                // TODO: Real error message.
                 Rule::identifier => {
                     func_call = Option::Some(FuncCall::new(lookup_symbol_with_error(
                         &program, scope, &child,
@@ -120,33 +119,50 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        if force_output {
+        if let Option::Some(output_access) = preferred_output {
             // TODO: Inline return.
             if explicit_output_list {
                 panic!("TODO friendly error");
             }
-            let output = program.make_intermediate_auto_var(scope);
-            output_var = Option::Some(output);
             match func_call.as_mut() {
-                Option::Some(call) => call.add_output(VarAccess::new(output)),
+                Option::Some(call) => call.add_output(output_access.clone()),
+                Option::None => {
+                    unreachable!("Should have encountered at least an identifier symbol.")
+                }
+            }
+        } else if force_func_output {
+            // TODO: Inline return.
+            if explicit_output_list {
+                panic!("TODO friendly error");
+            }
+            let temp_var = program.make_intermediate_auto_var(scope);
+            let output_access = VarAccess::new(temp_var);
+            output_var = Option::Some(temp_var);
+            match func_call.as_mut() {
+                Option::Some(call) => call.add_output(output_access.clone()),
                 Option::None => {
                     unreachable!("Should have encountered at least an identifier symbol.")
                 }
             }
         }
         program.add_func_call(scope, func_call.unwrap());
-        Result::Ok(match output_var {
-            Option::Some(value) => VarAccess::new(value),
-            Option::None => {
-                VarAccess::new(program.adopt_and_define_intermediate(scope, Variable::void()))
-            }
-        })
+        if let Option::Some(output_access) = preferred_output {
+            Result::Ok(output_access.clone())
+        } else {
+            Result::Ok(match output_var {
+                Option::Some(value) => VarAccess::new(value),
+                Option::None => {
+                    VarAccess::new(program.adopt_and_define_intermediate(scope, Variable::void()))
+                }
+            })
+        }
     }
 
     fn convert_expr_part_1(
         program: &mut Program,
         scope: ScopeId,
-        force_output: bool,
+        preferred_output: &Option<VarAccess>,
+        force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
@@ -161,7 +177,7 @@ pub mod convert {
                     return Result::Ok(VarAccess::new(var));
                 }
                 Rule::float => unimplemented!(),
-                Rule::func_expr => return convert_func_expr(program, scope, force_output, child),
+                Rule::func_expr => return convert_func_expr(program, scope, preferred_output, force_func_output, child),
                 // TODO: Real error message.
                 Rule::identifier => {
                     return Result::Ok(VarAccess::new(lookup_symbol_with_error(
@@ -169,8 +185,7 @@ pub mod convert {
                     )?))
                 }
                 Rule::expr => {
-                    let output = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, output.clone(), true, child)?;
+                    let output = convert_expression(program, scope, preferred_output.clone(), true, child)?;
                     return Result::Ok(output);
                 }
                 Rule::array_literal => unimplemented!(),
@@ -191,7 +206,8 @@ pub mod convert {
     fn convert_expr_part(
         program: &mut Program,
         scope: ScopeId,
-        force_output: bool,
+        preferred_output: &Option<VarAccess>,
+        force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
@@ -200,7 +216,7 @@ pub mod convert {
                     return convert_negate(program, scope, child);
                 }
                 Rule::expr_part_1 => {
-                    return convert_expr_part_1(program, scope, force_output, child);
+                    return convert_expr_part_1(program, scope, preferred_output, force_func_output, child);
                 }
                 _ => unreachable!(),
             }
@@ -407,10 +423,11 @@ pub mod convert {
     fn convert_expression(
         program: &mut Program,
         scope: ScopeId,
-        final_output: VarAccess,
-        force_output: bool,
+        // If Some is provided, the return value will be identical to the var access provided.
+        preferred_output: Option<VarAccess>,
+        force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
+    ) -> Result<VarAccess, CompileProblem> {
         let mut operand_stack = Vec::with_capacity(64);
         let mut operator_stack = Vec::with_capacity(64);
         operator_stack.push(SENTINEL);
@@ -418,7 +435,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr_part => {
-                    let result = convert_expr_part(program, scope, force_output, child)?;
+                    let result = convert_expr_part(program, scope, &preferred_output, force_func_output, child)?;
                     operand_stack.push(result);
                 }
                 Rule::operator => {
@@ -458,11 +475,21 @@ pub mod convert {
         // the result of whatever the single term is would not be copied to the
         // output variable.
         if operator_stack.len() == 1 {
-            let mut call = FuncCall::new(program.get_builtins().copy_func);
-            call.add_input(operand_stack.pop().unwrap());
-            call.add_output(final_output);
-            program.add_func_call(scope, call);
-            return Result::Ok(());
+            return match preferred_output {
+                Option::Some(final_output) => {
+                    let expression_output = operand_stack.pop().unwrap();
+                    if expression_output != final_output {
+                        let mut call = FuncCall::new(program.get_builtins().copy_func);
+                        call.add_input(expression_output);
+                        call.add_output(final_output.clone());
+                        program.add_func_call(scope, call);
+                    }
+                    Result::Ok(final_output)
+                }
+                Option::None => {
+                    Result::Ok(operand_stack.pop().unwrap())
+                }
+            }
         }
 
         // The last operator is the sentinel, we don't actually want to pop it.
@@ -473,7 +500,13 @@ pub mod convert {
             // should output the result to the output given to us. Otherwise,
             // make a new intermediate variable.
             let output = if operator_stack.len() == 1 {
-                final_output.clone()
+                match &preferred_output {
+                    Option::Some(final_output) => final_output.clone(),
+                    Option::None => {
+                        let var = program.make_intermediate_auto_var(scope);
+                        VarAccess::new(var)
+                    }
+                }
             } else {
                 let var = program.make_intermediate_auto_var(scope);
                 VarAccess::new(var)
@@ -485,9 +518,14 @@ pub mod convert {
             call.add_input(other.unwrap());
             call.add_output(output.clone());
             program.add_func_call(scope, call);
-            operand_stack.push(output);
+            // The last operator is the sentinel.
+            if operator_stack.len() == 1 {
+                return Result::Ok(output);
+            } else {
+                operand_stack.push(output);
+            }
         }
-        Result::Ok(())
+        unreachable!();
     }
 
     fn convert_assign_expr(
@@ -605,11 +643,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::statement => convert_statement(program, scope, child)?,
                 Rule::expr => {
-                    let result_var = match return_var.as_ref() {
-                        Option::Some(access) => access.clone(),
-                        Option::None => VarAccess::new(program.make_intermediate_auto_var(scope)),
-                    };
-                    convert_expression(program, scope, result_var, true, child)?;
+                    convert_expression(program, scope, return_var.clone(), true, child)?;
                 }
                 _ => unreachable!(),
             }
@@ -666,7 +700,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
                 Rule::expr => {
-                    convert_expression(program, scope, VarAccess::new(variable_id), true, child)?
+                    convert_expression(program, scope, Option::Some(VarAccess::new(variable_id)), true, child)?;
                 }
                 _ => unreachable!(),
             }
@@ -798,7 +832,7 @@ pub mod convert {
                     convert_expression(
                         program,
                         scope,
-                        VarAccess::new(func.get_output(index)),
+                        Option::Some(VarAccess::new(func.get_output(index))),
                         true,
                         child,
                     )?;
@@ -837,11 +871,10 @@ pub mod convert {
                         Rule::expr => true,
                         _ => false,
                     });
-                    convert_expression(program, scope, output, true, expr)?;
+                    convert_expression(program, scope, Option::Some(output), true, expr)?;
                 }
                 Rule::expr => {
-                    let result = VarAccess::new(program.make_intermediate_auto_var(scope));
-                    convert_expression(program, scope, result, false, child)?;
+                    convert_expression(program, scope, None, false, child)?;
                 }
                 _ => unreachable!(),
             }
