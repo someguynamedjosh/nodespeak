@@ -676,22 +676,28 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         let func_scope = program.create_child_scope(scope);
-        let mut function = FunctionData::new(func_scope);
+        let mut function = FunctionData::new(func_scope, FilePosition::placeholder());
+        let mut real_header_position = FilePosition::start_at(&input);
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::identifier => name = Option::Some(child.as_str()),
+                Rule::identifier => {
+                    real_header_position.include(&child);
+                    name = Option::Some(child.as_str());
+                }
                 Rule::function_signature => {
+                    real_header_position.include(&child);
                     convert_function_signature(program, &mut function, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
                     let output_value = function.get_single_output().and_then(
                         |id: VariableId| -> Option<VarAccess> { Option::Some(VarAccess::new(id)) },
                     );
+                    function.set_header(real_header_position);
                     // So that code inside the body can refer to the function.
                     // If name is None, there is a bug in the parser.
                     program.adopt_and_define_symbol(
                         scope,
-                        name.unwrap(),
+                        name.expect("Grammar requires a name."),
                         Variable::function_def(function),
                     );
                     convert_returnable_code_block(program, func_scope, output_value, child)?;
@@ -867,6 +873,7 @@ pub mod convert {
                         return Result::Err(problem::extra_return_value(
                             statement_position,
                             FilePosition::from_pair(&child),
+                            func.get_header().clone(),
                             func.borrow_outputs().len(),
                         ));
                     }
@@ -893,6 +900,7 @@ pub mod convert {
         if index != 0 && index < func.borrow_outputs().len() {
             return Result::Err(problem::missing_return_values(
                 statement_position,
+                func.get_header().clone(),
                 func.borrow_outputs().len(),
                 index,
             ));

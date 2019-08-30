@@ -1,3 +1,4 @@
+use crate::problem::FilePosition;
 use crate::structure::{DataType, FunctionData, Program, Variable, VariableId};
 
 #[derive(Clone, Debug)]
@@ -113,24 +114,49 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let void_type =
         program.adopt_and_define_symbol(scope, "Void", Variable::data_type(DataType::Void));
 
-    let make_blank_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+    let make_blank_func = |program: &mut Program,
+                           func: BuiltinFunction,
+                           name: &str,
+                           header_start: usize,
+                           header_end: usize| {
         let func_scope = program.create_scope();
-        let func_data = FunctionData::builtin(func_scope, func);
+        let func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_c_func = |program: &mut Program, func: BuiltinFunction, name: &str, in_type| {
+    let make_c_func = |program: &mut Program,
+                       func: BuiltinFunction,
+                       name: &str,
+                       in_type,
+                       header_start: usize,
+                       header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let input =
             program.adopt_and_define_symbol(func_scope, "input", Variable::variable(in_type, None));
         func_data.add_input(input);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_a_a_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+    let make_a_a_func = |program: &mut Program,
+                         func: BuiltinFunction,
+                         name: &str,
+                         header_start: usize,
+                         header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
@@ -149,9 +175,17 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_aa_a_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+    let make_aa_a_func = |program: &mut Program,
+                          func: BuiltinFunction,
+                          name: &str,
+                          header_start: usize,
+                          header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
@@ -176,9 +210,17 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_logic_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+    let make_logic_func = |program: &mut Program,
+                           func: BuiltinFunction,
+                           name: &str,
+                           header_start: usize,
+                           header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
@@ -204,9 +246,15 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
                              func: BuiltinFunction,
                              name: &str,
                              in_type,
-                             out_type| {
+                             out_type,
+                             header_start: usize,
+                             header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let in1 =
             program.adopt_and_define_symbol(func_scope, "in1", Variable::variable(in_type, None));
         let out =
@@ -216,9 +264,17 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
-    let make_comparison_func = |program: &mut Program, func: BuiltinFunction, name: &str| {
+    let make_comparison_func = |program: &mut Program,
+                                func: BuiltinFunction,
+                                name: &str,
+                                header_start: usize,
+                                header_end: usize| {
         let func_scope = program.create_scope();
-        let mut func_data = FunctionData::builtin(func_scope, func);
+        let mut func_data = FunctionData::builtin(
+            func_scope,
+            func,
+            FilePosition::for_builtin(header_start, header_end),
+        );
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
@@ -244,19 +300,20 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     };
 
     let builtins = Builtins {
-        add_func: make_aa_a_func(program, BuiltinFunction::Add, "!add"),
-        sub_func: make_aa_a_func(program, BuiltinFunction::Subtract, "!subtract"),
-        mul_func: make_aa_a_func(program, BuiltinFunction::Multiply, "!multiply"),
-        div_func: make_aa_a_func(program, BuiltinFunction::Divide, "!divide"),
-        int_div_func: make_aa_a_func(program, BuiltinFunction::IntDiv, "!int_div"),
-        mod_func: make_aa_a_func(program, BuiltinFunction::Modulo, "!modulo"),
-        pow_func: make_aa_a_func(program, BuiltinFunction::Power, "!power"),
-        recip_func: make_aa_a_func(program, BuiltinFunction::Reciprocal, "!reciprocal"),
+        add_func: make_aa_a_func(program, BuiltinFunction::Add, "!add", 1, 34),
+        sub_func: make_aa_a_func(program, BuiltinFunction::Subtract, "!subtract", 35, 73),
 
-        band_func: make_aa_a_func(program, BuiltinFunction::BAnd, "!band"),
-        bor_func: make_aa_a_func(program, BuiltinFunction::BOr, "!bor"),
-        bxor_func: make_aa_a_func(program, BuiltinFunction::BXor, "!bxor"),
-        bnot_func: make_aa_a_func(program, BuiltinFunction::BNot, "!bnot"),
+        mul_func: make_aa_a_func(program, BuiltinFunction::Multiply, "!multiply", 74, 112),
+        div_func: make_aa_a_func(program, BuiltinFunction::Divide, "!divide", 0, 0),
+        int_div_func: make_aa_a_func(program, BuiltinFunction::IntDiv, "!int_div", 0, 0),
+        mod_func: make_aa_a_func(program, BuiltinFunction::Modulo, "!modulo", 0, 0),
+        pow_func: make_aa_a_func(program, BuiltinFunction::Power, "!power", 0, 0),
+        recip_func: make_aa_a_func(program, BuiltinFunction::Reciprocal, "!reciprocal", 0, 0),
+
+        band_func: make_aa_a_func(program, BuiltinFunction::BAnd, "!band", 0, 0),
+        bor_func: make_aa_a_func(program, BuiltinFunction::BOr, "!bor", 0, 0),
+        bxor_func: make_aa_a_func(program, BuiltinFunction::BXor, "!bxor", 0, 0),
+        bnot_func: make_aa_a_func(program, BuiltinFunction::BNot, "!bnot", 0, 0),
 
         int_to_float_func: make_convert_func(
             program,
@@ -264,6 +321,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!int_to_float",
             DataType::Int,
             DataType::Float,
+            0,
+            0,
         ),
         float_to_int_func: make_convert_func(
             program,
@@ -271,6 +330,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!float_to_int",
             DataType::Float,
             DataType::Int,
+            0,
+            0,
         ),
         bool_to_float_func: make_convert_func(
             program,
@@ -278,6 +339,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!bool_to_float",
             DataType::Bool,
             DataType::Float,
+            0,
+            0,
         ),
         float_to_bool_func: make_convert_func(
             program,
@@ -285,6 +348,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!float_to_bool",
             DataType::Float,
             DataType::Bool,
+            0,
+            0,
         ),
         bool_to_int_func: make_convert_func(
             program,
@@ -292,6 +357,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!bool_to_int",
             DataType::Bool,
             DataType::Int,
+            0,
+            0,
         ),
         int_to_bool_func: make_convert_func(
             program,
@@ -299,31 +366,44 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "!int_to_bool",
             DataType::Int,
             DataType::Bool,
+            0,
+            0,
         ),
 
-        eq_func: make_comparison_func(program, BuiltinFunction::Equal, "!equal"),
-        neq_func: make_comparison_func(program, BuiltinFunction::NotEqual, "!not_equal"),
+        eq_func: make_comparison_func(program, BuiltinFunction::Equal, "!equal", 0, 0),
+        neq_func: make_comparison_func(program, BuiltinFunction::NotEqual, "!not_equal", 0, 0),
         lte_func: make_comparison_func(
             program,
             BuiltinFunction::LessThanOrEqual,
             "!less_than_or_equal",
+            0,
+            0,
         ),
         gte_func: make_comparison_func(
             program,
             BuiltinFunction::GreaterThanOrEqual,
             "!greater_than_or_equal",
+            0,
+            0,
         ),
-        lt_func: make_comparison_func(program, BuiltinFunction::LessThan, "!less_than"),
-        gt_func: make_comparison_func(program, BuiltinFunction::GreaterThan, "!greater_than"),
+        lt_func: make_comparison_func(program, BuiltinFunction::LessThan, "!less_than", 0, 0),
+        gt_func: make_comparison_func(program, BuiltinFunction::GreaterThan, "!greater_than", 0, 0),
 
-        and_func: make_logic_func(program, BuiltinFunction::And, "!and"),
-        or_func: make_logic_func(program, BuiltinFunction::Or, "!or"),
-        xor_func: make_logic_func(program, BuiltinFunction::Xor, "!xor"),
-        not_func: make_logic_func(program, BuiltinFunction::Not, "!not"),
+        and_func: make_logic_func(program, BuiltinFunction::And, "!and", 0, 0),
+        or_func: make_logic_func(program, BuiltinFunction::Or, "!or", 0, 0),
+        xor_func: make_logic_func(program, BuiltinFunction::Xor, "!xor", 0, 0),
+        not_func: make_logic_func(program, BuiltinFunction::Not, "!not", 0, 0),
 
-        assert_func: make_c_func(program, BuiltinFunction::Assert, "assert", DataType::Bool),
-        copy_func: make_a_a_func(program, BuiltinFunction::Copy, "!copy"),
-        return_func: make_blank_func(program, BuiltinFunction::Return, "!return"),
+        assert_func: make_c_func(
+            program,
+            BuiltinFunction::Assert,
+            "assert",
+            DataType::Bool,
+            0,
+            0,
+        ),
+        copy_func: make_a_a_func(program, BuiltinFunction::Copy, "!copy", 0, 0),
+        return_func: make_blank_func(program, BuiltinFunction::Return, "!return", 0, 0),
 
         automatic_type: automatic_type,
         bool_type: bool_type,

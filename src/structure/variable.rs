@@ -1,3 +1,4 @@
+use crate::problem::FilePosition;
 use crate::structure::{BuiltinFunction, ScopeId, VariableId};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -28,27 +29,38 @@ impl DataType {
 pub struct FunctionData {
     body: ScopeId,
     builtin: Option<BuiltinFunction>,
+    header: FilePosition,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
 }
 
 impl FunctionData {
-    pub fn new(body: ScopeId) -> FunctionData {
+    pub fn new(body: ScopeId, header: FilePosition) -> FunctionData {
         FunctionData {
             body,
             builtin: None,
+            header,
             inputs: Vec::new(),
             outputs: Vec::new(),
         }
     }
 
-    pub fn builtin(body: ScopeId, builtin: BuiltinFunction) -> FunctionData {
+    pub fn builtin(body: ScopeId, builtin: BuiltinFunction, header: FilePosition) -> FunctionData {
         FunctionData {
             body,
             builtin: Option::Some(builtin),
+            header,
             inputs: Vec::new(),
             outputs: Vec::new(),
         }
+    }
+
+    pub fn set_header(&mut self, new_header: FilePosition) {
+        self.header = new_header;
+    }
+
+    pub fn get_header(&self) -> &FilePosition {
+        &self.header
     }
 
     pub fn get_body(&self) -> ScopeId {

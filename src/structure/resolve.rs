@@ -78,7 +78,7 @@ impl<'a> ScopeResolver<'a> {
 
     fn convert_function(&self, func_data: &FunctionData, new_body: ScopeId) -> FunctionData {
         assert!(!func_data.is_builtin());
-        let mut result = FunctionData::new(new_body);
+        let mut result = FunctionData::new(new_body, func_data.get_header().clone());
         for old_input in func_data.borrow_inputs().iter() {
             result.add_input(self.convert(*old_input));
         }

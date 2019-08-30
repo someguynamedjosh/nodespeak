@@ -10,13 +10,16 @@ pub mod problem;
 pub mod structure;
 
 pub struct SourceSet<'a> {
-    sources: Vec<(String, &'a str)>
+    sources: Vec<(String, &'a str)>,
 }
 
 impl<'a> SourceSet<'a> {
     pub fn new<'s>() -> SourceSet<'s> {
         SourceSet {
-            sources: vec![("(internal code) builtins".to_owned(), structure::FAKE_BUILTIN_SOURCE)]
+            sources: vec![(
+                "(internal code) builtins".to_owned(),
+                structure::FAKE_BUILTIN_SOURCE,
+            )],
         }
     }
 

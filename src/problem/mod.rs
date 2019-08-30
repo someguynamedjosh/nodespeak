@@ -1,9 +1,10 @@
+use crate::SourceSet;
 use colored::*;
 use pest::iterators::Pair;
 use pest::RuleType;
+use std::cmp;
 use std::iter::FromIterator;
 use std::ops::Add;
-use crate::SourceSet;
 
 #[derive(Clone, Debug)]
 pub struct FilePosition {
@@ -23,12 +24,36 @@ impl FilePosition {
         }
     }
 
+    pub fn start_at<R: RuleType>(pair: &Pair<R>) -> FilePosition {
+        let span = pair.as_span();
+        FilePosition {
+            start_pos: span.start(),
+            end_pos: span.start(),
+            // TODO: Modify this once we accept multiple files.
+            file: 1,
+        }
+    }
+
     pub fn for_builtin(start: usize, end: usize) -> FilePosition {
         FilePosition {
             start_pos: start,
             end_pos: end,
-            file: 0
+            file: 0,
         }
+    }
+
+    pub fn placeholder() -> FilePosition {
+        FilePosition {
+            start_pos: 0,
+            end_pos: 0,
+            file: 0,
+        }
+    }
+
+    pub fn include<R: RuleType>(&mut self, pair: &Pair<R>) {
+        let span = pair.as_span();
+        self.start_pos = cmp::min(self.start_pos, span.start());
+        self.end_pos = cmp::max(self.end_pos, span.end());
     }
 }
 
@@ -227,7 +252,7 @@ impl CompileProblem {
                     }
                 }
             }
-            output.push_str(&format!("\n{:-^1$}\n", "", width).blue().to_string());
+            output.push_str(&format!("\n{:-^1$}\n\n", "", width).blue().to_string());
         }
         output
     }
@@ -263,6 +288,7 @@ pub fn return_from_root(pos: FilePosition) -> CompileProblem {
 pub fn extra_return_value(
     statement_pos: FilePosition,
     extra_pos: FilePosition,
+    function_header: FilePosition,
     expected_num_values: usize,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
@@ -282,26 +308,40 @@ pub fn extra_return_value(
             Hint,
             concat!("This value has no corresponding output."),
         ),
+        ProblemDescriptor::new(
+            function_header,
+            Hint,
+            concat!("The header of the function is as follows:"),
+        ),
     ])
 }
 
 pub fn missing_return_values(
     statement_pos: FilePosition,
+    function_header: FilePosition,
     expected_num_values: usize,
     actual_num_values: usize,
 ) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
-        statement_pos,
-        Error,
-        &format!(
-            concat!(
-                "Not Enough Return Values\nReturn statements must either specify values for every ",
-                "output or specify no outputs. The highlighted return statement specifies values ",
-                "for {} outputs, but the function it is a part of has {} outputs.",
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            statement_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Not Enough Return Values\nReturn statements must either specify values for ",
+                    "every output or specify no outputs. The highlighted return statement ",
+                    "specifies values for {} outputs, but the function it is a part of has {} ",
+                    "outputs."
+                ),
+                actual_num_values, expected_num_values,
             ),
-            actual_num_values, expected_num_values,
         ),
-    )])
+        ProblemDescriptor::new(
+            function_header,
+            Hint,
+            concat!("The header of the function is as follows:"),
+        ),
+    ])
 }
 
 pub fn missing_inline_return(
