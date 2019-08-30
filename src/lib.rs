@@ -22,7 +22,7 @@ pub fn compile(source: &str) -> Result<CompileResult, String> {
             let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
             return Result::Err(format!(
                 "Compilation failed during structuring phase.\n\n{}",
-                err.format(width)
+                err.format(width, source)
             ));
         }
     };

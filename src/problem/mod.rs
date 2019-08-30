@@ -1,15 +1,12 @@
 use colored::*;
 use pest::iterators::Pair;
 use pest::RuleType;
+use std::iter::FromIterator;
+use std::ops::Add;
 
 pub struct FilePosition {
     start_pos: usize,
-    start_line: usize,
-    start_column: usize,
     end_pos: usize,
-    end_line: usize,
-    end_column: usize,
-    source: Vec<String>,
 }
 
 impl FilePosition {
@@ -19,12 +16,7 @@ impl FilePosition {
         let end = span.end_pos().line_col();
         FilePosition {
             start_pos: span.start(),
-            start_line: start.0,
-            start_column: start.1,
             end_pos: span.end(),
-            end_line: end.0,
-            end_column: end.1 - 1,
-            source: span.lines().map(|item| item.to_owned()).collect(),
         }
     }
 }
@@ -84,12 +76,21 @@ fn wrap_text(input: &str, width: usize, offset: usize) -> String {
     }
     if word.len() > 0 {
         let word_length = word.len();
-        if line_length + word_length > 80 {
+        if line_length + word_length > width {
             output.push('\n');
         }
         output.push_str(&word);
     }
     output
+}
+
+struct GrabResult {
+    prefix: String,
+    highlighted: String,
+    suffix: String,
+
+    line_number: usize,
+    column_number: usize,
 }
 
 impl CompileProblem {
@@ -107,7 +108,51 @@ impl CompileProblem {
         self.descriptors.push(descriptor)
     }
 
-    pub fn format(&self, width: Option<usize>) -> String {
+    fn grab_text<'a>(from: &'a str, at: &FilePosition) -> GrabResult {
+        let start_char = at.start_pos;
+        let end_char = at.end_pos;
+        let mut result = GrabResult {
+            prefix: String::new(),
+            highlighted: String::new(),
+            suffix: String::new(),
+
+            line_number: 0,
+            column_number: 0,
+        };
+        let mut line_buffer: Vec<char> = Vec::new();
+        let mut line = 1;
+        let mut column = 0;
+
+        for (index, character) in from.chars().enumerate() {
+            column += 1;
+            if index < start_char {
+                line_buffer.push(character);
+            } else if index == start_char {
+                result.prefix = String::from_iter(line_buffer.iter());
+                result.highlighted.push(character);
+                result.line_number = line;
+                result.column_number = column;
+                // IDK why the -1 is neccessary, but it is.
+            } else if index > start_char && index < end_char - 1 {
+                result.highlighted.push(character);
+            } else if character != '\n' {
+                result.suffix.push(character);
+            }
+            if character == '\n' {
+                line_buffer.clear();
+                line += 1;
+                column = 0;
+                if index >= end_char {
+                    return result;
+                }
+            }
+        }
+
+        result
+    }
+
+    // This whole thing is a mess but it doesn't need to run fast.
+    pub fn format(&self, width: Option<usize>, source_code: &str) -> String {
         let width = width.unwrap_or(FALLBACK_ERROR_WIDTH);
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
@@ -120,7 +165,8 @@ impl CompileProblem {
             output.push_str("\n");
 
             let position = &descriptor.position;
-            let spacing = position.end_line.to_string().len();
+            let grabbed = Self::grab_text(source_code, position);
+            let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
             output.push_str(&format!(
@@ -128,24 +174,29 @@ impl CompileProblem {
                 "|".blue().to_string(),
                 spaces,
                 "| ".blue().to_string(),
-                position.start_line,
-                position.start_column,
+                grabbed.line_number,
+                grabbed.column_number,
             ));
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
-            for (line, content) in position.source.iter().enumerate() {
-                output.push_str(
-                    &format!("| {: >1$} | ", (line + position.start_line), spacing)
-                        .blue()
-                        .to_string(),
-                );
-                let start_x = spacing + 5;
-                let mut x = start_x;
-                let mut column = 1;
-                for ch in content.chars() {
-                    if (line == 0 && column < position.start_column)
-                        || (line == position.end_line - position.start_line
-                            && column > position.end_column)
-                    {
+            let highlight_start = grabbed.prefix.len();
+            let highlight_end = highlight_start + grabbed.highlighted.len();
+            let start_x = spacing + 5;
+            let mut x = start_x;
+            let mut column = 1;
+            let mut line = grabbed.line_number;
+            for (index, ch) in grabbed.prefix.add(&grabbed.highlighted.add(&grabbed.suffix)).chars().enumerate() {
+                if ch == '\n' || index == 0 {
+                    output.push_str(
+                        &format!("| {: >1$} | ", (line), spacing)
+                            .blue()
+                            .to_string(),
+                    );
+                    x = start_x;
+                    column = 1;
+                    line += 1;
+                } 
+                if ch != '\n' {
+                    if index < highlight_start || index > highlight_end {
                         output.push(ch);
                     } else {
                         output.push_str(&match descriptor.ptype {
@@ -156,13 +207,13 @@ impl CompileProblem {
                     }
                     x += 1;
                     column += 1;
-                    if x > width {
+                    if x >= width {
                         output.push_str(&format!("\n|{}| ", spaces).blue().to_string());
                         x = start_x;
                     }
                 }
             }
-            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
+            output.push_str(&format!("\n{:-^1$}\n", "", width).blue().to_string());
         }
         output
     }
