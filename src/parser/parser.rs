@@ -714,6 +714,7 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         let mut name = Option::None;
         let variable_id = program.adopt_variable(Variable::variable(data_type, None));
+        let input_pos = FilePosition::from_pair(&input);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::identifier => name = Option::Some(child.as_str()),
@@ -724,7 +725,15 @@ pub mod convert {
                         Option::Some(VarAccess::new(variable_id)),
                         true,
                         child,
-                    )?;
+                    )
+                    .map_err(|mut err| {
+                        problem::hint_encountered_while_parsing(
+                            "initial value for a variable",
+                            input_pos.clone(),
+                            &mut err,
+                        );
+                        err
+                    })?;
                 }
                 _ => unreachable!(),
             }
@@ -867,7 +876,15 @@ pub mod convert {
                         Option::Some(VarAccess::new(func.get_output(index))),
                         true,
                         child,
-                    )?;
+                    )
+                    .map_err(|mut err| {
+                        problem::hint_encountered_while_parsing(
+                            "a return statement",
+                            statement_position.clone(),
+                            &mut err,
+                        );
+                        err
+                    })?;
                     index += 1;
                 }
                 _ => unreachable!(),

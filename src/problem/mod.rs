@@ -4,6 +4,7 @@ use pest::RuleType;
 use std::iter::FromIterator;
 use std::ops::Add;
 
+#[derive(Clone, Debug)]
 pub struct FilePosition {
     start_pos: usize,
     end_pos: usize,
@@ -313,4 +314,16 @@ pub fn missing_inline_return(
             ),
         ),
     ])
+}
+
+pub fn hint_encountered_while_parsing(
+    context_description: &str,
+    assignment_pos: FilePosition,
+    error: &mut CompileProblem,
+) {
+    error.add_descriptor(ProblemDescriptor::new(
+        assignment_pos,
+        Hint,
+        &format!("Error encountered while parsing {}:", context_description),
+    ));
 }
