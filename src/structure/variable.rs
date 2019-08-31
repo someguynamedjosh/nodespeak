@@ -211,6 +211,14 @@ impl Variable {
         Variable::variable(definition, DataType::Void, Option::None)
     }
 
+    pub fn set_definition(&mut self, new_definition: FilePosition) {
+        self.definition = new_definition;
+    }
+
+    pub fn get_definition(&self) -> &FilePosition {
+        &self.definition
+    }
+
     pub fn set_data_type(&mut self, data_type: DataType) {
         self.data_type = data_type;
     }

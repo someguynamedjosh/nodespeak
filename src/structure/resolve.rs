@@ -140,6 +140,7 @@ impl<'a> ScopeResolver<'a> {
         if table.contains_key(&template_parameter) {
             // Set the new value for that template parameter to the BCT between the old value and
             // the data type of the specific argument.
+            // TODO: Error if finding BCT results in Void (meaning there is no BCT.)
             table.insert(
                 template_parameter,
                 structure::biggest_common_type(&table[&template_parameter], value),
@@ -242,7 +243,7 @@ impl<'a> ScopeResolver<'a> {
         let func_target;
         match func_var.borrow_initial_value() {
             KnownData::Function(data) => func_target = data.clone(),
-            _ => panic!("TODO nice error for a function being vague."),
+            _ => return Result::Err(problem::vague_function(new_func_call.get_position().clone(), func_var.get_definition().clone()))
         }
 
         let mut type_params = HashMap::new();
@@ -363,6 +364,7 @@ impl<'a> ScopeResolver<'a> {
                     .program
                     .adopt_and_define_intermediate(output, casted_var);
                 let var_access = VarAccess::new(input_accessor.get_position().clone(), casted_id);
+                // TODO: Error if cast is invalid
                 structure::create_cast(
                     self.program,
                     output,
@@ -396,6 +398,7 @@ impl<'a> ScopeResolver<'a> {
             }
             self.program.add_func_call(output, new_new_func_call);
             for (from, to) in output_casts.into_iter() {
+                // TODO: Error if cast is invalid
                 structure::create_cast(self.program, output, from, to);
             }
         } else {
@@ -457,6 +460,7 @@ impl<'a> ScopeResolver<'a> {
                     .program
                     .adopt_and_define_intermediate(output, casted_var);
                 let var_access = VarAccess::new(input_accessor.get_position().clone(), casted_id);
+                // TODO: Error if cast is invalid.
                 structure::create_cast(
                     self.program,
                     output,
@@ -493,6 +497,7 @@ impl<'a> ScopeResolver<'a> {
             }
             self.program.add_func_call(output, new_new_func_call);
             for (from, to) in output_casts.into_iter() {
+                // TODO: Error if cast is invalid.
                 structure::create_cast(self.program, output, from, to);
             }
 

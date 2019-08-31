@@ -55,3 +55,26 @@ pub fn wrong_number_of_outputs(
         ),
     ])
 }
+
+pub fn vague_function(
+    func_call_pos: FilePosition,
+    var_dec_pos: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            func_call_pos,
+            Error,
+            concat!(
+                "Vague Function Variable\nCannot determine what function is ",
+                "being called here:"
+            ),
+        ),
+        ProblemDescriptor::new(
+            var_dec_pos,
+            Hint,
+            concat!(
+                "The variable that should hold the function was declared here:"
+            ),
+        ),
+    ])
+}
