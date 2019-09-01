@@ -1,4 +1,4 @@
-# Syntax description
+# Language description
 
 ## Values
 
@@ -23,10 +23,7 @@ In all the above examples, underscores serve as seperators that can be used
 to make large numbers more readable. When the file is parsed, the number literal
 is parsed as if the underscores were never inserted.
 
-`true`, `false` are the two acceptable literals for boolean values. Other truthy
-or falsey values such as `1` and `0` can be used where a boolean is needed, but
-they will be cast to a boolean value beforehand. It is best to explicitly use
-`true` or `false`.
+`true`, `false` are the two acceptable literals for boolean values.
 
 Array literals can be specified using brackets: `[1, 2, 3]`.
 
@@ -82,12 +79,12 @@ language more uniform. All data types are capitalized.
 
 **TO BE IMPLEMENTED LATER**
 There are several builtin datatypes that are only available at compile time:
-`_Function`, `_DataType`, `_Lambda`. Because they are only available at compile
-time, they are prefixed with an underscore. Whenever a variable with one of
+`Function_`, `DataType_`, `Lambda_`. Because they are only available at compile
+time, they are suffixed with an underscore. Whenever a variable with one of
 these types is referenced in the code, its value must be determinable at compile
 time. This means that the following code is valid:
 ```rust
-_DataType type;
+DataType_ type;
 if(true) {
     type = Float;
 } else {
@@ -148,7 +145,7 @@ Well, that's not too terrible. A little unintuitive, but not enough to warrant
 completely reversing the syntax. However, if we look at template parameters,
 things start to get weird. Let's suppose that for this example,
 ```rust
-T === [3]Int;
+T == [3]Int;
 ```
 In other words, the type `T` represents a 3-element array of `Int`s. If we
 wanted to create our original data type (`[5][4][3]Int`) using `T` and our
@@ -164,7 +161,7 @@ out T with what it represents:
 This again gives us the nice ordered diagram from the beginning. Now let's try
 to do the same using a more traditional syntax:
 ```rust
-T === Int[3];
+T == Int[3];
 T[5][4];
 ```
 This fundamentally represents the same data type. `T` is a 3-element array of
@@ -190,12 +187,12 @@ arrays must have a size defined at compile time. Because of waveguide's builtin
 compile-time simplification, any expression that can be resolved at compile time
 can be used to specify the size of an array. This can be as simple as:
 ```rust
-Int[4] array;
+[4]Int array;
 ```
 As idiomatic as:
 ```rust
 const FILTER_SIZE = 512;
-Int[FILTER_SIZE] kernel;
+[FILTER_SIZE]Int kernel;
 ```
 or as complex as:
 ```rust
@@ -208,7 +205,7 @@ fn fibbonacci(Int iterations):(Int output) {
         before_output = temp;
     };
 }
-Int[fibbonacci(12)] fibbonacci_array;
+[fibbonacci(12)]Int fibbonacci_array;
 ```
 Note that, unlike other languages, there is no special syntax needed to make
 the function `fibbonacci` work at compile time. That's the power of waveguide's
@@ -228,13 +225,13 @@ Pretty simple, like most languages:
 
 `a % b` is modulo (remainder), works for both floats and ints.
 
-`a ** b` is power (a to the power of b.)
-
 Slight deviation from most languages, more pythonic:
 
-`a / b` is floating-point division, the operands will be cast to float.
+`a ** b` is power (a to the power of b.)
 
-`a // b` is integer division, the operands will be cast to int.
+`a / b` is floating-point division, the operands must be floats.
+
+`a // b` is integer division, the operands must be ints.
 
 ### Values
 
@@ -274,8 +271,8 @@ More pythonic with this one, to reserve more symbols for mathy stuff:
 
 The bitwise variants just add 'b' on to the front of the operation name, for 
 example: `a band b` does a bitwise and of a and b. Another example is 
-`a bxnor b` which, if you ever use, I want to see what bizarre set of 
-circumstances lead to something like that.
+`a bxnor b` which, if you ever use, I would be very interested in seeing what 
+bizarre set of circumstances lead to it.
 
 ### Arrays
 Operations are performed elementwise on arrays. For example:
@@ -283,173 +280,180 @@ Operations are performed elementwise on arrays. For example:
 [1, 2, 3] + [4, 4, 4] == [5, 6, 7];
 [1, 0, 1, 0] * [1, 2, 3, 4] == [1, 0, 3, 0];
 ```
-As will be explained in the casting section, the following is also true:
+As will be explained in the section on inflation, the following is also true:
 ```rust
 [1, 2, 3] * 4 == [4, 8, 12];
 ```
 
-## Casting
-Whenever a variable needs to be a different type for an operation, casting 
-occurs. You may be familiar with this from its basic form in other languages.
-For example, when executing the expression `14 + 5.3`, `14` is first cast to
-a float so it can be added to the other float. This is because the operands are
-of type `Int` and `Float` respecively. Of those two, `Float` is the most precise
-so the other variable must be cast to `Float` before the addition can occur.
-Casting can also occur when a specific type is required for a function. For 
-example, consider:
+## Inflation
+The concept of 'inflation' replaces the concept of automatic casting in other
+languages. In the interest of performance, waveguide will never automatically
+perform "expensive" operations such as casting ints to floats and vice versa.
+The only "casts" waveguide will perform automatically are inflation smaller 
+array data types or single value types to larger array types. Under the hood, 
+this conversion is completely free because no actual copying is occuring. 
+Instead, the original underlying data is made to appear larger, and any code 
+that accesses values from it is converted to code which accesses the equivalent 
+value from the original data. Examples are the best way to explain this:
 ```rust
-fn factorial(Int iterations):(Int output) {
-    output = 1;
-    repeat(iterations) (factor) {
-        output = output * factor;
-    };
+fn example([5]Int inputs):(Int sum) {
+    sum = 0;
+    repeat(5) (Int index) {
+        sum += inputs[index];
+    }
 }
 ```
-If you were to input a `Float` into this function:
+The function calls for a 1-dimensional, 5-element array. If we call it using a 
+simple integer, which can be thought of as a 0-dimensional array, the single 
+value will be 'inflated' to a 5-element array:
 ```rust
-factorial(12.3);
+example(2):(Int result);
+assert(result == 10);
 ```
-It must first be cast to an `Int` before the function can run.
+Internally, waveguide will modify the code that accesses the elements of the
+array to only access the single scalar value. Although it is not completely 
+accurate to say so, it is convenient to conceptualize this process as turning 
+the code for the `example` function into:
+```rust
+fn example(Int inputs):(Int sum) {
+    sum = 0;
+    repeat(5) (Int index) {
+        sum += inputs;
+    }
+}
+```
+From here, the compiler can notice that the loop is simply doing the same thing
+five times over and can convert it to a multiplication operation. From this
+example, it can be seen how performing these kinds of "casts" incurs no 
+performance penalty. Using a scalar instead of a full blown array will result
+in similar, if not faster, performance. Other "casts" sucn as converting `Int`s
+to `Float`s do not carry the same guarantee, as they require additional code to
+be executed at runtime to perform the cast. For example, consider the following
+code:
+```rust
+fn expensive(Float input):(Float halved) {
+    halved = input / 2;
+}
+```
+Calling it like so:
+```rust
+expensive(40):(Int result):
+```
+Would theoretically work fine, as `result` could simply be `20`. However, this
+would involve adding two extra function calls, one to convert `40` to a float,
+and another to turn the result back into an integer. The code above will
+produce an error. If you really want behavior like what is mentioned, do this
+instead:
+```rust
+Int result = ftoi(expensive(itof(40)));
+```
+Now that the overview is complete, it's time to look at exactly how waveguide
+decides to inflate values:
+
+### Inflation Rules
+These rules are used to determine how to inflate a value of one type to look
+like it has another type. In each rule, the tokens `T` and `U` are placeholders
+for any type, and `x` is a placeholder for any value. Each rule has a predicate
+in the form `T -> U`, meaning that the rule is active when a value of type `T`
+is being inflated and the final type should be of type `U`. Each rule is tried
+in order until an applicable rule is found. If no applicable rule is found, the
+inflation is invalid and a compilation error is generated.
+
+1. `T -> T`       : No operation is performed.
+2. `[x]T -> [x]U` : Find the rule for `T -> U`. Apply it to every element of the
+                    input value.
+3. `[1]T -> U`    : Find the rule for `T -> U`. Apply it to the input value.
+                    Make a proxy value which refers to the first (and only)
+                    element of the input.
+4. `T -> [x]U`    : Find the rule for `T -> U`. Apply it to the input value.
+                    Make a proxy array of size `x` in which every element refers
+                    to the input value.
+
+Note how all of these operations can occur at compile time, ensuring that no
+additional runtime cost is added. Also note how there is no way to 'deflate' a
+larger array into a smaller array. For example, a `[5]Int` cannot become a
+`[1]Int`. This is because there is no well-defined way that an operation like
+this should occur. Should the elements of the bigger array be averaged? That
+would incur a runtime cost. Should the bigger array be trimmed? Although it is
+free, it is rarely what the programmer wants. This also applies for inflating
+n-dimensional arrays to other n-dimensional arrays where neither of the indexes
+are one. For example, what should happen when inflating a `[2]Int` to a 
+`[5]Int`? Repeat the array 2 1/2 times? Repeat each element twice and trim the
+end? Since there is no good action to take in these cases, it is up to the
+programmer to manually convert value in these cases.
 
 ### Biggest Common Type Rules
 When two values must have the same type (such as with arithmetic operations),
-these rules are used to determine what type they should each be cast to so that
-the operation can occur. It is often the case that this common type will be the
-same as the type of one of the inputs, though there are many cases where the
-common type is not shared by any of the inputs, requiring all inputs to be cast
-to it. `T` and `U` will be used to represent any type, and `x`, `y`, and `z` 
-will be used to represent arbitrary numbers. The format for these rules is
-`{type1} + {type2} -> {common type}`. If the common type specifies something
-like `T + U`, it means to recursively apply the rules on `T` and `U` to
-determine the common type. All rules are commutative, meaning the oprands can be
-applied in any order.
+these rules are used to determine what type they should each be inflated to so 
+that the operation can occur. It is often the case that this common type will be 
+the same as the type of one of the inputs. `T` and `U` will be used to represent 
+any type, and `x` will be used to represent an arbitrary number. The format for 
+these rules is `{type1} + {type2} -> {common type}`. If the common type 
+specifies something like `T + U`, it means to recursively apply the rules on `T` 
+and `U` to determine the common type. All rules are commutative, meaning the 
+operands (type1 and type2) can be applied in any order.
 
-0. `T + Auto -> T`
-1. `T + T -> T`
-2. `Float + Int -> Float`
-3. `Float + Bool -> Float`
-4. `Int + Bool -> Int`
-5. `[x]T + [x]U -> [x]{T + U}`
-6. `[x]T + U -> [x]{T + U}`
+1. `T + Auto -> T`
+2. `T + T -> T`
+3. `[x]T + [x]U -> [x]{T + U}`
+4. `[x]T + [1]U -> [x]{T + U}`
+5. `[x]T + U -> [x]{T + U}`
 
 These rules are applied in order and recursively. If the end of the list is
-reached because none of the rules apply, the cast is considered invalid and a
-compile-time error will be thrown. It is then up to the programmer to manipulate
-the inputs such that they match the rules.
+reached because none of the rules apply, the inflation is considered invalid and 
+a compile-time error will be thrown. It is then up to the programmer to 
+manipulate the inputs such that they match the rules.
 
-### Biggest Common Type Examples:
-
-Consider `Int + Float`.
-- According to rule 2, this becomes `Float`.
-
-Consider `[5]Int + Float`.
-- According to rule 6, this becomes `[5]{Int + Float}`.
-- According to rule 2, this becomes `[5]Float`.
-- Note that this type is different from both inputs.
-
-Consider `[5]Int + [5]Int`.
-- According to rule 1, this becomes `[5]Int`.
-
-Consider `[10][3]Int + Float`.
-- According to rule 6, this becomes `[10]{[3]Int + Float}`.
-- According to rule 6, this becomes `[10][3]{Int + Float}`.
-- According to rule 2, this becomes `[10][3]Float`.
-
-Consider `[10][3]Int + [3]Int`.
-- According to rule 6, this becomes `[10]{[3]Int + [3]Int}`.
-- According to rule 1, this becomes `[10][3]Int`.
-
-Consider `[5]Int + [3]Int`.
-- There is no rule that matches this situation, so the cast is invalid. The
-programmer may extend the second array to have 5 elements, or they may take the
-average of both arrays to get two floating point values, or any other number of
-operations to make their data types compatible.
-
-### Casting Rules
-These are rules governing what can be cast to what, and how that casting occurs.
-`T` and `U` will be used to represent any type, and `x`, `y`, and `z` will be 
-used to represent arbitrary numbers. These rules are *not* commutative.
-
-1. `T -> T`: No operation is performed.
-
-2. `Int -> Float`: Simple conversion, the decimal part is set to 0.
-
-3. `Float -> Int`: The decimal part is discarded.
-
-4. `[x]T -> [x]U`: Every element of the array is cast using the rule for
-`T -> U`.
-
-5. `T -> [x]U`: The value of the variable is cast using the rule for `T -> U`, 
-and then copied `x` times to fill the array.
-
-6. `[1]T -> U`: The first value of the array is cast using the rule for `T -> U`
-and then copied to the output.
-
-These rules are applied in order and recursively to any situation requiring
-casting. If the end of the list is reached and none of the rules apply, the cast
-is illegal and will produce a compile-time error. In this case, the programmer
-must manually convert the data either to the target type or to a type that
-can be automatically casted to the target type.
-
-### Casting Examples
+### Examples
 These are examples of syntactically valid expressions and how they are 
 interpreted through the combination of the biggest common type rules and the
-casting rules.
+inflation rules.
 
 Consider `1 + 2`. 
 - Looking at the types, the common type is `Int + Int`.
 - According to BCT rule 1, this becomes `Int`.
-- The cast of the first operand is then `Int -> Int`.
-- According to casting rule 1, nothing happens.
-- The cast of the second operand is `Int -> Int`.
-- Again, according to casting rule 1, nothing happens.
+- The inflation of the first operand is then `Int -> Int`.
+- According to inflation rule 1, nothing happens.
+- The inflation of the second operand is `Int -> Int`.
+- Again, according to inflation rule 1, nothing happens.
 - The final expression internally looks like `1 + 2`.
+
+Consider `1 + [5, 6, 10]`
+- The common type is `Int + [3]Int`.
+- According to BCT rule 3, this becomes `[3]{Int + Int}`.
+- According to BCT rule 2, this becomes `[3]Int`.
+- The inflation of the first operand is then `Int -> [3]Int`.
+- According to inflation rule 4, the single integer is converted to a proxy type
+with three elements, appearing identical to the array `[1, 1, 1]`.
+- The inflation of the second operand is `[3]Int -> [3]Int`.
+- According to inflation rule 1, nothing happens.
+- The final expression resembles `[1, 1, 1] + [5, 6, 10]`.
+- The result of this expression is `[6, 7, 11]`.
+
+Consider `[[2, 1], [4, 3]] * [2]`
+- The common type is `[2][2]Int + [1]Int`.
+- According to BCT rule 3, this becomes `[2]{[2]Int + [1]Int}`.
+- According to BCT rule 4, this becomes `[2][2]{Int + Int}`.
+- According to BCT rule 2, this becomes `[2][2]Int`.
+- The inflation of the first operand is `[2][2]Int -> [2][2]Int`
+- According to inflation rule 1, nothing happens.
+- The inflation of the second operand is `[1]Int -> [2][2]Int`.
+- According to inflation rule 1, the input is converted to a proxy `Int` which
+refers to the first element of the original value. This proxy is then inflated
+with the rule for `Int -> [2][2]Int`. 
+- This results in inflation rule 4 being used twice, resulting in a proxy array
+of type `[2][2]Int` where every element refers to the first element of the
+original input.
+- Overall, this makes the second operand appear as  `[[2, 2], [2, 2]]`.
+- The result of this expression is then `[[4, 2], [8, 6]]`.
 
 Consider `1 + 2.0`
 - The common type is `Int + Float`.
-- According to BCT rule 2, this becomes `Float`.
-- The cast of the first operand is then `Int -> Float`.
-- According to casting rule 2, it is given an empty decimal section, making 
-`1.0`.
-- The cast of the second operand is `Float -> Float`.
-- According to casting rule 1, nothing happens.
-- The final expression internally looks like `1.0 + 2.0`.
-
-Consider `1 + [5, 6]`
-- The common type is `Int + [2]Int`.
-- According to BCT rule 3, this becomes `[2]{Int + Int}`.
-- According to BCT rule 1, this becomes `[2]Int`.
-- The cast of the first operand is then `Int -> [2]Int`.
-- According to casting rule 5, the single integer is copied to fill a 2-element
-array, making `[1, 1]`.
-- The cast of the second operand is `[2]Int -> [2]Int`.
-- According to casting rule 1, nothing happens.
-- The final expression internally looks like `[1, 1] + [5, 6]`.
-- The result of this expression is `[6, 7]`.
-
-Consider `[[2, 1], [4, 3]] * 1.5`
-- The common type is `[2][2]Int + Float`.
-- According to BCT rule 3, this becomes `[2]{[2]Int + Float}`.
-- According to BCT rule 3, this becomes `[2][2]{Int + Float}`.
-- According to BCT rule 2, this becomes `[2][2]Float`.
-- The cast of the first operand is `[2][2]Int -> [2][2]Float`
-- According to casting rule 4, the cast `[2]Int -> [2]Float` should be applied
-to each element.
-- According to casting rule 4, the cast `Int -> Float` should be applied to each
-sub-element.
-- Overall, this makes the first operand `[[2.0, 1.0], [4.0, 3.0]]`.
-- The cast of the second operand is `Float -> [2][2]Float`.
-- According to casting rule 5, the cast `Float -> [2]Float` should be applied
-and the resulting value be copied twice to fill the array.
-- According to casting rule 5, that cast is fulfilled by first applying the cast
-`Float -> Float` (in which nothing happens), and then the resulting value
-copied twice to fill the array.
-- Overall, this makes the second operand `[[1.5, 1.5], [1.5, 1.5]]`.
-- The result of this expression is then `[[3.0, 1.5], [6.0, 4.5]]`.
+- There is no BCT rule to resolve this, so a compile-time error is thrown.
 
 Consider `[1, 2, 3] + [4, 5]`
 - The common type is `[3]Int + [2]Int`.
-- There is no BCT rule that can be applied to this, so the cast is invalid.
+- There is no BCT rule that can be applied to this, so the inflation is invalid.
 
 ## Functions
 
@@ -618,14 +622,13 @@ fn add(T? value_one, T? value_two):T {
 The question mark after the letter T indicates that it is a template parameter.
 Let's look at what happens when this function is called:
 ```rust
-Int result = add(12.3, 3);
+Int result = add(12, 3);
 ```
 First the actual data type represented by T must be determined. BCT rules are
 used to determine this. The only types considered in the BCT calculation are
 the types of parameters marked with the question mark. In this case, only the
-type of the two inputs (`Float` and `Int` respectively) are considered.
-According to BCT rules, `T` resolves to `Float`. The output type must then be
-`Float`. 
+type of the two inputs (both `Int`) are considered. According to BCT rules, `T` 
+resolves to `Int`. The output type must then be `Int`. 
 
 ### Using Template Types In The Body
 Using a question mark internally declares a new type, which you can use like any
@@ -702,16 +705,16 @@ accepts_array([[1, 2, 3]], [[3]]); # T == [3]Int, SIZE == 1
 However, make note that only the first appearence of `SIZE` has a question mark.
 This will be explained soon.
 
-Unlike type template parameters, size template parameters do no kind of casting 
-calculation to determine their final value. Instead, they must be matched 
-exactly by the input. This is due to the ambiguity and resulting illegality of 
-casting between two arrays of different sizes. For example:
+Unlike type template parameters, size template parameters do no kind of
+"biggest" calculation to determine their final value. Instead, they must be 
+matched exactly by the input. This is due to the ambiguity and resulting 
+illegality of inflation between two arrays of different sizes. For example:
 ```rust
-fn compare_arrays([SIZE?]T? input1, [SIZE?]T? input2);
+fn compare_arrays([SIZE?]T? input1, [SIZE]T? input2);
 
 compare_arrays([1, 2], [1, 3]); # Valid.
-compare_arrays([1, 2], [3.0, 4.0]); # Valid (T becomes Float, input1 gets cast.)
-compare_arrays([1], [2, 3]); # INVALID! The possible values for SIZE are 1 and 2
+compare_arrays([1, 2], [[3], [4]]); # Valid (T becomes [1]Int, input1 gets inflated.)
+compare_arrays([1, 2], [3, 4, 5]); # INVALID! The possible values for SIZE are 2 and 3
 ```
 Let's look at what happens when our template accepts arrays of different depths:
 ```rust
@@ -745,42 +748,6 @@ find_element(array, element); # SIZE == 5, T == [4]Int
 Int element; # or [1]Int element, it will work the same way.
 find_element(array, element); # SIZE == 5, T == [4]Int
                               # (element is cast to [4]Int)
-```
-One final piece of syntax allows accepting arrays of variable depth:
-```rust
-fn arbitrary_depth([SIZE?[DEPTH?]]T? input) { ... }
-
-[4][2]Int buffer;
-arbitrary_depth(buffer); # SIZE == [4, 2], DEPTH == 2, T == Int
-[4][4][4]Int cube;
-arbitrary_depth(cube); # SIZE == [4, 4, 4], DEPTH == 3, T == Int
-Int value;
-arbitrary_depth(value); # SIZE == [], DEPTH = 0, T == Int
-```
-`SIZE` is now an array and `DEPTH` is an `Int`. You can use these both in other
-parts of the function signature:
-```rust
-fn arbitrary_depth([SIZE?[DEPTH?]]T? input):([DEPTH]T output) { ... }
-```
-One final note: just like type template parameters, size template parameters can 
-be used in the function body:
-```rust
-fn sum([SIZE?]T? input):(T output) {
-    output = 0;
-    repeat(SIZE) (index) {
-        output = output + input[index];
-    };
-}
-```
-In this case, suppose our input is of type `[10][3]Int`. The code above would be
-equivalent to:
-```rust
-fn sum([10][3]Int input):([3]Int output) {
-    output = 0; # This will be automatically casted to [0, 0, 0].
-    repeat(10) (index) {
-        output = output + input[index];
-    };
-}
 ```
 
 ### Where To Use The Question Mark
