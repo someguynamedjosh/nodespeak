@@ -120,6 +120,29 @@ pub enum KnownData {
     // Array(Vec<KnownData>),
 }
 
+impl KnownData {
+    pub fn require_bool(&self) -> bool {
+        match self {
+            KnownData::Bool(value) => *value,
+            _ => panic!("Expected data to be a bool.")
+        }
+    }
+
+    pub fn require_int(&self) -> i64 {
+        match self {
+            KnownData::Int(value) => *value,
+            _ => panic!("Expected data to be an int.")
+        }
+    }
+
+    pub fn require_float(&self) -> f64 {
+        match self {
+            KnownData::Float(value) => *value,
+            _ => panic!("Expected data to be a float.")
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Variable {
     definition: FilePosition,
@@ -129,8 +152,8 @@ pub struct Variable {
     permanent: bool,
 
     temporary_value: KnownData,
-    temporary_read: bool,
-    multiple_temporary_values: bool,
+    // temporary_read: bool,
+    // multiple_temporary_values: bool,
 }
 
 impl Variable {
@@ -146,8 +169,8 @@ impl Variable {
             data_type,
             permanent,
             temporary_value: KnownData::Unknown,
-            temporary_read: false,
-            multiple_temporary_values: false,
+            // temporary_read: false,
+            // multiple_temporary_values: false,
         }
     }
 
@@ -229,23 +252,35 @@ impl Variable {
 
     pub fn set_temporary_value(&mut self, value: KnownData) {
         self.temporary_value = value;
-        if self.temporary_read {
-            self.multiple_temporary_values = true;
-        }
     }
 
-    pub fn borrow_temporary_value(&mut self) -> &KnownData {
-        self.temporary_read = true;
+    pub fn borrow_temporary_value(&self) -> &KnownData {
         &self.temporary_value
     }
 
     pub fn reset_temporary_value(&mut self) {
         self.temporary_value = self.initial_value.clone();
-        self.temporary_read = false;
-        self.multiple_temporary_values = false;
     }
 
-    pub fn had_multiple_temporary_values(&self) -> bool {
-        self.multiple_temporary_values
-    }
+    // pub fn set_temporary_value(&mut self, value: KnownData) {
+    //     self.temporary_value = value;
+    //     if self.temporary_read {
+    //         self.multiple_temporary_values = true;
+    //     }
+    // }
+
+    // pub fn borrow_temporary_value(&mut self) -> &KnownData {
+    //     self.temporary_read = true;
+    //     &self.temporary_value
+    // }
+
+    // pub fn reset_temporary_value(&mut self) {
+    //     self.temporary_value = self.initial_value.clone();
+    //     self.temporary_read = false;
+    //     self.multiple_temporary_values = false;
+    // }
+
+    // pub fn had_multiple_temporary_values(&self) -> bool {
+    //     self.multiple_temporary_values
+    // }
 }

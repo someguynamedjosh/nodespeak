@@ -1,6 +1,6 @@
 use crate::problem::FilePosition;
 use crate::structure::{
-    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, Variable,
+    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, Variable, VarAccess
 };
 use std::collections::HashMap;
 
@@ -210,13 +210,23 @@ impl Program {
         self.variables[variable.0].set_temporary_value(value);
     }
 
+    pub fn set_value_of(&mut self, var_access: &VarAccess, value: KnownData) {
+        // TODO: Handle array types, etc.
+        self.set_temporary_value(var_access.get_base(), value);
+    }
+
     /// Retrieves a temporary value for the related variable, set by set_temporary_value.
     ///
     /// This is used during interpretation and simplification to keep track of the current value
     /// of a variable that does not have a permanent value across the entire program.
-    pub fn borrow_temporary_value(&mut self, variable: VariableId) -> &KnownData {
+    pub fn borrow_temporary_value(&self, variable: VariableId) -> &KnownData {
         assert!(variable.0 < self.variables.len());
         self.variables[variable.0].borrow_temporary_value()
+    }
+
+    pub fn borrow_value_of(&self, var_access: &VarAccess) -> &KnownData {
+        // TODO: Handle array types, etc.
+        self.borrow_temporary_value(var_access.get_base())
     }
 
     /// Resets the temporary value of an variable to be the initial value of that variable.
@@ -238,10 +248,10 @@ impl Program {
     /// Checks if the variable had multiple values read from it at any point during the program.
     ///
     /// Only use this after the entirety of a program has been interpreted.
-    pub fn had_multiple_temporary_values(&self, variable: VariableId) -> bool {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].had_multiple_temporary_values()
-    }
+    // pub fn had_multiple_temporary_values(&self, variable: VariableId) -> bool {
+    //     assert!(variable.0 < self.variables.len());
+    //     self.variables[variable.0].had_multiple_temporary_values()
+    // }
 
     // ===UTILITIES=================================================================================
 
