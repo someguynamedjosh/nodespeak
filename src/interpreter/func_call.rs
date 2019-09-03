@@ -1,10 +1,12 @@
 use crate::structure::{BuiltinFunction, FuncCall, KnownData, Program, ScopeId, FunctionData};
+use crate::problem::FilePosition;
 
 pub enum InterpreterOutcome {
     Successful,
     Returned,
     UnknownData,
     UnknownFunction,
+    AssertFailed(FilePosition)
 }
 
 fn interpret_builtin(
@@ -123,8 +125,7 @@ fn interpret_builtin(
             match program.borrow_value_of(a) {
                 KnownData::Bool(value) => {
                     if !value {
-                        // Assert is guaranteed to be false.
-                        panic!("TODO nice error");
+                        return InterpreterOutcome::AssertFailed(func_call.get_position().clone());
                     }
                 }
                 _ => unreachable!(),

@@ -375,7 +375,7 @@ impl<'a> ScopeResolver<'a> {
                     output,
                     input_accessor.clone(),
                     var_access.clone(),
-                );
+                )?;
                 new_new_func_call.add_input(var_access);
             }
             // Figure out what outputs will need to be casted. We can't cast them yet because
@@ -402,10 +402,10 @@ impl<'a> ScopeResolver<'a> {
                 new_new_func_call.add_output(var_access);
             }
             // TODO: Handle return function when it occurs before the end of the body.
-            self.program.add_func_call(output, new_new_func_call);
+            self.program.add_func_call(output, new_new_func_call)?;
             for (from, to) in output_casts.into_iter() {
                 // TODO: Error if cast is invalid
-                structure::create_cast(self.program, output, from, to);
+                structure::create_cast(self.program, output, from, to)?;
             }
         } else {
             self.push_table();
@@ -472,7 +472,7 @@ impl<'a> ScopeResolver<'a> {
                     output,
                     input_accessor.clone(),
                     var_access.clone(),
-                );
+                )?;
                 new_new_func_call.add_input(var_access);
             }
             // Figure out what outputs will need to be casted. We can't cast them yet because
@@ -501,10 +501,10 @@ impl<'a> ScopeResolver<'a> {
                 output_casts.push((var_access.clone(), output_accessor.clone()));
                 new_new_func_call.add_output(var_access);
             }
-            self.program.add_func_call(output, new_new_func_call);
+            self.program.add_func_call(output, new_new_func_call)?;
             for (from, to) in output_casts.into_iter() {
                 // TODO: Error if cast is invalid.
-                structure::create_cast(self.program, output, from, to);
+                structure::create_cast(self.program, output, from, to)?;
             }
 
             self.pop_table();

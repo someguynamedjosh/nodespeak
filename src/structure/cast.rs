@@ -1,4 +1,4 @@
-use crate::problem::FilePosition;
+use crate::problem::{FilePosition, CompileProblem};
 use crate::structure::{
     DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
@@ -63,15 +63,15 @@ fn simple_cast(
     from: VarAccess,
     to: VarAccess,
     func: VariableId,
-) {
+) -> Result<(), CompileProblem> {
     // TODO: Real position.
     let mut func_call = FuncCall::new(func, FilePosition::placeholder());
     func_call.add_input(from);
     func_call.add_output(to);
-    program.add_func_call(scope, func_call);
+    program.add_func_call(scope, func_call)
 }
 
-pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: VarAccess) {
+pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: VarAccess) -> Result<(), CompileProblem> {
     // Currently we don't have code to manage arrays.
     assert!(from.borrow_indexes().len() == 0);
 
@@ -88,7 +88,7 @@ pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: V
             from,
             to,
             program.get_builtins().int_to_float_func,
-        );
+        )
     // Cast rule 3
     } else if from_type == &DataType::Float && to_type == &DataType::Int {
         simple_cast(
@@ -97,7 +97,7 @@ pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: V
             from,
             to,
             program.get_builtins().float_to_int_func,
-        );
+        )
     } else {
         panic!("TODO real error");
     }

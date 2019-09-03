@@ -1,5 +1,5 @@
 use crate::interpreter::{self, InterpreterOutcome};
-use crate::problem::FilePosition;
+use crate::problem::{self, FilePosition, CompileProblem};
 use crate::structure::{
     add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, VarAccess, Variable,
 };
@@ -59,18 +59,22 @@ impl Program {
         self.scopes[child.0].parent
     }
 
-    pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) {
+    pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) -> Result<(), CompileProblem> {
         assert!(add_to.0 < self.scopes.len());
         if self.automatic_interpretation {
             match interpreter::interpret_func_call(self, add_to, &call) {
                 InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
                     self.scopes[add_to.0].body.push(call)
                 }
+                InterpreterOutcome::AssertFailed(location) => return Result::Err(
+                    problem::guaranteed_assert(location)
+                ),
                 InterpreterOutcome::Successful | InterpreterOutcome::Returned => (),
             }
         } else {
             self.scopes[add_to.0].body.push(call);
         }
+        Result::Ok(())
     }
 
     pub fn define_symbol(&mut self, scope: ScopeId, symbol: &str, definition: VariableId) {

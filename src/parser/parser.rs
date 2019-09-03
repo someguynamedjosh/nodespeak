@@ -147,7 +147,7 @@ pub mod convert {
                 }
             }
         }
-        program.add_func_call(scope, func_call.unwrap());
+        program.add_func_call(scope, func_call.unwrap())?;
         if let Option::Some(output_access) = preferred_output {
             Result::Ok(output_access.clone())
         } else {
@@ -489,7 +489,7 @@ pub mod convert {
                             call.add_input(operand_stack.pop().unwrap());
                             call.add_input(other.unwrap());
                             call.add_output(output);
-                            program.add_func_call(scope, call);
+                            program.add_func_call(scope, call)?;
                             // TODO: real position.
                             operand_stack.push(VarAccess::new(FilePosition::placeholder(), var));
                         }
@@ -518,7 +518,7 @@ pub mod convert {
                         );
                         call.add_input(expression_output);
                         call.add_output(final_output.clone());
-                        program.add_func_call(scope, call);
+                        program.add_func_call(scope, call)?;
                     }
                     Result::Ok(final_output)
                 }
@@ -557,7 +557,7 @@ pub mod convert {
             call.add_input(operand_stack.pop().unwrap());
             call.add_input(other.unwrap());
             call.add_output(output.clone());
-            program.add_func_call(scope, call);
+            program.add_func_call(scope, call)?;
             // The last operator is the sentinel.
             if operator_stack.len() == 1 {
                 return Result::Ok(output);
@@ -947,7 +947,7 @@ pub mod convert {
         program.add_func_call(
             scope,
             FuncCall::new(program.get_builtins().return_func, statement_position),
-        );
+        )?;
         Result::Ok(())
     }
 

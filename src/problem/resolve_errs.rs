@@ -73,3 +73,13 @@ pub fn vague_function(func_call_pos: FilePosition, var_dec_pos: FilePosition) ->
         ),
     ])
 }
+
+pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            assert_pos,
+            Error,
+            "Assert Guranteed To Fail"
+        )
+    ])
+}
