@@ -1,7 +1,7 @@
 use crate::problem::FilePosition;
 use crate::structure::{DataType, FunctionData, Program, Variable, VariableId};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BuiltinFunction {
     Add,
     Subtract,

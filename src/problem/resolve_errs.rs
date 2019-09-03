@@ -56,10 +56,7 @@ pub fn wrong_number_of_outputs(
     ])
 }
 
-pub fn vague_function(
-    func_call_pos: FilePosition,
-    var_dec_pos: FilePosition,
-) -> CompileProblem {
+pub fn vague_function(func_call_pos: FilePosition, var_dec_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
             func_call_pos,
@@ -72,9 +69,7 @@ pub fn vague_function(
         ProblemDescriptor::new(
             var_dec_pos,
             Hint,
-            concat!(
-                "The variable that should hold the function was declared here:"
-            ),
+            concat!("The variable that should hold the function was declared here:"),
         ),
     ])
 }

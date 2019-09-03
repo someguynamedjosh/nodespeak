@@ -5,6 +5,7 @@ extern crate pest_derive;
 
 use terminal_size;
 
+pub mod interpreter;
 pub mod parser;
 pub mod problem;
 pub mod structure;

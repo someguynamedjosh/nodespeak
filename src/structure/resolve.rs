@@ -243,7 +243,12 @@ impl<'a> ScopeResolver<'a> {
         let func_target;
         match func_var.borrow_initial_value() {
             KnownData::Function(data) => func_target = data.clone(),
-            _ => return Result::Err(problem::vague_function(new_func_call.get_position().clone(), func_var.get_definition().clone()))
+            _ => {
+                return Result::Err(problem::vague_function(
+                    new_func_call.get_position().clone(),
+                    func_var.get_definition().clone(),
+                ))
+            }
         }
 
         let mut type_params = HashMap::new();
@@ -396,6 +401,7 @@ impl<'a> ScopeResolver<'a> {
                 output_casts.push((var_access.clone(), output_accessor.clone()));
                 new_new_func_call.add_output(var_access);
             }
+            // TODO: Handle return function when it occurs before the end of the body.
             self.program.add_func_call(output, new_new_func_call);
             for (from, to) in output_casts.into_iter() {
                 // TODO: Error if cast is invalid
@@ -519,8 +525,10 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn entry_point(&mut self, target: ScopeId) -> Result<ScopeId, CompileProblem> {
+        self.program.enable_automatic_interpretation();
         let copy = self.copy_scope(target, self.program.get_scope_parent(target))?;
         self.resolve_body(target, copy)?;
+        self.program.disable_automatic_interpretation();
         Result::Ok(copy)
     }
 }

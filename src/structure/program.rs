@@ -1,6 +1,7 @@
+use crate::interpreter::{self, InterpreterOutcome};
 use crate::problem::FilePosition;
 use crate::structure::{
-    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, Variable, VarAccess
+    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, VarAccess, Variable,
 };
 use std::collections::HashMap;
 
@@ -21,6 +22,7 @@ pub struct Program {
     root_scope: ScopeId,
     variables: Vec<Variable>,
     builtins: Option<Builtins>,
+    automatic_interpretation: bool,
 }
 
 impl Program {
@@ -30,6 +32,7 @@ impl Program {
             root_scope: ScopeId(0),
             variables: Vec::new(),
             builtins: Option::None,
+            automatic_interpretation: false,
         };
         prog.builtins = Option::Some(add_builtins(&mut prog));
         prog
@@ -58,7 +61,16 @@ impl Program {
 
     pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) {
         assert!(add_to.0 < self.scopes.len());
-        self.scopes[add_to.0].body.push(call);
+        if self.automatic_interpretation {
+            match interpreter::interpret_func_call(self, add_to, &call) {
+                InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
+                    self.scopes[add_to.0].body.push(call)
+                }
+                InterpreterOutcome::Successful | InterpreterOutcome::Returned => (),
+            }
+        } else {
+            self.scopes[add_to.0].body.push(call);
+        }
     }
 
     pub fn define_symbol(&mut self, scope: ScopeId, symbol: &str, definition: VariableId) {
@@ -252,6 +264,15 @@ impl Program {
     //     assert!(variable.0 < self.variables.len());
     //     self.variables[variable.0].had_multiple_temporary_values()
     // }
+
+    // ===INTERPRETATION============================================================================
+    pub fn enable_automatic_interpretation(&mut self) {
+        self.automatic_interpretation = true;
+    }
+
+    pub fn disable_automatic_interpretation(&mut self) {
+        self.automatic_interpretation = false;
+    }
 
     // ===UTILITIES=================================================================================
 

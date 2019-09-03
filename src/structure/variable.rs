@@ -34,6 +34,15 @@ pub struct FunctionData {
     outputs: Vec<VariableId>,
 }
 
+impl PartialEq for FunctionData {
+    fn eq(&self, other: &Self) -> bool {
+        self.body == other.body
+            && self.builtin == other.builtin
+            && self.inputs == other.inputs
+            && self.outputs == other.outputs
+    }
+}
+
 impl FunctionData {
     pub fn new(body: ScopeId, header: FilePosition) -> FunctionData {
         FunctionData {
@@ -108,7 +117,7 @@ impl FunctionData {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum KnownData {
     Void,
     Unknown,
@@ -124,21 +133,21 @@ impl KnownData {
     pub fn require_bool(&self) -> bool {
         match self {
             KnownData::Bool(value) => *value,
-            _ => panic!("Expected data to be a bool.")
+            _ => panic!("Expected data to be a bool."),
         }
     }
 
     pub fn require_int(&self) -> i64 {
         match self {
             KnownData::Int(value) => *value,
-            _ => panic!("Expected data to be an int.")
+            _ => panic!("Expected data to be an int."),
         }
     }
 
     pub fn require_float(&self) -> f64 {
         match self {
             KnownData::Float(value) => *value,
-            _ => panic!("Expected data to be a float.")
+            _ => panic!("Expected data to be a float."),
         }
     }
 }
@@ -163,14 +172,14 @@ impl Variable {
         initial_value: Option<KnownData>,
         permanent: bool,
     ) -> Variable {
+        let initial_value = initial_value.unwrap_or_else(|| KnownData::Unknown);
         Variable {
             definition,
-            initial_value: initial_value.unwrap_or_else(|| KnownData::Unknown),
+            initial_value: initial_value.clone(),
             data_type,
             permanent,
-            temporary_value: KnownData::Unknown,
-            // temporary_read: false,
-            // multiple_temporary_values: false,
+            temporary_value: initial_value, // temporary_read: false,
+                                            // multiple_temporary_values: false,
         }
     }
 
