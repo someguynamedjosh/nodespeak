@@ -120,22 +120,6 @@ pub enum KnownData {
     // Array(Vec<KnownData>),
 }
 
-impl KnownData {
-    pub fn default_for_type(dtype: &DataType) -> KnownData {
-        match dtype {
-            DataType::Automatic => KnownData::Unknown,
-            DataType::Dynamic(_source) => KnownData::Unknown,
-            DataType::LoadTemplateParameter(_source) => KnownData::Unknown,
-            DataType::Bool => KnownData::Bool(false),
-            DataType::Int => KnownData::Int(0),
-            DataType::Float => KnownData::Float(0.0),
-            DataType::Void => KnownData::Void,
-            DataType::DataType_ => KnownData::Unknown,
-            DataType::Function_ => KnownData::Unknown,
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Variable {
     definition: FilePosition,
@@ -158,7 +142,7 @@ impl Variable {
     ) -> Variable {
         Variable {
             definition,
-            initial_value: initial_value.unwrap_or_else(|| KnownData::default_for_type(&data_type)),
+            initial_value: initial_value.unwrap_or_else(|| KnownData::Unknown),
             data_type,
             permanent,
             temporary_value: KnownData::Unknown,
