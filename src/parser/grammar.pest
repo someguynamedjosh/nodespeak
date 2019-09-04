@@ -97,6 +97,12 @@ create_variable = _{ assigned_variable | empty_variable }
 create_variable_statement = { 
     data_type ~ create_variable ~ ("," ~ create_variable)* ~ ";"
 }
+input_variable_statement = {
+    "input" ~ data_type ~ identifier ~ ("," ~ identifier)* ~ ";"
+}
+output_variable_statement = {
+    "output" ~ data_type ~ identifier ~ ("," ~ identifier)* ~ ";"
+}
 
 assign_array_access = { "[" ~ expr ~ "]" }
 assign_expr = { identifier ~ (assign_array_access)* }
@@ -111,7 +117,8 @@ returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
 return_statement = { "return" ~ (expr ~ ("," ~ expr)*)? ~ ";" }
 
 statement = { 
-    function_definition | code_block | return_statement 
+    function_definition | code_block | return_statement
+    | input_variable_statement | output_variable_statement
     | create_variable_statement | assign_statement | raw_expr_statement  
 }
 

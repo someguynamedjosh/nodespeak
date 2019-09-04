@@ -110,6 +110,19 @@ pub fn missing_inline_return(
     ])
 }
 
+pub fn io_inside_function(declaration_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            declaration_pos,
+            Error,
+            concat!(
+                "I/O Inside Function\nInput and output variables cannot be declared inside ",
+                "functions. They can only be declared in the root scope, I.E. outside of functions."
+            )
+        )
+    ])
+}
+
 pub fn hint_encountered_while_parsing(
     context_description: &str,
     assignment_pos: FilePosition,

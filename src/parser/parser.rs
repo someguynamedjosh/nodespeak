@@ -862,13 +862,23 @@ pub mod convert {
 
     fn convert_input_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
+        if program.borrow_scope(scope).get_parent().is_some() {
+            return Result::Err(
+                problem::io_inside_function(FilePosition::from_pair(&input))
+            );
+        }
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::data_type => {
                     data_type = Option::Some(convert_data_type(program, scope, child)?)
                 }
                 Rule::identifier => {
-                    unimplemented!();
+                    let new_input = program.adopt_and_define_symbol(
+                        scope,
+                        child.as_str(),
+                        Variable::variable(FilePosition::from_pair(&child), data_type.as_ref().expect("Grammar requires data type before identifier.").clone(), None)
+                    );
+                    program.borrow_scope_mut(scope).add_input(new_input);
                 }
                 _ => unreachable!()
             }
@@ -878,13 +888,23 @@ pub mod convert {
 
     fn convert_output_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
+        if program.borrow_scope(scope).get_parent().is_some() {
+            return Result::Err(
+                problem::io_inside_function(FilePosition::from_pair(&input))
+            );
+        }
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::data_type => {
                     data_type = Option::Some(convert_data_type(program, scope, child)?)
                 }
                 Rule::identifier => {
-                    unimplemented!();
+                    let new_output = program.adopt_and_define_symbol(
+                        scope,
+                        child.as_str(),
+                        Variable::variable(FilePosition::from_pair(&child), data_type.as_ref().expect("Grammar requires data type before identifier.").clone(), None)
+                    );
+                    program.borrow_scope_mut(scope).add_output(new_output);
                 }
                 _ => unreachable!()
             }
