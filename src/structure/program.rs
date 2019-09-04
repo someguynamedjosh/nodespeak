@@ -19,7 +19,7 @@ pub struct VariableId(usize);
 /// Represents an entire program written in the Waveguide language.
 pub struct Program {
     scopes: Vec<Scope>,
-    root_scope: ScopeId,
+    entry_point: ScopeId,
     variables: Vec<Variable>,
     builtins: Option<Builtins>,
     automatic_interpretation: bool,
@@ -29,7 +29,7 @@ impl Program {
     pub fn new() -> Program {
         let mut prog = Program {
             scopes: vec![Scope::new()],
-            root_scope: ScopeId(0),
+            entry_point: ScopeId(0),
             variables: Vec::new(),
             builtins: Option::None,
             automatic_interpretation: false,
@@ -231,12 +231,12 @@ impl Program {
 
     // ===UTILITIES=================================================================================
 
-    pub fn get_root_scope(&self) -> ScopeId {
-        self.root_scope
+    pub fn get_entry_point(&self) -> ScopeId {
+        self.entry_point
     }
 
-    pub fn set_root_scope(&mut self, new_root_scope: ScopeId) {
-        self.root_scope = new_root_scope;
+    pub fn set_entry_point(&mut self, new_entry_point: ScopeId) {
+        self.entry_point = new_entry_point;
     }
 
     pub fn get_builtins(&self) -> &Builtins {

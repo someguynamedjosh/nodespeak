@@ -37,7 +37,6 @@ impl<'a> SourceSet<'a> {
 
 pub struct CompileResult {
     pub program: structure::Program,
-    pub root_scope: structure::ScopeId,
 }
 
 pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
@@ -56,9 +55,9 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
         }
     };
 
-    let root_scope = program.get_root_scope();
+    let entry_point = program.get_entry_point();
 
-    let new_root = match structure::resolve_scope(&mut program, root_scope) {
+    let new_entry_point = match structure::resolve_scope(&mut program, entry_point) {
         Result::Ok(new_root) => new_root,
         Result::Err(err) => {
             let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
@@ -68,9 +67,9 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
             ));
         }
     };
+    program.set_entry_point(new_entry_point);
 
     Result::Ok(CompileResult {
         program: program,
-        root_scope: new_root,
     })
 }

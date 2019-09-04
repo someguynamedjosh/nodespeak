@@ -1054,7 +1054,7 @@ pub mod convert {
     pub fn convert_ast_to_structure(input: &mut ParseResult) -> Result<Program, CompileProblem> {
         let root = input.next().unwrap();
         let mut program = Program::new();
-        let scope = program.get_root_scope();
+        let scope = program.get_entry_point();
 
         for statement in root.into_inner() {
             match statement.as_rule() {

@@ -101,7 +101,7 @@ DataType_ Void;
 
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) -> Builtins {
-    let scope = program.get_root_scope();
+    let scope = program.get_entry_point();
 
     let automatic_type = program.adopt_and_define_symbol(
         scope,
