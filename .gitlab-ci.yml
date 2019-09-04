@@ -1,14 +1,51 @@
 image: rust:1.37
 
-build:
-  script: cargo build
-  stage: build
+stages:
+  - init_build
+  - test
+  - document
+  - final_build
+  - publish
 
-doc:
-  image: rustlang/rust:nightly
-  script: cargo doc
-  stage: build
+
+build:
+  stage: init_build
+  script: cargo build
+  artifacts:
+    paths:
+    - target
+    expire_in: 30 minutes
 
 test:
-  script: cargo test
   stage: test
+  script: cargo test
+
+doc:
+  stage: document
+  image: rustlang/rust:nightly
+  script: cargo doc
+  artifacts:
+    paths:
+    - target/doc
+  
+final_build:
+  stage: final_build
+  script: cargo build --release
+  artifacts:
+    paths: 
+    - target/release/compile
+    expires_in: 30 minutes
+
+pub_bin:
+  stage: publish
+  script: cp -r target/release/compile compile
+  artifacts:
+    paths:
+    - compile
+
+pub_doc:
+  stage: publish
+  script: cp -r target/doc doc
+  artifacts:
+    paths:
+    - doc
