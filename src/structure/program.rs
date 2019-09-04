@@ -54,9 +54,14 @@ impl Program {
         id
     }
 
-    pub fn get_scope_parent(&self, child: ScopeId) -> Option<ScopeId> {
-        assert!(child.0 < self.scopes.len());
-        self.scopes[child.0].parent
+    pub fn borrow_scope(&self, scope: ScopeId) -> &Scope {
+        assert!(scope.0 < self.scopes.len());
+        &self.scopes[scope.0]
+    }
+
+    pub fn borrow_scope_mut(&mut self, scope: ScopeId) -> &mut Scope {
+        assert!(scope.0 < self.scopes.len());
+        &mut self.scopes[scope.0]
     }
 
     pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) -> Result<(), CompileProblem> {
@@ -64,7 +69,7 @@ impl Program {
         if self.automatic_interpretation {
             match interpreter::interpret_func_call(self, add_to, &call) {
                 InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
-                    self.scopes[add_to.0].body.push(call)
+                    self.scopes[add_to.0].add_func_call(call)
                 }
                 InterpreterOutcome::AssertFailed(location) => {
                     return Result::Err(problem::guaranteed_assert(location))
@@ -72,76 +77,36 @@ impl Program {
                 InterpreterOutcome::Successful | InterpreterOutcome::Returned => (),
             }
         } else {
-            self.scopes[add_to.0].body.push(call);
+            self.scopes[add_to.0].add_func_call(call);
         }
         Result::Ok(())
     }
 
-    pub fn define_symbol(&mut self, scope: ScopeId, symbol: &str, definition: VariableId) {
-        assert!(definition.0 < self.variables.len());
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0]
-            .symbols
-            .insert(symbol.to_owned(), definition);
-    }
-
-    pub fn define_intermediate(&mut self, scope: ScopeId, definition: VariableId) {
-        assert!(definition.0 < self.variables.len());
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].intermediates.push(definition);
-    }
-
     pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<FuncCall> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].body.clone()
-    }
-
-    pub fn iterate_over_scope_body(&self, scope: ScopeId) -> std::slice::Iter<FuncCall> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].body.iter()
-    }
-
-    pub fn iterate_over_symbols_in(
-        &self,
-        scope: ScopeId,
-    ) -> std::collections::hash_map::Iter<String, VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].symbols.iter()
+        self.borrow_scope(scope).borrow_body().clone()
     }
 
     pub fn clone_symbols_in(&self, scope: ScopeId) -> HashMap<String, VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].symbols.clone()
-    }
-
-    pub fn iterate_over_intermediates_in(&self, scope: ScopeId) -> std::slice::Iter<VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].intermediates.iter()
+        self.borrow_scope(scope).borrow_symbols().clone()
     }
 
     pub fn clone_intermediates_in(&self, scope: ScopeId) -> Vec<VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0].intermediates.clone()
+        self.borrow_scope(scope).borrow_intermediates().clone()
     }
 
     // ===SYMBOLS/VARIABLES=========================================================================
 
     pub fn shallow_lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        let real_scope = &self.scopes[scope.0];
-        match real_scope.symbols.get(symbol) {
+        match self.borrow_scope(scope).borrow_symbols().get(symbol) {
             Option::Some(value) => Option::Some(*value),
             Option::None => Option::None,
         }
     }
 
     pub fn lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
-        assert!(scope.0 < self.scopes.len());
-        let real_scope = &self.scopes[scope.0];
-        let result = real_scope.symbols.get(symbol);
-        match result {
+        match self.borrow_scope(scope).borrow_symbols().get(symbol) {
             Option::Some(value_) => Option::Some(*value_),
-            Option::None => match real_scope.parent {
+            Option::None => match self.borrow_scope(scope).get_parent() {
                 Option::Some(parent) => self.lookup_symbol(parent, symbol),
                 Option::None => Option::None,
             },
@@ -151,20 +116,6 @@ impl Program {
     pub fn modify_variable(&mut self, variable: VariableId, modified: Variable) {
         assert!(variable.0 < self.variables.len());
         self.variables[variable.0] = modified;
-    }
-
-    pub fn iterate_over_variables_defined_by(
-        &self,
-        scope: ScopeId,
-    ) -> std::iter::Chain<
-        std::collections::hash_map::Values<String, VariableId>,
-        std::slice::Iter<VariableId>,
-    > {
-        assert!(scope.0 < self.scopes.len());
-        self.scopes[scope.0]
-            .symbols
-            .values()
-            .chain(self.scopes[scope.0].intermediates.iter())
     }
 
     pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
@@ -299,7 +250,7 @@ impl Program {
         definition: Variable,
     ) -> VariableId {
         let id = self.adopt_variable(definition);
-        self.define_symbol(scope, symbol, id);
+        self.borrow_scope_mut(scope).define_symbol(symbol, id);
         id
     }
 
@@ -309,7 +260,7 @@ impl Program {
         definition: Variable,
     ) -> VariableId {
         let id = self.adopt_variable(definition);
-        self.define_intermediate(scope, id);
+        self.borrow_scope_mut(scope).define_intermediate(id);
         id
     }
 
@@ -344,7 +295,7 @@ impl Program {
                 }
                 index += 1;
             }
-            match self.scopes[real_scope].parent {
+            match self.scopes[real_scope].get_parent() {
                 Option::None => return Option::None,
                 Option::Some(id) => real_scope = id.0,
             };
@@ -368,7 +319,7 @@ impl Program {
                     }
                 }
             }
-            match self.scopes[real_scope].parent {
+            match self.scopes[real_scope].get_parent() {
                 Option::None => return Option::None,
                 Option::Some(id) => real_scope = id.0,
             };

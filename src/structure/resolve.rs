@@ -84,18 +84,6 @@ impl<'a> ScopeResolver<'a> {
         result
     }
 
-    fn convert_function(&self, func_data: &FunctionData, new_body: ScopeId) -> FunctionData {
-        assert!(!func_data.is_builtin());
-        let mut result = FunctionData::new(new_body, func_data.get_header().clone());
-        for old_input in func_data.borrow_inputs().iter() {
-            result.add_input(self.convert(*old_input));
-        }
-        for old_output in func_data.borrow_outputs().iter() {
-            result.add_output(self.convert(*old_output));
-        }
-        result
-    }
-
     fn copy_scope(
         &mut self,
         source: ScopeId,
@@ -126,6 +114,16 @@ impl<'a> ScopeResolver<'a> {
             // TODO: we might not need to clone every variable.
             let new = self.program.adopt_and_define_intermediate(copy, variable);
             self.add_conversion(old, new)
+        }
+
+        for old_input in self.program.borrow_scope(source).borrow_inputs().clone() {
+            let converted = self.convert(old_input);
+            self.program.borrow_scope_mut(copy).add_input(converted);
+        }
+
+        for old_output in self.program.borrow_scope(source).borrow_outputs().clone() {
+            let converted = self.convert(old_output);
+            self.program.borrow_scope_mut(copy).add_output(converted);
         }
 
         Result::Ok(copy)
@@ -250,31 +248,33 @@ impl<'a> ScopeResolver<'a> {
                 ))
             }
         }
+        let body = func_target.get_body();
 
         let mut type_params = HashMap::new();
         let mut int_params = HashMap::new();
 
-        if func_target.borrow_inputs().len() != new_func_call.borrow_inputs().len() {
+        let borrowed_body = self.program.borrow_scope(body);
+        if borrowed_body.borrow_inputs().len() != new_func_call.borrow_inputs().len() {
             return Result::Err(problem::wrong_number_of_inputs(
                 new_func_call.get_position().clone(),
                 func_target.get_header().clone(),
                 new_func_call.borrow_inputs().len(),
-                func_target.borrow_inputs().len(),
+                borrowed_body.borrow_inputs().len(),
             ));
         }
 
-        if func_target.borrow_outputs().len() != new_func_call.borrow_outputs().len() {
+        if borrowed_body.borrow_outputs().len() != new_func_call.borrow_outputs().len() {
             return Result::Err(problem::wrong_number_of_outputs(
                 new_func_call.get_position().clone(),
                 func_target.get_header().clone(),
                 new_func_call.borrow_outputs().len(),
-                func_target.borrow_outputs().len(),
+                borrowed_body.borrow_outputs().len(),
             ));
         }
 
         // Get iterators for the input and output parameters in the function definition.
-        let input_params = func_target.borrow_inputs().iter();
-        let output_params = func_target.borrow_outputs().iter();
+        let input_params = borrowed_body.borrow_inputs().iter();
+        let output_params = borrowed_body.borrow_outputs().iter();
         // Chain them together and then convert them to references to their data types. This makes
         // an iterator over the data types of each parameter.
         let param_types = input_params
@@ -312,7 +312,7 @@ impl<'a> ScopeResolver<'a> {
         // functions, we use a different method because cloning their scopes all the time would be
         // very costly.
         if func_target.is_builtin() {
-            let resolved_input_types: Vec<DataType> = func_target
+            let resolved_input_types: Vec<DataType> = borrowed_body 
                 .borrow_inputs()
                 .iter()
                 .map(|input_id| {
@@ -323,7 +323,7 @@ impl<'a> ScopeResolver<'a> {
                     )
                 })
                 .collect();
-            let resolved_output_types: Vec<DataType> = func_target
+            let resolved_output_types: Vec<DataType> = borrowed_body 
                 .borrow_outputs()
                 .iter()
                 .map(|output_id| {
@@ -429,7 +429,7 @@ impl<'a> ScopeResolver<'a> {
             // scope and resolve its data types will also cause the data types of the parameters of
             // this new function to have resolved data types as well without requiring any extra
             // work.
-            let new_function = self.convert_function(&func_target, copied);
+            let new_function = FunctionData::new(copied, func_target.get_header().clone());
             let new_function_id = self.program.adopt_and_define_intermediate(
                 output,
                 Variable::function_def(new_function.clone()),
@@ -440,7 +440,7 @@ impl<'a> ScopeResolver<'a> {
             // Resolve the data type of any outputs that are automatic.
             for (index, output_id) in new_func_call.borrow_outputs().iter().enumerate() {
                 if output_id.borrow_data_type(self.program).is_automatic() {
-                    let target_var = self.program.borrow_variable(new_function.get_output(index));
+                    let target_var = self.program.borrow_variable(self.program.borrow_scope(copied).get_output(index));
                     let data_type = target_var.borrow_data_type().clone();
                     self.resolve_automatic_type(output_id, data_type);
                 }
@@ -450,7 +450,7 @@ impl<'a> ScopeResolver<'a> {
             for (index, input_accessor) in new_func_call.borrow_inputs().iter().enumerate() {
                 let input_type = self
                     .program
-                    .borrow_variable(new_function.get_input(index))
+                    .borrow_variable(self.program.borrow_scope(copied).get_input(index))
                     .borrow_data_type();
                 if input_accessor.borrow_data_type(self.program) == input_type {
                     // If the data types are identical, no casting is required.
@@ -483,7 +483,7 @@ impl<'a> ScopeResolver<'a> {
             for (index, output_accessor) in new_func_call.borrow_outputs().iter().enumerate() {
                 let output_type = self
                     .program
-                    .borrow_variable(new_function.get_output(index))
+                    .borrow_variable(self.program.borrow_scope(copied).get_output(index))
                     .borrow_data_type();
                 if output_accessor.borrow_data_type(self.program) == output_type {
                     new_new_func_call.add_output(output_accessor.clone());
@@ -526,7 +526,7 @@ impl<'a> ScopeResolver<'a> {
 
     fn entry_point(&mut self, target: ScopeId) -> Result<ScopeId, CompileProblem> {
         self.program.enable_automatic_interpretation();
-        let copy = self.copy_scope(target, self.program.get_scope_parent(target))?;
+        let copy = self.copy_scope(target, self.program.borrow_scope(target).get_parent())?;
         self.resolve_body(target, copy)?;
         self.program.disable_automatic_interpretation();
         Result::Ok(copy)

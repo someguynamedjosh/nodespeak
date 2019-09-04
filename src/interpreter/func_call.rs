@@ -147,9 +147,9 @@ fn interpret_function(
     func_call: &FuncCall,
     function: FunctionData,
 ) -> InterpreterOutcome {
-    let input_sources = func_call.borrow_inputs().iter();
-    let input_targets = function.borrow_inputs().iter();
-    for (source, target) in input_sources.zip(input_targets) {
+    let input_sources = func_call.borrow_inputs();
+    let input_targets = program.borrow_scope(function.get_body()).borrow_inputs().clone();
+    for (source, target) in input_sources.iter().zip(input_targets.iter()) {
         let value = program.borrow_value_of(source).clone();
         program.set_temporary_value(target.clone(), value);
     }
@@ -160,9 +160,9 @@ fn interpret_function(
             _ => (),
         }
     }
-    let output_sources = function.borrow_outputs().iter();
-    let output_targets = func_call.borrow_outputs().iter();
-    for (source, target) in output_sources.zip(output_targets) {
+    let output_sources = program.borrow_scope(function.get_body()).borrow_outputs().clone();
+    let output_targets = func_call.borrow_outputs();
+    for (source, target) in output_sources.iter().zip(output_targets.iter()) {
         let value = program.borrow_temporary_value(source.clone()).clone();
         program.set_value_of(target, value);
     }

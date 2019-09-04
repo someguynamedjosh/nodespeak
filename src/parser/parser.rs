@@ -618,7 +618,8 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            func.add_input(parse_named_function_parameter(program, func_scope, child)?);
+            let new_input = parse_named_function_parameter(program, func_scope, child)?;
+            program.borrow_scope_mut(func_scope).add_input(new_input);
         }
         Result::Ok(())
     }
@@ -630,7 +631,8 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            func.add_output(parse_named_function_parameter(program, func_scope, child)?);
+            let new_output = parse_named_function_parameter(program, func_scope, child)?;
+            program.borrow_scope_mut(func_scope).add_output(new_output);
         }
         Result::Ok(())
     }
@@ -652,7 +654,8 @@ pub mod convert {
             }
         }
         let variable = Variable::variable(input_pos, data_type.unwrap(), None);
-        func.add_output(program.adopt_and_define_symbol(func_scope, "!return_value", variable));
+        let new_output = program.adopt_and_define_symbol(func_scope, "!return_value", variable);
+        program.borrow_scope_mut(func_scope).add_output(new_output);
         Result::Ok(())
     }
 
@@ -713,7 +716,7 @@ pub mod convert {
                     convert_function_signature(program, &mut function, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
-                    let output_value = function.get_single_output().and_then(
+                    let output_value = program.borrow_scope_mut(func_scope).get_single_output().and_then(
                         |id: VariableId| -> Option<VarAccess> {
                             Option::Some(VarAccess::new(FilePosition::from_pair(&child), id))
                         },
@@ -775,7 +778,7 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        program.define_symbol(scope, name.unwrap(), variable_id);
+        program.borrow_scope_mut(scope).define_symbol(name.unwrap(), variable_id);
         Result::Ok(())
     }
 
@@ -857,6 +860,38 @@ pub mod convert {
         unreachable!();
     }
 
+    fn convert_input_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
+        let mut data_type = Option::None;
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::data_type => {
+                    data_type = Option::Some(convert_data_type(program, scope, child)?)
+                }
+                Rule::identifier => {
+                    unimplemented!();
+                }
+                _ => unreachable!()
+            }
+        }
+        Result::Ok(())
+    }
+
+    fn convert_output_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
+        let mut data_type = Option::None;
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::data_type => {
+                    data_type = Option::Some(convert_data_type(program, scope, child)?)
+                }
+                Rule::identifier => {
+                    unimplemented!();
+                }
+                _ => unreachable!()
+            }
+        }
+        Result::Ok(())
+    }
+
     fn convert_create_variable_statement(
         program: &mut Program,
         scope: ScopeId,
@@ -867,7 +902,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::data_type => {
                     data_type = Option::Some(convert_data_type(program, scope, child)?)
-                } // TODO: Include data type.
+                } 
                 Rule::assigned_variable => convert_assigned_variable(
                     program,
                     scope,
@@ -899,18 +934,20 @@ pub mod convert {
         let func = program
             .lookup_and_clone_parent_function(scope)
             .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
+        let inputs = program.borrow_scope(func.get_body()).borrow_inputs().clone();
+        let outputs = program.borrow_scope(func.get_body()).borrow_outputs().clone();
         // In case we need to make an error, we can't borrow input once we enter the loop because
         // the loop consumes it.
         let statement_position = FilePosition::from_pair(&input);
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
-                    if index >= func.borrow_outputs().len() {
+                    if index >= outputs.len() {
                         return Result::Err(problem::extra_return_value(
                             statement_position,
                             FilePosition::from_pair(&child),
                             func.get_header().clone(),
-                            func.borrow_outputs().len(),
+                            outputs.len(),
                         ));
                     }
                     convert_expression(
@@ -918,7 +955,7 @@ pub mod convert {
                         scope,
                         Option::Some(VarAccess::new(
                             FilePosition::from_pair(&child),
-                            func.get_output(index),
+                            outputs[index],
                         )),
                         true,
                         child,
@@ -936,11 +973,11 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        if index != 0 && index < func.borrow_outputs().len() {
+        if index != 0 && index < outputs.len() {
             return Result::Err(problem::missing_return_values(
                 statement_position,
                 func.get_header().clone(),
-                func.borrow_outputs().len(),
+                outputs.len(),
                 index,
             ));
         }
@@ -961,6 +998,12 @@ pub mod convert {
                 Rule::function_definition => convert_function_definition(program, scope, child)?,
                 Rule::code_block => unimplemented!(),
                 Rule::return_statement => convert_return_statement(program, scope, child)?,
+                Rule::input_variable_statement => {
+                    convert_input_variable_statement(program, scope, child)?
+                }
+                Rule::output_variable_statement => {
+                    convert_output_variable_statement(program, scope, child)?
+                }
                 Rule::create_variable_statement => {
                     convert_create_variable_statement(program, scope, child)?
                 }

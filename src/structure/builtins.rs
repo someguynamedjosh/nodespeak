@@ -160,7 +160,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "input",
             Variable::variable(FilePosition::placeholder(), in_type, None),
         );
-        func_data.add_input(input);
+        program.borrow_scope_mut(func_scope).add_input(input);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
@@ -191,8 +191,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "out",
             Variable::variable(FilePosition::placeholder(), data_type, None),
         );
-        func_data.add_input(in1);
-        func_data.add_output(out);
+        program.borrow_scope_mut(func_scope).add_input(in1);
+        program.borrow_scope_mut(func_scope).add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
@@ -228,9 +228,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "out",
             Variable::variable(FilePosition::placeholder(), data_type, None),
         );
-        func_data.add_input(in1);
-        func_data.add_input(in2);
-        func_data.add_output(out);
+        program.borrow_scope_mut(func_scope).add_input(in1);
+        program.borrow_scope_mut(func_scope).add_input(in2);
+        program.borrow_scope_mut(func_scope).add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
@@ -260,9 +260,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "out",
             Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
-        func_data.add_input(in1);
-        func_data.add_input(in2);
-        func_data.add_output(out);
+        program.borrow_scope_mut(func_scope).add_input(in1);
+        program.borrow_scope_mut(func_scope).add_input(in2);
+        program.borrow_scope_mut(func_scope).add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
@@ -289,8 +289,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "out",
             Variable::variable(FilePosition::placeholder(), out_type, None),
         );
-        func_data.add_input(in1);
-        func_data.add_output(out);
+        program.borrow_scope_mut(func_scope).add_input(in1);
+        program.borrow_scope_mut(func_scope).add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 
@@ -326,9 +326,9 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             "out",
             Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
         );
-        func_data.add_input(in1);
-        func_data.add_input(in2);
-        func_data.add_output(out);
+        program.borrow_scope_mut(func_scope).add_input(in1);
+        program.borrow_scope_mut(func_scope).add_input(in2);
+        program.borrow_scope_mut(func_scope).add_output(out);
         program.adopt_and_define_symbol(scope, name, Variable::function_def(func_data))
     };
 

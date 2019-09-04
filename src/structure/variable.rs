@@ -30,16 +30,11 @@ pub struct FunctionData {
     body: ScopeId,
     builtin: Option<BuiltinFunction>,
     header: FilePosition,
-    inputs: Vec<VariableId>,
-    outputs: Vec<VariableId>,
 }
 
 impl PartialEq for FunctionData {
     fn eq(&self, other: &Self) -> bool {
-        self.body == other.body
-            && self.builtin == other.builtin
-            && self.inputs == other.inputs
-            && self.outputs == other.outputs
+        self.body == other.body && self.builtin == other.builtin
     }
 }
 
@@ -49,8 +44,6 @@ impl FunctionData {
             body,
             builtin: None,
             header,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
         }
     }
 
@@ -59,8 +52,6 @@ impl FunctionData {
             body,
             builtin: Option::Some(builtin),
             header,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
         }
     }
 
@@ -82,38 +73,6 @@ impl FunctionData {
 
     pub fn get_builtin(&self) -> &Option<BuiltinFunction> {
         &self.builtin
-    }
-
-    pub fn add_input(&mut self, input: VariableId) {
-        self.inputs.push(input)
-    }
-
-    pub fn get_input(&self, index: usize) -> VariableId {
-        self.inputs[index]
-    }
-
-    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
-        &self.inputs
-    }
-
-    pub fn add_output(&mut self, output: VariableId) {
-        self.outputs.push(output)
-    }
-
-    pub fn get_output(&self, index: usize) -> VariableId {
-        self.outputs[index]
-    }
-
-    pub fn borrow_outputs(&self) -> &Vec<VariableId> {
-        &self.outputs
-    }
-
-    pub fn get_single_output(&self) -> Option<VariableId> {
-        if self.outputs.len() == 1 {
-            Option::Some(self.outputs[0].clone())
-        } else {
-            None
-        }
     }
 }
 
