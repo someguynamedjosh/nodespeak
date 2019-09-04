@@ -34,7 +34,7 @@ final_build:
   artifacts:
     paths: 
     - target/release/compile
-    expires_in: 30 minutes
+    expire_in: 30 minutes
 
 pub_bin:
   stage: publish
