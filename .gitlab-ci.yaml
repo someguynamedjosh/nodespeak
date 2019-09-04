@@ -1,0 +1,14 @@
+image: rust:1.37
+
+build:
+  script: cargo build
+  stage: build
+
+doc:
+  image: rustlang/rust:nightly
+  script: cargo doc
+  stage: build
+
+test:
+  script: cargo test
+  stage: test
