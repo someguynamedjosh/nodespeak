@@ -1,0 +1,4 @@
+assert(1 == 1);
+
+Int ivar = 14;
+assert(ivar == 14);

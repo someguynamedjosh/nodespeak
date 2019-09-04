@@ -1,5 +1,5 @@
 use crate::interpreter::{self, InterpreterOutcome};
-use crate::problem::{self, FilePosition, CompileProblem};
+use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
     add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, VarAccess, Variable,
 };
@@ -66,9 +66,9 @@ impl Program {
                 InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
                     self.scopes[add_to.0].body.push(call)
                 }
-                InterpreterOutcome::AssertFailed(location) => return Result::Err(
-                    problem::guaranteed_assert(location)
-                ),
+                InterpreterOutcome::AssertFailed(location) => {
+                    return Result::Err(problem::guaranteed_assert(location))
+                }
                 InterpreterOutcome::Successful | InterpreterOutcome::Returned => (),
             }
         } else {

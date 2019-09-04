@@ -1,12 +1,12 @@
-use crate::structure::{BuiltinFunction, FuncCall, KnownData, Program, ScopeId, FunctionData};
 use crate::problem::FilePosition;
+use crate::structure::{BuiltinFunction, FuncCall, FunctionData, KnownData, Program, ScopeId};
 
 pub enum InterpreterOutcome {
     Successful,
     Returned,
     UnknownData,
     UnknownFunction,
-    AssertFailed(FilePosition)
+    AssertFailed(FilePosition),
 }
 
 fn interpret_builtin(
@@ -142,7 +142,11 @@ fn interpret_builtin(
     InterpreterOutcome::Successful
 }
 
-fn interpret_function(program: &mut Program, func_call: &FuncCall, function: FunctionData) -> InterpreterOutcome {
+fn interpret_function(
+    program: &mut Program,
+    func_call: &FuncCall,
+    function: FunctionData,
+) -> InterpreterOutcome {
     let input_sources = func_call.borrow_inputs().iter();
     let input_targets = function.borrow_inputs().iter();
     for (source, target) in input_sources.zip(input_targets) {
@@ -153,7 +157,7 @@ fn interpret_function(program: &mut Program, func_call: &FuncCall, function: Fun
     for func_call in program.clone_scope_body(body) {
         match interpret_func_call(program, body, &func_call) {
             InterpreterOutcome::Returned => break,
-            _ => ()
+            _ => (),
         }
     }
     let output_sources = function.borrow_outputs().iter();

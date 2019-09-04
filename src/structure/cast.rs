@@ -1,4 +1,4 @@
-use crate::problem::{FilePosition, CompileProblem};
+use crate::problem::{CompileProblem, FilePosition};
 use crate::structure::{
     DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
@@ -71,7 +71,12 @@ fn simple_cast(
     program.add_func_call(scope, func_call)
 }
 
-pub fn create_cast(program: &mut Program, scope: ScopeId, from: VarAccess, to: VarAccess) -> Result<(), CompileProblem> {
+pub fn create_cast(
+    program: &mut Program,
+    scope: ScopeId,
+    from: VarAccess,
+    to: VarAccess,
+) -> Result<(), CompileProblem> {
     // Currently we don't have code to manage arrays.
     assert!(from.borrow_indexes().len() == 0);
 
