@@ -7,10 +7,12 @@ stages:
   - final_build
   - publish
 
-
 build:
   stage: init_build
   script: cargo build
+  only: 
+    - master
+    - merge_requests
   artifacts:
     paths:
     - target
@@ -21,11 +23,16 @@ test:
   dependencies: 
     - build
   script: cargo test
+  only: 
+    - master
+    - merge_requests
 
 doc:
   stage: document
   image: rustlang/rust:nightly
   script: cargo doc
+  only: 
+    - master
   artifacts:
     paths:
     - target/doc
@@ -33,6 +40,8 @@ doc:
 final_build:
   stage: final_build
   script: cargo build --release
+  only: 
+    - master
   artifacts:
     paths: 
     - target/release/compile
@@ -43,6 +52,8 @@ pub_bin:
   dependencies: 
     - final_build
   script: cp -r target/release/compile compile
+  only: 
+    - master
   artifacts:
     paths:
     - compile
@@ -52,6 +63,8 @@ pub_doc:
   dependencies: 
     - doc
   script: mv target/doc public/
+  only: 
+    - master
   artifacts:
     paths:
     - public
