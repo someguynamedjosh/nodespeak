@@ -18,6 +18,8 @@ build:
 
 test:
   stage: test
+  dependencies: 
+    - build
   script: cargo test
 
 doc:
@@ -38,6 +40,8 @@ final_build:
 
 pub_bin:
   stage: publish
+  dependencies: 
+    - final_build
   script: cp -r target/release/compile compile
   artifacts:
     paths:
@@ -45,7 +49,9 @@ pub_bin:
 
 pub_doc:
   stage: publish
-  script: cp -r target/doc doc
+  dependencies: 
+    - doc
+  script: mv target/doc public/
   artifacts:
     paths:
-    - doc
+    - public
