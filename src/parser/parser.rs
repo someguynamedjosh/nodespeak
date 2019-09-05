@@ -716,11 +716,12 @@ pub mod convert {
                     convert_function_signature(program, &mut function, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
-                    let output_value = program.borrow_scope_mut(func_scope).get_single_output().and_then(
-                        |id: VariableId| -> Option<VarAccess> {
+                    let output_value = program
+                        .borrow_scope_mut(func_scope)
+                        .get_single_output()
+                        .and_then(|id: VariableId| -> Option<VarAccess> {
                             Option::Some(VarAccess::new(FilePosition::from_pair(&child), id))
-                        },
-                    );
+                        });
                     function.set_header(real_header_position);
                     // So that code inside the body can refer to the function.
                     // If name is None, there is a bug in the parser.
@@ -778,7 +779,9 @@ pub mod convert {
                 _ => unreachable!(),
             }
         }
-        program.borrow_scope_mut(scope).define_symbol(name.unwrap(), variable_id);
+        program
+            .borrow_scope_mut(scope)
+            .define_symbol(name.unwrap(), variable_id);
         Result::Ok(())
     }
 
@@ -860,12 +863,14 @@ pub mod convert {
         unreachable!();
     }
 
-    fn convert_input_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
+    fn convert_input_variable_statement(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
         if program.borrow_scope(scope).get_parent().is_some() {
-            return Result::Err(
-                problem::io_inside_function(FilePosition::from_pair(&input))
-            );
+            return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
         for child in input.into_inner() {
             match child.as_rule() {
@@ -876,22 +881,31 @@ pub mod convert {
                     let new_input = program.adopt_and_define_symbol(
                         scope,
                         child.as_str(),
-                        Variable::variable(FilePosition::from_pair(&child), data_type.as_ref().expect("Grammar requires data type before identifier.").clone(), None)
+                        Variable::variable(
+                            FilePosition::from_pair(&child),
+                            data_type
+                                .as_ref()
+                                .expect("Grammar requires data type before identifier.")
+                                .clone(),
+                            None,
+                        ),
                     );
                     program.borrow_scope_mut(scope).add_input(new_input);
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
         Result::Ok(())
     }
 
-    fn convert_output_variable_statement(program: &mut Program, scope: ScopeId, input: Pair<Rule>) -> Result<(), CompileProblem> {
+    fn convert_output_variable_statement(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
         let mut data_type = Option::None;
         if program.borrow_scope(scope).get_parent().is_some() {
-            return Result::Err(
-                problem::io_inside_function(FilePosition::from_pair(&input))
-            );
+            return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
         for child in input.into_inner() {
             match child.as_rule() {
@@ -902,11 +916,18 @@ pub mod convert {
                     let new_output = program.adopt_and_define_symbol(
                         scope,
                         child.as_str(),
-                        Variable::variable(FilePosition::from_pair(&child), data_type.as_ref().expect("Grammar requires data type before identifier.").clone(), None)
+                        Variable::variable(
+                            FilePosition::from_pair(&child),
+                            data_type
+                                .as_ref()
+                                .expect("Grammar requires data type before identifier.")
+                                .clone(),
+                            None,
+                        ),
                     );
                     program.borrow_scope_mut(scope).add_output(new_output);
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
         Result::Ok(())
@@ -922,7 +943,7 @@ pub mod convert {
             match child.as_rule() {
                 Rule::data_type => {
                     data_type = Option::Some(convert_data_type(program, scope, child)?)
-                } 
+                }
                 Rule::assigned_variable => convert_assigned_variable(
                     program,
                     scope,
@@ -954,8 +975,14 @@ pub mod convert {
         let func = program
             .lookup_and_clone_parent_function(scope)
             .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
-        let inputs = program.borrow_scope(func.get_body()).borrow_inputs().clone();
-        let outputs = program.borrow_scope(func.get_body()).borrow_outputs().clone();
+        let inputs = program
+            .borrow_scope(func.get_body())
+            .borrow_inputs()
+            .clone();
+        let outputs = program
+            .borrow_scope(func.get_body())
+            .borrow_outputs()
+            .clone();
         // In case we need to make an error, we can't borrow input once we enter the loop because
         // the loop consumes it.
         let statement_position = FilePosition::from_pair(&input);

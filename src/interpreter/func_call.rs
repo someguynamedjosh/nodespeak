@@ -148,7 +148,10 @@ fn interpret_function(
     function: FunctionData,
 ) -> InterpreterOutcome {
     let input_sources = func_call.borrow_inputs();
-    let input_targets = program.borrow_scope(function.get_body()).borrow_inputs().clone();
+    let input_targets = program
+        .borrow_scope(function.get_body())
+        .borrow_inputs()
+        .clone();
     for (source, target) in input_sources.iter().zip(input_targets.iter()) {
         let value = program.borrow_value_of(source).clone();
         program.set_temporary_value(target.clone(), value);
@@ -160,7 +163,10 @@ fn interpret_function(
             _ => (),
         }
     }
-    let output_sources = program.borrow_scope(function.get_body()).borrow_outputs().clone();
+    let output_sources = program
+        .borrow_scope(function.get_body())
+        .borrow_outputs()
+        .clone();
     let output_targets = func_call.borrow_outputs();
     for (source, target) in output_sources.iter().zip(output_targets.iter()) {
         let value = program.borrow_temporary_value(source.clone()).clone();
@@ -199,4 +205,51 @@ pub fn interpret_func_call(
         },
         _ => return InterpreterOutcome::UnknownFunction,
     }
+}
+
+/// Interprets a program starting from its entry point. Uses the provided vector of data to
+/// initialize all the input variables. If any of the input data do not match the types of their
+/// respective input variables, an error result is returned with a vector containing all the indices
+/// of any non-matching inputs. If all the input data has the correct type, then a vector containing
+/// all the data of the output variables after interpreting the program is returned.
+pub fn interpret_from_entry_point(
+    program: &mut Program,
+    inputs: Vec<KnownData>,
+) -> Result<Vec<KnownData>, Vec<usize>> {
+    let entry_point_id = program.get_entry_point();
+    let entry_point = program.borrow_scope(entry_point_id);
+
+    let input_iter = inputs.iter();
+    let targets_iter = entry_point.borrow_inputs().iter();
+    let mut problems = Vec::new();
+    for (index, (input, target)) in input_iter.zip(targets_iter).enumerate() {
+        if !input.matches_data_type(program.borrow_variable(*target).borrow_data_type()) {
+            problems.push(index);
+        }
+    }
+    if problems.len() > 0 {
+        return Result::Err(problems);
+    }
+
+    let input_targets = entry_point.borrow_inputs().clone();
+    for (source, target) in inputs.into_iter().zip(input_targets.iter()) {
+        program.set_temporary_value(target.clone(), source);
+    }
+    for func_call in program.clone_scope_body(program.get_entry_point()) {
+        match interpret_func_call(program, entry_point_id, &func_call) {
+            InterpreterOutcome::Returned => break,
+            _ => (),
+        }
+    }
+
+    let output_sources = program
+        .borrow_scope(entry_point_id)
+        .borrow_outputs()
+        .clone();
+    let mut output_values = Vec::new();
+    for source in output_sources.iter() {
+        let value = program.borrow_temporary_value(source.clone()).clone();
+        output_values.push(value);
+    }
+    Result::Ok(output_values)
 }

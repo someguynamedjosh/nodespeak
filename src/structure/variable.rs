@@ -1,6 +1,8 @@
 use crate::problem::FilePosition;
 use crate::structure::{BuiltinFunction, ScopeId, VariableId};
 
+use std::fmt::{self, Display, Formatter};
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
     Automatic,
@@ -21,6 +23,22 @@ impl DataType {
             DataType::Automatic => true,
             // DataType::Array(data) => data.base.is_automatic(),
             _ => false,
+        }
+    }
+}
+
+impl Display for DataType {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            DataType::Automatic => write!(formatter, "Auto"),
+            DataType::Dynamic(_var) => write!(formatter, "Unresolved"),
+            DataType::LoadTemplateParameter(_var) => write!(formatter, "Unresolved"),
+            DataType::Bool => write!(formatter, "Bool"),
+            DataType::Int => write!(formatter, "Int"),
+            DataType::Float => write!(formatter, "Float"),
+            DataType::Void => write!(formatter, "Void"),
+            DataType::DataType_ => write!(formatter, "DataType_"),
+            DataType::Function_ => write!(formatter, "Function_"),
         }
     }
 }
@@ -107,6 +125,68 @@ impl KnownData {
         match self {
             KnownData::Float(value) => *value,
             _ => panic!("Expected data to be a float."),
+        }
+    }
+
+    pub fn matches_data_type(&self, data_type: &DataType) -> bool {
+        match self {
+            KnownData::Void => {
+                if let DataType::Void = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+            KnownData::Unknown => false,
+            KnownData::Bool(_value) => {
+                if let DataType::Bool = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+            KnownData::Int(_value) => {
+                if let DataType::Int = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+            KnownData::Float(_value) => {
+                if let DataType::Float = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+            KnownData::DataType(_value) => {
+                if let DataType::DataType_ = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+            KnownData::Function(_value) => {
+                if let DataType::Function_ = data_type {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+impl Display for KnownData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            KnownData::Void => write!(formatter, "[void]"),
+            KnownData::Unknown => write!(formatter, "[unknown]"),
+            KnownData::Bool(value) => write!(formatter, "{}", if *value { "true" } else { "false" }),
+            KnownData::Int(value) => write!(formatter, "{}", value),
+            KnownData::Float(value) => write!(formatter, "{}", value),
+            KnownData::DataType(value) => write!(formatter, "{}", value),
+            KnownData::Function(value) => write!(formatter, "[function formatter not implemented]"),
         }
     }
 }

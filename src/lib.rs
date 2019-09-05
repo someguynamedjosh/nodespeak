@@ -9,6 +9,7 @@ pub mod interpreter;
 pub mod parser;
 pub mod problem;
 pub mod structure;
+pub mod util;
 
 pub struct SourceSet<'a> {
     sources: Vec<(String, &'a str)>,
@@ -69,7 +70,5 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
     };
     program.set_entry_point(new_entry_point);
 
-    Result::Ok(CompileResult {
-        program: program,
-    })
+    Result::Ok(CompileResult { program: program })
 }

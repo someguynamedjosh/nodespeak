@@ -280,6 +280,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "text_io"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "typenum"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -308,6 +313,7 @@ dependencies = [
  "pest_derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "readonly 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "terminal_size 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "text_io 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -377,6 +383,7 @@ dependencies = [
 "checksum syn 0.15.34 (registry+https://github.com/rust-lang/crates.io-index)" = "a1393e4a97a19c01e900df2aec855a29f71cf02c402e2f443b8d2747c25c5dbe"
 "checksum syn 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "66850e97125af79138385e9b88339cbcd037e3f28ceab8c5ad98e64f0f1f80bf"
 "checksum terminal_size 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "023345d35850b69849741bd9a5432aa35290e3d8eb76af8717026f270d1cf133"
+"checksum text_io 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9658b61ebd1d2a40c276ba2335890b9eb6550b67458a6fbce2022e58c3350a50"
 "checksum typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"
 "checksum ucd-trie 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "71a9c5b1fe77426cf144cc30e49e955270f5086e31a6441dfa8b32efc09b9d77"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"

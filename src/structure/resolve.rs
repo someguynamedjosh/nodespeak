@@ -312,7 +312,7 @@ impl<'a> ScopeResolver<'a> {
         // functions, we use a different method because cloning their scopes all the time would be
         // very costly.
         if func_target.is_builtin() {
-            let resolved_input_types: Vec<DataType> = borrowed_body 
+            let resolved_input_types: Vec<DataType> = borrowed_body
                 .borrow_inputs()
                 .iter()
                 .map(|input_id| {
@@ -323,7 +323,7 @@ impl<'a> ScopeResolver<'a> {
                     )
                 })
                 .collect();
-            let resolved_output_types: Vec<DataType> = borrowed_body 
+            let resolved_output_types: Vec<DataType> = borrowed_body
                 .borrow_outputs()
                 .iter()
                 .map(|output_id| {
@@ -440,7 +440,9 @@ impl<'a> ScopeResolver<'a> {
             // Resolve the data type of any outputs that are automatic.
             for (index, output_id) in new_func_call.borrow_outputs().iter().enumerate() {
                 if output_id.borrow_data_type(self.program).is_automatic() {
-                    let target_var = self.program.borrow_variable(self.program.borrow_scope(copied).get_output(index));
+                    let target_var = self
+                        .program
+                        .borrow_variable(self.program.borrow_scope(copied).get_output(index));
                     let data_type = target_var.borrow_data_type().clone();
                     self.resolve_automatic_type(output_id, data_type);
                 }
