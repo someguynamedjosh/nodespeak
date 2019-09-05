@@ -1,70 +1,79 @@
 image: rust:1.37
 
 stages:
-  - init_build
-  - test
+  - check
+  - build
   - document
-  - final_build
+  - check_artifacts
   - publish
 
+check:
+  stage: check
+  script: 
+    - cargo build
+    - cargo test
+  only: 
+    - master
+    - merge_requests
+  
 build:
-  stage: init_build
-  script: cargo build
+  stage: build 
+  script: cargo build --release
   only: 
-    - master
-    - merge_requests
+  - master
+  - merge_requests
   artifacts:
-    paths:
-    - target
+    paths: 
+    - target/release/waveguide
     expire_in: 30 minutes
-
-test:
-  stage: test
-  dependencies: 
-    - build
-  script: cargo test
-  only: 
-    - master
-    - merge_requests
-
-doc:
+  
+document:
   stage: document
   image: rustlang/rust:nightly
   script: cargo doc
   only: 
-    - master
+  - master
+  - merge_requests
   artifacts:
     paths:
     - target/doc
-  
-final_build:
-  stage: final_build
-  script: cargo build --release
-  only: 
-    - master
-  artifacts:
-    paths: 
-    - target/release/compile
     expire_in: 30 minutes
 
-pub_bin:
-  stage: publish
+check_artifacts:
+  stage: check_artifacts
+  image: alpine
   dependencies: 
-    - final_build
-  script: cp -r target/release/compile compile
+  - build
+  - document
+  script: 
+  - test -e target/release/waveguide
+  - test -e target/doc
+
+publish:
+  stage: publish
+  image: alpine
+  dependencies: 
+  - build
+  - document
+  script: 
+  - mv target/release/waveguide waveguide
+  - mv target/doc pages
   only: 
-    - master
+  - master
   artifacts:
     paths:
-    - compile
+    - waveguide
+    - pages
 
-pub_doc:
+pages:
   stage: publish
-  dependencies: 
-    - doc
-  script: mv target/doc public/
+  image: alpine
+  dependencies:
+  - publish
+  script:
+  - mv pages public
   only: 
-    - master
+  - master
   artifacts:
     paths:
     - public
