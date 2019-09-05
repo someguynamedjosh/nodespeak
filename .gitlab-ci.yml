@@ -6,6 +6,7 @@ stages:
   - document
   - check_artifacts
   - publish
+  - pages
 
 check:
   stage: check
@@ -66,7 +67,7 @@ publish:
     - pages
 
 pages:
-  stage: publish
+  stage: pages 
   image: alpine
   dependencies:
   - publish
