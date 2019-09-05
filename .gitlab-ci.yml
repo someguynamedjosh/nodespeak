@@ -49,6 +49,8 @@ check_artifacts:
   script: 
   - test -e target/release/waveguide
   - test -e target/doc
+  only:
+  - merge_requests
 
 publish:
   stage: publish
