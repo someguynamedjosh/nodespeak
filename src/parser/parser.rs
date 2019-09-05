@@ -4,7 +4,7 @@ use crate::problem;
 use crate::problem::CompileProblem;
 use crate::problem::FilePosition;
 
-use pest::error::Error;
+use pest::error::{Error, ErrorVariant};
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
@@ -16,8 +16,111 @@ struct WaveguideParser;
 pub type ParseResult<'a> = Pairs<'a, Rule>;
 pub type ParseError = Error<Rule>;
 
-pub fn parse(text: &str) -> Result<ParseResult, ParseError> {
-    WaveguideParser::parse(Rule::root, text)
+pub use Rule as AstRule;
+
+fn rule_name(rule: &Rule) -> &'static str {
+    match rule {
+        Rule::WHITESPACE => "whitespace",
+        Rule::EOI => "end of file",
+
+        Rule::dec_int => "integer literal",
+        Rule::hex_int => "hexadecimal literal",
+        Rule::oct_int => "octal literal",
+        Rule::legacy_oct_int => "c-style octal literal",
+        Rule::bin_int => "binary literal",
+        Rule::dec_digit => "digit",
+        Rule::float => "float literal",
+        Rule::int => "int literal",
+        Rule::array_literal => "array literal",
+        Rule::literal => "literal value",
+        Rule::identifier => "identifier",
+
+        Rule::expr_part_1 => "expression",
+        Rule::expr_part_2 => "expression",
+        Rule::expr_part => "expression",
+        Rule::expr => "expression",
+        Rule::negate => "unary negation",
+        Rule::operator => "binary operator",
+
+        Rule::func_input_list => "input list for function call",
+        Rule::func_output_return_inline => "inline",
+        Rule::func_output_var_dec => "declared variable output",
+        Rule::func_output_list => "output list for function call",
+        Rule::func_output => "output for function call",
+        Rule::func_lambda => "lambda definition for function call",
+        Rule::lambda_adjective => "adjective for function call",
+        Rule::func_expr_extra_list => "zero or more adjectives and lambdas for function call",
+        Rule::func_expr => "function call",
+
+        Rule::named_data_type => "name of a data type",
+        Rule::dynamic_data_type => "dynamic data type expression",
+        Rule::basic_data_type => "data type",
+        Rule::array_data_type => "array data type",
+        Rule::data_type => "data type",
+
+        Rule::named_function_parameter => "function parameter definition",
+        Rule::function_inputs => "input list for function definition",
+        Rule::function_outputs => "output list for function definition",
+        Rule::single_function_output => "single output for function definition",
+        Rule::function_signature => "signature for function definition",
+        Rule::function_definition => "function definition",
+
+        Rule::empty_variable => "uninitialized variable name",
+        Rule::assigned_variable => "initialized variable declaration",
+        Rule::create_variable => "variable declaration",
+        Rule::create_variable_statement => "variable declaration statement",
+        Rule::input_variable_statement => "input declaration statement",
+        Rule::output_variable_statement => "output declaration statement",
+
+        Rule::assign_array_access => "LHS assignment indexing",
+        Rule::assign_expr => "LHS assignment expression",
+        Rule::assign_statement => "assignment expression",
+
+        Rule::code_block => "code block",
+        Rule::returnable_code_block => "code block",
+        Rule::return_statement => "return statement",
+
+        Rule::raw_expr_statement => "expression as statement",
+        Rule::statement => "statement",
+        Rule::root => "program",
+    }
+}
+
+pub fn parse(text: &str) -> Result<ParseResult, CompileProblem> {
+    WaveguideParser::parse(Rule::root, text).map_err(|parse_err| {
+        problem::bad_syntax(
+            FilePosition::from_input_location(parse_err.location),
+            match parse_err.variant {
+                ErrorVariant::ParsingError {
+                    positives,
+                    negatives,
+                } => format!(
+                    "Expected {}... but found {}.",
+                    {
+                        positives
+                            .iter()
+                            .map(|rule| rule_name(rule))
+                            .collect::<Vec<&str>>()
+                            .join(", ")
+                    },
+                    {
+                        if negatives.len() == 0 {
+                            "unknown syntax".to_owned()
+                        } else {
+                            negatives
+                                .iter()
+                                .map(|rule| rule_name(rule))
+                                .collect::<Vec<&str>>()
+                                .join(", ")
+                        }
+                    }
+                ),
+                ErrorVariant::CustomError { message: _message } => {
+                    unreachable!("Only parsing errors are encountered in the parser.")
+                }
+            },
+        )
+    })
 }
 
 // We have to put this here because pest does not allow us to export the auto
@@ -195,6 +298,53 @@ pub mod convert {
         }
     }
 
+    fn convert_array_literal(
+        program: &mut Program,
+        scope: ScopeId,
+        preferred_output: &Option<VarAccess>,
+        input: Pair<Rule>,
+    ) -> Result<VarAccess, CompileProblem> {
+        let mut items = Vec::new();
+        let position = FilePosition::from_pair(&input);
+        for child in input.into_inner() {
+            // Grammar requires child to be an expression.
+            items.push(convert_expression(program, scope, None, true, child)?);
+        }
+        let size_literal = program.adopt_and_define_intermediate(
+            scope,
+            Variable::int_literal(position.clone(), items.len() as i64),
+        );
+        let data_type = DataType::Array {
+            base_type: Box::new(DataType::Automatic),
+            size: VarAccess::new(position.clone(), size_literal),
+        };
+        let output_access = match preferred_output {
+            Option::Some(output) => output.clone(),
+            Option::None => VarAccess::new(
+                position.clone(),
+                program.adopt_and_define_intermediate(
+                    scope,
+                    Variable::variable(position.clone(), data_type, None),
+                ),
+            ),
+        };
+        for (index, item) in items.into_iter().enumerate() {
+            let mut call = FuncCall::new(
+                program.get_builtins().copy_func,
+                item.get_position().clone(),
+            );
+            call.add_output(output_access.with_additional_index(
+                program.adopt_and_define_intermediate(
+                    scope,
+                    Variable::int_literal(item.get_position().clone(), index as i64),
+                ),
+            ));
+            call.add_input(item);
+            program.add_func_call(scope, call)?;
+        }
+        return Result::Ok(output_access);
+    }
+
     fn convert_expr_part_1(
         program: &mut Program,
         scope: ScopeId,
@@ -273,7 +423,9 @@ pub mod convert {
                         convert_expression(program, scope, preferred_output.clone(), true, child)?;
                     return Result::Ok(output);
                 }
-                Rule::array_literal => unimplemented!(),
+                Rule::array_literal => {
+                    return convert_array_literal(program, scope, preferred_output, child);
+                }
                 _ => unreachable!(),
             }
         }
@@ -915,7 +1067,29 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<DataType, CompileProblem> {
-        unimplemented!();
+        // We have to store the sizes and process them later because the grammar specifies them in
+        // the reverse order we need them in. Nice for users, trickier for the parser.
+        let mut sizes = Vec::new();
+        for child in input.into_inner() {
+            match child.as_rule() {
+                Rule::expr => sizes.push(convert_expression(program, scope, None, true, child)?),
+                Rule::basic_data_type => {
+                    let mut data_type = convert_basic_data_type(program, scope, child)?;
+                    // So that we start with the smallest data type and work up to the biggest.
+                    sizes.reverse();
+                    for size in sizes {
+                        // Keep wrapping the data type with bigger and bigger array types.
+                        data_type = DataType::Array {
+                            base_type: Box::new(data_type),
+                            size,
+                        }
+                    }
+                    return Result::Ok(data_type);
+                }
+                _ => unreachable!("Grammar allows no other children."),
+            }
+        }
+        unreachable!("Grammar requires base data type.");
     }
 
     fn convert_data_type(
@@ -1162,180 +1336,5 @@ pub mod convert {
         }
 
         Result::Ok(program)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn is_valid(text: &str) -> bool {
-        return match parse(text) {
-            Ok(pairs) => {
-                println!("{:#?}", pairs);
-                true
-            }
-            Err(error) => {
-                println!("{:#?}", error);
-                false
-            }
-        };
-    }
-
-    #[test]
-    fn basic_function_call() {
-        assert!(is_valid("func();"));
-        assert!(is_valid("test_function_12938 (  )   ;"));
-
-        assert!(!is_valid("func(;"));
-        assert!(!is_valid("func);"));
-        assert!(!is_valid("12039821();"));
-    }
-
-    #[test]
-    fn input_function_call() {
-        assert!(is_valid("func(12);"));
-        assert!(is_valid("func(12, 34  , 120);"));
-    }
-
-    #[test]
-    fn output_function_call() {
-        assert!(is_valid("func:();"));
-        assert!(is_valid("func:(asdf);"));
-        assert!(is_valid("func:(out1, out2  , out3);"));
-
-        assert!(!is_valid("func:(123);"));
-    }
-
-    #[test]
-    fn input_output_function_call() {
-        assert!(is_valid("func():();"));
-        assert!(is_valid("func(in1):(out1);"));
-        assert!(is_valid("func(in1, in2):(out1, out2);"));
-
-        assert!(!is_valid("func(in1, in2):(out1, 12);"));
-    }
-
-    #[test]
-    fn lambda_function_call() {
-        assert!(is_valid("func { };"));
-        assert!(is_valid("func(in1):(out1) { };"));
-        assert!(is_valid("func(in1):(out1) { func(in1):(out1); };"));
-        assert!(is_valid("func(in1):(out1) { func(in1) };"));
-        assert!(is_valid("func(in1):(out1) { } { } { };"));
-
-        assert!(!is_valid("{ func(); };"));
-    }
-
-    #[test]
-    fn adjective_function_call() {
-        // According to grammar specification, all function calls must specify
-        // at least one of: input list, output list, or code block with no
-        // preceding adjectives. This makes the grammar unambiguous
-        assert!(is_valid("func {} adj1;"));
-        assert!(is_valid("func() adj1;"));
-        assert!(is_valid("func:() adj1;"));
-
-        // This is, so far, the only syntactically invalid type of function call
-        // which does not have any alternate meaning. (E.G. func adj1; resolves
-        // to a variable declaration, so it should be positively tested for in
-        // another test.)
-        assert!(!is_valid("func adj1 { };"));
-    }
-
-    #[test]
-    fn variable_declaration() {
-        assert!(is_valid("Int a;"));
-        assert!(is_valid("Int a = 12;"));
-        assert!(is_valid("Int a, b;"));
-        assert!(is_valid("Int a = 12, b = 13;"));
-    }
-
-    #[test]
-    fn variable_assignment() {
-        assert!(is_valid("a;"));
-        assert!(is_valid("a = 12;"));
-    }
-
-    #[test]
-    fn array_declaration() {
-        assert!(is_valid("[4]Int a;"));
-        assert!(is_valid("[4][3]Int a;"));
-        assert!(is_valid("[4]Int a = [1, 2, 3, 4];"));
-    }
-
-    #[test]
-    fn arithmetic() {
-        assert!(is_valid("a = 12 + 34;"));
-        assert!(is_valid("a = 12 - 34;"));
-        assert!(is_valid("a = 12 * 34;"));
-        assert!(is_valid("a = 12 ** 34;"));
-        assert!(is_valid("a = 12 / 34;"));
-        assert!(is_valid("a = 12 // 34;"));
-        assert!(is_valid("a = 12 % 34;"));
-    }
-
-    #[test]
-    fn logic() {
-        assert!(is_valid("a = 12 and 34;"));
-        assert!(is_valid("a = 12 or 34;"));
-        assert!(is_valid("a = 12 xor 34;"));
-        assert!(is_valid("a = 12 nand 34;"));
-        assert!(is_valid("a = 12 nor 34;"));
-        assert!(is_valid("a = 12 xnor 34;"));
-    }
-
-    #[test]
-    fn bitwise_logic() {
-        assert!(is_valid("a = 12 band 34;"));
-        assert!(is_valid("a = 12 bor 34;"));
-        assert!(is_valid("a = 12 bxor 34;"));
-        assert!(is_valid("a = 12 bnand 34;"));
-        assert!(is_valid("a = 12 bnor 34;"));
-        assert!(is_valid("a = 12 bxnor 34;"));
-    }
-
-    #[test]
-    fn comparison() {
-        assert!(is_valid("a = 12 == 34;"));
-        assert!(is_valid("a = 12 != 34;"));
-        assert!(is_valid("a = 12 >= 34;"));
-        assert!(is_valid("a = 12 <= 34;"));
-        assert!(is_valid("a = 12 > 34;"));
-        assert!(is_valid("a = 12 < 34;"));
-    }
-
-    #[test]
-    fn literals() {
-        assert!(is_valid("a = 12;"));
-        assert!(is_valid("a = 12.0;"));
-        assert!(is_valid("a = 0.01;"));
-        assert!(is_valid("a = .01;"));
-        assert!(is_valid("a = -4;"));
-        assert!(is_valid("a = -4.3e1;"));
-        assert!(is_valid("a = -4.3e+1;"));
-        assert!(is_valid("a = -4.3e-1;"));
-        assert!(is_valid("a = -3e-1;"));
-        assert!(is_valid("a = .1e-1;"));
-
-        assert!(is_valid("a = -01_234567;"));
-        assert!(is_valid("a = -0o1_234567;"));
-        assert!(is_valid("a = -0x9_ABCDEFabcdef;"));
-        assert!(is_valid("a = -0b0_1;"));
-        assert!(is_valid("a = -0b0_1;"));
-
-        assert!(!is_valid("a = 0b2"));
-        assert!(!is_valid("a = 0o8"));
-        assert!(!is_valid("a = 08"));
-        assert!(!is_valid("a = 0xG"));
-    }
-
-    #[test]
-    fn function_definition() {
-        assert!(is_valid("fn main { }"));
-        assert!(is_valid("fn main() { }"));
-        assert!(is_valid("fn main:() { }"));
-        assert!(is_valid("fn main:(Int a) { }"));
-        assert!(is_valid("fn main:Int { }"));
     }
 }

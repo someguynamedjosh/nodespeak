@@ -40,35 +40,19 @@ pub struct CompileResult {
     pub program: structure::Program,
 }
 
+fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
+    let mut ast_result = parser::parse(sources.borrow_sources()[1].1)?;
+    let mut program = parser::convert_ast_to_structure(&mut ast_result)?;
+    let entry_point = program.get_entry_point();
+    let new_entry_point = structure::resolve_scope(&mut program, entry_point)?;
+    program.set_entry_point(new_entry_point);
+    Result::Ok(CompileResult { program: program })
+}
+
 pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
     // TODO: Handle multiple sources.
-    // TODO: Pass name of source to parser.
-    let mut ast_result = parser::parse(sources.borrow_sources()[1].1).expect("TODO Friendly error");
-
-    let mut program = match parser::convert_ast_to_structure(&mut ast_result) {
-        Result::Ok(program) => program,
-        Result::Err(err) => {
-            let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
-            return Result::Err(format!(
-                "Compilation failed during structuring phase.\n\n{}",
-                err.format(width, sources)
-            ));
-        }
-    };
-
-    let entry_point = program.get_entry_point();
-
-    let new_entry_point = match structure::resolve_scope(&mut program, entry_point) {
-        Result::Ok(new_root) => new_root,
-        Result::Err(err) => {
-            let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
-            return Result::Err(format!(
-                "Compilation failed during resolving phase.\n\n{}",
-                err.format(width, sources)
-            ));
-        }
-    };
-    program.set_entry_point(new_entry_point);
-
-    Result::Ok(CompileResult { program: program })
+    compile_impl(sources).map_err(|err| {
+        let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
+        format!("Compilation failed.\n\n{}", err.format(width, sources))
+    })
 }

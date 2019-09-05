@@ -1,5 +1,6 @@
 use crate::SourceSet;
 use colored::*;
+use pest::error::InputLocation;
 use pest::iterators::Pair;
 use pest::RuleType;
 use std::cmp;
@@ -19,6 +20,19 @@ impl FilePosition {
         FilePosition {
             start_pos: span.start(),
             end_pos: span.end(),
+            // TODO: Modify this once we accept multiple files.
+            file: 1,
+        }
+    }
+
+    pub fn from_input_location(location: InputLocation) -> FilePosition {
+        let (start_pos, end_pos) = match location {
+            InputLocation::Span(poss) => poss,
+            InputLocation::Pos(start) => (start, start + 1),
+        };
+        FilePosition {
+            start_pos,
+            end_pos,
             // TODO: Modify this once we accept multiple files.
             file: 1,
         }
