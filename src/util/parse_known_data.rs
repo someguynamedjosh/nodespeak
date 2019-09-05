@@ -21,19 +21,38 @@ fn parse_literal(source: Pair<Rule>) -> KnownData {
                 .require_float(),
         ),
         Rule::neg_int => KnownData::Int(
-            -parse_literal(source.into_inner().next().expect("Required by grammar."))
-                .require_int(),
+            -parse_literal(source.into_inner().next().expect("Required by grammar.")).require_int(),
         ),
         Rule::float => KnownData::Float(
-            source.as_str().replace("_", "").parse().expect("Valid float required by grammar.")
+            source
+                .as_str()
+                .replace("_", "")
+                .parse()
+                .expect("Valid float required by grammar."),
         ),
         Rule::dec_int => KnownData::Int(
-            source.as_str().replace("_", "").parse().expect("Valid int required by grammar.")
+            source
+                .as_str()
+                .replace("_", "")
+                .parse()
+                .expect("Valid int required by grammar."),
         ),
-        Rule::hex_int => unimplemented!(),
-        Rule::oct_int => unimplemented!(),
-        Rule::legacy_oct_int => unimplemented!(),
-        Rule::bin_int => unimplemented!(),
+        Rule::hex_int => KnownData::Int(
+            i64::from_str_radix(&source.as_str().replace("_", "")[2..], 16)
+                .expect("Grammar requires valid hexadecimal int."),
+        ),
+        Rule::oct_int => KnownData::Int(
+            i64::from_str_radix(&source.as_str().replace("_", "")[2..], 8)
+                .expect("Grammar requires valid octal int."),
+        ),
+        Rule::legacy_oct_int => KnownData::Int(
+            i64::from_str_radix(&source.as_str().replace("_", "")[1..], 8)
+                .expect("Grammar requires valid octal int."),
+        ),
+        Rule::bin_int => KnownData::Int(
+            i64::from_str_radix(&source.as_str().replace("_", "")[2..], 2)
+                .expect("Grammar requires valid binary int."),
+        ),
         Rule::bool_true => KnownData::Bool(true),
         Rule::bool_false => KnownData::Bool(false),
         Rule::array_literal => unimplemented!(),

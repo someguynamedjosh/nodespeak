@@ -41,7 +41,10 @@ fn main() {
     };
 
     if interpret {
-        println!("Compilation completed sucessfully ({}ms.)\n", compile_start.elapsed().as_millis());
+        println!(
+            "Compilation completed sucessfully ({}ms.)\n",
+            compile_start.elapsed().as_millis()
+        );
     } else {
         println!("{:#?}", program);
         return;
@@ -55,8 +58,7 @@ fn main() {
                 let data_type = program.borrow_variable(input_id.clone()).borrow_data_type();
                 println!(
                     "Enter data for input '{}' (data type is {})",
-                    name,
-                    data_type
+                    name, data_type
                 );
                 let final_data;
                 loop {
@@ -65,12 +67,14 @@ fn main() {
                     let line: String = read!("{}\n");
                     // TODO: Handle unclosed brackets and such.
                     match waveguide::util::parse_known_data(&line) {
-                        Result::Ok(data) => if data.matches_data_type(data_type) {
-                            final_data = data;
-                            break;
-                        } else {
-                            eprintln!("The variable requires data of type {}, but you provided data of an incorrect type.", data_type);
-                        },
+                        Result::Ok(data) => {
+                            if data.matches_data_type(data_type) {
+                                final_data = data;
+                                break;
+                            } else {
+                                eprintln!("The variable requires data of type {}, but you provided data of an incorrect type.", data_type);
+                            }
+                        }
                         Result::Err(err) => {
                             eprintln!("An error was encountered while parsing your data:\n{}", err);
                         }
@@ -83,8 +87,12 @@ fn main() {
 
     println!("\nInterpreting program...");
     let interpret_start = Instant::now();
-    let results = waveguide::interpreter::interpret_from_entry_point(&mut program, inputs).expect("Inputs were already checked to be valid.");
-    println!("Interpretation complete ({}ms.)\n", interpret_start.elapsed().as_millis());
+    let results = waveguide::interpreter::interpret_from_entry_point(&mut program, inputs)
+        .expect("Inputs were already checked to be valid.");
+    println!(
+        "Interpretation complete ({}ms.)\n",
+        interpret_start.elapsed().as_millis()
+    );
 
     // Have to reborrow it after program was borrowed as mut.
     let entry_point = program.borrow_scope(program.get_entry_point());

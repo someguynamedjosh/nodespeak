@@ -182,7 +182,9 @@ impl Display for KnownData {
         match self {
             KnownData::Void => write!(formatter, "[void]"),
             KnownData::Unknown => write!(formatter, "[unknown]"),
-            KnownData::Bool(value) => write!(formatter, "{}", if *value { "true" } else { "false" }),
+            KnownData::Bool(value) => {
+                write!(formatter, "{}", if *value { "true" } else { "false" })
+            }
             KnownData::Int(value) => write!(formatter, "{}", value),
             KnownData::Float(value) => write!(formatter, "{}", value),
             KnownData::DataType(value) => write!(formatter, "{}", value),

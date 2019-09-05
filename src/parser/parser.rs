@@ -26,8 +26,42 @@ pub mod convert {
     use super::*;
     use crate::structure::*;
 
+    fn parse_float(input: &str) -> f64 {
+        input
+            .replace("_", "")
+            .parse()
+            .expect("Grammar requires valid float.")
+    }
+
     fn parse_dec_int(input: &str) -> i64 {
-        input.replace("_", "").parse().unwrap()
+        input
+            .replace("_", "")
+            .parse()
+            .expect("Grammar requires valid int.")
+    }
+
+    fn parse_hex_int(input: &str) -> i64 {
+        // Slice trims off 0x at beginning.
+        i64::from_str_radix(&input.replace("_", "")[2..], 16)
+            .expect("Grammar requires valid hexadecimal int.")
+    }
+
+    fn parse_oct_int(input: &str) -> i64 {
+        // Slice trims off 0o at beginning.
+        i64::from_str_radix(&input.replace("_", "")[2..], 8)
+            .expect("Grammar requires valid octal int.")
+    }
+
+    fn parse_legacy_oct_int(input: &str) -> i64 {
+        // Slice trims off 0 at beginning.
+        i64::from_str_radix(&input.replace("_", "")[1..], 8)
+            .expect("Grammar requires valid octal int.")
+    }
+
+    fn parse_bin_int(input: &str) -> i64 {
+        // Slice trims off 0b at beginning.
+        i64::from_str_radix(&input.replace("_", "")[2..], 2)
+            .expect("Grammar requires valid binary int.")
     }
 
     fn convert_func_expr_input_list(
@@ -170,10 +204,39 @@ pub mod convert {
     ) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::bin_int => unimplemented!(),
-                Rule::hex_int => unimplemented!(),
-                Rule::oct_int => unimplemented!(),
-                Rule::legacy_oct_int => unimplemented!(),
+                Rule::bin_int => {
+                    let value = parse_bin_int(child.as_str());
+                    let var = program.adopt_variable(Variable::int_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                }
+                Rule::hex_int => {
+                    let value = parse_hex_int(child.as_str());
+                    let var = program.adopt_variable(Variable::int_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                }
+                Rule::oct_int => {
+                    let value = parse_oct_int(child.as_str());
+                    let var = program.adopt_variable(Variable::int_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                }
+                Rule::legacy_oct_int => {
+                    let value = parse_legacy_oct_int(child.as_str());
+                    // TODO: Warning for using legacy oct format.
+                    let var = program.adopt_variable(Variable::int_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                }
                 Rule::dec_int => {
                     let value = parse_dec_int(child.as_str());
                     let var = program.adopt_variable(Variable::int_literal(
@@ -182,7 +245,14 @@ pub mod convert {
                     ));
                     return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
                 }
-                Rule::float => unimplemented!(),
+                Rule::float => {
+                    let value = parse_float(child.as_str());
+                    let var = program.adopt_variable(Variable::float_literal(
+                        FilePosition::from_pair(&child),
+                        value,
+                    ));
+                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                }
                 Rule::func_expr => {
                     return convert_func_expr(
                         program,
