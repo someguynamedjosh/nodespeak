@@ -26,10 +26,14 @@ expr_part_1 = {
     literal | func_expr | identifier | "(" ~ expr ~ ")" | array_literal 
 }
 
-negate = { "-" ~ expr_part_1 }
+index_expr = {
+    expr_part_1 ~ ("[" ~ expr ~ "]")+
+}
+
+negate = { "-" ~ (expr_part_1 | index_expr) }
 
 expr_part_2 = _{
-    negate | expr_part_1
+    negate | index_expr | expr_part_1
 }
 
 expr_part = { expr_part_2 }

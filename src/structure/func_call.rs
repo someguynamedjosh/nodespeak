@@ -5,7 +5,7 @@ use crate::structure::{DataType, Program, VariableId};
 pub struct VarAccess {
     position: FilePosition,
     base: VariableId,
-    indexes: Vec<VariableId>,
+    indexes: Vec<VarAccess>,
 }
 
 impl PartialEq for VarAccess {
@@ -31,11 +31,11 @@ impl VarAccess {
         &self.position
     }
 
-    pub fn add_index(&mut self, index: VariableId) {
+    pub fn add_index(&mut self, index: VarAccess) {
         self.indexes.push(index);
     }
 
-    pub fn borrow_indexes(&self) -> &Vec<VariableId> {
+    pub fn borrow_indexes(&self) -> &Vec<VarAccess> {
         &self.indexes
     }
 
@@ -43,7 +43,7 @@ impl VarAccess {
         self.base
     }
 
-    pub fn iterate_over_indexes(&self) -> std::slice::Iter<VariableId> {
+    pub fn iterate_over_indexes(&self) -> std::slice::Iter<VarAccess> {
         self.indexes.iter()
     }
 
@@ -53,6 +53,12 @@ impl VarAccess {
         // of writing this code.
         assert!(self.indexes.len() == 0);
         data_type
+    }
+
+    pub fn with_additional_index(&self, index: VarAccess) -> VarAccess {
+        let mut result = self.clone();
+        result.add_index(index);
+        result
     }
 }
 

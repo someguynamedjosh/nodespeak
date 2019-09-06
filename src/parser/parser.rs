@@ -40,6 +40,7 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::expr_part => "expression",
         Rule::expr => "expression",
         Rule::negate => "unary negation",
+        Rule::index_expr => "array access",
         Rule::operator => "binary operator",
 
         Rule::func_input_list => "input list for function call",
@@ -333,11 +334,11 @@ pub mod convert {
                 program.get_builtins().copy_func,
                 item.get_position().clone(),
             );
-            call.add_output(output_access.with_additional_index(
+            call.add_output(output_access.with_additional_index(VarAccess::new(item.get_position().clone(),
                 program.adopt_and_define_intermediate(
                     scope,
                     Variable::int_literal(item.get_position().clone(), index as i64),
-                ),
+                ),),
             ));
             call.add_input(item);
             program.add_func_call(scope, call)?;
@@ -440,6 +441,31 @@ pub mod convert {
         unimplemented!();
     }
 
+    fn convert_index_expr(
+        program: &mut Program,
+        scope: ScopeId,
+        preferred_output: &Option<VarAccess>,
+        force_func_output: bool,
+        input: Pair<Rule>
+    ) -> Result<VarAccess, CompileProblem> {
+        let mut iter = input.into_inner();
+        let mut access = convert_expr_part_1(program, scope, &None, true, iter.next().expect("Required by grammer."))?;
+        for child in iter {
+            match child.as_rule() {
+                Rule::expr_part_1 => unreachable!("Already dealt with above."),
+                Rule::expr => access.add_index(convert_expression(
+                    program,
+                    scope,
+                    None,
+                    true,
+                    child
+                )?),
+                _ => unreachable!("Grammar specifies no other children.")
+            }
+        }
+        Result::Ok(access)
+    }
+
     fn convert_expr_part(
         program: &mut Program,
         scope: ScopeId,
@@ -449,9 +475,6 @@ pub mod convert {
     ) -> Result<VarAccess, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::negate => {
-                    return convert_negate(program, scope, child);
-                }
                 Rule::expr_part_1 => {
                     return convert_expr_part_1(
                         program,
@@ -460,6 +483,12 @@ pub mod convert {
                         force_func_output,
                         child,
                     );
+                }
+                Rule::index_expr => {
+                    return convert_index_expr(program, scope, preferred_output, force_func_output, child);
+                }
+                Rule::negate => {
+                    return convert_negate(program, scope, child);
                 }
                 _ => unreachable!(),
             }

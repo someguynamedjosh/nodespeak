@@ -65,7 +65,7 @@ impl<'a> ScopeResolver<'a> {
             self.convert(access.get_base()),
         );
         for index in access.iterate_over_indexes() {
-            new_access.add_index(self.convert(*index));
+            new_access.add_index(self.convert_var_access(index));
         }
         new_access
     }

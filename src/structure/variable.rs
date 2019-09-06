@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{BuiltinFunction, ScopeId, VariableId};
+use crate::structure::{BuiltinFunction, ScopeId, VarAccess, VariableId};
 
 use std::fmt::{self, Display, Formatter};
 
@@ -11,10 +11,13 @@ pub enum DataType {
     Bool,
     Int,
     Float,
+    Array {
+        base_type: Box<DataType>,
+        size: VarAccess,
+    },
     Void,
     DataType_,
     Function_,
-    // Array(Box<ArrayDataType>),
 }
 
 impl DataType {
@@ -36,6 +39,8 @@ impl Display for DataType {
             DataType::Bool => write!(formatter, "Bool"),
             DataType::Int => write!(formatter, "Int"),
             DataType::Float => write!(formatter, "Float"),
+            // TODO: Implement.
+            DataType::Array { .. } => write!(formatter, "Array data type format unimplemented"),
             DataType::Void => write!(formatter, "Void"),
             DataType::DataType_ => write!(formatter, "DataType_"),
             DataType::Function_ => write!(formatter, "Function_"),
@@ -103,7 +108,7 @@ pub enum KnownData {
     Float(f64),
     DataType(DataType),
     Function(FunctionData),
-    // Array(Vec<KnownData>),
+    Array(Vec<KnownData>),
 }
 
 impl KnownData {
@@ -159,6 +164,18 @@ impl KnownData {
                     false
                 }
             }
+            KnownData::Array(contents) => {
+                if let DataType::Array { base_type, .. } = data_type {
+                    for item in contents {
+                        if !item.matches_data_type(base_type) {
+                            return false;
+                        }
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
             KnownData::DataType(_value) => {
                 if let DataType::DataType_ = data_type {
                     true
@@ -187,8 +204,18 @@ impl Display for KnownData {
             }
             KnownData::Int(value) => write!(formatter, "{}", value),
             KnownData::Float(value) => write!(formatter, "{}", value),
+            KnownData::Array(values) => {
+                write!(formatter, "[\n")?;
+                for value in values {
+                    write!(formatter, "\t{},\n", value)?;
+                }
+                write!(formatter, "]")
+            }
             KnownData::DataType(value) => write!(formatter, "{}", value),
-            KnownData::Function(value) => write!(formatter, "[function formatter not implemented]"),
+            // TODO: Implement function formatter.
+            KnownData::Function(_value) => {
+                write!(formatter, "[function formatter not implemented]")
+            }
         }
     }
 }

@@ -1,0 +1,3 @@
+[8]Int even_numbers = [2, 4, 6, 8, 10, 12, 14, 16];
+assert(even_numbers[0] == 2);
+assert(even_numbers[2] == 6);
