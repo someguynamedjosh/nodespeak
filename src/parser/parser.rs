@@ -317,7 +317,7 @@ pub mod convert {
         );
         let data_type = DataType::Array {
             base_type: Box::new(DataType::Automatic),
-            size: VarAccess::new(position.clone(), size_literal),
+            sizes: vec![VarAccess::new(position.clone(), size_literal)],
         };
         let output_access = match preferred_output {
             Option::Some(output) => output.clone(),
@@ -334,12 +334,13 @@ pub mod convert {
                 program.get_builtins().copy_func,
                 item.get_position().clone(),
             );
-            call.add_output(output_access.with_additional_index(VarAccess::new(item.get_position().clone(),
+            call.add_output(output_access.with_additional_index(VarAccess::new(
+                item.get_position().clone(),
                 program.adopt_and_define_intermediate(
                     scope,
                     Variable::int_literal(item.get_position().clone(), index as i64),
-                ),),
-            ));
+                ),
+            )));
             call.add_input(item);
             program.add_func_call(scope, call)?;
         }
@@ -446,21 +447,23 @@ pub mod convert {
         scope: ScopeId,
         preferred_output: &Option<VarAccess>,
         force_func_output: bool,
-        input: Pair<Rule>
+        input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
         let mut iter = input.into_inner();
-        let mut access = convert_expr_part_1(program, scope, &None, true, iter.next().expect("Required by grammer."))?;
+        let mut access = convert_expr_part_1(
+            program,
+            scope,
+            &None,
+            true,
+            iter.next().expect("Required by grammer."),
+        )?;
         for child in iter {
             match child.as_rule() {
                 Rule::expr_part_1 => unreachable!("Already dealt with above."),
-                Rule::expr => access.add_index(convert_expression(
-                    program,
-                    scope,
-                    None,
-                    true,
-                    child
-                )?),
-                _ => unreachable!("Grammar specifies no other children.")
+                Rule::expr => {
+                    access.add_index(convert_expression(program, scope, None, true, child)?)
+                }
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
         Result::Ok(access)
@@ -485,7 +488,13 @@ pub mod convert {
                     );
                 }
                 Rule::index_expr => {
-                    return convert_index_expr(program, scope, preferred_output, force_func_output, child);
+                    return convert_index_expr(
+                        program,
+                        scope,
+                        preferred_output,
+                        force_func_output,
+                        child,
+                    );
                 }
                 Rule::negate => {
                     return convert_negate(program, scope, child);
@@ -1096,24 +1105,19 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<DataType, CompileProblem> {
-        // We have to store the sizes and process them later because the grammar specifies them in
-        // the reverse order we need them in. Nice for users, trickier for the parser.
+        // We have to store the sizes and process them later because the base type comes after all
+        // the sizes.
         let mut sizes = Vec::new();
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => sizes.push(convert_expression(program, scope, None, true, child)?),
                 Rule::basic_data_type => {
-                    let mut data_type = convert_basic_data_type(program, scope, child)?;
-                    // So that we start with the smallest data type and work up to the biggest.
-                    sizes.reverse();
-                    for size in sizes {
-                        // Keep wrapping the data type with bigger and bigger array types.
-                        data_type = DataType::Array {
-                            base_type: Box::new(data_type),
-                            size,
-                        }
-                    }
-                    return Result::Ok(data_type);
+                    // Array data type stores sizes in the same order as the grammar, biggest to
+                    // smallest.
+                    return Result::Ok(DataType::Array {
+                        base_type: Box::new(convert_basic_data_type(program, scope, child)?),
+                        sizes,
+                    });
                 }
                 _ => unreachable!("Grammar allows no other children."),
             }

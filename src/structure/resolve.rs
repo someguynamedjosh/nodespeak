@@ -130,6 +130,7 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn combine_type_into_table(
+        &self,
         template_parameter: VariableId,
         value: &DataType,
         table: &mut HashMap<VariableId, DataType>,
@@ -141,7 +142,7 @@ impl<'a> ScopeResolver<'a> {
             // TODO: Error if finding BCT results in Void (meaning there is no BCT.)
             table.insert(
                 template_parameter,
-                structure::biggest_common_type(&table[&template_parameter], value),
+                structure::biggest_common_type(&self.program, &table[&template_parameter], value),
             );
         } else {
             table.insert(template_parameter, value.clone());
@@ -196,6 +197,7 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn resolve_template_parameters(
+        &self,
         parameter_type: &DataType,
         argument_type: &DataType,
         type_parameters: &mut HashMap<VariableId, DataType>,
@@ -205,7 +207,7 @@ impl<'a> ScopeResolver<'a> {
             // If the parameter type directly contributes to a template parameter...
             DataType::LoadTemplateParameter(type_var) => {
                 // And if the argument type isn't automatic...
-                Self::combine_type_into_table(*type_var, argument_type, type_parameters);
+                self.combine_type_into_table(*type_var, argument_type, type_parameters);
             }
             _ => (),
         }
@@ -286,12 +288,9 @@ impl<'a> ScopeResolver<'a> {
         let output_args = new_func_call.borrow_outputs().iter();
         // Chain them together and then convert them to references to their data types. This makes
         // an iterator over the data types of each argument.
-        // TODO: Handle array types and such.
-        let arg_types = input_args.chain(output_args).map(|arg_accessor| {
-            self.program
-                .borrow_variable(arg_accessor.get_base())
-                .borrow_data_type()
-        });
+        let arg_types = input_args
+            .chain(output_args)
+            .map(|arg_accessor| arg_accessor.borrow_data_type(self.program));
 
         // Since we already checked that the number of inputs and outputs are consistent across the
         // parameters and arguments, we can zip the parameter and argument iterators together and
@@ -299,7 +298,7 @@ impl<'a> ScopeResolver<'a> {
         for (param_type, arg_type) in param_types.zip(arg_types) {
             // Figure out how to modify what we think the template parameters should be based on the
             // data type of the argument being used to set the parameter.
-            Self::resolve_template_parameters(
+            self.resolve_template_parameters(
                 param_type,
                 arg_type,
                 &mut type_params,

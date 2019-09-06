@@ -129,6 +129,11 @@ impl Program {
         &self.variables[variable.0]
     }
 
+    pub fn borrow_variable_mut(&mut self, variable: VariableId) -> &mut Variable {
+        assert!(variable.0 < self.variables.len());
+        &mut self.variables[variable.0]
+    }
+
     pub fn set_data_type(&mut self, variable: VariableId, data_type: DataType) {
         assert!(variable.0 < self.variables.len());
         self.variables[variable.0].set_data_type(data_type);
@@ -178,8 +183,52 @@ impl Program {
     }
 
     pub fn set_value_of(&mut self, var_access: &VarAccess, value: KnownData) {
-        // TODO: Handle array types, etc.
-        self.set_temporary_value(var_access.get_base(), value);
+        let mut array_position = Vec::new();
+        for index in var_access.borrow_indexes() {
+            match self.borrow_value_of(index) {
+                KnownData::Int(value) => {
+                    if *value < 0 {
+                        panic!() // TODO Error
+                    } else {
+                        array_position.push(*value as usize)
+                    }
+                }
+                _ => panic!(), // TODO Error
+            }
+        }
+        let variable = self.borrow_variable(var_access.get_base());
+        if array_position.len() > 0 {
+            // If the entire varible is unknown, change it to an array of unknowns.
+            if let KnownData::Unknown = variable.borrow_temporary_value() {
+                if let DataType::Array{sizes, ..} = variable.borrow_data_type() {
+                    let mut real_sizes = Vec::new();
+                    for size in sizes {
+                        match self.borrow_value_of(size) {
+                            // TODO: Check that value is positive.
+                            KnownData::Int(value) => real_sizes.push(*value as usize),
+                            _ => panic!("TODO error, array data type is vague.")
+                        }
+                    }
+                    self.set_temporary_value(var_access.get_base(), KnownData::new_array(real_sizes))
+                } else {
+                    panic!("TODO error, variable is not array.")
+                }
+            }
+        }
+        let mut target = self.borrow_variable_mut(var_access.get_base()).borrow_temporary_value_mut();
+        if array_position.len() > 0 {
+            match target {
+                KnownData::Array(contents) => {
+                    if contents.is_inside(&array_position) {
+                        target = contents.borrow_item_mut(&array_position);
+                    } else {
+                        panic!("TODO error, given coordinate is not inside array.");
+                    }
+                }
+                _ => panic!("TODO error, data is not array.")
+            }
+        }
+        (*target) = value;
     }
 
     /// Retrieves a temporary value for the related variable, set by set_temporary_value.
@@ -192,8 +241,33 @@ impl Program {
     }
 
     pub fn borrow_value_of(&self, var_access: &VarAccess) -> &KnownData {
-        // TODO: Handle array types, etc.
-        self.borrow_temporary_value(var_access.get_base())
+        let mut array_position = Vec::new();
+        for index in var_access.borrow_indexes() {
+            match self.borrow_value_of(index) {
+                KnownData::Int(value) => {
+                    if *value < 0 {
+                        panic!() // TODO Error
+                    } else {
+                        array_position.push(*value as usize)
+                    }
+                }
+                _ => panic!(), // TODO Error
+            }
+        }
+        let mut target = self.borrow_temporary_value(var_access.get_base());
+        if array_position.len() > 0 {
+            match target {
+                KnownData::Array(contents) => {
+                    if contents.is_inside(&array_position) {
+                        target = contents.borrow_item(&array_position)
+                    } else {
+                        panic!("TODO error, given coordinate is not inside array.")
+                    }
+                }
+                _ => panic!("TODO error, data is not array.")
+            }
+        }
+        target
     }
 
     /// Resets the temporary value of an variable to be the initial value of that variable.

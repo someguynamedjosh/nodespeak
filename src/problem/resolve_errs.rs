@@ -81,3 +81,18 @@ pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {
         "Assert Guranteed To Fail",
     )])
 }
+
+pub fn illegal_inflation(source_pos: FilePosition, target_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            source_pos,
+            Error,
+            "Illegal Inflation\nCannot inflate this value:",
+        ),
+        ProblemDescriptor::new(
+            target_pos,
+            Hint,
+            "The value cannot be inflated to fit this target:",
+        ),
+    ])
+}

@@ -1,5 +1,6 @@
 use crate::problem::FilePosition;
-use crate::structure::{BuiltinFunction, ScopeId, VarAccess, VariableId};
+use crate::structure::{BuiltinFunction, Program, ScopeId, VarAccess, VariableId};
+use crate::util::NVec;
 
 use std::fmt::{self, Display, Formatter};
 
@@ -13,7 +14,7 @@ pub enum DataType {
     Float,
     Array {
         base_type: Box<DataType>,
-        size: VarAccess,
+        sizes: Vec<VarAccess>,
     },
     Void,
     DataType_,
@@ -26,6 +27,59 @@ impl DataType {
             DataType::Automatic => true,
             // DataType::Array(data) => data.base.is_automatic(),
             _ => false,
+        }
+    }
+
+    pub fn equivalent(&self, other: &DataType, program: &Program) -> bool {
+        match self {
+            // If it's a basic type, just check if it is equal to the other one.
+            DataType::Automatic
+            | DataType::Bool
+            | DataType::Int
+            | DataType::Float
+            | DataType::Void
+            | DataType::DataType_
+            | DataType::Function_ => self == other,
+            // If it's a dynamic / template type, check the value contained in both targets are both
+            // known and identical.
+            DataType::Dynamic(target) | DataType::LoadTemplateParameter(target) => match other {
+                DataType::Dynamic(other_target) | DataType::LoadTemplateParameter(other_target) => {
+                    let value = program.borrow_temporary_value(*target);
+                    let other_value = program.borrow_temporary_value(*other_target);
+                    if let KnownData::Unknown = value {
+                        false
+                    } else {
+                        value == other_value
+                    }
+                }
+                _ => false,
+            },
+            // If it's an array type, check if the other one is also an array type. Check if both of
+            // their sizes are known and are equivalent. Check if both their base types are known
+            // and are equivalent.
+            DataType::Array { base_type, sizes } => match other {
+                DataType::Array {
+                    base_type: other_base,
+                    sizes: other_sizes,
+                } => {
+                    // Check if the base types are equivalent.
+                    if !base_type.equivalent(other_base, program) {
+                        return false;
+                    }
+                    // Check if all the sizes have known and identical values.
+                    for (size, other_size) in sizes.iter().zip(other_sizes.iter()) {
+                        let size_value = program.borrow_value_of(size);
+                        let other_size_value = program.borrow_value_of(other_size);
+                        if let KnownData::Unknown = size_value {
+                            return false;
+                        } else if size_value != other_size_value {
+                            return false;
+                        }
+                    }
+                    true
+                }
+                _ => false,
+            },
         }
     }
 }
@@ -108,10 +162,14 @@ pub enum KnownData {
     Float(f64),
     DataType(DataType),
     Function(FunctionData),
-    Array(Vec<KnownData>),
+    Array(NVec<KnownData>),
 }
 
 impl KnownData {
+    pub fn new_array(dimensions: Vec<usize>) -> KnownData {
+        KnownData::Array(NVec::new(dimensions, KnownData::Unknown))
+    }
+
     pub fn require_bool(&self) -> bool {
         match self {
             KnownData::Bool(value) => *value,
@@ -166,7 +224,7 @@ impl KnownData {
             }
             KnownData::Array(contents) => {
                 if let DataType::Array { base_type, .. } = data_type {
-                    for item in contents {
+                    for item in contents.borrow_all_items() {
                         if !item.matches_data_type(base_type) {
                             return false;
                         }
@@ -205,8 +263,8 @@ impl Display for KnownData {
             KnownData::Int(value) => write!(formatter, "{}", value),
             KnownData::Float(value) => write!(formatter, "{}", value),
             KnownData::Array(values) => {
-                write!(formatter, "[\n")?;
-                for value in values {
+                write!(formatter, "[TODO better format for N-dim arrays.\n")?;
+                for value in values.borrow_all_items() {
                     write!(formatter, "\t{},\n", value)?;
                 }
                 write!(formatter, "]")
@@ -333,6 +391,10 @@ impl Variable {
 
     pub fn borrow_temporary_value(&self) -> &KnownData {
         &self.temporary_value
+    }
+
+    pub fn borrow_temporary_value_mut(&mut self) -> &mut KnownData {
+        &mut self.temporary_value
     }
 
     pub fn reset_temporary_value(&mut self) {
