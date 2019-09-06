@@ -87,8 +87,13 @@ fn main() {
 
     println!("\nInterpreting program...");
     let interpret_start = Instant::now();
-    let results = waveguide::interpreter::interpret_from_entry_point(&mut program, inputs)
-        .expect("Inputs were already checked to be valid.");
+    let results = match waveguide::interpreter::interpret_from_entry_point(&mut program, inputs) {
+        Result::Ok(results) => results,
+        Result::Err(description) => {
+            eprintln!("{}", description);
+            process::exit(101);
+        }
+    };
     println!(
         "Interpretation complete ({}ms.)\n",
         interpret_start.elapsed().as_millis()

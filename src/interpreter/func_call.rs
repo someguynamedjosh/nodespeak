@@ -209,26 +209,20 @@ pub fn interpret_func_call(
 
 /// Interprets a program starting from its entry point. Uses the provided vector of data to
 /// initialize all the input variables. If any of the input data do not match the types of their
-/// respective input variables, an error result is returned with a vector containing all the indices
-/// of any non-matching inputs. If all the input data has the correct type, then a vector containing
-/// all the data of the output variables after interpreting the program is returned.
+/// respective input variables, the function panics.
 pub fn interpret_from_entry_point(
     program: &mut Program,
     inputs: Vec<KnownData>,
-) -> Result<Vec<KnownData>, Vec<usize>> {
+) -> Result<Vec<KnownData>, String> {
     let entry_point_id = program.get_entry_point();
     let entry_point = program.borrow_scope(entry_point_id);
 
     let input_iter = inputs.iter();
     let targets_iter = entry_point.borrow_inputs().iter();
-    let mut problems = Vec::new();
     for (index, (input, target)) in input_iter.zip(targets_iter).enumerate() {
         if !input.matches_data_type(program.borrow_variable(*target).borrow_data_type()) {
-            problems.push(index);
+            panic!("Input at index {} has incorrect type.", index);
         }
-    }
-    if problems.len() > 0 {
-        return Result::Err(problems);
     }
 
     let input_targets = entry_point.borrow_inputs().clone();
@@ -238,6 +232,18 @@ pub fn interpret_from_entry_point(
     for func_call in program.clone_scope_body(program.get_entry_point()) {
         match interpret_func_call(program, entry_point_id, &func_call) {
             InterpreterOutcome::Returned => break,
+            InterpreterOutcome::AssertFailed(_position) => {
+                // TODO: Better error.
+                return Result::Err("Assert failed.".to_owned())
+            }
+            InterpreterOutcome::UnknownData => {
+                // TODO: Better error.
+                return Result::Err("Inputs to function have unknown data.".to_owned())
+            }
+            InterpreterOutcome::UnknownFunction => {
+                // TODO: Better error.
+                return Result::Err("Could not determine which function to call.".to_owned())
+            }
             _ => (),
         }
     }
