@@ -833,20 +833,27 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
-        let mut result = Option::None;
-        for child in input.into_inner() {
+        let input_pos = FilePosition::from_pair(&input);
+        let mut input_iter = input.into_inner();
+        let child = input_iter.next().expect("Identifier required by grammar.");
+        let mut result = VarAccess::new(
+            input_pos,
+            lookup_symbol_with_error(&program, scope, &child)?,
+        );
+        for child in input_iter {
             match child.as_rule() {
-                Rule::identifier => {
-                    result = Option::Some(VarAccess::new(
-                        FilePosition::from_pair(&child),
-                        lookup_symbol_with_error(&program, scope, &child)?,
-                    ))
-                }
-                Rule::assign_array_access => unimplemented!(),
-                _ => unreachable!(),
+                Rule::identifier => unreachable!("Already handled above."),
+                Rule::assign_array_access => result.add_index(convert_expression(
+                    program,
+                    scope,
+                    None,
+                    true,
+                    child.into_inner().next().expect("Required by grammar."),
+                )?),
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
-        Result::Ok(result.unwrap())
+        Result::Ok(result)
     }
 
     // Creates a variable, returns its id.

@@ -31,13 +31,13 @@ pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> Dat
         for size in sizes1 {
             match program.borrow_value_of(size) {
                 KnownData::Int(value) => real_sizes1.push(*value),
-                _ => return DataType::Void
+                _ => return DataType::Void,
             }
         }
         for size in sizes2 {
             match program.borrow_value_of(size) {
                 KnownData::Int(value) => real_sizes2.push(*value),
-                _ => return DataType::Void
+                _ => return DataType::Void,
             }
         }
         // If the second type has higher dimensionality than the first, add extra dimensions (with
@@ -58,7 +58,11 @@ pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> Dat
         // Figure out if the two sizes are compatible. While doing so, build a list of the biggest
         // sizes.
         let mut final_sizes = Vec::new();
-        for (index, (real_size1, real_size2)) in real_sizes1.into_iter().zip(real_sizes2.into_iter()).enumerate() {
+        for (index, (real_size1, real_size2)) in real_sizes1
+            .into_iter()
+            .zip(real_sizes2.into_iter())
+            .enumerate()
+        {
             // BCT rule 3
             if real_size1 == real_size2 {
                 final_sizes.push(sizes1[index].clone());
@@ -74,7 +78,7 @@ pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> Dat
 
         DataType::Array {
             sizes: final_sizes,
-            base_type: Box::new(biggest_common_type(program, base_type1, base_type2))
+            base_type: Box::new(biggest_common_type(program, base_type1, base_type2)),
         }
     // BCT rule 5 special cases
     } else if let DataType::Array { sizes, base_type } = a {

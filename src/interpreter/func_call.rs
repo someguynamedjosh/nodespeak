@@ -234,15 +234,15 @@ pub fn interpret_from_entry_point(
             InterpreterOutcome::Returned => break,
             InterpreterOutcome::AssertFailed(_position) => {
                 // TODO: Better error.
-                return Result::Err("Assert failed.".to_owned())
+                return Result::Err("Assert failed.".to_owned());
             }
             InterpreterOutcome::UnknownData => {
                 // TODO: Better error.
-                return Result::Err("Inputs to function have unknown data.".to_owned())
+                return Result::Err("Inputs to function have unknown data.".to_owned());
             }
             InterpreterOutcome::UnknownFunction => {
                 // TODO: Better error.
-                return Result::Err("Could not determine which function to call.".to_owned())
+                return Result::Err("Could not determine which function to call.".to_owned());
             }
             _ => (),
         }
