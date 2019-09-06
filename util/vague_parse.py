@@ -79,7 +79,7 @@ class Array:
         return list(range(len(self.items)))
 
 buffer = sys.stdin.read()
-lines = buffer.split('\n')
+lines = [line for line in buffer.split('\n') if line not in ['Compiling source...']]
 
 mode_stack = [None]
 data_stack = []
