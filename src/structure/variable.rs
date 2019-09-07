@@ -5,45 +5,41 @@ use crate::util::NVec;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum DataType {
+pub enum BaseType {
     Automatic,
     Dynamic(VariableId),
     LoadTemplateParameter(VariableId),
     Bool,
     Int,
     Float,
-    Array {
-        base_type: Box<DataType>,
-        sizes: Vec<VarAccess>,
-    },
     Void,
     DataType_,
     Function_,
 }
 
-impl DataType {
+impl BaseType {
     pub fn is_automatic(&self) -> bool {
         match self {
-            DataType::Automatic => true,
-            // DataType::Array(data) => data.base.is_automatic(),
+            BaseType::Automatic => true,
+            // BaseType::Array(data) => data.base.is_automatic(),
             _ => false,
         }
     }
 
-    pub fn equivalent(&self, other: &DataType, program: &Program) -> bool {
+    pub fn equivalent(&self, other: &BaseType, program: &Program) -> bool {
         match self {
             // If it's a basic type, just check if it is equal to the other one.
-            DataType::Automatic
-            | DataType::Bool
-            | DataType::Int
-            | DataType::Float
-            | DataType::Void
-            | DataType::DataType_
-            | DataType::Function_ => self == other,
+            BaseType::Automatic
+            | BaseType::Bool
+            | BaseType::Int
+            | BaseType::Float
+            | BaseType::Void
+            | BaseType::DataType_
+            | BaseType::Function_ => self == other,
             // If it's a dynamic / template type, check the value contained in both targets are both
             // known and identical.
-            DataType::Dynamic(target) | DataType::LoadTemplateParameter(target) => match other {
-                DataType::Dynamic(other_target) | DataType::LoadTemplateParameter(other_target) => {
+            BaseType::Dynamic(target) | BaseType::LoadTemplateParameter(target) => match other {
+                BaseType::Dynamic(other_target) | BaseType::LoadTemplateParameter(other_target) => {
                     let value = program.borrow_temporary_value(*target);
                     let other_value = program.borrow_temporary_value(*other_target);
                     if let KnownData::Unknown = value {
@@ -54,51 +50,102 @@ impl DataType {
                 }
                 _ => false,
             },
-            // If it's an array type, check if the other one is also an array type. Check if both of
-            // their sizes are known and are equivalent. Check if both their base types are known
-            // and are equivalent.
-            DataType::Array { base_type, sizes } => match other {
-                DataType::Array {
-                    base_type: other_base,
-                    sizes: other_sizes,
-                } => {
-                    // Check if the base types are equivalent.
-                    if !base_type.equivalent(other_base, program) {
-                        return false;
-                    }
-                    // Check if all the sizes have known and identical values.
-                    for (size, other_size) in sizes.iter().zip(other_sizes.iter()) {
-                        let size_value = program.borrow_value_of(size);
-                        let other_size_value = program.borrow_value_of(other_size);
-                        if let KnownData::Unknown = size_value {
-                            return false;
-                        } else if size_value != other_size_value {
-                            return false;
-                        }
-                    }
-                    true
-                }
-                _ => false,
-            },
         }
+    }
+
+    pub fn to_scalar_type(self) -> DataType {
+        DataType::scalar(self)
+    }
+
+    pub fn to_array_type(self, sizes: Vec<VarAccess>) -> DataType {
+        DataType::array(self, sizes)
+    }
+}
+
+impl Display for BaseType {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            BaseType::Automatic => write!(formatter, "Auto"),
+            BaseType::Dynamic(_var) => write!(formatter, "Unresolved"),
+            BaseType::LoadTemplateParameter(_var) => write!(formatter, "Unresolved"),
+            BaseType::Bool => write!(formatter, "Bool"),
+            BaseType::Int => write!(formatter, "Int"),
+            BaseType::Float => write!(formatter, "Float"),
+            BaseType::Void => write!(formatter, "Void"),
+            BaseType::DataType_ => write!(formatter, "DataType_"),
+            BaseType::Function_ => write!(formatter, "Function_"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DataType {
+    base: BaseType,
+    sizes: Vec<VarAccess>,
+}
+
+impl DataType {
+    fn scalar(base: BaseType) -> DataType {
+        DataType {
+            base,
+            sizes: Vec::new()
+        }
+    }
+
+    fn new(base: BaseType) -> DataType {
+        Self::scalar(base)
+    }
+
+    fn array(base: BaseType, sizes: Vec<VarAccess>) -> DataType {
+        DataType {
+            base,
+            sizes
+        }
+    }
+
+    // Adds a size to the end of the list. (E.G. adding '5' to a data type 
+    // representing [2]Int would produce [2][5]Int.)
+    fn add_size(&mut self, size: VarAccess) {
+        self.sizes.push(size);
+    }
+
+    fn borrow_sizes(&self) -> &Vec<VarAccess> {
+        &self.sizes
+    }
+
+    fn borrow_base(&self) -> &BaseType {
+        &self.base
+    }
+
+    fn is_automatic(&self) -> bool {
+        self.base.is_automatic()
+    }
+
+    fn equivalent(&self, other: &Self, program: &Program) -> bool {
+        // Check if the base types are equivalent.
+        if !self.base.equivalent(&other.base, program) {
+            return false;
+        }
+        // Check if all the sizes have known and identical values.
+        for (size, other_size) in self.sizes.iter().zip(other.sizes.iter()) {
+            let size_value = program.borrow_value_of(size);
+            let other_size_value = program.borrow_value_of(other_size);
+            if let KnownData::Unknown = size_value {
+                return false;
+            } else if size_value != other_size_value {
+                return false;
+            }
+        }
+        true
     }
 }
 
 impl Display for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            DataType::Automatic => write!(formatter, "Auto"),
-            DataType::Dynamic(_var) => write!(formatter, "Unresolved"),
-            DataType::LoadTemplateParameter(_var) => write!(formatter, "Unresolved"),
-            DataType::Bool => write!(formatter, "Bool"),
-            DataType::Int => write!(formatter, "Int"),
-            DataType::Float => write!(formatter, "Float"),
-            // TODO: Implement.
-            DataType::Array { .. } => write!(formatter, "Array data type format unimplemented"),
-            DataType::Void => write!(formatter, "Void"),
-            DataType::DataType_ => write!(formatter, "DataType_"),
-            DataType::Function_ => write!(formatter, "Function_"),
+        for _ in self.sizes {
+            write!(formatter, "[todo: size]")?;
         }
+        write!(formatter, "{}", self.base)
     }
 }
 
@@ -191,10 +238,10 @@ impl KnownData {
         }
     }
 
-    pub fn matches_data_type(&self, data_type: &DataType) -> bool {
+    fn matches_base_type(&self, base_type: &BaseType) -> bool {
         match self {
             KnownData::Void => {
-                if let DataType::Void = data_type {
+                if let BaseType::Void = base_type {
                     true
                 } else {
                     false
@@ -202,47 +249,35 @@ impl KnownData {
             }
             KnownData::Unknown => false,
             KnownData::Bool(_value) => {
-                if let DataType::Bool = data_type {
+                if let BaseType::Bool = base_type {
                     true
                 } else {
                     false
                 }
             }
             KnownData::Int(_value) => {
-                if let DataType::Int = data_type {
+                if let BaseType::Int = base_type {
                     true
                 } else {
                     false
                 }
             }
             KnownData::Float(_value) => {
-                if let DataType::Float = data_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Array(contents) => {
-                if let DataType::Array { base_type, .. } = data_type {
-                    for item in contents.borrow_all_items() {
-                        if !item.matches_data_type(base_type) {
-                            return false;
-                        }
-                    }
+                if let BaseType::Float = base_type {
                     true
                 } else {
                     false
                 }
             }
             KnownData::DataType(_value) => {
-                if let DataType::DataType_ = data_type {
+                if let BaseType::DataType_ = base_type {
                     true
                 } else {
                     false
                 }
             }
             KnownData::Function(_value) => {
-                if let DataType::Function_ = data_type {
+                if let BaseType::Function_ = base_type {
                     true
                 } else {
                     false
@@ -324,33 +359,33 @@ impl Variable {
     pub fn function_def(function_data: FunctionData) -> Variable {
         Self::constant(
             function_data.get_header().clone(),
-            DataType::Function_,
+            BaseType::Function_.to_scalar_type(),
             KnownData::Function(function_data),
         )
     }
 
     pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
-        Self::constant(definition, DataType::DataType_, KnownData::DataType(value))
+        Self::constant(definition, BaseType::DataType_.to_scalar_type(), KnownData::DataType(value))
     }
 
     pub fn automatic(definition: FilePosition) -> Variable {
-        Variable::variable(definition, DataType::Automatic, Option::None)
+        Variable::variable(definition, BaseType::Automatic.to_scalar_type(), Option::None)
     }
 
     pub fn bool_literal(definition: FilePosition, value: bool) -> Variable {
-        Variable::constant(definition, DataType::Bool, KnownData::Bool(value))
+        Variable::constant(definition, BaseType::Bool.to_scalar_type(), KnownData::Bool(value))
     }
 
     pub fn int_literal(definition: FilePosition, value: i64) -> Variable {
-        Variable::constant(definition, DataType::Int, KnownData::Int(value))
+        Variable::constant(definition, BaseType::Int.to_scalar_type(), KnownData::Int(value))
     }
 
     pub fn float_literal(definition: FilePosition, value: f64) -> Variable {
-        Variable::constant(definition, DataType::Float, KnownData::Float(value))
+        Variable::constant(definition, BaseType::Float.to_scalar_type(), KnownData::Float(value))
     }
 
     pub fn void(definition: FilePosition) -> Variable {
-        Variable::variable(definition, DataType::Void, Option::None)
+        Variable::variable(definition, BaseType::Void.to_scalar_type(), Option::None)
     }
 
     pub fn set_definition(&mut self, new_definition: FilePosition) {
