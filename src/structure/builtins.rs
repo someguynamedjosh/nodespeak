@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{DataType, FunctionData, Program, Variable, VariableId};
+use crate::structure::{BaseType, FunctionData, Program, Variable, VariableId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BuiltinFunction {
@@ -106,27 +106,33 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let automatic_type = program.adopt_and_define_symbol(
         scope,
         "Auto",
-        Variable::data_type(FilePosition::placeholder(), DataType::Automatic),
+        Variable::data_type(
+            FilePosition::placeholder(),
+            BaseType::Automatic.to_scalar_type(),
+        ),
     );
     let bool_type = program.adopt_and_define_symbol(
         scope,
         "Bool",
-        Variable::data_type(FilePosition::placeholder(), DataType::Bool),
+        Variable::data_type(FilePosition::placeholder(), BaseType::Bool.to_scalar_type()),
     );
     let int_type = program.adopt_and_define_symbol(
         scope,
         "Int",
-        Variable::data_type(FilePosition::placeholder(), DataType::Int),
+        Variable::data_type(FilePosition::placeholder(), BaseType::Int.to_scalar_type()),
     );
     let float_type = program.adopt_and_define_symbol(
         scope,
         "Float",
-        Variable::data_type(FilePosition::placeholder(), DataType::Float),
+        Variable::data_type(
+            FilePosition::placeholder(),
+            BaseType::Float.to_scalar_type(),
+        ),
     );
     let void_type = program.adopt_and_define_symbol(
         scope,
         "Void",
-        Variable::data_type(FilePosition::placeholder(), DataType::Void),
+        Variable::data_type(FilePosition::placeholder(), BaseType::Void.to_scalar_type()),
     );
 
     let make_blank_func = |program: &mut Program,
@@ -178,9 +184,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::DataType_.to_scalar_type(),
+                None,
+            ),
         );
-        let data_type = DataType::LoadTemplateParameter(parameter);
+        let data_type = BaseType::LoadTemplateParameter(parameter).to_scalar_type();
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
@@ -210,9 +220,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::DataType_.to_scalar_type(),
+                None,
+            ),
         );
-        let data_type = DataType::LoadTemplateParameter(parameter);
+        let data_type = BaseType::LoadTemplateParameter(parameter).to_scalar_type();
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
@@ -248,17 +262,29 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
-            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::Bool.to_scalar_type(),
+                None,
+            ),
         );
         let in2 = program.adopt_and_define_symbol(
             func_scope,
             "in2",
-            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::Bool.to_scalar_type(),
+                None,
+            ),
         );
         let out = program.adopt_and_define_symbol(
             func_scope,
             "out",
-            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::Bool.to_scalar_type(),
+                None,
+            ),
         );
         program.borrow_scope_mut(func_scope).add_input(in1);
         program.borrow_scope_mut(func_scope).add_input(in2);
@@ -308,9 +334,13 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let parameter = program.adopt_and_define_symbol(
             func_scope,
             "TYPE",
-            Variable::variable(FilePosition::placeholder(), DataType::DataType_, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::DataType_.to_scalar_type(),
+                None,
+            ),
         );
-        let data_type = DataType::LoadTemplateParameter(parameter);
+        let data_type = BaseType::LoadTemplateParameter(parameter).to_scalar_type();
         let in1 = program.adopt_and_define_symbol(
             func_scope,
             "in1",
@@ -324,7 +354,11 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         let out = program.adopt_and_define_symbol(
             func_scope,
             "out",
-            Variable::variable(FilePosition::placeholder(), DataType::Bool, None),
+            Variable::variable(
+                FilePosition::placeholder(),
+                BaseType::Bool.to_scalar_type(),
+                None,
+            ),
         );
         program.borrow_scope_mut(func_scope).add_input(in1);
         program.borrow_scope_mut(func_scope).add_input(in2);
@@ -352,8 +386,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::IntToFloat,
             "!int_to_float",
-            DataType::Int,
-            DataType::Float,
+            BaseType::Int.to_scalar_type(),
+            BaseType::Float.to_scalar_type(),
             0,
             0,
         ),
@@ -361,8 +395,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::FloatToInt,
             "!float_to_int",
-            DataType::Float,
-            DataType::Int,
+            BaseType::Float.to_scalar_type(),
+            BaseType::Int.to_scalar_type(),
             0,
             0,
         ),
@@ -370,8 +404,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::BoolToFloat,
             "!bool_to_float",
-            DataType::Bool,
-            DataType::Float,
+            BaseType::Bool.to_scalar_type(),
+            BaseType::Float.to_scalar_type(),
             0,
             0,
         ),
@@ -379,8 +413,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::FloatToBool,
             "!float_to_bool",
-            DataType::Float,
-            DataType::Bool,
+            BaseType::Float.to_scalar_type(),
+            BaseType::Bool.to_scalar_type(),
             0,
             0,
         ),
@@ -388,8 +422,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::BoolToInt,
             "!bool_to_int",
-            DataType::Bool,
-            DataType::Int,
+            BaseType::Bool.to_scalar_type(),
+            BaseType::Int.to_scalar_type(),
             0,
             0,
         ),
@@ -397,8 +431,8 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::IntToBool,
             "!int_to_bool",
-            DataType::Int,
-            DataType::Bool,
+            BaseType::Int.to_scalar_type(),
+            BaseType::Bool.to_scalar_type(),
             0,
             0,
         ),
@@ -431,7 +465,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
             program,
             BuiltinFunction::Assert,
             "assert",
-            DataType::Bool,
+            BaseType::Bool.to_scalar_type(),
             0,
             0,
         ),

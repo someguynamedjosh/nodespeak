@@ -85,43 +85,62 @@ pub struct DataType {
 }
 
 impl DataType {
-    fn scalar(base: BaseType) -> DataType {
+    pub fn scalar(base: BaseType) -> DataType {
         DataType {
             base,
-            sizes: Vec::new()
+            sizes: Vec::new(),
         }
     }
 
-    fn new(base: BaseType) -> DataType {
+    pub fn new(base: BaseType) -> DataType {
         Self::scalar(base)
     }
 
-    fn array(base: BaseType, sizes: Vec<VarAccess>) -> DataType {
+    pub fn array(base: BaseType, sizes: Vec<VarAccess>) -> DataType {
+        DataType { base, sizes }
+    }
+
+    // E.G. if size is 5, [2]Int becomes [5][2]Int.
+    pub fn wrap_with_size(&mut self, size: VarAccess) {
+        self.sizes.insert(0, size);
+    }
+
+    // E.G. if sizes is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
+    pub fn wrap_with_sizes(&mut self, sizes: Vec<VarAccess>) {
+        sizes.append(&mut self.sizes);
+        self.sizes = sizes;
+    }
+
+    // [2][3]Int being unwrapped once results in [3]Int
+    // [4][2][3]Int being unwrapped twice results in [3]Int
+    pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
         DataType {
-            base,
-            sizes
+            base: self.base.clone(),
+            sizes: Vec::from(&self.sizes[num_unwraps..])
         }
     }
 
-    // Adds a size to the end of the list. (E.G. adding '5' to a data type 
-    // representing [2]Int would produce [2][5]Int.)
-    fn add_size(&mut self, size: VarAccess) {
-        self.sizes.push(size);
-    }
-
-    fn borrow_sizes(&self) -> &Vec<VarAccess> {
+    pub fn borrow_sizes(&self) -> &Vec<VarAccess> {
         &self.sizes
     }
 
-    fn borrow_base(&self) -> &BaseType {
+    pub fn borrow_base(&self) -> &BaseType {
         &self.base
     }
 
-    fn is_automatic(&self) -> bool {
+    pub fn is_scalar(&self) -> bool {
+        self.sizes.len() == 0
+    }
+
+    pub fn is_array(&self) -> bool {
+        !self.is_scalar()
+    }
+
+    pub fn is_automatic(&self) -> bool {
         self.base.is_automatic()
     }
 
-    fn equivalent(&self, other: &Self, program: &Program) -> bool {
+    pub fn equivalent(&self, other: &Self, program: &Program) -> bool {
         // Check if the base types are equivalent.
         if !self.base.equivalent(&other.base, program) {
             return false;
@@ -285,6 +304,26 @@ impl KnownData {
             }
         }
     }
+
+    fn matches_data_type(&self, data_type: &DataType) -> bool {
+        match self {
+            KnownData::Array(contents) => {
+                // Check that the data has the same dimensions as the data type.
+                if contents.borrow_dimensions().len() != data_type.borrow_sizes().len() {
+                    return false;
+                }
+                // TODO? check dimensions
+                // Check that all the elements have the correct type.
+                for item in contents.borrow_all_items() {
+                    if !item.matches_base_type(data_type.borrow_base()) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => self.matches_base_type(data_type.borrow_base())
+        }
+    }
 }
 
 impl Display for KnownData {
@@ -365,23 +404,43 @@ impl Variable {
     }
 
     pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
-        Self::constant(definition, BaseType::DataType_.to_scalar_type(), KnownData::DataType(value))
+        Self::constant(
+            definition,
+            BaseType::DataType_.to_scalar_type(),
+            KnownData::DataType(value),
+        )
     }
 
     pub fn automatic(definition: FilePosition) -> Variable {
-        Variable::variable(definition, BaseType::Automatic.to_scalar_type(), Option::None)
+        Variable::variable(
+            definition,
+            BaseType::Automatic.to_scalar_type(),
+            Option::None,
+        )
     }
 
     pub fn bool_literal(definition: FilePosition, value: bool) -> Variable {
-        Variable::constant(definition, BaseType::Bool.to_scalar_type(), KnownData::Bool(value))
+        Variable::constant(
+            definition,
+            BaseType::Bool.to_scalar_type(),
+            KnownData::Bool(value),
+        )
     }
 
     pub fn int_literal(definition: FilePosition, value: i64) -> Variable {
-        Variable::constant(definition, BaseType::Int.to_scalar_type(), KnownData::Int(value))
+        Variable::constant(
+            definition,
+            BaseType::Int.to_scalar_type(),
+            KnownData::Int(value),
+        )
     }
 
     pub fn float_literal(definition: FilePosition, value: f64) -> Variable {
-        Variable::constant(definition, BaseType::Float.to_scalar_type(), KnownData::Float(value))
+        Variable::constant(
+            definition,
+            BaseType::Float.to_scalar_type(),
+            KnownData::Float(value),
+        )
     }
 
     pub fn void(definition: FilePosition) -> Variable {

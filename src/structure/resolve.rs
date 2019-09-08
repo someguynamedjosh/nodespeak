@@ -213,10 +213,54 @@ impl<'a> ScopeResolver<'a> {
         }
     }
 
+    // Target must be an access of a variable with an automatic type. real_type is the data type of
+    // the value that the var access should result in. This function changes the data type of the
+    // variable that the var access returns to so that the var access results in the specified type.
     fn resolve_automatic_type(&mut self, target: &VarAccess, real_type: DataType) {
-        // For now, we don't have code to handle arrays.
-        assert!(target.borrow_indexes().len() == 0);
-        self.program.set_data_type(target.get_base(), real_type);
+        debug_assert!(target.borrow_data_type(self.program).is_automatic());
+        if target.borrow_indexes().len() == 0 {
+            self.program.set_data_type(target.get_base(), real_type);
+        } else {
+            let var = self.program.borrow_variable_mut(target.get_base());
+            if let DataType::Array { sizes, .. } = var.borrow_data_type() {
+                let mut new_sizes = sizes.clone();
+                let new_base;
+                // If target is accessing a sub-array, not just a particular element...
+                if target.borrow_indexes().len() < new_sizes.len() {
+                    // The real type needs to be an array type...
+                    if let DataType::Array {
+                        sizes: result_sizes,
+                        base_type,
+                    } = real_type
+                    {
+                        // If the dimensionality of the underlying type is not the same as the
+                        // dimensionality of the accessor plus the dimensionality of the value the
+                        // accessor would return...
+                        if new_sizes.len() != target.borrow_indexes().len() + result_sizes.len() {
+                            panic!("TODO error, bad dimensionality of output.")
+                        }
+                        // Replace new size parameters with ones we can get from the real type.
+                        for (index, size) in result_sizes.iter().enumerate() {
+                            new_sizes[index + target.borrow_indexes().len()] = size.clone();
+                        }
+                        new_base = base_type;
+                    } else {
+                        panic!("TODO error, real type needs to be array.");
+                    }
+                } else {
+                    new_base = Box::new(real_type);
+                }
+                self.program.set_data_type(
+                    target.get_base(),
+                    DataType::Array {
+                        sizes: new_sizes,
+                        base_type: new_base,
+                    },
+                );
+            } else {
+                panic!("TODO error, index on non-array type.");
+            }
+        }
     }
 
     fn resolve_templated_type(

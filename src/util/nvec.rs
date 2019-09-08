@@ -72,4 +72,8 @@ impl<T: Clone> NVec<T> {
     pub fn borrow_all_items(&self) -> &Vec<T> {
         &self.data
     }
+
+    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+        &self.dimensions
+    }
 }

@@ -305,20 +305,16 @@ pub mod convert {
         preferred_output: &Option<VarAccess>,
         input: Pair<Rule>,
     ) -> Result<VarAccess, CompileProblem> {
-        let mut items = Vec::new();
         let position = FilePosition::from_pair(&input);
-        for child in input.into_inner() {
-            // Grammar requires child to be an expression.
-            items.push(convert_expression(program, scope, None, true, child)?);
-        }
+        let mut item_pairs = input.into_inner().collect::<Vec<Pair<Rule>>>();
         let size_literal = program.adopt_and_define_intermediate(
             scope,
-            Variable::int_literal(position.clone(), items.len() as i64),
+            Variable::int_literal(position.clone(), item_pairs.len() as i64),
         );
-        let data_type = DataType::Array {
-            base_type: Box::new(DataType::Automatic),
-            sizes: vec![VarAccess::new(position.clone(), size_literal)],
-        };
+        let data_type = DataType::array(
+            BaseType::Automatic,
+            vec![VarAccess::new(position.clone(), size_literal)],
+        );
         let output_access = match preferred_output {
             Option::Some(output) => output.clone(),
             Option::None => VarAccess::new(
@@ -329,20 +325,21 @@ pub mod convert {
                 ),
             ),
         };
-        for (index, item) in items.into_iter().enumerate() {
-            let mut call = FuncCall::new(
-                program.get_builtins().copy_func,
-                item.get_position().clone(),
-            );
-            call.add_output(output_access.with_additional_index(VarAccess::new(
-                item.get_position().clone(),
+        for (index, item_pair) in item_pairs.into_iter().enumerate() {
+            let index_literal = VarAccess::new(
+                FilePosition::from_pair(&item_pair),
                 program.adopt_and_define_intermediate(
                     scope,
-                    Variable::int_literal(item.get_position().clone(), index as i64),
+                    Variable::int_literal(FilePosition::from_pair(&item_pair), index as i64),
                 ),
-            )));
-            call.add_input(item);
-            program.add_func_call(scope, call)?;
+            );
+            convert_expression(
+                program,
+                scope,
+                Option::Some(output_access.with_additional_index(index_literal)),
+                true,
+                item_pair,
+            )?;
         }
         return Result::Ok(output_access);
     }
@@ -1103,7 +1100,7 @@ pub mod convert {
         let type_variable = program.borrow_variable(type_variable_id);
         Result::Ok(match type_variable.borrow_initial_value() {
             KnownData::DataType(real_type) => real_type.clone(),
-            _ => DataType::Dynamic(type_variable_id),
+            _ => BaseType::Dynamic(type_variable_id).to_scalar_type(),
         })
     }
 
@@ -1121,10 +1118,9 @@ pub mod convert {
                 Rule::basic_data_type => {
                     // Array data type stores sizes in the same order as the grammar, biggest to
                     // smallest.
-                    return Result::Ok(DataType::Array {
-                        base_type: Box::new(convert_basic_data_type(program, scope, child)?),
-                        sizes,
-                    });
+                    let data_type = convert_basic_data_type(program, scope, child)?;
+                    data_type.wrap_with_sizes(sizes);
+                    return Result::Ok(data_type);
                 }
                 _ => unreachable!("Grammar allows no other children."),
             }

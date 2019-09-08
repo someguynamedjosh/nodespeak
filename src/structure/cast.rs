@@ -1,123 +1,96 @@
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
+    BaseType, DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
 };
 
+// TODO: A better error instead of just returning void all the time.
 pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> DataType {
     // BCT rule 1
-    if a == &DataType::Automatic {
+    if a.is_scalar() && a.borrow_base() == &BaseType::Automatic {
         b.clone()
-    } else if b == &DataType::Automatic {
+    } else if b.is_scalar() && b.borrow_base() == &BaseType::Automatic {
         a.clone()
     // BCT rule 2
     } else if a.equivalent(b, program) {
         a.clone()
     // BCT rules 3 through 5
-    } else if let (
-        DataType::Array {
-            sizes: sizes1,
-            base_type: base_type1,
-        },
-        DataType::Array {
-            sizes: sizes2,
-            base_type: base_type2,
-        },
-    ) = (a, b)
-    {
-        let mut real_sizes1 = Vec::new();
-        let mut real_sizes2 = Vec::new();
+    } else if a.is_array() && b.is_array() {
+        let mut a_sizes = Vec::new();
+        let mut b_sizes = Vec::new();
         // If any of the size specifications are not specific integers, we can't determine which one
         // is the biggest.
-        for size in sizes1 {
+        for size in a.borrow_sizes() {
             match program.borrow_value_of(size) {
-                KnownData::Int(value) => real_sizes1.push(*value),
-                _ => return DataType::Void,
+                KnownData::Int(value) => a_sizes.push(*value),
+                _ => return BaseType::Void.to_scalar_type(),
             }
         }
-        for size in sizes2 {
+        for size in b.borrow_sizes() {
             match program.borrow_value_of(size) {
-                KnownData::Int(value) => real_sizes2.push(*value),
-                _ => return DataType::Void,
+                KnownData::Int(value) => b_sizes.push(*value),
+                _ => return BaseType::Void.to_scalar_type(),
             }
         }
         // If the second type has higher dimensionality than the first, add extra dimensions (with
         // only 1 element) to the type of the first, according to BCT rule 5.
-        if real_sizes1.len() < real_sizes2.len() {
-            let gap = real_sizes2.len() - real_sizes1.len();
+        if a_sizes.len() < b_sizes.len() {
+            let gap = b_sizes.len() - a_sizes.len();
             for _ in 0..gap {
-                real_sizes1.push(1);
+                a_sizes.push(1);
             }
         }
         // Same thing the other way around.
-        if real_sizes2.len() < real_sizes1.len() {
-            let gap = real_sizes1.len() - real_sizes2.len();
+        if b_sizes.len() < a_sizes.len() {
+            let gap = a_sizes.len() - b_sizes.len();
             for _ in 0..gap {
-                real_sizes2.push(1);
+                b_sizes.push(1);
             }
         }
         // Figure out if the two sizes are compatible. While doing so, build a list of the biggest
         // sizes.
         let mut final_sizes = Vec::new();
-        for (index, (real_size1, real_size2)) in real_sizes1
+        for (index, (real_size1, real_size2)) in a_sizes
             .into_iter()
-            .zip(real_sizes2.into_iter())
+            .zip(b_sizes.into_iter())
             .enumerate()
         {
             // BCT rule 3
             if real_size1 == real_size2 {
-                final_sizes.push(sizes1[index].clone());
+                final_sizes.push(a.borrow_sizes()[index].clone());
             // BCT rule 4
             } else if real_size1 == 1 {
-                final_sizes.push(sizes2[index].clone());
+                final_sizes.push(b.borrow_sizes()[index].clone());
             } else if real_size2 == 1 {
-                final_sizes.push(sizes1[index].clone());
+                final_sizes.push(a.borrow_sizes()[index].clone());
             } else {
-                return DataType::Void;
+                return BaseType::Void.to_scalar_type();
             }
         }
 
-        DataType::Array {
-            sizes: final_sizes,
-            base_type: Box::new(biggest_common_type(program, base_type1, base_type2)),
+        // For now, there are no base types that exist that can be casted to each other.
+        if !a.borrow_base().equivalent(b.borrow_base(), program) {
+            return BaseType::Void.to_scalar_type();
         }
+
+        DataType::array(a.borrow_base().clone(), final_sizes)
     // BCT rule 5 special cases
-    } else if let DataType::Array { sizes, base_type } = a {
-        DataType::Array {
-            sizes: sizes.clone(),
-            base_type: Box::new(biggest_common_type(program, base_type, b)),
+    } else if a.is_array() {
+        // For now, there are no base types that exist that can be casted to each other.
+        if !a.borrow_base().equivalent(b.borrow_base(), program) {
+            return BaseType::Void.to_scalar_type();
         }
-    } else if let DataType::Array { sizes, base_type } = b {
-        DataType::Array {
-            sizes: sizes.clone(),
-            base_type: Box::new(biggest_common_type(program, base_type, a)),
+        return a.clone();
+    } else if b.is_array() {
+        // For now, there are no base types that exist that can be casted to each other.
+        if !a.borrow_base().equivalent(b.borrow_base(), program) {
+            return BaseType::Void.to_scalar_type();
         }
+        return b.clone();
     } else {
-        return DataType::Void;
+        return BaseType::Void.to_scalar_type();
     }
     // TODO: Implement BCT rules 5 and 6, which require using the currently
     // nonfunctioning interpreter to determine the size of array types.
-}
-
-pub fn perform_cast(data: KnownData, from: DataType, to: DataType) -> KnownData {
-    // Cast rule 1
-    if from == to {
-        data
-    // Cast rule 2
-    } else if from == DataType::Int && to == DataType::Float {
-        match data {
-            KnownData::Int(value) => KnownData::Float(value as f64),
-            _ => panic!("Provided data did not match provided type!"),
-        }
-    // Cast rule 3
-    } else if from == DataType::Float && to == DataType::Int {
-        match data {
-            KnownData::Float(value) => KnownData::Int(value.floor() as i64),
-            _ => panic!("Provided data did not match provided type!"),
-        }
-    } else {
-        KnownData::Unknown
-    }
-    // TODO: Implement rules 4-6, same reason as biggest_common_type.
 }
 
 fn simple_cast(
@@ -144,29 +117,10 @@ pub fn create_cast(
     // TODO: Arrays
     assert!(from.borrow_indexes().len() == 0);
 
-    let from_type = from.borrow_data_type(program);
-    let to_type = to.borrow_data_type(program);
-    // Cast rule 1
-    if from_type.equivalent(to_type, program) {
+    let from_type = from.clone_resulting_data_type(program);
+    let to_type = to.clone_resulting_data_type(program);
+    if from_type.equivalent(&to_type, program) {
         panic!("Should avoid creating redundant copies.");
-    // Cast rule 2
-    } else if from_type == &DataType::Int && to_type == &DataType::Float {
-        simple_cast(
-            program,
-            scope,
-            from,
-            to,
-            program.get_builtins().int_to_float_func,
-        )
-    // Cast rule 3
-    } else if from_type == &DataType::Float && to_type == &DataType::Int {
-        simple_cast(
-            program,
-            scope,
-            from,
-            to,
-            program.get_builtins().float_to_int_func,
-        )
     } else {
         Result::Err(problem::illegal_inflation(
             from.get_position().clone(),

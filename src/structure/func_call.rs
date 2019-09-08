@@ -47,15 +47,13 @@ impl VarAccess {
         self.indexes.iter()
     }
 
-    pub fn borrow_data_type<'a>(&'a self, program: &'a Program) -> &'a DataType {
+    pub fn borrow_base_data_type<'a>(&'a self, program: &'a Program) -> &'a DataType {
+        &program.borrow_variable(self.base).borrow_data_type()
+    }
+
+    pub fn clone_resulting_data_type(&self, program: &Program) -> DataType {
         let mut data_type = program.borrow_variable(self.base).borrow_data_type();
-        for _ in 0..self.indexes.len() {
-            match data_type {
-                DataType::Array { base_type, .. } => data_type = base_type,
-                _ => panic!("Index operations outnumber array depth!"),
-            }
-        }
-        data_type
+        data_type.clone_and_unwrap(self.indexes.len())
     }
 
     pub fn with_additional_index(&self, index: VarAccess) -> VarAccess {

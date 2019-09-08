@@ -200,22 +200,15 @@ impl Program {
         if array_position.len() > 0 {
             // If the entire varible is unknown, change it to an array of unknowns.
             if let KnownData::Unknown = variable.borrow_temporary_value() {
-                if let DataType::Array { sizes, .. } = variable.borrow_data_type() {
-                    let mut real_sizes = Vec::new();
-                    for size in sizes {
-                        match self.borrow_value_of(size) {
-                            // TODO: Check that value is positive.
-                            KnownData::Int(value) => real_sizes.push(*value as usize),
-                            _ => panic!("TODO error, array data type is vague."),
-                        }
+                let mut real_sizes = Vec::new();
+                for size in variable.borrow_data_type().borrow_sizes() {
+                    match self.borrow_value_of(size) {
+                        // TODO: Check that value is positive.
+                        KnownData::Int(value) => real_sizes.push(*value as usize),
+                        _ => panic!("TODO error, array data type is vague."),
                     }
-                    self.set_temporary_value(
-                        var_access.get_base(),
-                        KnownData::new_array(real_sizes),
-                    )
-                } else {
-                    panic!("TODO error, variable is not array.")
                 }
+                self.set_temporary_value(var_access.get_base(), KnownData::new_array(real_sizes))
             }
         }
         let mut target = self
