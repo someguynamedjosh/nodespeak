@@ -2,9 +2,9 @@ use crate::problem::FilePosition;
 use crate::structure::{Expression, Program, ScopeId, VariableId};
 use crate::util::NVec;
 
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum BaseType {
     Automatic,
     Dynamic(VariableId),
@@ -62,7 +62,7 @@ impl BaseType {
     }
 }
 
-impl Display for BaseType {
+impl Debug for BaseType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             BaseType::Automatic => write!(formatter, "Auto"),
@@ -78,7 +78,7 @@ impl Display for BaseType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct DataType {
     base: BaseType,
     sizes: Vec<Expression>,
@@ -159,12 +159,12 @@ impl DataType {
     }
 }
 
-impl Display for DataType {
+impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         for _ in self.sizes.iter() {
             write!(formatter, "[todo: size]")?;
         }
-        write!(formatter, "{}", self.base)
+        write!(formatter, "{:?}", self.base)
     }
 }
 
@@ -198,7 +198,7 @@ impl FunctionData {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum KnownData {
     Void,
     Unknown,
@@ -306,7 +306,7 @@ impl KnownData {
     }
 }
 
-impl Display for KnownData {
+impl Debug for KnownData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             KnownData::Void => write!(formatter, "[void]"),
@@ -319,20 +319,20 @@ impl Display for KnownData {
             KnownData::Array(values) => {
                 write!(formatter, "[TODO better format for N-dim arrays.\n")?;
                 for value in values.borrow_all_items() {
-                    write!(formatter, "\t{},\n", value)?;
+                    write!(formatter, "\t{:?},\n", value)?;
                 }
                 write!(formatter, "]")
             }
-            KnownData::DataType(value) => write!(formatter, "{}", value),
+            KnownData::DataType(value) => write!(formatter, "{:?}", value),
             // TODO: Implement function formatter.
-            KnownData::Function(_value) => {
-                write!(formatter, "[function formatter not implemented]")
+            KnownData::Function(value) => {
+                write!(formatter, "function with body at {:?}", value.body)
             }
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Variable {
     definition: FilePosition,
 
@@ -343,6 +343,13 @@ pub struct Variable {
     temporary_value: KnownData,
     // temporary_read: bool,
     // multiple_temporary_values: bool,
+}
+
+impl Debug for Variable {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "data type: {:?}", self.data_type)?;
+        write!(formatter, "\ninitial value: {:?}", self.initial_value)
+    }
 }
 
 impl Variable {

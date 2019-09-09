@@ -57,7 +57,7 @@ fn main() {
             if id == input_id {
                 let data_type = program.borrow_variable(input_id.clone()).borrow_data_type();
                 println!(
-                    "Enter data for input '{}' (data type is {})",
+                    "Enter data for input '{}' (data type is {:?})",
                     name, data_type
                 );
                 let final_data;
@@ -72,7 +72,7 @@ fn main() {
                                 final_data = data;
                                 break;
                             } else {
-                                eprintln!("The variable requires data of type {}, but you provided data of an incorrect type.", data_type);
+                                eprintln!("The variable requires data of type {:?}, but you provided data of an incorrect type.", data_type);
                             }
                         }
                         Result::Err(err) => {
@@ -105,7 +105,7 @@ fn main() {
         for (name, id) in entry_point.borrow_symbols() {
             if id == output_id {
                 println!("Final value of '{}':", name);
-                println!("> {}", results[index]);
+                println!("> {:?}", results[index]);
             }
         }
     }

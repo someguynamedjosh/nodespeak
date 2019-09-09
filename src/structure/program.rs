@@ -5,18 +5,30 @@ use crate::structure::{
 };
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::{self, Debug, Formatter};
 
 /// Refers to a [`Scope`] stored in a [`Program`].
 ///
 /// You'll notice that this struct requires no lifetime. This was chosen to allow for easy
 /// implementation of tree-like and cyclic data structures inside the library.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ScopeId(usize);
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+impl Debug for ScopeId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "s{}", self.0)
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct VariableId(usize);
 
-#[derive(Debug)]
+impl Debug for VariableId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "v{}", self.0)
+    }
+}
+
 /// Represents an entire program written in the Waveguide language.
 pub struct Program {
     scopes: Vec<Scope>,
@@ -24,6 +36,21 @@ pub struct Program {
     variables: Vec<Variable>,
     builtins: Option<Builtins>,
     automatic_interpretation: bool,
+}
+
+impl Debug for Program {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "entry point: {:?}", self.entry_point)?;
+        for (index, scope) in self.scopes.iter().enumerate() {
+            write!(formatter, "\ncontents of {:?}:\n", ScopeId(index))?;
+            write!(formatter, "    {}", format!("{:?}", scope).replace("\n", "\n    "))?;
+        }
+        for (index, variable) in self.variables.iter().enumerate() {
+            write!(formatter, "\ndetails for {:?}:\n", VariableId(index))?;
+            write!(formatter, "    {}", format!("{:?}", variable).replace("\n", "\n    "))?;
+        }
+        write!(formatter, "")
+    }
 }
 
 impl Program {

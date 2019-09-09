@@ -1,7 +1,7 @@
 use crate::structure::{Expression, ScopeId, VariableId};
 use std::collections::HashMap;
+use std::fmt::{self, Debug, Formatter};
 
-#[derive(Debug)]
 pub struct Scope {
     symbols: HashMap<String, VariableId>,
     intermediates: Vec<VariableId>,
@@ -9,6 +9,33 @@ pub struct Scope {
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     parent: Option<ScopeId>,
+}
+
+impl Debug for Scope {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self.parent {
+            Option::Some(value) => write!(formatter, "parent: {:?}", value)?,
+            Option::None => write!(formatter, "parent: None")?,
+        }
+        write!(formatter, "\ndefines:")?;
+        for (key, value) in self.symbols.iter() {
+            write!(formatter, "\n    {:?} = {}", value, key)?;
+        }
+        for (index, value) in self.intermediates.iter().enumerate() {
+            write!(formatter, "\n    {:?} = intermediate #{}", value, index + 1)?;
+        }
+        for (index, value) in self.inputs.iter().enumerate() {
+            write!(formatter, "\ninput {}: {:?}", index + 1, value)?;
+        }
+        for (index, value) in self.outputs.iter().enumerate() {
+            write!(formatter, "\noutput {}: {:?}", index + 1, value)?;
+        }
+        write!(formatter, "\nbody:")?;
+        for expression in self.body.iter() {
+            write!(formatter, "\n    {:?}", expression)?;
+        }
+        write!(formatter, "")
+    }
 }
 
 impl Scope {
