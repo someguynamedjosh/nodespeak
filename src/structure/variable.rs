@@ -281,7 +281,7 @@ impl KnownData {
                     false
                 }
             }
-            _ => panic!("No other base types exist.")
+            _ => panic!("No other base types exist."),
         }
     }
 

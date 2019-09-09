@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{BaseType, FunctionData, Program, Variable, VariableId};
+use crate::structure::{BaseType, Program, Variable, VariableId};
 
 #[readonly::make]
 #[derive(Debug)]

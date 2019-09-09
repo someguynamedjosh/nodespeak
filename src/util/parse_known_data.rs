@@ -1,13 +1,8 @@
 extern crate pest;
 
-use crate::problem;
-use crate::problem::CompileProblem;
-use crate::problem::FilePosition;
 use crate::structure::KnownData;
 
-use pest::error::Error;
 use pest::iterators::Pair;
-use pest::iterators::Pairs;
 use pest::Parser;
 
 #[derive(Parser)]

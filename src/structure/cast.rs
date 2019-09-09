@@ -1,5 +1,5 @@
-use crate::problem::{self, CompileProblem, FilePosition};
-use crate::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId};
+use crate::problem::CompileProblem;
+use crate::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId};
 
 // TODO: A better error instead of just returning void all the time.
 pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> DataType {

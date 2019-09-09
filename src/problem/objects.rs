@@ -148,12 +148,6 @@ struct GrabResult {
 }
 
 impl CompileProblem {
-    pub(super) fn new() -> CompileProblem {
-        CompileProblem {
-            descriptors: Vec::new(),
-        }
-    }
-
     pub(super) fn from_descriptors(descriptors: Vec<ProblemDescriptor>) -> CompileProblem {
         CompileProblem { descriptors }
     }

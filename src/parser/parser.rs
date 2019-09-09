@@ -337,7 +337,7 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
         let mut iter = input.into_inner();
-        let mut base = convert_expr_part_1(
+        let base = convert_expr_part_1(
             program,
             scope,
             true,
@@ -712,7 +712,6 @@ pub mod convert {
 
     fn add_function_inputs(
         program: &mut Program,
-        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -725,7 +724,6 @@ pub mod convert {
 
     fn add_function_outputs(
         program: &mut Program,
-        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -738,7 +736,6 @@ pub mod convert {
 
     fn add_function_output(
         program: &mut Program,
-        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -766,11 +763,9 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::function_inputs => add_function_inputs(program, func, func_scope, child)?,
-                Rule::function_outputs => add_function_outputs(program, func, func_scope, child)?,
-                Rule::single_function_output => {
-                    add_function_output(program, func, func_scope, child)?
-                }
+                Rule::function_inputs => add_function_inputs(program, func_scope, child)?,
+                Rule::function_outputs => add_function_outputs(program, func_scope, child)?,
+                Rule::single_function_output => add_function_output(program, func_scope, child)?,
                 _ => unreachable!(),
             }
         }
@@ -803,7 +798,7 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         let mut real_header_position = FilePosition::start_at(&input);
         let mut input_iter = input.into_inner();
-        let mut name = {
+        let name = {
             let child = input_iter.next().expect("Required by grammar.");
             real_header_position.include(&child);
             child.as_str()
@@ -834,7 +829,7 @@ pub mod convert {
                                     target: Box::new(Expression::Variable(output_var)),
                                     value: Box::new(output),
                                 },
-                            );
+                            )?;
                         }
                     }
                     // This branch arm can only be expressioned once but I don't know how to tell rustc that,
@@ -884,7 +879,7 @@ pub mod convert {
                             target: Box::new(Expression::Variable(variable_id)),
                             value: Box::new(expr),
                         },
-                    );
+                    )?;
                 }
                 _ => unreachable!(),
             }
@@ -1098,10 +1093,6 @@ pub mod convert {
         let func = program
             .lookup_and_clone_parent_function(scope)
             .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
-        let inputs = program
-            .borrow_scope(func.get_body())
-            .borrow_inputs()
-            .clone();
         let outputs = program
             .borrow_scope(func.get_body())
             .borrow_outputs()
@@ -1135,7 +1126,7 @@ pub mod convert {
                             target: Box::new(Expression::Variable(outputs[index])),
                             value: Box::new(value),
                         },
-                    );
+                    )?;
                     index += 1;
                 }
                 _ => unreachable!(),
@@ -1190,11 +1181,11 @@ pub mod convert {
                             target: Box::new(output),
                             value: Box::new(value),
                         },
-                    );
+                    )?;
                 }
                 Rule::expr => {
                     let expression = convert_expression(program, scope, false, child)?;
-                    program.add_expression(scope, expression);
+                    program.add_expression(scope, expression)?;
                 }
                 _ => unreachable!(),
             }
