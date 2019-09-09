@@ -120,8 +120,10 @@ returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
 
 return_statement = { "return" ~ (expr ~ ("," ~ expr)*)? ~ ";" }
 
+assert_statement = { "assert" ~ expr ~ ";" }
+
 statement = { 
-    function_definition | code_block | return_statement
+    function_definition | code_block | return_statement | assert_statement
     | input_variable_statement | output_variable_statement
     | create_variable_statement | assign_statement | raw_expr_statement  
 }

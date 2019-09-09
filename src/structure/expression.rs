@@ -37,15 +37,16 @@ pub enum Expression {
 
     Collect(Vec<Expression>),
 
+    Assert(Box<Expression>),
     Assign {
         target: Box<Expression>,
         value: Box<Expression>,
     },
+    Return,
 
     FuncCall {
         function: Box<Expression>,
         inputs: Vec<Expression>,
         outputs: Vec<Expression>,
     },
-    Return,
 }

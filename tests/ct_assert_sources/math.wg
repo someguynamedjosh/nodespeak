@@ -1,8 +1,8 @@
-assert(2 + 5 == 7);
-assert(200 + 5 == 205);
+assert 2 + 5 == 7;
+assert 200 + 5 == 205;
 
-assert(5 - 2 == 3);
-assert(200 - 5 == 195);
+assert 5 - 2 == 3;
+assert 200 - 5 == 195;
 
-assert(2 * 5 == 10);
-assert(200 * 5 == 1000);
+assert 2 * 5 == 10;
+assert 200 * 5 == 1000;

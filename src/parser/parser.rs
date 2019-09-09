@@ -81,6 +81,8 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::returnable_code_block => "code block",
         Rule::return_statement => "return statement",
 
+        Rule::assert_statement => "assert statement",
+
         Rule::raw_expr_statement => "expression as statement",
         Rule::statement => "statement",
         Rule::root => "program",
@@ -1144,6 +1146,20 @@ pub mod convert {
         Result::Ok(())
     }
 
+    fn convert_assert_statement(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
+        let mut input_iter = input.into_inner();
+        let value = {
+            let value_input = input_iter.next().expect("Required by grammar.");
+            convert_expression(program, scope, true, value_input)?
+        };
+        program.add_expression(scope, Expression::Assert(Box::new(value)))?;
+        Result::Ok(())
+    }
+
     fn convert_statement(
         program: &mut Program,
         scope: ScopeId,
@@ -1154,6 +1170,7 @@ pub mod convert {
                 Rule::function_definition => convert_function_definition(program, scope, child)?,
                 Rule::code_block => unimplemented!(),
                 Rule::return_statement => convert_return_statement(program, scope, child)?,
+                Rule::assert_statement => convert_assert_statement(program, scope, child)?,
                 Rule::input_variable_statement => {
                     convert_input_variable_statement(program, scope, child)?
                 }
