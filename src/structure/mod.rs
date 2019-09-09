@@ -1,6 +1,6 @@
 mod builtins;
 mod cast;
-mod func_call;
+mod expression;
 mod program;
 mod resolve;
 mod scope;
@@ -8,7 +8,7 @@ mod variable;
 
 pub use builtins::*;
 pub use cast::*;
-pub use func_call::*;
+pub use expression::*;
 pub use program::*;
 pub use resolve::*;
 pub use scope::*;

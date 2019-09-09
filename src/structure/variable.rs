@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{BuiltinFunction, Program, ScopeId, VarAccess, VariableId};
+use crate::structure::{Expression, Program, ScopeId, VariableId};
 use crate::util::NVec;
 
 use std::fmt::{self, Display, Formatter};
@@ -57,7 +57,7 @@ impl BaseType {
         DataType::scalar(self)
     }
 
-    pub fn to_array_type(self, sizes: Vec<VarAccess>) -> DataType {
+    pub fn to_array_type(self, sizes: Vec<Expression>) -> DataType {
         DataType::array(self, sizes)
     }
 }
@@ -81,7 +81,7 @@ impl Display for BaseType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct DataType {
     base: BaseType,
-    sizes: Vec<VarAccess>,
+    sizes: Vec<Expression>,
 }
 
 impl DataType {
@@ -96,17 +96,17 @@ impl DataType {
         Self::scalar(base)
     }
 
-    pub fn array(base: BaseType, sizes: Vec<VarAccess>) -> DataType {
+    pub fn array(base: BaseType, sizes: Vec<Expression>) -> DataType {
         DataType { base, sizes }
     }
 
     // E.G. if size is 5, [2]Int becomes [5][2]Int.
-    pub fn wrap_with_size(&mut self, size: VarAccess) {
+    pub fn wrap_with_size(&mut self, size: Expression) {
         self.sizes.insert(0, size);
     }
 
     // E.G. if sizes is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
-    pub fn wrap_with_sizes(&mut self, sizes: Vec<VarAccess>) {
+    pub fn wrap_with_sizes(&mut self, sizes: Vec<Expression>) {
         sizes.append(&mut self.sizes);
         self.sizes = sizes;
     }
@@ -116,11 +116,11 @@ impl DataType {
     pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
         DataType {
             base: self.base.clone(),
-            sizes: Vec::from(&self.sizes[num_unwraps..])
+            sizes: Vec::from(&self.sizes[num_unwraps..]),
         }
     }
 
-    pub fn borrow_sizes(&self) -> &Vec<VarAccess> {
+    pub fn borrow_sizes(&self) -> &Vec<Expression> {
         &self.sizes
     }
 
@@ -171,31 +171,18 @@ impl Display for DataType {
 #[derive(Clone, Debug)]
 pub struct FunctionData {
     body: ScopeId,
-    builtin: Option<BuiltinFunction>,
     header: FilePosition,
 }
 
 impl PartialEq for FunctionData {
     fn eq(&self, other: &Self) -> bool {
-        self.body == other.body && self.builtin == other.builtin
+        self.body == other.body
     }
 }
 
 impl FunctionData {
     pub fn new(body: ScopeId, header: FilePosition) -> FunctionData {
-        FunctionData {
-            body,
-            builtin: None,
-            header,
-        }
-    }
-
-    pub fn builtin(body: ScopeId, builtin: BuiltinFunction, header: FilePosition) -> FunctionData {
-        FunctionData {
-            body,
-            builtin: Option::Some(builtin),
-            header,
-        }
+        FunctionData { body, header }
     }
 
     pub fn set_header(&mut self, new_header: FilePosition) {
@@ -208,14 +195,6 @@ impl FunctionData {
 
     pub fn get_body(&self) -> ScopeId {
         self.body
-    }
-
-    pub fn is_builtin(&self) -> bool {
-        self.builtin.is_some()
-    }
-
-    pub fn get_builtin(&self) -> &Option<BuiltinFunction> {
-        &self.builtin
     }
 }
 
@@ -305,7 +284,7 @@ impl KnownData {
         }
     }
 
-    fn matches_data_type(&self, data_type: &DataType) -> bool {
+    pub fn matches_data_type(&self, data_type: &DataType) -> bool {
         match self {
             KnownData::Array(contents) => {
                 // Check that the data has the same dimensions as the data type.
@@ -321,7 +300,7 @@ impl KnownData {
                 }
                 true
             }
-            _ => self.matches_base_type(data_type.borrow_base())
+            _ => self.matches_base_type(data_type.borrow_base()),
         }
     }
 }

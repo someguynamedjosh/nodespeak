@@ -1,3 +1,4 @@
+/*
 use crate::problem;
 use crate::problem::CompileProblem;
 use crate::structure;
@@ -577,3 +578,4 @@ impl<'a> ScopeResolver<'a> {
         Result::Ok(copy)
     }
 }
+*/

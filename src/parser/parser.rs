@@ -43,15 +43,15 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::index_expr => "array access",
         Rule::operator => "binary operator",
 
-        Rule::func_input_list => "input list for function call",
+        Rule::func_input_list => "input list for function expression",
         Rule::func_output_return_inline => "inline",
         Rule::func_output_var_dec => "declared variable output",
-        Rule::func_output_list => "output list for function call",
-        Rule::func_output => "output for function call",
-        Rule::func_lambda => "lambda definition for function call",
-        Rule::lambda_adjective => "adjective for function call",
-        Rule::func_expr_extra_list => "zero or more adjectives and lambdas for function call",
-        Rule::func_expr => "function call",
+        Rule::func_output_list => "output list for function expression",
+        Rule::func_output => "output for function expression",
+        Rule::func_lambda => "lambda definition for function expression",
+        Rule::lambda_adjective => "adjective for function expression",
+        Rule::func_expr_extra_list => "zero or more adjectives and lambdas for function expression",
+        Rule::func_expr => "function expression",
 
         Rule::named_data_type => "name of a data type",
         Rule::dynamic_data_type => "dynamic data type expression",
@@ -171,17 +171,12 @@ pub mod convert {
     fn convert_func_expr_input_list(
         program: &mut Program,
         scope: ScopeId,
-        func_call: &mut FuncCall,
+        inputs: &mut Vec<Expression>,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::expr => {
-                    let arg_var = convert_expression(program, scope, None, true, child)?;
-                    func_call.add_input(arg_var);
-                }
-                _ => unreachable!(),
-            }
+            debug_assert!(child.as_rule() == Rule::expr, "Required by grammar.");
+            inputs.push(convert_expression(program, scope, true, child)?);
         }
         Result::Ok(())
     }
@@ -189,18 +184,17 @@ pub mod convert {
     fn convert_func_expr_output_list(
         program: &mut Program,
         scope: ScopeId,
-        func_call: &mut FuncCall,
+        outputs: &mut Vec<Expression>,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::func_output_return_inline => unimplemented!(),
+                Rule::func_output_return_inline => outputs.push(Expression::InlineReturn),
                 Rule::func_output_var_dec => unimplemented!(),
                 Rule::assign_expr => {
-                    let into = convert_assign_expr(program, scope, child)?;
-                    func_call.add_output(into);
+                    outputs.push(convert_assign_expr(program, scope, child)?);
                 }
-                _ => unreachable!(),
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
         Result::Ok(())
@@ -222,208 +216,106 @@ pub mod convert {
     fn convert_func_expr(
         program: &mut Program,
         scope: ScopeId,
-        preferred_output: &Option<VarAccess>,
         force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
-        let mut output_var = Option::None;
-        let mut func_call = Option::None;
-        let mut explicit_output_list = Option::None;
+    ) -> Result<Expression, CompileProblem> {
+        let input_iter = input.into_inner();
+        let function_var = lookup_symbol_with_error(
+            program,
+            scope,
+            &input_iter.next().expect("Required by grammar."),
+        )?;
+        let inputs = Vec::new();
+        let outputs = Vec::new();
         let input_pos = FilePosition::from_pair(&input);
-        for child in input.into_inner() {
+        for child in input_iter {
             match child.as_rule() {
-                Rule::identifier => {
-                    func_call = Option::Some(FuncCall::new(
-                        lookup_symbol_with_error(&program, scope, &child)?,
-                        input_pos.clone(),
-                    ))
+                Rule::identifier => unreachable!("Handled above."),
+                Rule::func_input_list => {
+                    convert_func_expr_input_list(program, scope, &mut inputs, child)?
                 }
-                Rule::func_input_list => convert_func_expr_input_list(
-                    program,
-                    scope,
-                    func_call.as_mut().unwrap(),
-                    child,
-                )?,
                 // TODO: Inline return.
                 Rule::func_output_list => {
-                    explicit_output_list = Option::Some(FilePosition::from_pair(&child));
-                    convert_func_expr_output_list(
-                        program,
-                        scope,
-                        func_call.as_mut().unwrap(),
-                        child,
-                    )?
+                    convert_func_expr_output_list(program, scope, &mut outputs, child)?
                 }
                 Rule::func_lambda => unimplemented!(),
                 Rule::lambda_adjective => unimplemented!(),
                 _ => unreachable!(),
             }
         }
-        if let Option::Some(output_access) = preferred_output {
-            // TODO: Inline return.
-            if let Option::Some(output_pos) = explicit_output_list {
-                return Result::Err(problem::missing_inline_return(input_pos, output_pos));
-            }
-            match func_call.as_mut() {
-                Option::Some(call) => call.add_output(output_access.clone()),
-                Option::None => {
-                    unreachable!("Should have encountered at least an identifier symbol.")
-                }
-            }
-        } else if force_func_output {
-            // TODO: Inline return.
-            if let Option::Some(output_pos) = explicit_output_list {
-                return Result::Err(problem::missing_inline_return(input_pos, output_pos));
-            }
-            let temp_var = program.make_intermediate_auto_var(scope, input_pos.clone());
-            let output_access = VarAccess::new(input_pos.clone(), temp_var);
-            output_var = Option::Some(temp_var);
-            match func_call.as_mut() {
-                Option::Some(call) => call.add_output(output_access.clone()),
-                Option::None => {
-                    unreachable!("Should have encountered at least an identifier symbol.")
-                }
+        if force_func_output {
+            if outputs.len() == 0 {
+                outputs.push(Expression::InlineReturn)
+            } else {
+                // TODO implement programmer-specified inline return values.
+                panic!("TODO error, source code already specified outputs for function.")
             }
         }
-        program.add_func_call(scope, func_call.unwrap())?;
-        if let Option::Some(output_access) = preferred_output {
-            Result::Ok(output_access.clone())
-        } else {
-            Result::Ok(match output_var {
-                Option::Some(value) => VarAccess::new(input_pos, value),
-                Option::None => VarAccess::new(
-                    input_pos.clone(),
-                    program.adopt_and_define_intermediate(scope, Variable::void(input_pos.clone())),
-                ),
-            })
-        }
+        Result::Ok(Expression::FuncCall {
+            function: Box::new(Expression::Variable(function_var)),
+            inputs,
+            outputs,
+        })
     }
 
     fn convert_array_literal(
         program: &mut Program,
         scope: ScopeId,
-        preferred_output: &Option<VarAccess>,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
-        let position = FilePosition::from_pair(&input);
-        let mut item_pairs = input.into_inner().collect::<Vec<Pair<Rule>>>();
-        let size_literal = program.adopt_and_define_intermediate(
-            scope,
-            Variable::int_literal(position.clone(), item_pairs.len() as i64),
-        );
-        let data_type = DataType::array(
-            BaseType::Automatic,
-            vec![VarAccess::new(position.clone(), size_literal)],
-        );
-        let output_access = match preferred_output {
-            Option::Some(output) => output.clone(),
-            Option::None => VarAccess::new(
-                position.clone(),
-                program.adopt_and_define_intermediate(
-                    scope,
-                    Variable::variable(position.clone(), data_type, None),
-                ),
-            ),
-        };
-        for (index, item_pair) in item_pairs.into_iter().enumerate() {
-            let index_literal = VarAccess::new(
-                FilePosition::from_pair(&item_pair),
-                program.adopt_and_define_intermediate(
-                    scope,
-                    Variable::int_literal(FilePosition::from_pair(&item_pair), index as i64),
-                ),
-            );
-            convert_expression(
-                program,
-                scope,
-                Option::Some(output_access.with_additional_index(index_literal)),
-                true,
-                item_pair,
-            )?;
+    ) -> Result<Expression, CompileProblem> {
+        let items = Vec::new();
+        for child in input.into_inner() {
+            items.push(convert_expression(program, scope, true, child)?);
         }
-        return Result::Ok(output_access);
+        return Result::Ok(Expression::Collect(items));
     }
 
     fn convert_expr_part_1(
         program: &mut Program,
         scope: ScopeId,
-        preferred_output: &Option<VarAccess>,
         force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::bin_int => {
                     let value = parse_bin_int(child.as_str());
-                    let var = program.adopt_variable(Variable::int_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
                 }
                 Rule::hex_int => {
                     let value = parse_hex_int(child.as_str());
-                    let var = program.adopt_variable(Variable::int_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
                 }
                 Rule::oct_int => {
                     let value = parse_oct_int(child.as_str());
-                    let var = program.adopt_variable(Variable::int_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
                 }
                 Rule::legacy_oct_int => {
-                    let value = parse_legacy_oct_int(child.as_str());
                     // TODO: Warning for using legacy oct format.
-                    let var = program.adopt_variable(Variable::int_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    let value = parse_legacy_oct_int(child.as_str());
+                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
                 }
                 Rule::dec_int => {
                     let value = parse_dec_int(child.as_str());
-                    let var = program.adopt_variable(Variable::int_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
                 }
                 Rule::float => {
                     let value = parse_float(child.as_str());
-                    let var = program.adopt_variable(Variable::float_literal(
-                        FilePosition::from_pair(&child),
-                        value,
-                    ));
-                    return Result::Ok(VarAccess::new(FilePosition::from_pair(&child), var));
+                    return Result::Ok(Expression::Literal(KnownData::Float(value)));
                 }
                 Rule::func_expr => {
-                    return convert_func_expr(
-                        program,
-                        scope,
-                        preferred_output,
-                        force_func_output,
-                        child,
-                    )
+                    return convert_func_expr(program, scope, force_func_output, child)
                 }
                 Rule::identifier => {
-                    return Result::Ok(VarAccess::new(
-                        FilePosition::from_pair(&child),
-                        lookup_symbol_with_error(&program, scope, &child)?,
-                    ))
+                    return Result::Ok(Expression::Variable(lookup_symbol_with_error(
+                        &program, scope, &child,
+                    )?))
                 }
                 Rule::expr => {
-                    let output =
-                        convert_expression(program, scope, preferred_output.clone(), true, child)?;
-                    return Result::Ok(output);
+                    return convert_expression(program, scope, true, child);
                 }
                 Rule::array_literal => {
-                    return convert_array_literal(program, scope, preferred_output, child);
+                    return convert_array_literal(program, scope, child);
                 }
                 _ => unreachable!(),
             }
@@ -435,63 +327,62 @@ pub mod convert {
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         unimplemented!();
     }
 
     fn convert_index_expr(
         program: &mut Program,
         scope: ScopeId,
-        preferred_output: &Option<VarAccess>,
         force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         let mut iter = input.into_inner();
-        let mut access = convert_expr_part_1(
+        let mut base = convert_expr_part_1(
             program,
             scope,
-            &None,
             true,
             iter.next().expect("Required by grammer."),
         )?;
+        let indexes = Vec::new();
         for child in iter {
             match child.as_rule() {
                 Rule::expr_part_1 => unreachable!("Already dealt with above."),
-                Rule::expr => {
-                    access.add_index(convert_expression(program, scope, None, true, child)?)
-                }
+                Rule::expr => indexes.push(convert_expression(program, scope, true, child)?),
                 _ => unreachable!("Grammar specifies no other children."),
             }
         }
-        Result::Ok(access)
+        Result::Ok(match base {
+            Expression::Access {
+                base,
+                indexes: existing_indexes,
+            } => {
+                existing_indexes.append(&mut indexes);
+                Expression::Access {
+                    base,
+                    indexes: existing_indexes,
+                }
+            }
+            _ => Expression::Access {
+                base: Box::new(base),
+                indexes,
+            },
+        })
     }
 
     fn convert_expr_part(
         program: &mut Program,
         scope: ScopeId,
-        preferred_output: &Option<VarAccess>,
         force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr_part_1 => {
-                    return convert_expr_part_1(
-                        program,
-                        scope,
-                        preferred_output,
-                        force_func_output,
-                        child,
-                    );
+                    return convert_expr_part_1(program, scope, force_func_output, child);
                 }
                 Rule::index_expr => {
-                    return convert_index_expr(
-                        program,
-                        scope,
-                        preferred_output,
-                        force_func_output,
-                        child,
-                    );
+                    return convert_index_expr(program, scope, force_func_output, child);
                 }
                 Rule::negate => {
                     return convert_negate(program, scope, child);
@@ -654,45 +545,51 @@ pub mod convert {
         }
     }
 
-    fn operator_to_op_fn(operator: &Operator, blt: &Builtins) -> VariableId {
+    fn apply_operator(
+        operator: &Operator,
+        operand_1: Expression,
+        operand_2: Expression,
+    ) -> Expression {
+        let operand_1 = Box::new(operand_1);
+        let operand_2 = Box::new(operand_2);
         if operator.id == ADD.id {
-            blt.add_func
+            Expression::Add(operand_1, operand_2)
         } else if operator.id == SUBTRACT.id {
-            blt.sub_func
+            Expression::Subtract(operand_1, operand_2)
         } else if operator.id == MULTIPLY.id {
-            blt.mul_func
+            Expression::Multiply(operand_1, operand_2)
         } else if operator.id == DIVIDE.id {
-            blt.div_func
+            Expression::Divide(operand_1, operand_2)
         } else if operator.id == INT_DIV.id {
-            blt.int_div_func
+            Expression::IntDiv(operand_1, operand_2)
         } else if operator.id == MODULO.id {
-            blt.mod_func
+            Expression::Modulo(operand_1, operand_2)
         } else if operator.id == POWER.id {
-            blt.pow_func
+            Expression::Power(operand_1, operand_2)
         } else if operator.id == LTE.id {
-            blt.lte_func
+            Expression::LessThanOrEqual(operand_1, operand_2)
         } else if operator.id == LT.id {
-            blt.lt_func
+            Expression::LessThan(operand_1, operand_2)
         } else if operator.id == GTE.id {
-            blt.gte_func
+            Expression::GreaterThanOrEqual(operand_1, operand_2)
         } else if operator.id == GT.id {
-            blt.gt_func
+            Expression::GreaterThan(operand_1, operand_2)
         } else if operator.id == EQ.id {
-            blt.eq_func
+            Expression::Equal(operand_1, operand_2)
         } else if operator.id == NEQ.id {
-            blt.neq_func
+            Expression::NotEqual(operand_1, operand_2)
         } else if operator.id == BAND.id {
-            blt.band_func
+            Expression::BAnd(operand_1, operand_2)
         } else if operator.id == BXOR.id {
-            blt.bxor_func
+            Expression::BXor(operand_1, operand_2)
         } else if operator.id == BOR.id {
-            blt.bor_func
+            Expression::BOr(operand_1, operand_2)
         } else if operator.id == AND.id {
-            blt.and_func
+            Expression::And(operand_1, operand_2)
         } else if operator.id == XOR.id {
-            blt.xor_func
+            Expression::Xor(operand_1, operand_2)
         } else if operator.id == OR.id {
-            blt.or_func
+            Expression::Or(operand_1, operand_2)
         } else {
             unreachable!();
         }
@@ -701,11 +598,9 @@ pub mod convert {
     fn convert_expression(
         program: &mut Program,
         scope: ScopeId,
-        // If Some is provided, the return value will be identical to the var access provided.
-        preferred_output: Option<VarAccess>,
         force_func_output: bool,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         let mut operand_stack = Vec::with_capacity(64);
         let mut operator_stack = Vec::with_capacity(64);
         operator_stack.push(SENTINEL);
@@ -713,144 +608,85 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr_part => {
-                    let result = convert_expr_part(
-                        program,
-                        scope,
-                        &preferred_output,
-                        force_func_output,
-                        child,
-                    )?;
+                    let result = convert_expr_part(program, scope, force_func_output, child)?;
                     operand_stack.push(result);
                 }
                 Rule::operator => {
                     let op_str = child.as_str();
-                    let operator = op_str_to_operator(op_str);
+                    let new_operator = op_str_to_operator(op_str);
+                    // Shunting yard algorithm.
                     // TODO: Implement right-associative operators.
                     loop {
                         let top_op_prec = operator_stack.last().cloned().unwrap().precedence;
-                        if operator.precedence >= top_op_prec {
-                            operator_stack.push(operator);
+                        if new_operator.precedence >= top_op_prec {
+                            operator_stack.push(new_operator);
                             break;
                         } else {
-                            let top_op = operator_stack.pop().unwrap();
-                            let func = operator_to_op_fn(&top_op, program.get_builtins());
-                            // TODO: Real position.
-                            let var = program
-                                .make_intermediate_auto_var(scope, FilePosition::placeholder());
-                            // TODO: Real position
-                            let output = VarAccess::new(FilePosition::placeholder(), var);
-                            // TODO: Real position.
-                            let mut call = FuncCall::new(func, FilePosition::placeholder());
-                            // Popping reverses the order, hence this is necessary.
-                            let other = operand_stack.pop();
-                            call.add_input(operand_stack.pop().unwrap());
-                            call.add_input(other.unwrap());
-                            call.add_output(output);
-                            program.add_func_call(scope, call)?;
-                            // TODO: real position.
-                            operand_stack.push(VarAccess::new(FilePosition::placeholder(), var));
+                            let top_operator = operator_stack.pop().unwrap();
+                            // The stack is in reverse order, pop the RHS first.
+                            let operand_2 = operand_stack.pop().unwrap();
+                            let operand_1 = operand_stack.pop().unwrap();
+                            operand_stack.push(apply_operator(&top_operator, operand_1, operand_2));
                         }
                     }
                 }
-                _ => unreachable!(),
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
 
-        // Whenever we have an expression that has at least one operator, it is
-        // guaranteed that all the input will be consumed before all the
-        // operators have been popped. The loop below this statement handles
-        // that case. This if statement is here to ensure that expressions with
-        // no operators still get incorporated into the program. Without it,
-        // the result of whatever the single term is would not be copied to the
-        // output variable.
+        // If true, we dealt with all the operators in the loop, so just return the only 'operand'
+        // on the stack.
         if operator_stack.len() == 1 {
-            return match preferred_output {
-                Option::Some(final_output) => {
-                    let expression_output = operand_stack.pop().unwrap();
-                    if expression_output != final_output {
-                        // TODO: Real position.
-                        let mut call = FuncCall::new(
-                            program.get_builtins().copy_func,
-                            FilePosition::placeholder(),
-                        );
-                        call.add_input(expression_output);
-                        call.add_output(final_output.clone());
-                        program.add_func_call(scope, call)?;
-                    }
-                    Result::Ok(final_output)
-                }
-                Option::None => Result::Ok(operand_stack.pop().unwrap()),
-            };
+            return Result::Ok(operand_stack.pop().unwrap());
         }
 
-        // The last operator is the sentinel, we don't actually want to pop it.
-        while operator_stack.len() > 1 {
-            let top_op = operator_stack.pop().unwrap();
-            let func = operator_to_op_fn(&top_op, program.get_builtins());
-            // If the length is 1, then we popped the last operator, so we
-            // should output the result to the output given to us. Otherwise,
-            // make a new intermediate variable.
-            let output = if operator_stack.len() == 1 {
-                match &preferred_output {
-                    Option::Some(final_output) => final_output.clone(),
-                    Option::None => {
-                        // TODO: Real position
-                        let var =
-                            program.make_intermediate_auto_var(scope, FilePosition::placeholder());
-                        // TODO: Real position
-                        VarAccess::new(FilePosition::placeholder(), var)
-                    }
-                }
-            } else {
-                // TODO: Real position
-                let var = program.make_intermediate_auto_var(scope, FilePosition::placeholder());
-                // TODO: Real position
-                VarAccess::new(FilePosition::placeholder(), var)
-            };
-            // TODO: Real position.
-            let mut call = FuncCall::new(func, FilePosition::placeholder());
-            // Popping reverses the order, hence this is necessary.
-            let other = operand_stack.pop();
-            call.add_input(operand_stack.pop().unwrap());
-            call.add_input(other.unwrap());
-            call.add_output(output.clone());
-            program.add_func_call(scope, call)?;
-            // The last operator is the sentinel.
+        // Otherwise, we need to do some more looping to get rid of all the extra operators. The
+        // shunting yard algorithm used above guarantees that we can just loop through and compose
+        // them in order because they are already in the correct order of precedence.
+        loop {
+            let top_operator = operator_stack.pop().unwrap();
+            let operand_2 = operand_stack.pop().unwrap();
+            let operand_1 = operand_stack.pop().unwrap();
+            let result = apply_operator(&top_operator, operand_1, operand_2);
+            // The last operator is the sentinel, we want to exit before we reach it.
             if operator_stack.len() == 1 {
-                return Result::Ok(output);
+                return Result::Ok(result);
             } else {
-                operand_stack.push(output);
+                operand_stack.push(result);
             }
         }
-        unreachable!();
     }
 
     fn convert_assign_expr(
         program: &mut Program,
         scope: ScopeId,
         input: Pair<Rule>,
-    ) -> Result<VarAccess, CompileProblem> {
+    ) -> Result<Expression, CompileProblem> {
         let input_pos = FilePosition::from_pair(&input);
         let mut input_iter = input.into_inner();
         let child = input_iter.next().expect("Identifier required by grammar.");
-        let mut result = VarAccess::new(
-            input_pos,
-            lookup_symbol_with_error(&program, scope, &child)?,
-        );
+        let base_var = lookup_symbol_with_error(&program, scope, &child)?;
+        let indexes = Vec::new();
         for child in input_iter {
             match child.as_rule() {
                 Rule::identifier => unreachable!("Already handled above."),
-                Rule::assign_array_access => result.add_index(convert_expression(
+                Rule::assign_array_access => indexes.push(convert_expression(
                     program,
                     scope,
-                    None,
                     true,
                     child.into_inner().next().expect("Required by grammar."),
                 )?),
                 _ => unreachable!("Grammar specifies no other children."),
             }
         }
-        Result::Ok(result)
+        Result::Ok(if indexes.len() > 0 {
+            Expression::Access {
+                base: Box::new(Expression::Variable(base_var)),
+                indexes,
+            }
+        } else {
+            Expression::Variable(base_var)
+        })
     }
 
     // Creates a variable, returns its id.
@@ -945,19 +781,20 @@ pub mod convert {
     fn convert_returnable_code_block(
         program: &mut Program,
         scope: ScopeId,
-        return_var: Option<VarAccess>,
         input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
+    ) -> Result<Option<Expression>, CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::statement => convert_statement(program, scope, child)?,
                 Rule::expr => {
-                    convert_expression(program, scope, return_var.clone(), true, child)?;
+                    return Result::Ok(Option::Some(convert_expression(
+                        program, scope, true, child,
+                    )?));
                 }
                 _ => unreachable!(),
             }
         }
-        Result::Ok(())
+        Result::Ok(None)
     }
 
     fn convert_function_definition(
@@ -965,42 +802,48 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut name = Option::None;
+        let mut real_header_position = FilePosition::start_at(&input);
+        let mut input_iter = input.into_inner();
+        let mut name = {
+            let child = input_iter.next().expect("Required by grammar.");
+            real_header_position.include(&child);
+            child.as_str()
+        };
         let func_scope = program.create_child_scope(scope);
         let mut function = FunctionData::new(func_scope, FilePosition::placeholder());
-        let mut real_header_position = FilePosition::start_at(&input);
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::identifier => {
-                    real_header_position.include(&child);
-                    name = Option::Some(child.as_str());
-                }
+                Rule::identifier => unreachable!("Handled above"),
                 Rule::function_signature => {
                     real_header_position.include(&child);
                     convert_function_signature(program, &mut function, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
-                    let output_value = program
-                        .borrow_scope_mut(func_scope)
-                        .get_single_output()
-                        .and_then(|id: VariableId| -> Option<VarAccess> {
-                            Option::Some(VarAccess::new(FilePosition::from_pair(&child), id))
-                        });
                     function.set_header(real_header_position);
                     // So that code inside the body can refer to the function.
-                    // If name is None, there is a bug in the parser.
-                    program.adopt_and_define_symbol(
-                        scope,
-                        name.expect("Grammar requires a name."),
-                        Variable::function_def(function),
-                    );
-                    convert_returnable_code_block(program, func_scope, output_value, child)?;
-                    // This branch arm can only be called once but I don't know how to tell rustc that,
+                    program.adopt_and_define_symbol(scope, name, Variable::function_def(function));
+
+                    let possible_output =
+                        convert_returnable_code_block(program, func_scope, child)?;
+                    if let Option::Some(output) = possible_output {
+                        if let Option::Some(output_var) =
+                            program.borrow_scope(func_scope).get_single_output()
+                        {
+                            program.add_expression(
+                                func_scope.clone(),
+                                Expression::Assign {
+                                    target: Box::new(Expression::Variable(output_var)),
+                                    value: Box::new(output),
+                                },
+                            );
+                        }
+                    }
+                    // This branch arm can only be expressioned once but I don't know how to tell rustc that,
                     // so we use a break statement for that purpose. Since the code block is the last element
                     // parsed anyway, it doesn't change how the code works.
                     break;
                 }
-                _ => unreachable!(),
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
         Result::Ok(())
@@ -1012,40 +855,41 @@ pub mod convert {
         data_type: DataType,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut name = Option::None;
+        let input_iter = input.into_inner();
+        let (name, variable_position) = {
+            let child = input_iter.next().expect("Required by grammar.");
+            let position = FilePosition::from_pair(&child);
+            (child.as_str(), position)
+        };
         let input_pos = FilePosition::from_pair(&input);
-        let variable_id =
-            program.adopt_variable(Variable::variable(input_pos.clone(), data_type, None));
-        let mut variable_position = FilePosition::placeholder();
-        for child in input.into_inner() {
+        let variable_id = {
+            let variable = Variable::variable(input_pos.clone(), data_type, None);
+            program.adopt_and_define_symbol(scope, name, variable)
+        };
+        for child in input_iter {
             match child.as_rule() {
-                Rule::identifier => {
-                    name = Option::Some(child.as_str());
-                    variable_position = FilePosition::from_pair(&child);
-                }
+                Rule::identifier => unreachable!("Handled above."),
                 Rule::expr => {
-                    convert_expression(
-                        program,
+                    let expr =
+                        convert_expression(program, scope, true, child).map_err(|mut err| {
+                            problem::hint_encountered_while_parsing(
+                                "initial value for a variable",
+                                input_pos.clone(),
+                                &mut err,
+                            );
+                            err
+                        })?;
+                    program.add_expression(
                         scope,
-                        Option::Some(VarAccess::new(variable_position.clone(), variable_id)),
-                        true,
-                        child,
-                    )
-                    .map_err(|mut err| {
-                        problem::hint_encountered_while_parsing(
-                            "initial value for a variable",
-                            input_pos.clone(),
-                            &mut err,
-                        );
-                        err
-                    })?;
+                        Expression::Assign {
+                            target: Box::new(Expression::Variable(variable_id)),
+                            value: Box::new(expr),
+                        },
+                    );
                 }
                 _ => unreachable!(),
             }
         }
-        program
-            .borrow_scope_mut(scope)
-            .define_symbol(name.unwrap(), variable_id);
         Result::Ok(())
     }
 
@@ -1114,7 +958,7 @@ pub mod convert {
         let mut sizes = Vec::new();
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::expr => sizes.push(convert_expression(program, scope, None, true, child)?),
+                Rule::expr => sizes.push(convert_expression(program, scope, true, child)?),
                 Rule::basic_data_type => {
                     // Array data type stores sizes in the same order as the grammar, biggest to
                     // smallest.
@@ -1277,24 +1121,22 @@ pub mod convert {
                             outputs.len(),
                         ));
                     }
-                    convert_expression(
-                        program,
+                    let value =
+                        convert_expression(program, scope, true, child).map_err(|mut err| {
+                            problem::hint_encountered_while_parsing(
+                                "a return statement",
+                                statement_position.clone(),
+                                &mut err,
+                            );
+                            err
+                        })?;
+                    program.add_expression(
                         scope,
-                        Option::Some(VarAccess::new(
-                            FilePosition::from_pair(&child),
-                            outputs[index],
-                        )),
-                        true,
-                        child,
-                    )
-                    .map_err(|mut err| {
-                        problem::hint_encountered_while_parsing(
-                            "a return statement",
-                            statement_position.clone(),
-                            &mut err,
-                        );
-                        err
-                    })?;
+                        Expression::Assign {
+                            target: Box::new(Expression::Variable(outputs[index])),
+                            value: Box::new(value),
+                        },
+                    );
                     index += 1;
                 }
                 _ => unreachable!(),
@@ -1308,10 +1150,7 @@ pub mod convert {
                 index,
             ));
         }
-        program.add_func_call(
-            scope,
-            FuncCall::new(program.get_builtins().return_func, statement_position),
-        )?;
+        program.add_expression(scope, Expression::Return)?;
         Result::Ok(())
     }
 
@@ -1335,22 +1174,28 @@ pub mod convert {
                     convert_create_variable_statement(program, scope, child)?
                 }
                 Rule::assign_statement => {
-                    let mut iter = child.into_inner();
-                    let assign_expr = iter.next().unwrap();
-                    debug_assert!(match assign_expr.as_rule() {
-                        Rule::assign_expr => true,
-                        _ => false,
-                    });
-                    let output = convert_assign_expr(program, scope, assign_expr)?;
-                    let expr = iter.next().unwrap();
-                    debug_assert!(match expr.as_rule() {
-                        Rule::expr => true,
-                        _ => false,
-                    });
-                    convert_expression(program, scope, Option::Some(output), true, expr)?;
+                    let mut child_iter = child.into_inner();
+                    let output = {
+                        let assign_expr = child_iter.next().unwrap();
+                        debug_assert!(Rule::assign_expr == assign_expr.as_rule());
+                        convert_assign_expr(program, scope, assign_expr)?
+                    };
+                    let value = {
+                        let expr = child_iter.next().unwrap();
+                        debug_assert!(Rule::expr == expr.as_rule());
+                        convert_expression(program, scope, true, expr)?
+                    };
+                    program.add_expression(
+                        scope,
+                        Expression::Assign {
+                            target: Box::new(output),
+                            value: Box::new(value),
+                        },
+                    );
                 }
                 Rule::expr => {
-                    convert_expression(program, scope, None, false, child)?;
+                    program
+                        .add_expression(scope, convert_expression(program, scope, false, child)?);
                 }
                 _ => unreachable!(),
             }

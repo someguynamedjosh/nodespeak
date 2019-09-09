@@ -1,7 +1,5 @@
 use crate::problem::{self, CompileProblem, FilePosition};
-use crate::structure::{
-    BaseType, DataType, FuncCall, KnownData, Program, ScopeId, VarAccess, Variable, VariableId,
-};
+use crate::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId};
 
 // TODO: A better error instead of just returning void all the time.
 pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> DataType {
@@ -49,10 +47,8 @@ pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> Dat
         // Figure out if the two sizes are compatible. While doing so, build a list of the biggest
         // sizes.
         let mut final_sizes = Vec::new();
-        for (index, (real_size1, real_size2)) in a_sizes
-            .into_iter()
-            .zip(b_sizes.into_iter())
-            .enumerate()
+        for (index, (real_size1, real_size2)) in
+            a_sizes.into_iter().zip(b_sizes.into_iter()).enumerate()
         {
             // BCT rule 3
             if real_size1 == real_size2 {
@@ -93,38 +89,14 @@ pub fn biggest_common_type(program: &Program, a: &DataType, b: &DataType) -> Dat
     // nonfunctioning interpreter to determine the size of array types.
 }
 
-fn simple_cast(
-    program: &mut Program,
-    scope: ScopeId,
-    from: VarAccess,
-    to: VarAccess,
-    func: VariableId,
-) -> Result<(), CompileProblem> {
-    // TODO: Real position.
-    let mut func_call = FuncCall::new(func, FilePosition::placeholder());
-    func_call.add_input(from);
-    func_call.add_output(to);
-    program.add_func_call(scope, func_call)
-}
-
 pub fn create_cast(
     program: &mut Program,
     scope: ScopeId,
-    from: VarAccess,
-    to: VarAccess,
+    from: Expression,
+    to: Expression,
 ) -> Result<(), CompileProblem> {
     // Currently we don't have code to manage arrays.
-    // TODO: Arrays
-    assert!(from.borrow_indexes().len() == 0);
-
-    let from_type = from.clone_resulting_data_type(program);
-    let to_type = to.clone_resulting_data_type(program);
-    if from_type.equivalent(&to_type, program) {
-        panic!("Should avoid creating redundant copies.");
-    } else {
-        Result::Err(problem::illegal_inflation(
-            from.get_position().clone(),
-            to.get_position().clone(),
-        ))
-    }
+    // TODO Arrays
+    // TODO Anything.
+    Result::Ok(())
 }

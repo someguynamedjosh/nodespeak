@@ -1,8 +1,9 @@
 use crate::interpreter::{self, InterpreterOutcome};
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    add_builtins, Builtins, DataType, FuncCall, FunctionData, KnownData, Scope, VarAccess, Variable,
+    add_builtins, Builtins, DataType, Expression, FunctionData, KnownData, Scope, Variable,
 };
+use std::borrow::Borrow;
 use std::collections::HashMap;
 
 /// Refers to a [`Scope`] stored in a [`Program`].
@@ -64,25 +65,30 @@ impl Program {
         &mut self.scopes[scope.0]
     }
 
-    pub fn add_func_call(&mut self, add_to: ScopeId, call: FuncCall) -> Result<(), CompileProblem> {
+    pub fn add_expression(
+        &mut self,
+        add_to: ScopeId,
+        expression: Expression,
+    ) -> Result<(), CompileProblem> {
         assert!(add_to.0 < self.scopes.len());
         if self.automatic_interpretation {
-            match interpreter::interpret_func_call(self, add_to, &call) {
+            match interpreter::interpret_expression(self, &expression) {
                 InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
-                    self.scopes[add_to.0].add_func_call(call)
+                    self.scopes[add_to.0].add_expression(expression)
                 }
                 InterpreterOutcome::AssertFailed(location) => {
                     return Result::Err(problem::guaranteed_assert(location))
                 }
-                InterpreterOutcome::Successful | InterpreterOutcome::Returned => (),
+                // TODO? check that data is Void
+                InterpreterOutcome::Successful(..) | InterpreterOutcome::Returned => (),
             }
         } else {
-            self.scopes[add_to.0].add_func_call(call);
+            self.scopes[add_to.0].add_expression(expression);
         }
         Result::Ok(())
     }
 
-    pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<FuncCall> {
+    pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<Expression> {
         self.borrow_scope(scope).borrow_body().clone()
     }
 
@@ -182,51 +188,8 @@ impl Program {
         self.variables[variable.0].set_temporary_value(value);
     }
 
-    pub fn set_value_of(&mut self, var_access: &VarAccess, value: KnownData) {
-        let mut array_position = Vec::new();
-        for index in var_access.borrow_indexes() {
-            match self.borrow_value_of(index) {
-                KnownData::Int(value) => {
-                    if *value < 0 {
-                        panic!() // TODO Error
-                    } else {
-                        array_position.push(*value as usize)
-                    }
-                }
-                _ => panic!(), // TODO Error
-            }
-        }
-        let variable = self.borrow_variable(var_access.get_base());
-        if array_position.len() > 0 {
-            // If the entire varible is unknown, change it to an array of unknowns.
-            if let KnownData::Unknown = variable.borrow_temporary_value() {
-                let mut real_sizes = Vec::new();
-                for size in variable.borrow_data_type().borrow_sizes() {
-                    match self.borrow_value_of(size) {
-                        // TODO: Check that value is positive.
-                        KnownData::Int(value) => real_sizes.push(*value as usize),
-                        _ => panic!("TODO error, array data type is vague."),
-                    }
-                }
-                self.set_temporary_value(var_access.get_base(), KnownData::new_array(real_sizes))
-            }
-        }
-        let mut target = self
-            .borrow_variable_mut(var_access.get_base())
-            .borrow_temporary_value_mut();
-        if array_position.len() > 0 {
-            match target {
-                KnownData::Array(contents) => {
-                    if contents.is_inside(&array_position) {
-                        target = contents.borrow_item_mut(&array_position);
-                    } else {
-                        panic!("TODO error, given coordinate is not inside array.");
-                    }
-                }
-                _ => panic!("TODO error, data is not array."),
-            }
-        }
-        (*target) = value;
+    pub fn set_value_of(&mut self, expression: &Expression, value: KnownData) {
+        (*self.borrow_value_of_mut(expression)) = value;
     }
 
     /// Retrieves a temporary value for the related variable, set by set_temporary_value.
@@ -238,34 +201,65 @@ impl Program {
         self.variables[variable.0].borrow_temporary_value()
     }
 
-    pub fn borrow_value_of(&self, var_access: &VarAccess) -> &KnownData {
-        let mut array_position = Vec::new();
-        for index in var_access.borrow_indexes() {
-            match self.borrow_value_of(index) {
-                KnownData::Int(value) => {
-                    if *value < 0 {
-                        panic!() // TODO Error
-                    } else {
-                        array_position.push(*value as usize)
+    pub fn borrow_temporary_value_mut(&mut self, variable: VariableId) -> &mut KnownData {
+        assert!(variable.0 < self.variables.len());
+        self.variables[variable.0].borrow_temporary_value_mut()
+    }
+
+    pub fn borrow_value_of<'a>(&'a self, expression: &'a Expression) -> &'a KnownData {
+        match expression {
+            Expression::Access { base, indexes } => {
+                let data = self.borrow_value_of(base.borrow());
+                if let KnownData::Array(contents) = data {
+                    // TODO handle expressions that need to be interpreted before we can determine
+                    // their value.
+                    let real_indexes = Vec::new();
+                    for index in indexes {
+                        match self.borrow_value_of(index) {
+                            // TODO check that value is positive.
+                            KnownData::Int(value) => real_indexes.push(*value as usize),
+                            _ => panic!("TODO error, indexes must be known integers."),
+                        }
                     }
-                }
-                _ => panic!(), // TODO Error
-            }
-        }
-        let mut target = self.borrow_temporary_value(var_access.get_base());
-        if array_position.len() > 0 {
-            match target {
-                KnownData::Array(contents) => {
-                    if contents.is_inside(&array_position) {
-                        target = contents.borrow_item(&array_position)
-                    } else {
-                        panic!("TODO error, given coordinate is not inside array.")
+                    if !contents.is_inside(&real_indexes) {
+                        panic!("TODO error, indexes must be inside array bounds.")
                     }
+                    contents.borrow_item(&real_indexes)
+                } else {
+                    panic!("TODO error, base of access expression is not array.")
                 }
-                _ => panic!("TODO error, data is not array."),
             }
+            Expression::Literal(data) => data,
+            Expression::Variable(id) => self.borrow_temporary_value(*id),
         }
-        target
+    }
+
+    pub fn borrow_value_of_mut(&mut self, expression: &Expression) -> &mut KnownData {
+        match expression {
+            Expression::Access { base, indexes } => {
+                let data = self.borrow_value_of_mut(base.borrow());
+                if let KnownData::Array(contents) = data {
+                    // TODO handle expressions that need to be interpreted before we can determine
+                    // their value.
+                    let real_indexes = Vec::new();
+                    for index in indexes {
+                        match self.borrow_value_of(index) {
+                            // TODO check that value is positive.
+                            KnownData::Int(value) => real_indexes.push(*value as usize),
+                            _ => panic!("TODO error, indexes must be known integers."),
+                        }
+                    }
+                    if !contents.is_inside(&real_indexes) {
+                        panic!("TODO error, indexes must be inside array bounds.")
+                    }
+                    contents.borrow_item_mut(&real_indexes)
+                } else {
+                    panic!("TODO error, base of access expression is not array.")
+                }
+            }
+            Expression::Literal(data) => panic!("TODO error, cannot borrow literal as mutable."),
+            Expression::Variable(id) => self.borrow_temporary_value_mut(*id),
+        }
     }
 
     /// Resets the temporary value of an variable to be the initial value of that variable.

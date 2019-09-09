@@ -1,45 +1,31 @@
 use crate::problem::FilePosition;
-use crate::structure::{BuiltinFunction, FuncCall, FunctionData, KnownData, Program, ScopeId};
+use crate::structure::{Expression, KnownData, Program};
 
 pub enum InterpreterOutcome {
-    Successful,
+    Successful(KnownData),
     Returned,
     UnknownData,
     UnknownFunction,
     AssertFailed(FilePosition),
 }
 
-fn interpret_builtin(
-    program: &mut Program,
-    scope: ScopeId,
-    builtin: BuiltinFunction,
-    func_call: &FuncCall,
-) -> InterpreterOutcome {
+pub fn interpret_expression(program: &mut Program, expression: &Expression) -> InterpreterOutcome {
     // All the inputs and outputs should have data types that match the function signatures for the
     // provided builtin.
-    match builtin {
+    match expression {
         // TODO: Handle array types.
-        BuiltinFunction::Add => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
-                KnownData::Bool(_value) => unimplemented!(),
-                KnownData::Int(value) => {
-                    KnownData::Int(value + program.borrow_value_of(b).require_int())
-                }
-                KnownData::Float(value) => {
-                    KnownData::Float(value + program.borrow_value_of(b).require_float())
-                }
-                _ => unreachable!(),
-            };
-            program.set_value_of(x, x_data);
-        }
-        BuiltinFunction::Subtract => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
+        Expression::Add(a, b) => InterpreterOutcome::Successful(match program.borrow_value_of(a) {
+            KnownData::Bool(_value) => unimplemented!(),
+            KnownData::Int(value) => {
+                KnownData::Int(value + program.borrow_value_of(b).require_int())
+            }
+            KnownData::Float(value) => {
+                KnownData::Float(value + program.borrow_value_of(b).require_float())
+            }
+            _ => unreachable!(),
+        }),
+        Expression::Subtract(a, b) => {
+            InterpreterOutcome::Successful(match program.borrow_value_of(a) {
                 KnownData::Bool(_value) => unimplemented!(),
                 KnownData::Int(value) => {
                     KnownData::Int(value - program.borrow_value_of(b).require_int())
@@ -48,14 +34,10 @@ fn interpret_builtin(
                     KnownData::Float(value - program.borrow_value_of(b).require_float())
                 }
                 _ => unreachable!(),
-            };
-            program.set_value_of(x, x_data);
+            })
         }
-        BuiltinFunction::Multiply => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
+        Expression::Multiply(a, b) => {
+            InterpreterOutcome::Successful(match program.borrow_value_of(a) {
                 KnownData::Bool(_value) => unimplemented!(),
                 KnownData::Int(value) => {
                     KnownData::Int(value * program.borrow_value_of(b).require_int())
@@ -64,38 +46,26 @@ fn interpret_builtin(
                     KnownData::Float(value * program.borrow_value_of(b).require_float())
                 }
                 _ => unreachable!(),
-            };
-            program.set_value_of(x, x_data);
+            })
         }
-        BuiltinFunction::Divide => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
+        Expression::Divide(a, b) => {
+            InterpreterOutcome::Successful(match program.borrow_value_of(a) {
                 KnownData::Float(value) => {
                     KnownData::Float(value / program.borrow_value_of(b).require_float())
                 }
                 _ => unreachable!(),
-            };
-            program.set_value_of(x, x_data);
+            })
         }
-        BuiltinFunction::IntDiv => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
+        Expression::IntDiv(a, b) => {
+            InterpreterOutcome::Successful(match program.borrow_value_of(a) {
                 KnownData::Int(value) => {
                     KnownData::Int(value / program.borrow_value_of(b).require_int())
                 }
                 _ => unreachable!(),
-            };
-            program.set_value_of(x, x_data);
+            })
         }
-        BuiltinFunction::Modulo => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = match program.borrow_value_of(a) {
+        Expression::Modulo(a, b) => {
+            InterpreterOutcome::Successful(match program.borrow_value_of(a) {
                 KnownData::Bool(_value) => unimplemented!(),
                 KnownData::Int(value) => {
                     KnownData::Int(value % program.borrow_value_of(b).require_int())
@@ -104,106 +74,55 @@ fn interpret_builtin(
                     KnownData::Float(value % program.borrow_value_of(b).require_float())
                 }
                 _ => unreachable!(),
+            })
+        }
+        Expression::Equal(a, b) => InterpreterOutcome::Successful(KnownData::Bool(
+            program.borrow_value_of(a) == program.borrow_value_of(b),
+        )),
+        Expression::Assign { target, value } => {
+            program.set_value_of(target, program.borrow_value_of(value).clone());
+            InterpreterOutcome::Successful(KnownData::Void)
+        }
+        Expression::FuncCall {
+            function,
+            inputs,
+            outputs,
+        } => {
+            let func_data = match program.borrow_value_of(function) {
+                KnownData::Function(data) => data,
+                _ => return InterpreterOutcome::UnknownFunction,
             };
-            program.set_value_of(x, x_data);
-        }
-        BuiltinFunction::Equal => {
-            let a = &func_call.borrow_inputs()[0];
-            let b = &func_call.borrow_inputs()[1];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = KnownData::Bool(program.borrow_value_of(a) == program.borrow_value_of(b));
-            program.set_value_of(x, x_data);
-        }
-        BuiltinFunction::Copy => {
-            let a = &func_call.borrow_inputs()[0];
-            let x = &func_call.borrow_outputs()[0];
-            let x_data = program.borrow_value_of(a).clone();
-            program.set_value_of(x, x_data);
-        }
-        BuiltinFunction::Assert => {
-            let a = &func_call.borrow_inputs()[0];
-            match program.borrow_value_of(a) {
-                KnownData::Bool(value) => {
-                    if !value {
-                        return InterpreterOutcome::AssertFailed(func_call.get_position().clone());
-                    }
+            let body = func_data.get_body();
+            let input_targets = program.borrow_scope(body).borrow_inputs();
+            for (source, target) in inputs.iter().zip(input_targets.iter()) {
+                let value = program.borrow_value_of(source).clone();
+                if let KnownData::Unknown | KnownData::Void = value {
+                    return InterpreterOutcome::UnknownData;
                 }
-                _ => unreachable!(),
+                program.set_temporary_value(target.clone(), value);
             }
-        }
-        BuiltinFunction::Return => {
-            return InterpreterOutcome::Returned;
+            for expression in program.clone_scope_body(body) {
+                match interpret_expression(program, &expression) {
+                    InterpreterOutcome::Returned => break,
+                    _ => (),
+                }
+            }
+            let output_sources = program.borrow_scope(body).borrow_outputs();
+            let final_value = Option::None;
+            for (source, target) in output_sources.iter().zip(outputs.iter()) {
+                let value = program.borrow_temporary_value(*source).clone();
+                match target {
+                    // TODO error for multiple inline returns.
+                    Expression::InlineReturn => final_value = Option::Some(value),
+                    _ => program.set_value_of(target, value),
+                }
+            }
+            InterpreterOutcome::Successful(final_value.unwrap_or(KnownData::Void))
         }
         _ => {
-            eprintln!("{:?}", builtin);
+            eprintln!("{:?}", expression);
             unimplemented!()
         }
-    }
-    InterpreterOutcome::Successful
-}
-
-fn interpret_function(
-    program: &mut Program,
-    func_call: &FuncCall,
-    function: FunctionData,
-) -> InterpreterOutcome {
-    let input_sources = func_call.borrow_inputs();
-    let input_targets = program
-        .borrow_scope(function.get_body())
-        .borrow_inputs()
-        .clone();
-    for (source, target) in input_sources.iter().zip(input_targets.iter()) {
-        let value = program.borrow_value_of(source).clone();
-        program.set_temporary_value(target.clone(), value);
-    }
-    let body = function.get_body();
-    for func_call in program.clone_scope_body(body) {
-        match interpret_func_call(program, body, &func_call) {
-            InterpreterOutcome::Returned => break,
-            _ => (),
-        }
-    }
-    let output_sources = program
-        .borrow_scope(function.get_body())
-        .borrow_outputs()
-        .clone();
-    let output_targets = func_call.borrow_outputs();
-    for (source, target) in output_sources.iter().zip(output_targets.iter()) {
-        let value = program.borrow_temporary_value(source.clone()).clone();
-        program.set_value_of(target, value);
-    }
-    InterpreterOutcome::Successful
-}
-
-/// Interprets the given function call. If its result can be determined, then the temporary values
-/// of the func call's outputs are set to the values they would have if the function call was
-/// actually executed, and the function returns true. If not, nothing happens and the function
-/// returns false.
-pub fn interpret_func_call(
-    program: &mut Program,
-    scope: ScopeId,
-    func_call: &FuncCall,
-) -> InterpreterOutcome {
-    for input in func_call.borrow_inputs().iter() {
-        // TODO: Handle array types, etc.
-        match program.borrow_temporary_value(input.get_base()) {
-            KnownData::Void | KnownData::Unknown => return InterpreterOutcome::UnknownData,
-            _ => (),
-        }
-    }
-    let function = func_call.get_function();
-    match program.borrow_temporary_value(function) {
-        KnownData::Function(function_data) => match function_data.get_builtin() {
-            Option::Some(builtin) => {
-                let cloned_builtin = builtin.clone();
-                return interpret_builtin(program, scope, cloned_builtin, func_call);
-            }
-            Option::None => {
-                let cloned_data = function_data.clone();
-                return interpret_function(program, func_call, cloned_data);
-            }
-        },
-        _ => return InterpreterOutcome::UnknownFunction,
     }
 }
 
@@ -229,8 +148,8 @@ pub fn interpret_from_entry_point(
     for (source, target) in inputs.into_iter().zip(input_targets.iter()) {
         program.set_temporary_value(target.clone(), source);
     }
-    for func_call in program.clone_scope_body(program.get_entry_point()) {
-        match interpret_func_call(program, entry_point_id, &func_call) {
+    for expression in program.clone_scope_body(program.get_entry_point()) {
+        match interpret_expression(program, &expression) {
             InterpreterOutcome::Returned => break,
             InterpreterOutcome::AssertFailed(_position) => {
                 // TODO: Better error.
@@ -242,7 +161,7 @@ pub fn interpret_from_entry_point(
             }
             InterpreterOutcome::UnknownFunction => {
                 // TODO: Better error.
-                return Result::Err("Could not determine which function to call.".to_owned());
+                return Result::Err("Could not determine which function to expression.".to_owned());
             }
             _ => (),
         }

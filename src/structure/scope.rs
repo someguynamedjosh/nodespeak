@@ -1,11 +1,11 @@
-use crate::structure::{FuncCall, ScopeId, VariableId};
+use crate::structure::{Expression, ScopeId, VariableId};
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Scope {
     symbols: HashMap<String, VariableId>,
     intermediates: Vec<VariableId>,
-    body: Vec<FuncCall>,
+    body: Vec<Expression>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     parent: Option<ScopeId>,
@@ -38,8 +38,8 @@ impl Scope {
         self.parent.clone()
     }
 
-    pub fn add_func_call(&mut self, call: FuncCall) {
-        self.body.push(call)
+    pub fn add_expression(&mut self, expression: Expression) {
+        self.body.push(expression)
     }
 
     pub fn define_symbol(&mut self, symbol: &str, definition: VariableId) {
@@ -58,7 +58,7 @@ impl Scope {
         self.outputs.push(output);
     }
 
-    pub fn borrow_body(&self) -> &Vec<FuncCall> {
+    pub fn borrow_body(&self) -> &Vec<Expression> {
         &self.body
     }
 
