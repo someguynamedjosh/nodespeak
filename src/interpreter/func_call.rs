@@ -93,7 +93,7 @@ pub fn interpret_expression(program: &mut Program, expression: &Expression) -> I
                 _ => return InterpreterOutcome::UnknownFunction,
             };
             let body = func_data.get_body();
-            let input_targets = program.borrow_scope(body).borrow_inputs();
+            let input_targets = program.borrow_scope(body).borrow_inputs().clone();
             for (source, target) in inputs.iter().zip(input_targets.iter()) {
                 let value = program.borrow_value_of(source).clone();
                 if let KnownData::Unknown | KnownData::Void = value {
@@ -107,8 +107,8 @@ pub fn interpret_expression(program: &mut Program, expression: &Expression) -> I
                     _ => (),
                 }
             }
-            let output_sources = program.borrow_scope(body).borrow_outputs();
-            let final_value = Option::None;
+            let output_sources = program.borrow_scope(body).borrow_outputs().clone();
+            let mut final_value = Option::None;
             for (source, target) in output_sources.iter().zip(outputs.iter()) {
                 let value = program.borrow_temporary_value(*source).clone();
                 match target {
