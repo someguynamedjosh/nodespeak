@@ -219,15 +219,14 @@ pub mod convert {
         force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
-        let input_iter = input.into_inner();
+        let mut input_iter = input.into_inner();
         let function_var = lookup_symbol_with_error(
             program,
             scope,
             &input_iter.next().expect("Required by grammar."),
         )?;
-        let inputs = Vec::new();
-        let outputs = Vec::new();
-        let input_pos = FilePosition::from_pair(&input);
+        let mut inputs = Vec::new();
+        let mut outputs = Vec::new();
         for child in input_iter {
             match child.as_rule() {
                 Rule::identifier => unreachable!("Handled above."),
@@ -263,7 +262,7 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
-        let items = Vec::new();
+        let mut items = Vec::new();
         for child in input.into_inner() {
             items.push(convert_expression(program, scope, true, child)?);
         }
@@ -344,7 +343,7 @@ pub mod convert {
             true,
             iter.next().expect("Required by grammer."),
         )?;
-        let indexes = Vec::new();
+        let mut indexes = Vec::new();
         for child in iter {
             match child.as_rule() {
                 Rule::expr_part_1 => unreachable!("Already dealt with above."),
@@ -355,7 +354,7 @@ pub mod convert {
         Result::Ok(match base {
             Expression::Access {
                 base,
-                indexes: existing_indexes,
+                indexes: mut existing_indexes,
             } => {
                 existing_indexes.append(&mut indexes);
                 Expression::Access {
@@ -666,7 +665,7 @@ pub mod convert {
         let mut input_iter = input.into_inner();
         let child = input_iter.next().expect("Identifier required by grammar.");
         let base_var = lookup_symbol_with_error(&program, scope, &child)?;
-        let indexes = Vec::new();
+        let mut indexes = Vec::new();
         for child in input_iter {
             match child.as_rule() {
                 Rule::identifier => unreachable!("Already handled above."),
@@ -811,7 +810,7 @@ pub mod convert {
         };
         let func_scope = program.create_child_scope(scope);
         let mut function = FunctionData::new(func_scope, FilePosition::placeholder());
-        for child in input.into_inner() {
+        for child in input_iter {
             match child.as_rule() {
                 Rule::identifier => unreachable!("Handled above"),
                 Rule::function_signature => {
@@ -855,13 +854,13 @@ pub mod convert {
         data_type: DataType,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let input_iter = input.into_inner();
+        let input_pos = FilePosition::from_pair(&input);
+        let mut input_iter = input.into_inner();
         let (name, variable_position) = {
             let child = input_iter.next().expect("Required by grammar.");
             let position = FilePosition::from_pair(&child);
             (child.as_str(), position)
         };
-        let input_pos = FilePosition::from_pair(&input);
         let variable_id = {
             let variable = Variable::variable(input_pos.clone(), data_type, None);
             program.adopt_and_define_symbol(scope, name, variable)
@@ -962,7 +961,7 @@ pub mod convert {
                 Rule::basic_data_type => {
                     // Array data type stores sizes in the same order as the grammar, biggest to
                     // smallest.
-                    let data_type = convert_basic_data_type(program, scope, child)?;
+                    let mut data_type = convert_basic_data_type(program, scope, child)?;
                     data_type.wrap_with_sizes(sizes);
                     return Result::Ok(data_type);
                 }
@@ -1194,8 +1193,8 @@ pub mod convert {
                     );
                 }
                 Rule::expr => {
-                    program
-                        .add_expression(scope, convert_expression(program, scope, false, child)?);
+                    let expression = convert_expression(program, scope, false, child)?;
+                    program.add_expression(scope, expression);
                 }
                 _ => unreachable!(),
             }
