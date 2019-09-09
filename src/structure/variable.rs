@@ -106,7 +106,7 @@ impl DataType {
     }
 
     // E.G. if sizes is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
-    pub fn wrap_with_sizes(&mut self, sizes: Vec<Expression>) {
+    pub fn wrap_with_sizes(&mut self, mut sizes: Vec<Expression>) {
         sizes.append(&mut self.sizes);
         self.sizes = sizes;
     }
@@ -161,7 +161,7 @@ impl DataType {
 
 impl Display for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        for _ in self.sizes {
+        for _ in self.sizes.iter() {
             write!(formatter, "[todo: size]")?;
         }
         write!(formatter, "{}", self.base)
@@ -281,6 +281,7 @@ impl KnownData {
                     false
                 }
             }
+            _ => panic!("No other base types exist.")
         }
     }
 
