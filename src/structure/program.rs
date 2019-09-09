@@ -209,18 +209,18 @@ impl Program {
     pub fn borrow_value_of<'a>(&'a self, expression: &'a Expression) -> &'a KnownData {
         match expression {
             Expression::Access { base, indexes } => {
+                // TODO handle expressions that need to be interpreted before we can determine
+                // their value.
+                let mut real_indexes = Vec::new();
+                for index in indexes {
+                    match self.borrow_value_of(index) {
+                        // TODO check that value is positive.
+                        KnownData::Int(value) => real_indexes.push(*value as usize),
+                        _ => panic!("TODO error, indexes must be known integers."),
+                    }
+                }
                 let data = self.borrow_value_of(base.borrow());
                 if let KnownData::Array(contents) = data {
-                    // TODO handle expressions that need to be interpreted before we can determine
-                    // their value.
-                    let real_indexes = Vec::new();
-                    for index in indexes {
-                        match self.borrow_value_of(index) {
-                            // TODO check that value is positive.
-                            KnownData::Int(value) => real_indexes.push(*value as usize),
-                            _ => panic!("TODO error, indexes must be known integers."),
-                        }
-                    }
                     if !contents.is_inside(&real_indexes) {
                         panic!("TODO error, indexes must be inside array bounds.")
                     }
@@ -231,24 +231,25 @@ impl Program {
             }
             Expression::Literal(data) => data,
             Expression::Variable(id) => self.borrow_temporary_value(*id),
+            _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
 
     pub fn borrow_value_of_mut(&mut self, expression: &Expression) -> &mut KnownData {
         match expression {
             Expression::Access { base, indexes } => {
+                // TODO handle expressions that need to be interpreted before we can determine
+                // their value.
+                let mut real_indexes = Vec::new();
+                for index in indexes {
+                    match self.borrow_value_of(index) {
+                        // TODO check that value is positive.
+                        KnownData::Int(value) => real_indexes.push(*value as usize),
+                        _ => panic!("TODO error, indexes must be known integers."),
+                    }
+                }
                 let data = self.borrow_value_of_mut(base.borrow());
                 if let KnownData::Array(contents) = data {
-                    // TODO handle expressions that need to be interpreted before we can determine
-                    // their value.
-                    let real_indexes = Vec::new();
-                    for index in indexes {
-                        match self.borrow_value_of(index) {
-                            // TODO check that value is positive.
-                            KnownData::Int(value) => real_indexes.push(*value as usize),
-                            _ => panic!("TODO error, indexes must be known integers."),
-                        }
-                    }
                     if !contents.is_inside(&real_indexes) {
                         panic!("TODO error, indexes must be inside array bounds.")
                     }
@@ -257,8 +258,9 @@ impl Program {
                     panic!("TODO error, base of access expression is not array.")
                 }
             }
-            Expression::Literal(data) => panic!("TODO error, cannot borrow literal as mutable."),
+            Expression::Literal(..) => panic!("TODO error, cannot borrow literal as mutable."),
             Expression::Variable(id) => self.borrow_temporary_value_mut(*id),
+            _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
 
