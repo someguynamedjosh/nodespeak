@@ -1,6 +1,6 @@
 use crate::structure::{KnownData, VariableId};
-use std::fmt::{self, Debug, Formatter};
 use std::borrow::Borrow;
+use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]
 pub enum Expression {
@@ -57,8 +57,8 @@ impl Debug for Expression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Expression::Literal(value) => write!(formatter, "{:?}", value),
-            Expression::Variable(id) => write!(formatter,"{:?}", id),
-            Expression::Access{base, indexes} => {
+            Expression::Variable(id) => write!(formatter, "{:?}", id),
+            Expression::Access { base, indexes } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
                     write!(formatter, "[{:?}]", index)?;
@@ -101,10 +101,16 @@ impl Debug for Expression {
             }
 
             Expression::Assert(value) => write!(formatter, "assert {:?};", value),
-            Expression::Assign{target, value} => write!(formatter, "{:?} = {:?};", target, value),
+            Expression::Assign { target, value } => {
+                write!(formatter, "{:?} = {:?};", target, value)
+            }
             Expression::Return => write!(formatter, "return;"),
 
-            Expression::FuncCall{function, inputs, outputs} => {
+            Expression::FuncCall {
+                function,
+                inputs,
+                outputs,
+            } => {
                 write!(formatter, "{:?}(", function)?;
                 for input in inputs {
                     write!(formatter, "{:?}, ", input)?;

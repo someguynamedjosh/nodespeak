@@ -43,11 +43,19 @@ impl Debug for Program {
         write!(formatter, "entry point: {:?}", self.entry_point)?;
         for (index, scope) in self.scopes.iter().enumerate() {
             write!(formatter, "\ncontents of {:?}:\n", ScopeId(index))?;
-            write!(formatter, "    {}", format!("{:?}", scope).replace("\n", "\n    "))?;
+            write!(
+                formatter,
+                "    {}",
+                format!("{:?}", scope).replace("\n", "\n    ")
+            )?;
         }
         for (index, variable) in self.variables.iter().enumerate() {
             write!(formatter, "\ndetails for {:?}:\n", VariableId(index))?;
-            write!(formatter, "    {}", format!("{:?}", variable).replace("\n", "\n    "))?;
+            write!(
+                formatter,
+                "    {}",
+                format!("{:?}", variable).replace("\n", "\n    ")
+            )?;
         }
         write!(formatter, "")
     }

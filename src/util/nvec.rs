@@ -32,12 +32,55 @@ impl<T: Clone> NVec<T> {
         result
     }
 
+    pub fn from_vec(items: Vec<T>) -> NVec<T> {
+        NVec {
+            multipliers: vec![1],
+            dimensions: vec![items.len()],
+            data: items,
+        }
+    }
+
+    pub fn collect(sub_arrays: Vec<NVec<T>>) -> NVec<T> {
+        assert!(sub_arrays.len() > 0);
+
+        let mut dimensions = sub_arrays[0].dimensions.clone();
+        let mut multipliers = sub_arrays[0].multipliers.clone();
+        for sub_array in sub_arrays.iter() {
+            assert!(sub_array.dimensions == dimensions);
+        }
+        dimensions.insert(0, sub_arrays.len());
+        multipliers.insert(0, sub_arrays[0].data.len());
+
+        let mut data = Vec::new();
+        for mut sub_array in sub_arrays.into_iter() {
+            data.append(&mut sub_array.data);
+        }
+
+        NVec {
+            multipliers,
+            dimensions,
+            data,
+        }
+    }
+
     fn convert_to_raw_index(&self, coordinate: &Vec<usize>) -> usize {
         let mut index = 0;
         for (coord, multiplier) in coordinate.iter().zip(self.multipliers.iter()) {
             index += coord * multiplier;
         }
         index
+    }
+
+    pub fn is_slice_inside(&self, coordinate: &Vec<usize>) -> bool {
+        if coordinate.len() > self.dimensions.len() {
+            return false;
+        }
+        for (coord, max) in coordinate.iter().zip(self.dimensions.iter()) {
+            if coord >= max {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn is_inside(&self, coordinate: &Vec<usize>) -> bool {
@@ -58,6 +101,20 @@ impl<T: Clone> NVec<T> {
         self.data[index] = value;
     }
 
+    pub fn clone_slice(&self, coordinate: &Vec<usize>) -> Self {
+        assert!(self.is_slice_inside(coordinate));
+        let slice_order = coordinate.len();
+        let new_dimensions = Vec::from(&self.dimensions[slice_order..]);
+        let new_multipliers = Vec::from(&self.multipliers[slice_order..]);
+        let start_index = self.convert_to_raw_index(coordinate);
+        let size = new_dimensions[0] * new_multipliers[0];
+        NVec {
+            dimensions: new_dimensions,
+            multipliers: new_multipliers,
+            data: Vec::from(&self.data[start_index..start_index + size]),
+        }
+    }
+
     pub fn borrow_item(&self, coordinate: &Vec<usize>) -> &T {
         assert!(self.is_inside(coordinate));
         &self.data[self.convert_to_raw_index(coordinate)]
@@ -75,5 +132,74 @@ impl<T: Clone> NVec<T> {
 
     pub fn borrow_dimensions(&self) -> &Vec<usize> {
         &self.dimensions
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn store_fetch_1d() {
+        let mut array = NVec::new(vec![8], 0 as usize);
+        for x in 0..8 {
+            array.set_item(&vec![x], x * 2);
+        }
+        for x in 0..8 {
+            assert!(*array.borrow_item(&vec![x]) == x * 2);
+        }
+    }
+
+    #[test]
+    fn store_fetch_2d() {
+        // [4][3]usize
+        let mut array = NVec::new(vec![4, 3], 0 as usize);
+        for x in 0..4 {
+            for y in 0..3 {
+                array.set_item(&vec![x, y], x + y * 10);
+            }
+        }
+        for x in 0..4 {
+            for y in 0..3 {
+                assert!(*array.borrow_item(&vec![x, y]) == x + y * 10);
+            }
+        }
+    }
+
+    #[test]
+    fn collect_2d() {
+        // 3x [6]usize
+        let mut arrays = Vec::with_capacity(3);
+        for x in 0..3 {
+            let mut array = NVec::new(vec![6], 0 as usize);
+            for y in 0..6 {
+                array.set_item(&vec![y], x + y * 10);
+            }
+            arrays.push(array);
+        }
+        // [3][6]usize
+        let collected_array = NVec::collect(arrays);
+        for x in 0..3 {
+            for y in 0..6 {
+                assert!(*collected_array.borrow_item(&vec![x, y]) == x + y * 10);
+            }
+        }
+    }
+
+    #[test]
+    fn slice_2d() {
+        // [4][3]usize
+        let mut array = NVec::new(vec![4, 3], 0 as usize);
+        for x in 0..4 {
+            for y in 0..3 {
+                array.set_item(&vec![x, y], x + y * 10);
+            }
+        }
+        for x in 0..4 {
+            let slice = array.clone_slice(&vec![x]);
+            for y in 0..3 {
+                assert!(*slice.borrow_item(&vec![y]) == x + y * 10);
+            }
+        }
     }
 }

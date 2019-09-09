@@ -13,6 +13,51 @@ pub fn interpret_expression(program: &mut Program, expression: &Expression) -> I
     // All the inputs and outputs should have data types that match the function signatures for the
     // provided builtin.
     match expression {
+        Expression::Literal(data) => InterpreterOutcome::Successful(data.clone()),
+        Expression::Variable(id) => {
+            InterpreterOutcome::Successful(program.borrow_temporary_value(*id).clone())
+        }
+        Expression::Access { base, indexes } => {
+            let base_value = match interpret_expression(program, base) {
+                InterpreterOutcome::Successful(data) => {
+                    match data {
+                        KnownData::Array(data) => data,
+                        _ => {
+                            if indexes.len() == 0 {
+                                return InterpreterOutcome::Successful(data.clone());
+                            } else {
+                                panic!("TODO nice error, trying to index something that isn't an array.")
+                            }
+                        }
+                    }
+                }
+                _ => panic!("TODO: nice error, could not interpret target of access expression."),
+            };
+            let mut index_values = Vec::with_capacity(indexes.len());
+            for index in indexes {
+                index_values.push(match interpret_expression(program, index) {
+                    InterpreterOutcome::Successful(data) => match data {
+                        // TODO: check that value is positive
+                        KnownData::Int(value) => value as usize,
+                        _ => panic!("TODO: nice error"),
+                    },
+                    _ => panic!("TODO: nice error"),
+                });
+            }
+            if index_values.len() == base_value.borrow_dimensions().len() {
+                if !base_value.is_inside(&index_values) {
+                    panic!("TODO: nice error, index not in range.")
+                }
+                InterpreterOutcome::Successful(base_value.borrow_item(&index_values).clone())
+            } else {
+                if !base_value.is_slice_inside(&index_values) {
+                    panic!("TODO: nice error, index not in range.")
+                }
+                InterpreterOutcome::Successful(KnownData::Array(
+                    base_value.clone_slice(&index_values),
+                ))
+            }
+        }
         // TODO: Handle array types.
         Expression::Add(a, b) => InterpreterOutcome::Successful(match program.borrow_value_of(a) {
             KnownData::Bool(_value) => unimplemented!(),
@@ -80,7 +125,12 @@ pub fn interpret_expression(program: &mut Program, expression: &Expression) -> I
             program.borrow_value_of(a) == program.borrow_value_of(b),
         )),
         Expression::Assign { target, value } => {
-            program.set_value_of(target, program.borrow_value_of(value).clone());
+            match interpret_expression(program, value) {
+                InterpreterOutcome::Successful(result) => {
+                    program.set_value_of(target, result.clone())
+                }
+                _ => panic!("TODO: error, interpretation of {:?} failed.", value),
+            }
             InterpreterOutcome::Successful(KnownData::Void)
         }
         Expression::FuncCall {
@@ -118,6 +168,37 @@ pub fn interpret_expression(program: &mut Program, expression: &Expression) -> I
                 }
             }
             InterpreterOutcome::Successful(final_value.unwrap_or(KnownData::Void))
+        }
+        Expression::Collect(expressions) => {
+            let mut values = Vec::with_capacity(expressions.len());
+            for expression in expressions.iter() {
+                match interpret_expression(program, expression) {
+                    InterpreterOutcome::Successful(data) => values.push(data),
+                    _ => panic!("TODO: nice error, failed to interpret value."),
+                }
+            }
+            if values.len() == 0 {
+                InterpreterOutcome::Successful(KnownData::new_array(vec![]))
+            } else {
+                InterpreterOutcome::Successful(KnownData::collect(values))
+            }
+        }
+        Expression::Assert(expression) => {
+            let result = interpret_expression(program, expression);
+            if let InterpreterOutcome::Successful(value) = result {
+                match value {
+                    KnownData::Bool(bool_value) => {
+                        if bool_value {
+                            InterpreterOutcome::Successful(KnownData::Void)
+                        } else {
+                            InterpreterOutcome::AssertFailed(FilePosition::placeholder())
+                        }
+                    }
+                    _ => panic!("TODO: nice error, input to assert is not bool."),
+                }
+            } else {
+                panic!("TODO: nice error, input to assert could not be interpreted.")
+            }
         }
         _ => {
             eprintln!("{:?}", expression);

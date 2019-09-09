@@ -215,6 +215,26 @@ impl KnownData {
         KnownData::Array(NVec::new(dimensions, KnownData::Unknown))
     }
 
+    pub fn collect(items: Vec<KnownData>) -> KnownData {
+        if items.len() == 0 {
+            return KnownData::new_array(vec![]);
+        }
+        // TODO: Ensure that each data type is compatible.
+        if let KnownData::Array(..) = items[0] {
+            let mut combined_data = Vec::with_capacity(items.len());
+            for item in items {
+                if let KnownData::Array(data) = item {
+                    combined_data.push(data);
+                } else {
+                    panic!("TODO nice error, not all data is array.");
+                }
+            }
+            KnownData::Array(NVec::collect(combined_data))
+        } else {
+            KnownData::Array(NVec::from_vec(items))
+        }
+    }
+
     pub fn require_bool(&self) -> bool {
         match self {
             KnownData::Bool(value) => *value,
