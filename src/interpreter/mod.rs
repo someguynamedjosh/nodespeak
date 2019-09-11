@@ -1,3 +1,16 @@
-mod func_call;
+mod interpreter;
+pub(self) mod util;
 
-pub use func_call::*;
+use crate::problem::{FilePosition, CompileProblem};
+use crate::structure::{Expression, KnownData, Program};
+
+pub enum InterpreterOutcome {
+    Specific(KnownData),
+    Returned,
+    UnknownData,
+    UnknownFunction,
+    AssertFailed(FilePosition),
+    Problem(CompileProblem),
+}
+
+pub use interpreter::*;

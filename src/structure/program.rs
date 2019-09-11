@@ -107,15 +107,18 @@ impl Program {
     ) -> Result<(), CompileProblem> {
         assert!(add_to.0 < self.scopes.len());
         if self.automatic_interpretation {
-            match interpreter::interpret_expression(self, &expression) {
+            match interpreter::interpret_expression(self, &expression, false) {
                 InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
                     self.scopes[add_to.0].add_expression(expression)
                 }
                 InterpreterOutcome::AssertFailed(location) => {
                     return Result::Err(problem::guaranteed_assert(location))
                 }
+                InterpreterOutcome::Problem(problem) => {
+                    return Result::Err(problem)
+                }
                 // TODO? check that data is Void
-                InterpreterOutcome::Successful(..) | InterpreterOutcome::Returned => (),
+                InterpreterOutcome::Specific(..) | InterpreterOutcome::Returned => (),
             }
         } else {
             self.scopes[add_to.0].add_expression(expression);

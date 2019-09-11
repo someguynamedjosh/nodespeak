@@ -256,6 +256,27 @@ impl KnownData {
         }
     }
 
+    pub fn require_data_type(&self) -> &DataType {
+        match self {
+            KnownData::DataType(value) => value,
+            _ => panic!("Expected data to be a data type.")
+        }
+    }
+
+    pub fn require_function(&self) -> &FunctionData {
+        match self {
+            KnownData::Function(value) => value,
+            _ => panic!("Expected data to be a function.")
+        }
+    }
+
+    pub fn require_array(&self) -> &NVec<KnownData> {
+        match self {
+            KnownData::Array(value) => value,
+            _ => panic!("Expected data to be an array.")
+        }
+    }
+
     fn matches_base_type(&self, base_type: &BaseType) -> bool {
         match self {
             KnownData::Void => {
