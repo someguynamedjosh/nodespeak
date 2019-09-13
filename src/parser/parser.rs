@@ -553,47 +553,48 @@ pub mod convert {
     ) -> Expression {
         let operand_1 = Box::new(operand_1);
         let operand_2 = Box::new(operand_2);
-        if operator.id == ADD.id {
-            Expression::Add(operand_1, operand_2)
+        let operator = if operator.id == ADD.id {
+            BinaryOperator::Add
         } else if operator.id == SUBTRACT.id {
-            Expression::Subtract(operand_1, operand_2)
+            BinaryOperator::Subtract
         } else if operator.id == MULTIPLY.id {
-            Expression::Multiply(operand_1, operand_2)
+            BinaryOperator::Multiply
         } else if operator.id == DIVIDE.id {
-            Expression::Divide(operand_1, operand_2)
+            BinaryOperator::Divide
         } else if operator.id == INT_DIV.id {
-            Expression::IntDiv(operand_1, operand_2)
+            BinaryOperator::IntDiv
         } else if operator.id == MODULO.id {
-            Expression::Modulo(operand_1, operand_2)
+            BinaryOperator::Modulo
         } else if operator.id == POWER.id {
-            Expression::Power(operand_1, operand_2)
+            BinaryOperator::Power
         } else if operator.id == LTE.id {
-            Expression::LessThanOrEqual(operand_1, operand_2)
+            BinaryOperator::LessThanOrEqual
         } else if operator.id == LT.id {
-            Expression::LessThan(operand_1, operand_2)
+            BinaryOperator::LessThan
         } else if operator.id == GTE.id {
-            Expression::GreaterThanOrEqual(operand_1, operand_2)
+            BinaryOperator::GreaterThanOrEqual
         } else if operator.id == GT.id {
-            Expression::GreaterThan(operand_1, operand_2)
+            BinaryOperator::GreaterThan
         } else if operator.id == EQ.id {
-            Expression::Equal(operand_1, operand_2)
+            BinaryOperator::Equal
         } else if operator.id == NEQ.id {
-            Expression::NotEqual(operand_1, operand_2)
+            BinaryOperator::NotEqual
         } else if operator.id == BAND.id {
-            Expression::BAnd(operand_1, operand_2)
+            BinaryOperator::BAnd
         } else if operator.id == BXOR.id {
-            Expression::BXor(operand_1, operand_2)
+            BinaryOperator::BXor
         } else if operator.id == BOR.id {
-            Expression::BOr(operand_1, operand_2)
+            BinaryOperator::BOr
         } else if operator.id == AND.id {
-            Expression::And(operand_1, operand_2)
+            BinaryOperator::And
         } else if operator.id == XOR.id {
-            Expression::Xor(operand_1, operand_2)
+            BinaryOperator::Xor
         } else if operator.id == OR.id {
-            Expression::Or(operand_1, operand_2)
+            BinaryOperator::Or
         } else {
             unreachable!();
-        }
+        };
+        Expression::BinaryOperation(operand_1, operator, operand_2)
     }
 
     fn convert_expression(

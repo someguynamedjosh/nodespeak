@@ -3,6 +3,76 @@ use std::borrow::Borrow;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]
+pub enum UnaryOperator {
+    Not,
+    BNot,
+    Reciprocal,
+}
+
+impl Debug for UnaryOperator {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            UnaryOperator::Not => write!(formatter, "not"),
+            UnaryOperator::BNot => write!(formatter, "bnot"),
+            UnaryOperator::Reciprocal => write!(formatter, "reciprocal of"),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum BinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    IntDiv,
+    Modulo,
+    Power,
+
+    And,
+    Or,
+    Xor,
+    BAnd,
+    BOr,
+    BXor,
+
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual
+}
+
+impl Debug for BinaryOperator {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            BinaryOperator::Add => write!(formatter, "+"),
+            BinaryOperator::Subtract => write!(formatter, "-"),
+            BinaryOperator::Multiply => write!(formatter, "*"),
+            BinaryOperator::Divide => write!(formatter, "/"),
+            BinaryOperator::IntDiv => write!(formatter, "//"),
+            BinaryOperator::Modulo => write!(formatter, "%"),
+            BinaryOperator::Power => write!(formatter, "**"),
+
+            BinaryOperator::And => write!(formatter, "and"),
+            BinaryOperator::Or => write!(formatter, "or"),
+            BinaryOperator::Xor => write!(formatter, "xor"),
+            BinaryOperator::BAnd => write!(formatter, "band"),
+            BinaryOperator::BOr => write!(formatter, "bor"),
+            BinaryOperator::BXor => write!(formatter, "bxor"),
+
+            BinaryOperator::Equal => write!(formatter, "=="),
+            BinaryOperator::NotEqual => write!(formatter, "!="),
+            BinaryOperator::LessThan => write!(formatter, "<"),
+            BinaryOperator::GreaterThan => write!(formatter, ">"),
+            BinaryOperator::LessThanOrEqual => write!(formatter, "<="),
+            BinaryOperator::GreaterThanOrEqual => write!(formatter, ">="),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub enum Expression {
     Literal(KnownData),
     Variable(VariableId),
@@ -12,30 +82,8 @@ pub enum Expression {
     },
     InlineReturn,
 
-    Add(Box<Expression>, Box<Expression>),
-    Subtract(Box<Expression>, Box<Expression>),
-    Multiply(Box<Expression>, Box<Expression>),
-    Divide(Box<Expression>, Box<Expression>),
-    IntDiv(Box<Expression>, Box<Expression>),
-    Reciprocal(Box<Expression>),
-    Modulo(Box<Expression>, Box<Expression>),
-    Power(Box<Expression>, Box<Expression>),
-
-    And(Box<Expression>, Box<Expression>),
-    Or(Box<Expression>, Box<Expression>),
-    Xor(Box<Expression>, Box<Expression>),
-    Not(Box<Expression>),
-    BAnd(Box<Expression>, Box<Expression>),
-    BOr(Box<Expression>, Box<Expression>),
-    BXor(Box<Expression>, Box<Expression>),
-    BNot(Box<Expression>),
-
-    Equal(Box<Expression>, Box<Expression>),
-    NotEqual(Box<Expression>, Box<Expression>),
-    LessThan(Box<Expression>, Box<Expression>),
-    GreaterThan(Box<Expression>, Box<Expression>),
-    LessThanOrEqual(Box<Expression>, Box<Expression>),
-    GreaterThanOrEqual(Box<Expression>, Box<Expression>),
+    UnaryOperation(UnaryOperator, Box<Expression>),
+    BinaryOperation(Box<Expression>, BinaryOperator, Box<Expression>),
 
     Collect(Vec<Expression>),
 
@@ -67,30 +115,8 @@ impl Debug for Expression {
             }
             Expression::InlineReturn => write!(formatter, "inline"),
 
-            Expression::Add(v1, v2) => write!(formatter, "({:?} + {:?})", v1, v2),
-            Expression::Subtract(v1, v2) => write!(formatter, "({:?} - {:?})", v1, v2),
-            Expression::Multiply(v1, v2) => write!(formatter, "({:?} * {:?})", v1, v2),
-            Expression::Divide(v1, v2) => write!(formatter, "({:?} / {:?})", v1, v2),
-            Expression::IntDiv(v1, v2) => write!(formatter, "({:?} // {:?})", v1, v2),
-            Expression::Reciprocal(v1) => write!(formatter, "(reciprocal of {:?})", v1),
-            Expression::Modulo(v1, v2) => write!(formatter, "({:?} % {:?})", v1, v2),
-            Expression::Power(v1, v2) => write!(formatter, "({:?} ** {:?})", v1, v2),
-
-            Expression::And(v1, v2) => write!(formatter, "({:?} and {:?})", v1, v2),
-            Expression::Or(v1, v2) => write!(formatter, "({:?} or {:?})", v1, v2),
-            Expression::Xor(v1, v2) => write!(formatter, "({:?} xor {:?})", v1, v2),
-            Expression::Not(v1) => write!(formatter, "(not {:?})", v1),
-            Expression::BAnd(v1, v2) => write!(formatter, "({:?} band {:?})", v1, v2),
-            Expression::BOr(v1, v2) => write!(formatter, "({:?} bor {:?})", v1, v2),
-            Expression::BXor(v1, v2) => write!(formatter, "({:?} bxor {:?})", v1, v2),
-            Expression::BNot(v1) => write!(formatter, "(bnot {:?})", v1),
-
-            Expression::Equal(v1, v2) => write!(formatter, "({:?} == {:?})", v1, v2),
-            Expression::NotEqual(v1, v2) => write!(formatter, "({:?} != {:?})", v1, v2),
-            Expression::LessThan(v1, v2) => write!(formatter, "({:?} < {:?})", v1, v2),
-            Expression::GreaterThan(v1, v2) => write!(formatter, "({:?} > {:?})", v1, v2),
-            Expression::LessThanOrEqual(v1, v2) => write!(formatter, "({:?} <= {:?})", v1, v2),
-            Expression::GreaterThanOrEqual(v1, v2) => write!(formatter, "({:?} >= {:?})", v1, v2),
+            Expression::UnaryOperation(operator, value) => write!(formatter, "({:?} {:?}", operator, value),
+            Expression::BinaryOperation(v1, operator, v2) => write!(formatter, "({:?} {:?} {:?}", v1, operator, v2),
 
             Expression::Collect(values) => {
                 write!(formatter, "[")?;
