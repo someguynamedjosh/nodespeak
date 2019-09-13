@@ -1,7 +1,7 @@
-use crate::problem::{FilePosition, CompileProblem};
-use crate::structure::{Expression, KnownData, Program};
-use crate::interpreter::InterpreterOutcome;
 use super::util;
+use crate::interpreter::InterpreterOutcome;
+use crate::problem::{CompileProblem, FilePosition};
+use crate::structure::{Expression, KnownData, Program};
 use std::borrow::Borrow;
 
 struct Interpreter<'a> {
@@ -21,24 +21,24 @@ impl<'a> Interpreter<'a> {
                 let data = self.program.borrow_temporary_value(*id).clone();
                 match data {
                     KnownData::Unknown | KnownData::Void => UnknownData,
-                    _ => Specific(data)
+                    _ => Specific(data),
                 }
             }
             Expression::Access { base, indexes } => {
                 let base_value = match self.interpret(base) {
-                    Specific(data) => {
-                        match data {
-                            KnownData::Array(data) => data,
-                            _ => {
-                                if indexes.len() == 0 {
-                                    return Specific(data.clone());
-                                } else {
-                                    panic!("TODO nice error, trying to index something that isn't an array.")
-                                }
+                    Specific(data) => match data {
+                        KnownData::Array(data) => data,
+                        _ => {
+                            if indexes.len() == 0 {
+                                return Specific(data.clone());
+                            } else {
+                                panic!("TODO nice error, trying to index something that isn't an array.")
                             }
                         }
+                    },
+                    _ => {
+                        panic!("TODO: nice error, could not interpret target of access expression.")
                     }
-                    _ => panic!("TODO: nice error, could not interpret target of access expression."),
                 };
                 let mut index_values = Vec::with_capacity(indexes.len());
                 for index in indexes {
@@ -60,33 +60,29 @@ impl<'a> Interpreter<'a> {
                     if !base_value.is_slice_inside(&index_values) {
                         panic!("TODO: nice error, index not in range.")
                     }
-                    Specific(KnownData::Array(
-                        base_value.clone_slice(&index_values),
-                    ))
+                    Specific(KnownData::Array(base_value.clone_slice(&index_values)))
                 }
             }
             Expression::BinaryOperation(a, operator, b) => {
                 let a_result = self.interpret(a.borrow());
                 let a_data = match a_result {
                     InterpreterOutcome::Specific(data) => data,
-                    _ => return a_result
+                    _ => return a_result,
                 };
                 let b_result = self.interpret(b.borrow());
                 let b_data = match b_result {
                     InterpreterOutcome::Specific(data) => data,
-                    _ => return b_result
+                    _ => return b_result,
                 };
                 let result = util::compute_binary_operation(&a_data, *operator, &b_data);
                 match result {
                     KnownData::Void | KnownData::Unknown => InterpreterOutcome::UnknownData,
-                    _ => InterpreterOutcome::Specific(result)
+                    _ => InterpreterOutcome::Specific(result),
                 }
             }
             Expression::Assign { target, value } => {
                 match self.interpret(value) {
-                    Specific(result) => {
-                        self.program.set_value_of(target, result.clone())
-                    }
+                    Specific(result) => self.program.set_value_of(target, result.clone()),
                     _ => panic!("TODO: error, interpretation of {:?} failed.", value),
                 }
                 Specific(KnownData::Void)
@@ -165,10 +161,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn from_entry_point(
-        &mut self,
-        inputs: Vec<KnownData>,
-    ) -> Result<Vec<KnownData>, String> {
+    fn from_entry_point(&mut self, inputs: Vec<KnownData>) -> Result<Vec<KnownData>, String> {
         let entry_point_id = self.program.get_entry_point();
         let entry_point = self.program.borrow_scope(entry_point_id);
 
@@ -184,7 +177,10 @@ impl<'a> Interpreter<'a> {
         for (source, target) in inputs.into_iter().zip(input_targets.iter()) {
             self.program.set_temporary_value(target.clone(), source);
         }
-        for expression in self.program.clone_scope_body(self.program.get_entry_point()) {
+        for expression in self
+            .program
+            .clone_scope_body(self.program.get_entry_point())
+        {
             match self.interpret(&expression) {
                 InterpreterOutcome::Returned => break,
                 InterpreterOutcome::AssertFailed(_position) => {
@@ -197,13 +193,16 @@ impl<'a> Interpreter<'a> {
                 }
                 InterpreterOutcome::UnknownFunction => {
                     // TODO: Better error.
-                    return Result::Err("Could not determine which function to expression.".to_owned());
+                    return Result::Err(
+                        "Could not determine which function to expression.".to_owned(),
+                    );
                 }
                 _ => (),
             }
         }
 
-        let output_sources = self.program
+        let output_sources = self
+            .program
             .borrow_scope(entry_point_id)
             .borrow_outputs()
             .clone();
@@ -216,19 +215,28 @@ impl<'a> Interpreter<'a> {
     }
 }
 
-pub fn interpret_expression(program: &mut Program, expression: &Expression, error_on_unknown: bool) -> InterpreterOutcome {
+pub fn interpret_expression(
+    program: &mut Program,
+    expression: &Expression,
+    error_on_unknown: bool,
+) -> InterpreterOutcome {
     Interpreter {
         program,
-        error_on_unknown
-    }.interpret(expression)
+        error_on_unknown,
+    }
+    .interpret(expression)
 }
 
 /// Interprets a self.program starting from its entry point. Uses the provided vector of data to
 /// initialize all the input variables. If any of the input data do not match the types of their
 /// respective input variables, the function panics.
-pub fn interpret_from_entry_point(program: &mut Program, inputs: Vec<KnownData>) -> Result<Vec<KnownData>, String> {
+pub fn interpret_from_entry_point(
+    program: &mut Program,
+    inputs: Vec<KnownData>,
+) -> Result<Vec<KnownData>, String> {
     Interpreter {
         program,
-        error_on_unknown: true
-    }.from_entry_point(inputs)
+        error_on_unknown: true,
+    }
+    .from_entry_point(inputs)
 }

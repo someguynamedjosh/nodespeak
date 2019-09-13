@@ -114,9 +114,7 @@ impl Program {
                 InterpreterOutcome::AssertFailed(location) => {
                     return Result::Err(problem::guaranteed_assert(location))
                 }
-                InterpreterOutcome::Problem(problem) => {
-                    return Result::Err(problem)
-                }
+                InterpreterOutcome::Problem(problem) => return Result::Err(problem),
                 // TODO? check that data is Void
                 InterpreterOutcome::Specific(..) | InterpreterOutcome::Returned => (),
             }

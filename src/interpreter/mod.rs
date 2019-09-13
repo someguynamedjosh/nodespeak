@@ -1,7 +1,8 @@
 mod interpreter;
+mod resolver;
 pub(self) mod util;
 
-use crate::problem::{FilePosition, CompileProblem};
+use crate::problem::{CompileProblem, FilePosition};
 use crate::structure::{Expression, KnownData, Program};
 
 pub enum InterpreterOutcome {
@@ -14,3 +15,4 @@ pub enum InterpreterOutcome {
 }
 
 pub use interpreter::*;
+pub use resolver::*;
