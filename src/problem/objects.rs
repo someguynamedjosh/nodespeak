@@ -14,6 +14,14 @@ pub struct FilePosition {
     file: usize,
 }
 
+impl PartialEq for FilePosition {
+    // This allows us to derive ParialEq implementations for other types that have a child of type
+    // FilePosition. The equality of these tyeps are never dependent on their position in the file.
+    fn eq(&self, other: &Self) -> bool {
+        true
+    }
+}
+
 impl FilePosition {
     pub fn from_pair<R: RuleType>(pair: &Pair<R>) -> FilePosition {
         let span = pair.as_span();
@@ -68,6 +76,11 @@ impl FilePosition {
         let span = pair.as_span();
         self.start_pos = cmp::min(self.start_pos, span.start());
         self.end_pos = cmp::max(self.end_pos, span.end());
+    }
+
+    pub fn include_other(&mut self, other: &Self) {
+        self.start_pos = cmp::min(self.start_pos, other.start_pos);
+        self.end_pos = cmp::max(self.end_pos, other.end_pos);
     }
 }
 

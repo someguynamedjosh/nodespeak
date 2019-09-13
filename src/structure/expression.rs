@@ -1,5 +1,5 @@
+use crate::problem::FilePosition;
 use crate::structure::{KnownData, VariableId};
-use std::borrow::Borrow;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -74,55 +74,63 @@ impl Debug for BinaryOperator {
 
 #[derive(Clone, PartialEq)]
 pub enum Expression {
-    Literal(KnownData),
-    Variable(VariableId),
+    Literal(KnownData, FilePosition),
+    Variable(VariableId, FilePosition),
     Access {
         base: Box<Expression>,
         indexes: Vec<Expression>,
+        position: FilePosition,
     },
-    InlineReturn,
+    InlineReturn(FilePosition),
 
-    UnaryOperation(UnaryOperator, Box<Expression>),
-    BinaryOperation(Box<Expression>, BinaryOperator, Box<Expression>),
+    UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
+    BinaryOperation(
+        Box<Expression>,
+        BinaryOperator,
+        Box<Expression>,
+        FilePosition,
+    ),
 
-    Collect(Vec<Expression>),
+    Collect(Vec<Expression>, FilePosition),
 
-    Assert(Box<Expression>),
+    Assert(Box<Expression>, FilePosition),
     Assign {
         target: Box<Expression>,
         value: Box<Expression>,
+        position: FilePosition,
     },
-    Return,
+    Return(FilePosition),
 
     FuncCall {
         function: Box<Expression>,
         inputs: Vec<Expression>,
         outputs: Vec<Expression>,
+        position: FilePosition,
     },
 }
 
 impl Debug for Expression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Literal(value) => write!(formatter, "{:?}", value),
-            Expression::Variable(id) => write!(formatter, "{:?}", id),
-            Expression::Access { base, indexes } => {
+            Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
+            Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
+            Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
                     write!(formatter, "[{:?}]", index)?;
                 }
                 write!(formatter, "")
             }
-            Expression::InlineReturn => write!(formatter, "inline"),
+            Expression::InlineReturn(..) => write!(formatter, "inline"),
 
-            Expression::UnaryOperation(operator, value) => {
+            Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
             }
-            Expression::BinaryOperation(v1, operator, v2) => {
+            Expression::BinaryOperation(v1, operator, v2, ..) => {
                 write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
 
-            Expression::Collect(values) => {
+            Expression::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
                     write!(formatter, "{:?}, ", value)?;
@@ -130,16 +138,17 @@ impl Debug for Expression {
                 write!(formatter, "]")
             }
 
-            Expression::Assert(value) => write!(formatter, "assert {:?};", value),
-            Expression::Assign { target, value } => {
+            Expression::Assert(value, ..) => write!(formatter, "assert {:?};", value),
+            Expression::Assign { target, value, .. } => {
                 write!(formatter, "{:?} = {:?};", target, value)
             }
-            Expression::Return => write!(formatter, "return;"),
+            Expression::Return(..) => write!(formatter, "return;"),
 
             Expression::FuncCall {
                 function,
                 inputs,
                 outputs,
+                ..
             } => {
                 write!(formatter, "{:?}(", function)?;
                 for input in inputs {
@@ -151,6 +160,24 @@ impl Debug for Expression {
                 }
                 write!(formatter, ")")
             }
+        }
+    }
+}
+
+impl Expression {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Expression::Literal(_, position)
+            | Expression::Variable(_, position)
+            | Expression::Access { position, .. }
+            | Expression::InlineReturn(position)
+            | Expression::UnaryOperation(_, _, position)
+            | Expression::BinaryOperation(_, _, _, position)
+            | Expression::Collect(_, position)
+            | Expression::Assert(_, position)
+            | Expression::Assign { position, .. }
+            | Expression::Return(position)
+            | Expression::FuncCall { position, .. } => position.clone(),
         }
     }
 }

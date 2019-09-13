@@ -1,4 +1,4 @@
-use crate::problem::CompileProblem;
+use crate::problem::{CompileProblem, FilePosition};
 use crate::structure::{BinaryOperator, Expression, KnownData, Program, ScopeId, VariableId};
 use crate::util::NVec;
 use std::borrow::Borrow;
@@ -109,7 +109,10 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_access_expression(
         &mut self,
         resolved_base: ResolveExpressionResult,
+        mut base_position: FilePosition,
         resolved_indexes: Vec<ResolveExpressionResult>,
+        index_positions: Vec<FilePosition>,
+        position: FilePosition,
     ) -> Result<ResolveExpressionResult, CompileProblem> {
         Result::Ok(match resolved_base {
             // If the base of the access has a value known at compile time...
@@ -118,29 +121,36 @@ impl<'a> ScopeResolver<'a> {
                     KnownData::Array(data) => data,
                     _ => panic!("TODO: nice error, cannot index non-array."),
                 };
-                // Figure out how much of the indexing we can do at compile time.
                 let mut known_indexes = Vec::new();
                 let mut dynamic_indexes = Vec::new();
                 let mut known = true;
-                for index in resolved_indexes {
-                    // Once we hit an index that cannot be determined at compile time, everything
-                    // after that must be used at run time.
-                    if let ResolveExpressionResult::Modified(..) = index {
-                        known = false;
-                    }
+                // Figure out how much of the indexing we can do at compile time.
+                for (index, index_position) in resolved_indexes
+                    .into_iter()
+                    .zip(index_positions.into_iter())
+                {
                     match index {
+                        // If we know the value of the index...
                         ResolveExpressionResult::Interpreted(value) => {
+                            // If we still know all the indexes up until this point...
                             if known {
+                                base_position.include_other(&index_position);
+                                // Store the integer value of the index.
                                 known_indexes.push(match value {
                                     // TODO: check that number is positive.
                                     KnownData::Int(data) => data as usize,
                                     _ => panic!("TODO: nice error, index must be int."),
                                 });
                             } else {
-                                dynamic_indexes.push(Expression::Literal(value));
+                                // Otherwise, add it as a dynamic (run-time) index.
+                                dynamic_indexes.push(Expression::Literal(value, index_position));
                             }
                         }
+                        // Otherwise, we will have to find the value at run time.
                         ResolveExpressionResult::Modified(expression) => {
+                            // Once we hit an index that cannot be determined at compile time,
+                            // everything after that must be used at run time.
+                            known = false;
                             dynamic_indexes.push(expression);
                         }
                     }
@@ -180,19 +190,26 @@ impl<'a> ScopeResolver<'a> {
                 // Otherwise, make an access expression using the leftover dynamic indexes.
                 } else {
                     ResolveExpressionResult::Modified(Expression::Access {
-                        base: Box::new(Expression::Literal(KnownData::Array(base_data))),
+                        base: Box::new(Expression::Literal(
+                            KnownData::Array(base_data),
+                            base_position,
+                        )),
                         indexes: dynamic_indexes,
+                        position,
                     })
                 }
             }
             // If the base of the access does not have a value known at compile time...
             ResolveExpressionResult::Modified(new_base) => {
                 let mut new_indexes = Vec::with_capacity(resolved_indexes.len());
-                for index in resolved_indexes.into_iter() {
+                for (index, index_position) in resolved_indexes
+                    .into_iter()
+                    .zip(index_positions.into_iter())
+                {
                     match index {
                         // If we know the value of the index, make a literal expression out of it.
                         ResolveExpressionResult::Interpreted(value) => {
-                            new_indexes.push(Expression::Literal(value));
+                            new_indexes.push(Expression::Literal(value, index_position));
                         }
                         // Otherwise, keep the simplified expression.
                         ResolveExpressionResult::Modified(expression) => {
@@ -204,6 +221,7 @@ impl<'a> ScopeResolver<'a> {
                 ResolveExpressionResult::Modified(Expression::Access {
                     base: Box::new(new_base),
                     indexes: new_indexes,
+                    position,
                 })
             }
         })
@@ -212,8 +230,11 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_binary_expression(
         &mut self,
         resolved_operand_1: ResolveExpressionResult,
+        operand_1_position: FilePosition,
         operator: BinaryOperator,
         resolved_operand_2: ResolveExpressionResult,
+        operand_2_position: FilePosition,
+        position: FilePosition,
     ) -> Result<ResolveExpressionResult, CompileProblem> {
         Result::Ok(match resolved_operand_1 {
             ResolveExpressionResult::Interpreted(dat1) => match resolved_operand_2 {
@@ -226,9 +247,10 @@ impl<'a> ScopeResolver<'a> {
                 // the resulting expression.
                 ResolveExpressionResult::Modified(expr2) => {
                     ResolveExpressionResult::Modified(Expression::BinaryOperation(
-                        Box::new(Expression::Literal(dat1)),
+                        Box::new(Expression::Literal(dat1, operand_1_position)),
                         operator,
                         Box::new(expr2),
+                        position,
                     ))
                 }
             },
@@ -239,13 +261,19 @@ impl<'a> ScopeResolver<'a> {
                     ResolveExpressionResult::Modified(Expression::BinaryOperation(
                         Box::new(expr1),
                         operator,
-                        Box::new(Expression::Literal(dat2)),
+                        Box::new(Expression::Literal(dat2, operand_2_position)),
+                        position,
                     ))
                 }
                 // LHS and RHS couldn't be interpreted, only simplified.
-                ResolveExpressionResult::Modified(expr2) => ResolveExpressionResult::Modified(
-                    Expression::BinaryOperation(Box::new(expr1), operator, Box::new(expr2)),
-                ),
+                ResolveExpressionResult::Modified(expr2) => {
+                    ResolveExpressionResult::Modified(Expression::BinaryOperation(
+                        Box::new(expr1),
+                        operator,
+                        Box::new(expr2),
+                        position,
+                    ))
+                }
             },
         })
     }
@@ -257,20 +285,30 @@ impl<'a> ScopeResolver<'a> {
         access_expression: &Expression,
     ) -> Result<Expression, CompileProblem> {
         Result::Ok(match access_expression {
-            Expression::Variable(id) => Expression::Variable(self.convert(*id)),
-            Expression::Access { base, indexes } => {
+            Expression::Variable(id, position) => {
+                Expression::Variable(self.convert(*id), position.clone())
+            }
+            Expression::Access {
+                base,
+                indexes,
+                position,
+            } => {
                 let resolved_base = self.resolve_assignment_access_expression(base)?;
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
+                    let index_position = index.clone_position();
                     let resolved_index = self.resolve_expression(index)?;
                     resolved_indexes.push(match resolved_index {
-                        ResolveExpressionResult::Interpreted(value) => Expression::Literal(value),
+                        ResolveExpressionResult::Interpreted(value) => {
+                            Expression::Literal(value, index_position)
+                        }
                         ResolveExpressionResult::Modified(expression) => expression,
                     });
                 }
                 Expression::Access {
                     base: Box::new(resolved_base),
                     indexes: resolved_indexes,
+                    position: position.clone(),
                 }
             }
             _ => unreachable!("No other expression types found in assignment access expressions."),
@@ -285,21 +323,23 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         target: &Expression,
         value: KnownData,
+        position: FilePosition,
     ) -> Result<Result<(), Expression>, CompileProblem> {
         Result::Ok(match target {
-            Expression::Variable(id) => {
+            Expression::Variable(id, ..) => {
                 self.program.set_temporary_value(self.convert(*id), value);
                 Result::Ok(())
             }
-            Expression::Access { base, indexes } => {
-                let base_var_id = match base.borrow() {
-                    Expression::Variable(id) => self.convert(*id),
+            Expression::Access { base, indexes, .. } => {
+                let (base_var_id, base_var_pos) = match base.borrow() {
+                    Expression::Variable(id, position) => (self.convert(*id), position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
                 let mut all_indexes_known = true;
                 let mut known_indexes = Vec::new();
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
+                    let index_position = index.clone_position();
                     let result = self.resolve_expression(index)?;
                     match result {
                         ResolveExpressionResult::Interpreted(value) => {
@@ -310,9 +350,11 @@ impl<'a> ScopeResolver<'a> {
                                 } else {
                                     panic!("TODO: nice error, index must be int.");
                                 }
-                            } else {
-                                resolved_indexes.push(Expression::Literal(value));
                             }
+                            // Also put a literal into resolved indexes in case we don't know all
+                            // the indexes and need to construct a runtime expression to set the
+                            // value.
+                            resolved_indexes.push(Expression::Literal(value, index_position));
                         }
                         ResolveExpressionResult::Modified(expression) => {
                             resolved_indexes.push(expression);
@@ -329,12 +371,13 @@ impl<'a> ScopeResolver<'a> {
                     Result::Ok(())
                 } else {
                     Result::Err(Expression::Access {
-                        base: Box::new(Expression::Variable(base_var_id)),
+                        base: Box::new(Expression::Variable(base_var_id, base_var_pos)),
                         indexes: resolved_indexes,
+                        position,
                     })
                 }
             }
-            _ => unreachable!("Assignment target cannot contain any other expressions.")
+            _ => unreachable!("Assignment target cannot contain any other expressions."),
         })
     }
 
@@ -343,41 +386,66 @@ impl<'a> ScopeResolver<'a> {
         old_expression: &Expression,
     ) -> Result<ResolveExpressionResult, CompileProblem> {
         Result::Ok(match old_expression {
-            Expression::Literal(value) => ResolveExpressionResult::Interpreted(value.clone()),
-            Expression::Variable(id) => {
+            Expression::Literal(value, ..) => ResolveExpressionResult::Interpreted(value.clone()),
+            Expression::Variable(id, position) => {
                 let converted_id = self.convert(*id);
                 let variable = self.program.borrow_variable(converted_id);
                 let temporary_value = variable.borrow_temporary_value();
                 match temporary_value {
-                    KnownData::Unknown => {
-                        ResolveExpressionResult::Modified(Expression::Variable(converted_id))
-                    }
+                    KnownData::Unknown => ResolveExpressionResult::Modified(Expression::Variable(
+                        converted_id,
+                        position.clone(),
+                    )),
                     _ => ResolveExpressionResult::Interpreted(temporary_value.clone()),
                 }
             }
-            Expression::Access { base, indexes } => {
+            Expression::Access {
+                base,
+                indexes,
+                position,
+            } => {
                 // TODO: Optimize accessing values in big arrays so that we don't have to clone
                 // the entire array to pick out one value.
+                let base_position = base.clone_position();
                 let resolved_base = self.resolve_expression(base)?;
+                let mut index_positions = Vec::with_capacity(indexes.len());
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
+                    index_positions.push(index.clone_position());
                     resolved_indexes.push(self.resolve_expression(index)?);
                 }
-                self.resolve_access_expression(resolved_base, resolved_indexes)?
+                self.resolve_access_expression(
+                    resolved_base,
+                    base_position,
+                    resolved_indexes,
+                    index_positions,
+                    position.clone(),
+                )?
             }
-            Expression::InlineReturn => unimplemented!(),
+            Expression::InlineReturn(..) => unimplemented!(),
 
             Expression::UnaryOperation(..) => unimplemented!(),
-            Expression::BinaryOperation(operand_1, operator, operand_2) => {
+            Expression::BinaryOperation(operand_1, operator, operand_2, position) => {
+                let operand_1_position = operand_1.clone_position();
                 let resolved_operand_1 = self.resolve_expression(operand_1)?;
+                let operand_2_position = operand_2.clone_position();
                 let resolved_operand_2 = self.resolve_expression(operand_2)?;
-                self.resolve_binary_expression(resolved_operand_1, *operator, resolved_operand_2)?
+                self.resolve_binary_expression(
+                    resolved_operand_1,
+                    operand_1_position,
+                    *operator,
+                    resolved_operand_2,
+                    operand_2_position,
+                    position.clone(),
+                )?
             }
 
-            Expression::Collect(values) => {
+            Expression::Collect(values, position) => {
                 let mut resolved_values = Vec::with_capacity(values.len());
+                let mut value_positions = Vec::with_capacity(values.len());
                 let mut all_known = true;
                 for value in values {
+                    value_positions.push(value.clone_position());
                     let resolved_value = self.resolve_expression(value)?;
                     if let ResolveExpressionResult::Modified(..) = &resolved_value {
                         all_known = false;
@@ -414,19 +482,21 @@ impl<'a> ScopeResolver<'a> {
                 } else {
                     let mut items = Vec::with_capacity(resolved_values.len());
                     // Standard treatment, fully interpreted values become literal expressions.
-                    for value in resolved_values.into_iter() {
+                    for (value, value_position) in
+                        resolved_values.into_iter().zip(value_positions.into_iter())
+                    {
                         match value {
                             ResolveExpressionResult::Interpreted(value) => {
-                                items.push(Expression::Literal(value))
+                                items.push(Expression::Literal(value, value_position))
                             }
                             ResolveExpressionResult::Modified(expression) => items.push(expression),
                         }
                     }
-                    ResolveExpressionResult::Modified(Expression::Collect(items))
+                    ResolveExpressionResult::Modified(Expression::Collect(items, position.clone()))
                 }
             }
 
-            Expression::Assert(value) => {
+            Expression::Assert(value, position) => {
                 let resolved_value = self.resolve_expression(value)?;
                 match resolved_value {
                     ResolveExpressionResult::Interpreted(value) => {
@@ -441,34 +511,41 @@ impl<'a> ScopeResolver<'a> {
                         }
                     }
                     ResolveExpressionResult::Modified(expression) => {
-                        ResolveExpressionResult::Modified(Expression::Assert(Box::new(expression)))
+                        ResolveExpressionResult::Modified(Expression::Assert(
+                            Box::new(expression),
+                            position.clone(),
+                        ))
                     }
                 }
             }
-            Expression::Assign { target, value } => {
-                match self.resolve_expression(value)? {
-                    ResolveExpressionResult::Interpreted(known_value) => {
-                        let result = self.assign_value_to_expression(target, known_value)?;
-                        if let Result::Err(resolved_expresion) = result {
-                            ResolveExpressionResult::Modified(resolved_expresion)
-                        } else {
-                            ResolveExpressionResult::Interpreted(KnownData::Void)
-                        }
-                    }
-                    ResolveExpressionResult::Modified(resolved_value) => {
-                        let resolved_target = self.resolve_assignment_access_expression(target)?;
-                        ResolveExpressionResult::Modified(Expression::Assign {
-                            target: Box::new(resolved_target),
-                            value: Box::new(resolved_value),
-                        })
+            Expression::Assign {
+                target,
+                value,
+                position,
+            } => match self.resolve_expression(value)? {
+                ResolveExpressionResult::Interpreted(known_value) => {
+                    let result =
+                        self.assign_value_to_expression(target, known_value, position.clone())?;
+                    if let Result::Err(resolved_expresion) = result {
+                        ResolveExpressionResult::Modified(resolved_expresion)
+                    } else {
+                        ResolveExpressionResult::Interpreted(KnownData::Void)
                     }
                 }
+                ResolveExpressionResult::Modified(resolved_value) => {
+                    let resolved_target = self.resolve_assignment_access_expression(target)?;
+                    ResolveExpressionResult::Modified(Expression::Assign {
+                        target: Box::new(resolved_target),
+                        value: Box::new(resolved_value),
+                        position: position.clone(),
+                    })
+                }
+            },
+            Expression::Return(position) => {
+                ResolveExpressionResult::Modified(Expression::Return(position.clone()))
             }
-            Expression::Return => ResolveExpressionResult::Modified(Expression::Return),
 
-            Expression::FuncCall{..} => {
-                unimplemented!()
-            }
+            Expression::FuncCall { .. } => unimplemented!(),
         })
     }
 
@@ -482,9 +559,9 @@ impl<'a> ScopeResolver<'a> {
                 ResolveExpressionResult::Interpreted(..) => (),
                 ResolveExpressionResult::Modified(expression) => match expression {
                     // TODO: Warn for expressions that have outputs that are not stored.
-                    Expression::Return => break,
-                    _ => self.program.add_expression(copied, expression)
-                }
+                    Expression::Return(..) => break,
+                    _ => self.program.add_expression(copied, expression),
+                },
             }
         }
         Result::Ok(copied)

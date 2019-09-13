@@ -191,7 +191,9 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::func_output_return_inline => outputs.push(Expression::InlineReturn),
+                Rule::func_output_return_inline => {
+                    outputs.push(Expression::InlineReturn(FilePosition::from_pair(&child)))
+                }
                 Rule::func_output_var_dec => unimplemented!(),
                 Rule::assign_expr => {
                     outputs.push(convert_assign_expr(program, scope, child)?);
@@ -221,12 +223,11 @@ pub mod convert {
         force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
         let mut input_iter = input.into_inner();
-        let function_var = lookup_symbol_with_error(
-            program,
-            scope,
-            &input_iter.next().expect("Required by grammar."),
-        )?;
+        let function_identifier = input_iter.next().expect("Required by grammar.");
+        let identifier_pos = FilePosition::from_pair(&function_identifier);
+        let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
         for child in input_iter {
@@ -246,16 +247,17 @@ pub mod convert {
         }
         if force_func_output {
             if outputs.len() == 0 {
-                outputs.push(Expression::InlineReturn)
+                outputs.push(Expression::InlineReturn(input_pos.clone()))
             } else {
                 // TODO implement programmer-specified inline return values.
                 panic!("TODO error, source code already specified outputs for function.")
             }
         }
         Result::Ok(Expression::FuncCall {
-            function: Box::new(Expression::Variable(function_var)),
+            function: Box::new(Expression::Variable(function_var, identifier_pos)),
             inputs,
             outputs,
+            position: input_pos,
         })
     }
 
@@ -264,11 +266,12 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
         let mut items = Vec::new();
         for child in input.into_inner() {
             items.push(convert_expression(program, scope, true, child)?);
         }
-        return Result::Ok(Expression::Collect(items));
+        return Result::Ok(Expression::Collect(items, input_pos));
     }
 
     fn convert_expr_part_1(
@@ -278,39 +281,41 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
         for child in input.into_inner() {
+            let child_pos = FilePosition::from_pair(&child);
             match child.as_rule() {
                 Rule::bin_int => {
                     let value = parse_bin_int(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value), child_pos));
                 }
                 Rule::hex_int => {
                     let value = parse_hex_int(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value), child_pos));
                 }
                 Rule::oct_int => {
                     let value = parse_oct_int(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value), child_pos));
                 }
                 Rule::legacy_oct_int => {
                     // TODO: Warning for using legacy oct format.
                     let value = parse_legacy_oct_int(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value), child_pos));
                 }
                 Rule::dec_int => {
                     let value = parse_dec_int(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Int(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Int(value), child_pos));
                 }
                 Rule::float => {
                     let value = parse_float(child.as_str());
-                    return Result::Ok(Expression::Literal(KnownData::Float(value)));
+                    return Result::Ok(Expression::Literal(KnownData::Float(value), child_pos));
                 }
                 Rule::func_expr => {
                     return convert_func_expr(program, scope, force_func_output, child)
                 }
                 Rule::identifier => {
-                    return Result::Ok(Expression::Variable(lookup_symbol_with_error(
-                        &program, scope, &child,
-                    )?))
+                    return Result::Ok(Expression::Variable(
+                        lookup_symbol_with_error(&program, scope, &child)?,
+                        child_pos,
+                    ))
                 }
                 Rule::expr => {
                     return convert_expression(program, scope, true, child);
@@ -338,6 +343,7 @@ pub mod convert {
         force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
         let mut iter = input.into_inner();
         let base = convert_expr_part_1(
             program,
@@ -357,16 +363,19 @@ pub mod convert {
             Expression::Access {
                 base,
                 indexes: mut existing_indexes,
+                ..
             } => {
                 existing_indexes.append(&mut indexes);
                 Expression::Access {
                     base,
                     indexes: existing_indexes,
+                    position: input_pos,
                 }
             }
             _ => Expression::Access {
                 base: Box::new(base),
                 indexes,
+                position: input_pos,
             },
         })
     }
@@ -550,6 +559,7 @@ pub mod convert {
         operator: &Operator,
         operand_1: Expression,
         operand_2: Expression,
+        position: FilePosition,
     ) -> Expression {
         let operand_1 = Box::new(operand_1);
         let operand_2 = Box::new(operand_2);
@@ -594,7 +604,7 @@ pub mod convert {
         } else {
             unreachable!();
         };
-        Expression::BinaryOperation(operand_1, operator, operand_2)
+        Expression::BinaryOperation(operand_1, operator, operand_2, position)
     }
 
     fn convert_expression(
@@ -628,7 +638,14 @@ pub mod convert {
                             // The stack is in reverse order, pop the RHS first.
                             let operand_2 = operand_stack.pop().unwrap();
                             let operand_1 = operand_stack.pop().unwrap();
-                            operand_stack.push(apply_operator(&top_operator, operand_1, operand_2));
+                            let mut position = operand_1.clone_position();
+                            position.include_other(&operand_2.clone_position());
+                            operand_stack.push(apply_operator(
+                                &top_operator,
+                                operand_1,
+                                operand_2,
+                                position,
+                            ));
                         }
                     }
                 }
@@ -649,7 +666,9 @@ pub mod convert {
             let top_operator = operator_stack.pop().unwrap();
             let operand_2 = operand_stack.pop().unwrap();
             let operand_1 = operand_stack.pop().unwrap();
-            let result = apply_operator(&top_operator, operand_1, operand_2);
+            let mut position = operand_1.clone_position();
+            position.include_other(&operand_2.clone_position());
+            let result = apply_operator(&top_operator, operand_1, operand_2, position);
             // The last operator is the sentinel, we want to exit before we reach it.
             if operator_stack.len() == 1 {
                 return Result::Ok(result);
@@ -667,6 +686,7 @@ pub mod convert {
         let input_pos = FilePosition::from_pair(&input);
         let mut input_iter = input.into_inner();
         let child = input_iter.next().expect("Identifier required by grammar.");
+        let identifier_pos = FilePosition::from_pair(&child);
         let base_var = lookup_symbol_with_error(&program, scope, &child)?;
         let mut indexes = Vec::new();
         for child in input_iter {
@@ -683,11 +703,12 @@ pub mod convert {
         }
         Result::Ok(if indexes.len() > 0 {
             Expression::Access {
-                base: Box::new(Expression::Variable(base_var)),
+                base: Box::new(Expression::Variable(base_var, identifier_pos)),
                 indexes,
+                position: input_pos,
             }
         } else {
-            Expression::Variable(base_var)
+            Expression::Variable(base_var, input_pos)
         })
     }
 
@@ -823,14 +844,19 @@ pub mod convert {
                     let possible_output =
                         convert_returnable_code_block(program, func_scope, child)?;
                     if let Option::Some(output) = possible_output {
+                        let output_pos = output.clone_position();
                         if let Option::Some(output_var) =
                             program.borrow_scope(func_scope).get_single_output()
                         {
                             program.add_expression(
                                 func_scope.clone(),
                                 Expression::Assign {
-                                    target: Box::new(Expression::Variable(output_var)),
+                                    target: Box::new(Expression::Variable(
+                                        output_var,
+                                        output_pos.clone(),
+                                    )),
                                     value: Box::new(output),
+                                    position: output_pos,
                                 },
                             );
                         }
@@ -879,8 +905,12 @@ pub mod convert {
                     program.add_expression(
                         scope,
                         Expression::Assign {
-                            target: Box::new(Expression::Variable(variable_id)),
+                            target: Box::new(Expression::Variable(
+                                variable_id,
+                                variable_position.clone(),
+                            )),
                             value: Box::new(expr),
+                            position: input_pos.clone(),
                         },
                     );
                 }
@@ -1092,6 +1122,7 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
         let mut index = 0;
         let func = program
             .lookup_and_clone_parent_function(scope)
@@ -1106,6 +1137,7 @@ pub mod convert {
         for child in input.into_inner() {
             match child.as_rule() {
                 Rule::expr => {
+                    let child_pos = FilePosition::from_pair(&child);
                     if index >= outputs.len() {
                         return Result::Err(problem::extra_return_value(
                             statement_position,
@@ -1126,8 +1158,12 @@ pub mod convert {
                     program.add_expression(
                         scope,
                         Expression::Assign {
-                            target: Box::new(Expression::Variable(outputs[index])),
+                            target: Box::new(Expression::Variable(
+                                outputs[index],
+                                FilePosition::placeholder(),
+                            )),
                             value: Box::new(value),
+                            position: child_pos,
                         },
                     );
                     index += 1;
@@ -1143,7 +1179,7 @@ pub mod convert {
                 index,
             ));
         }
-        program.add_expression(scope, Expression::Return);
+        program.add_expression(scope, Expression::Return(input_pos));
         Result::Ok(())
     }
 
@@ -1152,12 +1188,13 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
         let mut input_iter = input.into_inner();
         let value = {
             let value_input = input_iter.next().expect("Required by grammar.");
             convert_expression(program, scope, true, value_input)?
         };
-        program.add_expression(scope, Expression::Assert(Box::new(value)));
+        program.add_expression(scope, Expression::Assert(Box::new(value), input_pos));
         Result::Ok(())
     }
 
@@ -1182,6 +1219,7 @@ pub mod convert {
                     convert_create_variable_statement(program, scope, child)?
                 }
                 Rule::assign_statement => {
+                    let child_pos = FilePosition::from_pair(&child);
                     let mut child_iter = child.into_inner();
                     let output = {
                         let assign_expr = child_iter.next().unwrap();
@@ -1198,6 +1236,7 @@ pub mod convert {
                         Expression::Assign {
                             target: Box::new(output),
                             value: Box::new(value),
+                            position: child_pos,
                         },
                     );
                 }

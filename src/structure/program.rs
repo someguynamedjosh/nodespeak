@@ -98,11 +98,7 @@ impl Program {
         &mut self.scopes[scope.0]
     }
 
-    pub fn add_expression(
-        &mut self,
-        add_to: ScopeId,
-        expression: Expression,
-    ) {
+    pub fn add_expression(&mut self, add_to: ScopeId, expression: Expression) {
         self.scopes[add_to.0].add_expression(expression);
     }
 
@@ -226,7 +222,7 @@ impl Program {
 
     pub fn borrow_value_of<'a>(&'a self, expression: &'a Expression) -> &'a KnownData {
         match expression {
-            Expression::Access { base, indexes } => {
+            Expression::Access { base, indexes, .. } => {
                 // TODO handle expressions that need to be interpreted before we can determine
                 // their value.
                 let mut real_indexes = Vec::new();
@@ -247,15 +243,15 @@ impl Program {
                     panic!("TODO error, base of access expression is not array.")
                 }
             }
-            Expression::Literal(data) => data,
-            Expression::Variable(id) => self.borrow_temporary_value(*id),
+            Expression::Literal(data, ..) => data,
+            Expression::Variable(id, ..) => self.borrow_temporary_value(*id),
             _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
 
     pub fn borrow_value_of_mut(&mut self, expression: &Expression) -> &mut KnownData {
         match expression {
-            Expression::Access { base, indexes } => {
+            Expression::Access { base, indexes, .. } => {
                 // TODO handle expressions that need to be interpreted before we can determine
                 // their value.
                 let mut real_indexes = Vec::new();
@@ -277,7 +273,7 @@ impl Program {
                 }
             }
             Expression::Literal(..) => panic!("TODO error, cannot borrow literal as mutable."),
-            Expression::Variable(id) => self.borrow_temporary_value_mut(*id),
+            Expression::Variable(id, ..) => self.borrow_temporary_value_mut(*id),
             _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
