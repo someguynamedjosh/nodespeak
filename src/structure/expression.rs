@@ -116,10 +116,10 @@ impl Debug for Expression {
             Expression::InlineReturn => write!(formatter, "inline"),
 
             Expression::UnaryOperation(operator, value) => {
-                write!(formatter, "({:?} {:?}", operator, value)
+                write!(formatter, "({:?} {:?})", operator, value)
             }
             Expression::BinaryOperation(v1, operator, v2) => {
-                write!(formatter, "({:?} {:?} {:?}", v1, operator, v2)
+                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
 
             Expression::Collect(values) => {

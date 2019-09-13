@@ -832,7 +832,7 @@ pub mod convert {
                                     target: Box::new(Expression::Variable(output_var)),
                                     value: Box::new(output),
                                 },
-                            )?;
+                            );
                         }
                     }
                     // This branch arm can only be expressioned once but I don't know how to tell rustc that,
@@ -882,7 +882,7 @@ pub mod convert {
                             target: Box::new(Expression::Variable(variable_id)),
                             value: Box::new(expr),
                         },
-                    )?;
+                    );
                 }
                 _ => unreachable!(),
             }
@@ -1129,7 +1129,7 @@ pub mod convert {
                             target: Box::new(Expression::Variable(outputs[index])),
                             value: Box::new(value),
                         },
-                    )?;
+                    );
                     index += 1;
                 }
                 _ => unreachable!(),
@@ -1143,7 +1143,7 @@ pub mod convert {
                 index,
             ));
         }
-        program.add_expression(scope, Expression::Return)?;
+        program.add_expression(scope, Expression::Return);
         Result::Ok(())
     }
 
@@ -1157,7 +1157,7 @@ pub mod convert {
             let value_input = input_iter.next().expect("Required by grammar.");
             convert_expression(program, scope, true, value_input)?
         };
-        program.add_expression(scope, Expression::Assert(Box::new(value)))?;
+        program.add_expression(scope, Expression::Assert(Box::new(value)));
         Result::Ok(())
     }
 
@@ -1199,11 +1199,11 @@ pub mod convert {
                             target: Box::new(output),
                             value: Box::new(value),
                         },
-                    )?;
+                    );
                 }
                 Rule::expr => {
                     let expression = convert_expression(program, scope, false, child)?;
-                    program.add_expression(scope, expression)?;
+                    program.add_expression(scope, expression);
                 }
                 _ => unreachable!(),
             }

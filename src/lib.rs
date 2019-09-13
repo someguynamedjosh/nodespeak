@@ -42,10 +42,10 @@ pub struct CompileResult {
 
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
     let mut ast_result = parser::parse(sources.borrow_sources()[1].1)?;
-    let program = parser::convert_ast_to_structure(&mut ast_result)?;
-    // let entry_point = program.get_entry_point();
-    // let new_entry_point = structure::resolve_scope(&mut program, entry_point)?;
-    // program.set_entry_point(new_entry_point);
+    let mut program = parser::convert_ast_to_structure(&mut ast_result)?;
+    let entry_point = program.get_entry_point();
+    let new_entry_point = interpreter::resolve_scope(&mut program, entry_point)?;
+    program.set_entry_point(new_entry_point);
     Result::Ok(CompileResult { program: program })
 }
 

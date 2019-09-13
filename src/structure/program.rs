@@ -35,7 +35,6 @@ pub struct Program {
     entry_point: ScopeId,
     variables: Vec<Variable>,
     builtins: Option<Builtins>,
-    automatic_interpretation: bool,
 }
 
 impl Debug for Program {
@@ -68,7 +67,6 @@ impl Program {
             entry_point: ScopeId(0),
             variables: Vec::new(),
             builtins: Option::None,
-            automatic_interpretation: false,
         };
         prog.builtins = Option::Some(add_builtins(&mut prog));
         prog
@@ -104,24 +102,8 @@ impl Program {
         &mut self,
         add_to: ScopeId,
         expression: Expression,
-    ) -> Result<(), CompileProblem> {
-        assert!(add_to.0 < self.scopes.len());
-        if self.automatic_interpretation {
-            match interpreter::interpret_expression(self, &expression, false) {
-                InterpreterOutcome::UnknownData | InterpreterOutcome::UnknownFunction => {
-                    self.scopes[add_to.0].add_expression(expression)
-                }
-                InterpreterOutcome::AssertFailed(location) => {
-                    return Result::Err(problem::guaranteed_assert(location))
-                }
-                InterpreterOutcome::Problem(problem) => return Result::Err(problem),
-                // TODO? check that data is Void
-                InterpreterOutcome::Specific(..) | InterpreterOutcome::Returned => (),
-            }
-        } else {
-            self.scopes[add_to.0].add_expression(expression);
-        }
-        Result::Ok(())
+    ) {
+        self.scopes[add_to.0].add_expression(expression);
     }
 
     pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<Expression> {
@@ -325,13 +307,13 @@ impl Program {
     // }
 
     // ===INTERPRETATION============================================================================
-    pub fn enable_automatic_interpretation(&mut self) {
-        self.automatic_interpretation = true;
-    }
+    // pub fn enable_automatic_interpretation(&mut self) {
+    //     self.automatic_interpretation = true;
+    // }
 
-    pub fn disable_automatic_interpretation(&mut self) {
-        self.automatic_interpretation = false;
-    }
+    // pub fn disable_automatic_interpretation(&mut self) {
+    //     self.automatic_interpretation = false;
+    // }
 
     // ===UTILITIES=================================================================================
 
