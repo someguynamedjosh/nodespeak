@@ -2,7 +2,7 @@ use crate::structure::{KnownData, VariableId};
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Formatter};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Not,
     BNot,
@@ -19,7 +19,7 @@ impl Debug for UnaryOperator {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum BinaryOperator {
     Add,
     Subtract,

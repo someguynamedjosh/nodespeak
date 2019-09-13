@@ -65,25 +65,7 @@ impl<'a> Interpreter<'a> {
                     ))
                 }
             }
-            Expression::Add(a, b)
-            | Expression::Subtract(a, b)
-            | Expression::Multiply(a, b)
-            | Expression::Divide(a, b)
-            | Expression::IntDiv(a, b)
-            | Expression::Modulo(a, b)
-            | Expression::Power(a, b)
-            | Expression::And(a, b)
-            | Expression::Or(a, b)
-            | Expression::Xor(a, b)
-            | Expression::BAnd(a, b)
-            | Expression::BOr(a, b)
-            | Expression::BXor(a, b)
-            | Expression::Equal(a, b)
-            | Expression::NotEqual(a, b)
-            | Expression::LessThan(a, b)
-            | Expression::GreaterThan(a, b)
-            | Expression::LessThanOrEqual(a, b)
-            | Expression::GreaterThanOrEqual(a, b) => {
+            Expression::BinaryOperation(a, operator, b) => {
                 let a_result = self.interpret(a.borrow());
                 let a_data = match a_result {
                     InterpreterOutcome::Specific(data) => data,
@@ -94,7 +76,7 @@ impl<'a> Interpreter<'a> {
                     InterpreterOutcome::Specific(data) => data,
                     _ => return b_result
                 };
-                let result = util::compute_binary_expr(expression, &a_data, &b_data);
+                let result = util::compute_binary_operation(&a_data, *operator, &b_data);
                 match result {
                     KnownData::Void | KnownData::Unknown => InterpreterOutcome::UnknownData,
                     _ => InterpreterOutcome::Specific(result)
