@@ -82,13 +82,21 @@ impl<'a> Interpreter<'a> {
                 }
                 if index_values.len() == base_value.borrow_dimensions().len() {
                     if !base_value.is_inside(&index_values) {
-                        return Problem(problem::index_not_in_range(base.clone_position(), position.clone(), &index_values));
+                        return Problem(problem::index_not_in_range(
+                            base.clone_position(),
+                            position.clone(),
+                            &index_values,
+                        ));
                     }
                     Specific(base_value.borrow_item(&index_values).clone())
                 } else {
                     if !base_value.is_slice_inside(&index_values) {
                         // TODO: Better error for when there are too many index operations.
-                        return Problem(problem::index_not_in_range(base.clone_position(), position.clone(), &index_values));
+                        return Problem(problem::index_not_in_range(
+                            base.clone_position(),
+                            position.clone(),
+                            &index_values,
+                        ));
                     }
                     Specific(KnownData::Array(base_value.clone_slice(&index_values)))
                 }
@@ -168,9 +176,11 @@ impl<'a> Interpreter<'a> {
                 for expression in expressions.iter() {
                     match self.interpret(expression) {
                         Specific(data) => values.push(data),
-                        Problem(problem) => return wrap("array literal", position.clone(), problem),
+                        Problem(problem) => {
+                            return wrap("array literal", position.clone(), problem)
+                        }
                         Unknown => return Unknown,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 }
                 if values.len() == 0 {
@@ -190,7 +200,12 @@ impl<'a> Interpreter<'a> {
                                 Problem(problem::assert_failed(assert_pos.clone()))
                             }
                         }
-                        _ => return Problem(problem::assert_not_bool(expression.clone_position(), assert_pos.clone()))
+                        _ => {
+                            return Problem(problem::assert_not_bool(
+                                expression.clone_position(),
+                                assert_pos.clone(),
+                            ))
+                        }
                     },
                     Problem(problem) => return wrap("assertion", assert_pos.clone(), problem),
                     Unknown => return Unknown,

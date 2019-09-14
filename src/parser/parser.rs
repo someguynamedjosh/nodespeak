@@ -334,13 +334,24 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
-        unimplemented!();
+        let input_pos = FilePosition::from_pair(&input);
+        let mut input_iter = input.into_inner();
+        let child_pair = input_iter.next().expect("Required by grammar.");
+        let child_expr = match child_pair.as_rule() {
+            Rule::expr_part_1 => convert_expr_part_1(program, scope, true, child_pair)?,
+            Rule::index_expr => convert_index_expr(program, scope, child_pair)?,
+            _ => unreachable!("Grammar specifies no other children."),
+        };
+        Result::Ok(Expression::UnaryOperation(
+            UnaryOperator::Negate,
+            Box::new(child_expr),
+            input_pos,
+        ))
     }
 
     fn convert_index_expr(
         program: &mut Program,
         scope: ScopeId,
-        force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
         let input_pos = FilePosition::from_pair(&input);
@@ -392,7 +403,7 @@ pub mod convert {
                     return convert_expr_part_1(program, scope, force_func_output, child);
                 }
                 Rule::index_expr => {
-                    return convert_index_expr(program, scope, force_func_output, child);
+                    return convert_index_expr(program, scope, child);
                 }
                 Rule::negate => {
                     return convert_negate(program, scope, child);
@@ -781,7 +792,6 @@ pub mod convert {
 
     fn convert_function_signature(
         program: &mut Program,
-        func: &mut FunctionData,
         func_scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
@@ -834,7 +844,7 @@ pub mod convert {
                 Rule::identifier => unreachable!("Handled above"),
                 Rule::function_signature => {
                     real_header_position.include(&child);
-                    convert_function_signature(program, &mut function, func_scope, child)?;
+                    convert_function_signature(program, func_scope, child)?;
                 }
                 Rule::returnable_code_block => {
                     function.set_header(real_header_position);

@@ -94,6 +94,5 @@ pub(super) fn compute_binary_operation(
             KnownData::Float(value) => KnownData::Bool(*value >= b.require_float()),
             _ => unreachable!(),
         },
-        _ => unreachable!(),
     }
 }

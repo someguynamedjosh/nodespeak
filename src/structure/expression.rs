@@ -4,6 +4,7 @@ use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
+    Negate,
     Not,
     BNot,
     Reciprocal,
@@ -12,6 +13,7 @@ pub enum UnaryOperator {
 impl Debug for UnaryOperator {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
+            UnaryOperator::Negate => write!(formatter, "-"),
             UnaryOperator::Not => write!(formatter, "not"),
             UnaryOperator::BNot => write!(formatter, "bnot"),
             UnaryOperator::Reciprocal => write!(formatter, "reciprocal of"),

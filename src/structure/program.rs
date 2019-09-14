@@ -1,7 +1,6 @@
-use crate::interpreter::{self, InterpreterOutcome};
-use crate::problem::{self, CompileProblem, FilePosition};
+use crate::problem::FilePosition;
 use crate::structure::{
-    add_builtins, Builtins, DataType, Expression, FunctionData, KnownData, Scope, Variable,
+    self, Builtins, DataType, Expression, FunctionData, KnownData, Scope, Variable,
 };
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -68,7 +67,7 @@ impl Program {
             variables: Vec::new(),
             builtins: Option::None,
         };
-        prog.builtins = Option::Some(add_builtins(&mut prog));
+        prog.builtins = Option::Some(structure::add_builtins(&mut prog));
         prog
     }
 

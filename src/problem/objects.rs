@@ -17,7 +17,7 @@ pub struct FilePosition {
 impl PartialEq for FilePosition {
     // This allows us to derive ParialEq implementations for other types that have a child of type
     // FilePosition. The equality of these tyeps are never dependent on their position in the file.
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -86,7 +86,6 @@ impl FilePosition {
 
 pub(super) enum ProblemType {
     Error,
-    Warning,
     Hint,
 }
 
@@ -218,7 +217,7 @@ impl CompileProblem {
         for descriptor in self.descriptors.iter() {
             output.push_str(&match descriptor.ptype {
                 ProblemType::Error => "ERROR: ".bright_red().to_string(),
-                ProblemType::Warning => "WARNING: ".bright_yellow().to_string(),
+                // ProblemType::Warning => "WARNING: ".bright_yellow().to_string(),
                 ProblemType::Hint => "HINT: ".bright_cyan().to_string(),
             });
             output.push_str(&wrap_text(&descriptor.caption, width, 10));
@@ -266,7 +265,7 @@ impl CompileProblem {
                     } else {
                         output.push_str(&match descriptor.ptype {
                             ProblemType::Error => ch.to_string().bright_red().to_string(),
-                            ProblemType::Warning => ch.to_string().bright_yellow().to_string(),
+                            // ProblemType::Warning => ch.to_string().bright_yellow().to_string(),
                             ProblemType::Hint => ch.to_string().bright_cyan().to_string(),
                         });
                     }

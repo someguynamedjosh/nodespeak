@@ -80,9 +80,7 @@ pub fn assert_not_bool(argument: FilePosition, assert: FilePosition) -> CompileP
         ProblemDescriptor::new(
             assert,
             Hint,
-            concat!(
-                "Encountered while interpreting assertion:",
-            ),
+            concat!("Encountered while interpreting assertion:",),
         ),
     ])
 }
