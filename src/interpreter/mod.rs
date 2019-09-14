@@ -8,9 +8,7 @@ use crate::structure::{Expression, KnownData, Program};
 pub enum InterpreterOutcome {
     Specific(KnownData),
     Returned,
-    UnknownData,
-    UnknownFunction,
-    AssertFailed(FilePosition),
+    Unknown,
     Problem(CompileProblem),
 }
 

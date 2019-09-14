@@ -56,3 +56,14 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
         format!("Compilation failed.\n\n{}", err.format(width, sources))
     })
 }
+
+pub fn interpret(
+    compiled_program: &mut structure::Program,
+    inputs: Vec<structure::KnownData>,
+    sources: &SourceSet,
+) -> Result<Vec<structure::KnownData>, String> {
+    interpreter::interpret_from_entry_point(compiled_program, inputs).map_err(|err| {
+        let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
+        format!("Interpretation failed.\n\n{}", err.format(width, sources))
+    })
+}

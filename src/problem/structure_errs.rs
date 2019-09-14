@@ -123,11 +123,11 @@ pub fn io_inside_function(declaration_pos: FilePosition) -> CompileProblem {
 
 pub fn hint_encountered_while_parsing(
     context_description: &str,
-    assignment_pos: FilePosition,
+    context_pos: FilePosition,
     error: &mut CompileProblem,
 ) {
     error.add_descriptor(ProblemDescriptor::new(
-        assignment_pos,
+        context_pos,
         Hint,
         &format!("Error encountered while parsing {}:", context_description),
     ));

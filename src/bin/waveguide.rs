@@ -87,7 +87,7 @@ fn main() {
 
     println!("\nInterpreting program...");
     let interpret_start = Instant::now();
-    let results = match waveguide::interpreter::interpret_from_entry_point(&mut program, inputs) {
+    let results = match waveguide::interpret(&mut program, inputs, &source_set) {
         Result::Ok(results) => results,
         Result::Err(description) => {
             eprintln!("{}", description);
