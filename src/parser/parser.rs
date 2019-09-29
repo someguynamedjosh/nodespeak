@@ -43,15 +43,8 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::index_expr => "array access",
         Rule::operator => "binary operator",
 
-        Rule::func_input_list => "input list for function expression",
-        Rule::func_output_return_inline => "inline",
-        Rule::func_output_var_dec => "declared variable output",
-        Rule::func_output_list => "output list for function expression",
-        Rule::func_output => "output for function expression",
-        Rule::func_lambda => "lambda definition for function expression",
-        Rule::lambda_adjective => "adjective for function expression",
-        Rule::func_expr_extra_list => "zero or more adjectives and lambdas for function expression",
-        Rule::func_expr => "function expression",
+        Rule::func_expr_input_list => "input list for single-output function expression",
+        Rule::func_expr => "single-output function expression",
 
         Rule::named_data_type => "name of a data type",
         Rule::dynamic_data_type => "dynamic data type expression",
@@ -76,6 +69,12 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::assign_array_access => "LHS assignment indexing",
         Rule::assign_expr => "LHS assignment expression",
         Rule::assign_statement => "assignment expression",
+
+        Rule::func_statement_input_list => "input list for multi-output function call",
+        Rule::func_statement_var_dec => "new variable output",
+        Rule::func_statement_output => "output for multi-output function call",
+        Rule::func_statement_output_list => "output list for multi-output function call",
+        Rule::multi_output_func_statement => "multi-output function call",
 
         Rule::code_block => "code block",
         Rule::returnable_code_block => "code block",
@@ -183,27 +182,6 @@ pub mod convert {
         Result::Ok(())
     }
 
-    fn convert_func_expr_output_list(
-        program: &mut Program,
-        scope: ScopeId,
-        outputs: &mut Vec<Expression>,
-        input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
-        for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::func_output_return_inline => {
-                    outputs.push(Expression::InlineReturn(FilePosition::from_pair(&child)))
-                }
-                Rule::func_output_var_dec => unimplemented!(),
-                Rule::assign_expr => {
-                    outputs.push(convert_assign_expr(program, scope, child)?);
-                }
-                _ => unreachable!("Grammar specifies no other children."),
-            }
-        }
-        Result::Ok(())
-    }
-
     fn lookup_symbol_with_error(
         program: &Program,
         scope: ScopeId,
@@ -224,39 +202,23 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
         let input_pos = FilePosition::from_pair(&input);
+
         let mut input_iter = input.into_inner();
         let function_identifier = input_iter.next().expect("Required by grammar.");
         let identifier_pos = FilePosition::from_pair(&function_identifier);
+        let input_list = input_iter.next().expect("Required by grammar.");
+
         let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
         let mut inputs = Vec::new();
-        let mut outputs = Vec::new();
-        for child in input_iter {
-            match child.as_rule() {
-                Rule::identifier => unreachable!("Handled above."),
-                Rule::func_input_list => {
-                    convert_func_expr_input_list(program, scope, &mut inputs, child)?
-                }
-                // TODO: Inline return.
-                Rule::func_output_list => {
-                    convert_func_expr_output_list(program, scope, &mut outputs, child)?
-                }
-                Rule::func_lambda => unimplemented!(),
-                Rule::lambda_adjective => unimplemented!(),
-                _ => unreachable!(),
-            }
-        }
-        if force_func_output {
-            if outputs.len() == 0 {
-                outputs.push(Expression::InlineReturn(input_pos.clone()))
-            } else {
-                // TODO implement programmer-specified inline return values.
-                panic!("TODO error, source code already specified outputs for function.")
-            }
-        }
+        convert_func_expr_input_list(program, scope, &mut inputs, input_list)?;
         Result::Ok(Expression::FuncCall {
             function: Box::new(Expression::Variable(function_var, identifier_pos)),
             inputs,
-            outputs,
+            outputs: if force_func_output {
+                vec![Expression::InlineReturn(input_pos.clone())]
+            } else {
+                vec![]
+            },
             position: input_pos,
         })
     }
@@ -1208,6 +1170,93 @@ pub mod convert {
         Result::Ok(())
     }
 
+    fn convert_func_statement_input_list(
+        program: &mut Program,
+        scope: ScopeId,
+        list: &mut Vec<Expression>,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
+        for child in input.into_inner() {
+            assert!(child.as_rule() == Rule::expr, "Required by grammar.");
+            list.push(convert_expression(program, scope, true, child)?);
+        }
+        Result::Ok(())
+    }
+
+    fn convert_func_statement_var_dec(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<Expression, CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
+        let mut input_iter = input.into_inner();
+        let data_type = convert_data_type(
+            program, 
+            scope, 
+            input_iter.next().expect("Required by grammar.")
+        )?;
+        let name = input_iter.next().expect("Required by grammar.").as_str();
+        let var_id = program.adopt_and_define_symbol(
+            scope, 
+            name, 
+            Variable::variable(input_pos.clone(), data_type, Option::None)
+        );
+        Result::Ok(Expression::Variable(var_id, input_pos))
+    }
+
+    fn convert_func_statement_output(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<Expression, CompileProblem> {
+        let child = input.into_inner().next().expect("Required by grammar.");
+        match child.as_rule() {
+            Rule::func_statement_var_dec => convert_func_statement_var_dec(program, scope, child),
+            Rule::assign_expr => convert_assign_expr(program, scope, child),
+            _ => unreachable!("Grammar specifies no other children."),
+        }
+    }
+
+    fn convert_func_statement_output_list(
+        program: &mut Program,
+        scope: ScopeId,
+        list: &mut Vec<Expression>,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
+        for child in input.into_inner() {
+            assert!(child.as_rule() == Rule::func_statement_output, "Required by grammar.");
+            list.push(convert_func_statement_output(program, scope, child)?);
+        }
+        Result::Ok(())
+    }
+
+    fn convert_multi_output_func_statement(
+        program: &mut Program,
+        scope: ScopeId,
+        input: Pair<Rule>,
+    ) -> Result<(), CompileProblem> {
+        let input_pos = FilePosition::from_pair(&input);
+        let mut input_iter = input.into_inner();
+        let identifier = input_iter.next().expect("Required by grammar.");
+        let identifier_pos = FilePosition::from_pair(&identifier);
+        let input_list = input_iter.next().expect("Required by grammar.");
+        let output_list = input_iter.next().expect("Required by grammar.");
+
+        let func_var = lookup_symbol_with_error(program, scope, &identifier)?;
+        let mut inputs = Vec::new();
+        convert_func_statement_input_list(program, scope, &mut inputs, input_list)?;
+        let mut outputs = Vec::new();
+        convert_func_statement_output_list(program, scope, &mut outputs, output_list)?;
+        let expression = Expression::FuncCall{
+            function: Box::new(Expression::Variable(func_var, identifier_pos)),
+            inputs,
+            outputs,
+            position: input_pos
+        };
+        program.add_expression(scope, expression);
+        Result::Ok(())
+    }
+
     fn convert_statement(
         program: &mut Program,
         scope: ScopeId,
@@ -1249,6 +1298,9 @@ pub mod convert {
                             position: child_pos,
                         },
                     );
+                }
+                Rule::multi_output_func_statement => {
+                    convert_multi_output_func_statement(program, scope, child)?;
                 }
                 Rule::expr => {
                     let expression = convert_expression(program, scope, false, child)?;
