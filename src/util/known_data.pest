@@ -1,10 +1,10 @@
 WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
 
-dec_int = @{ (ASCII_DIGIT | "_")+ }
-bin_int = @{ "0b" ~ (ASCII_BIN_DIGIT | "_")+ }
-oct_int = @{ "0o" ~ (ASCII_OCT_DIGIT | "_")+ }
-hex_int = @{ "0x" ~ (ASCII_HEX_DIGIT | "_")+ }
-legacy_oct_int = @{ "0" ~ (ASCII_OCT_DIGIT | "_")+ }
+dec_int = @{ "-"? ~ (ASCII_DIGIT | "_")+ }
+bin_int = @{ "-"? ~ "0b" ~ (ASCII_BIN_DIGIT | "_")+ }
+oct_int = @{ "-"? ~ "0o" ~ (ASCII_OCT_DIGIT | "_")+ }
+hex_int = @{ "-"? ~ "0x" ~ (ASCII_HEX_DIGIT | "_")+ }
+legacy_oct_int = @{ "-"? ~ "0" ~ (ASCII_OCT_DIGIT | "_")+ }
 
 int = _{ bin_int | hex_int | oct_int | legacy_oct_int | dec_int }
 dec_digit = _{ ASCII_DIGIT | "_" }
