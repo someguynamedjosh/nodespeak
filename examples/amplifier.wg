@@ -1,7 +1,7 @@
-Int BUFFER_SIZE = 256;
+Int BUFFER_SIZE = 8;
 
-input Float data;
+input [BUFFER_SIZE]Float data;
 input Float amplification_factor;
-output Float result;
+output [BUFFER_SIZE]Float result;
 
 result = data * amplification_factor;

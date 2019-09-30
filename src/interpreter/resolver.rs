@@ -384,13 +384,11 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
-    fn assign_unknown_to_expression(
-        &mut self,
-        target: &Expression
-    ) {
+    fn assign_unknown_to_expression(&mut self, target: &Expression) {
         match target {
             Expression::Variable(id, ..) => {
-                self.program.set_temporary_value(self.convert(*id), KnownData::Unknown);
+                self.program
+                    .set_temporary_value(self.convert(*id), KnownData::Unknown);
             }
             Expression::Access { base, .. } => {
                 // TODO: Something more efficient that takes into account any known indexes.
@@ -398,9 +396,10 @@ impl<'a> ScopeResolver<'a> {
                     Expression::Variable(id, position) => (self.convert(*id), position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
-                self.program.set_temporary_value(base_var_id, KnownData::Unknown);
+                self.program
+                    .set_temporary_value(base_var_id, KnownData::Unknown);
             }
-            _ => unreachable!("Cannot have anything else in an assignment expression.")
+            _ => unreachable!("Cannot have anything else in an assignment expression."),
         }
     }
 

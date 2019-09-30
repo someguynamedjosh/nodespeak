@@ -6,6 +6,18 @@ pub struct NVec<T> {
 }
 
 impl<T: Clone> NVec<T> {
+    fn make_multipliers(dimensions: &Vec<usize>) -> Vec<usize> {
+        let mut result = Vec::new();
+        for index in 0..dimensions.len() {
+            let mut multiplier = 1;
+            for dim in dimensions[index + 1..].iter() {
+                multiplier *= *dim;
+            }
+            result.push(multiplier);
+        }
+        result
+    }
+
     pub fn new(dimensions: Vec<usize>, filler_value: T) -> NVec<T> {
         assert!(dimensions.len() > 0);
         let mut size = 1;
@@ -15,17 +27,10 @@ impl<T: Clone> NVec<T> {
             size *= dim;
         }
         let mut result = NVec {
-            multipliers: Vec::with_capacity(dimensions.len()),
+            multipliers: Self::make_multipliers(&dimensions),
             dimensions,
             data: Vec::with_capacity(size),
         };
-        for index in 0..result.dimensions.len() {
-            let mut multiplier = 1;
-            for dim in result.dimensions[index + 1..].iter() {
-                multiplier *= *dim;
-            }
-            result.multipliers.push(multiplier);
-        }
         for _ in 0..size {
             result.data.push(filler_value.clone());
         }
@@ -36,6 +41,19 @@ impl<T: Clone> NVec<T> {
         NVec {
             multipliers: vec![1],
             dimensions: vec![items.len()],
+            data: items,
+        }
+    }
+
+    pub fn from_vec_and_dims(items: Vec<T>, dimensions: Vec<usize>) -> NVec<T> {
+        let mut size = 1;
+        for dim in dimensions.iter() {
+            size *= *dim;
+        }
+        assert!(items.len() == size);
+        NVec {
+            multipliers: Self::make_multipliers(&dimensions),
+            dimensions: dimensions,
             data: items,
         }
     }

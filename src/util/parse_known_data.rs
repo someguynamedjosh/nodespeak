@@ -52,16 +52,22 @@ fn parse_literal(source: Pair<Rule>) -> KnownData {
         Rule::bool_true => KnownData::Bool(true),
         Rule::bool_false => KnownData::Bool(false),
         Rule::array_literal => {
-            let children: Vec<_> = source.into_inner().map(|child| parse_literal(child)).collect();
+            let children: Vec<_> = source
+                .into_inner()
+                .map(|child| parse_literal(child))
+                .collect();
             if children.len() == 0 {
                 KnownData::Array(NVec::new(vec![0], KnownData::Void))
             } else if let KnownData::Array(..) = children[0] {
-                let array_children: Vec<_> = children.into_iter().map(|child| match child {
-                    KnownData::Array(array_data) => array_data,
-                    _ => panic!(
-                        "TODO: nice error, all children of an array must have the same type."
-                    )
-                }).collect();
+                let array_children: Vec<_> = children
+                    .into_iter()
+                    .map(|child| match child {
+                        KnownData::Array(array_data) => array_data,
+                        _ => panic!(
+                            "TODO: nice error, all children of an array must have the same type."
+                        ),
+                    })
+                    .collect();
                 KnownData::Array(NVec::collect(array_children))
             } else {
                 KnownData::Array(NVec::from_vec(children))
