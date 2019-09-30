@@ -161,8 +161,12 @@ impl DataType {
 
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        for _ in self.sizes.iter() {
-            write!(formatter, "[todo: size]")?;
+        for size in self.sizes.iter() {
+            if let Expression::Literal(KnownData::Int(dimension), ..) = size {
+                write!(formatter, "[{}]", dimension)?;
+            } else {
+                write!(formatter, "[?]")?;
+            }
         }
         write!(formatter, "{:?}", self.base)
     }
@@ -365,11 +369,53 @@ impl Debug for KnownData {
             KnownData::Int(value) => write!(formatter, "{}", value),
             KnownData::Float(value) => write!(formatter, "{}", value),
             KnownData::Array(values) => {
-                write!(formatter, "[TODO better format for N-dim arrays.\n")?;
-                for value in values.borrow_all_items() {
-                    write!(formatter, "\t{:?},\n", value)?;
+                // TODO: put array values on the same line if all the values in the array can fit
+                // on the same line.
+                let mut indent_level = 0;
+                for _ in values.borrow_dimensions() {
+                    write!(formatter, "{:indent$}[\n", "", indent = indent_level * 4)?;
+                    indent_level += 1;
                 }
-                write!(formatter, "]")
+                let dimensions = values.borrow_dimensions().clone();
+                let mut current_index: Vec<_> = dimensions.iter().map(|_| 0).collect();
+                'main_loop: loop {
+                    write!(
+                        formatter,
+                        "{:indent$}{:?},\n",
+                        "",
+                        values.borrow_item(&current_index),
+                        indent = indent_level * 4
+                    )?;
+
+                    let last_dimension = current_index.len() - 1;
+                    current_index[last_dimension] += 1;
+                    let mut levels = 0;
+                    for dimension in (0..current_index.len()).rev() {
+                        if current_index[dimension] < dimensions[dimension] {
+                            continue;
+                        }
+                        levels += 1;
+                        if dimension == 0 {
+                            break 'main_loop;
+                        } else {
+                            current_index[dimension] = 0;
+                            current_index[dimension - 1] += 1;
+                        }
+                    }
+                    if levels > 0 {
+                        for dip in 1..levels {
+                            write!(formatter, "{:indent$}]\n", "", indent = (indent_level - dip) * 4)?;
+                        }
+                        write!(formatter, "{:indent$}],\n{:indent$}[\n", "", "", indent = (indent_level - levels) * 4)?;
+                        for dip in (1..levels).rev() {
+                            write!(formatter, "{:indent$}[\n", "", indent = (indent_level - dip) * 4)?;
+                        }
+                    }
+                }
+                for indent_level in (0..indent_level).rev() {
+                    write!(formatter, "{:indent$}]\n", "", indent = indent_level * 4)?;
+                }
+                write!(formatter, "")
             }
             KnownData::DataType(value) => write!(formatter, "{:?}", value),
             // TODO: Implement function formatter.
