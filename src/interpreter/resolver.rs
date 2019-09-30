@@ -1,5 +1,7 @@
-use crate::problem::{CompileProblem, FilePosition};
-use crate::structure::{BinaryOperator, Expression, KnownData, Program, ScopeId, VariableId};
+use crate::problem::{self, CompileProblem, FilePosition};
+use crate::structure::{
+    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId, VariableId,
+};
 use crate::util::NVec;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -311,6 +313,7 @@ impl<'a> ScopeResolver<'a> {
                     position: position.clone(),
                 }
             }
+            Expression::InlineReturn(..) => access_expression.clone(),
             _ => unreachable!("No other expression types found in assignment access expressions."),
         })
     }
@@ -378,6 +381,208 @@ impl<'a> ScopeResolver<'a> {
                 }
             }
             _ => unreachable!("Assignment target cannot contain any other expressions."),
+        })
+    }
+
+    fn assign_unknown_to_expression(
+        &mut self,
+        target: &Expression
+    ) {
+        match target {
+            Expression::Variable(id, ..) => {
+                self.program.set_temporary_value(self.convert(*id), KnownData::Unknown);
+            }
+            Expression::Access { base, .. } => {
+                // TODO: Something more efficient that takes into account any known indexes.
+                let (base_var_id, _base_var_pos) = match base.borrow() {
+                    Expression::Variable(id, position) => (self.convert(*id), position.clone()),
+                    _ => unreachable!("Nothing else can be the base of an access."),
+                };
+                self.program.set_temporary_value(base_var_id, KnownData::Unknown);
+            }
+            _ => unreachable!("Cannot have anything else in an assignment expression.")
+        }
+    }
+
+    fn resolve_func_call(
+        &mut self,
+        function: &Expression,
+        inputs: &Vec<Expression>,
+        outputs: &Vec<Expression>,
+        position: &FilePosition,
+    ) -> Result<ResolveExpressionResult, CompileProblem> {
+        // We want to make a new table specifically for this function, so that any variable
+        // conversions we make won't be applied to other calls to the same funciton.
+        self.push_table();
+        // Make sure we can figure out what function is being called right now at compile time.
+        let resolved_function = match self.resolve_expression(function.borrow())? {
+            ResolveExpressionResult::Interpreted(value) => value,
+            ResolveExpressionResult::Modified(..) => {
+                return Result::Err(problem::vague_function(
+                    position.clone(),
+                    function.clone_position(),
+                ))
+            }
+        };
+        // Get the actual function data.
+        let function_data = match resolved_function {
+            KnownData::Function(data) => data,
+            _ => return Result::Err(problem::not_function(function.clone_position())),
+        };
+        // Make a copy of the function body.
+        let old_function_body = function_data.get_body();
+        let new_function_body = self.copy_scope(
+            old_function_body,
+            self.program.borrow_scope(old_function_body).get_parent(),
+        )?;
+        // Reset the temporary values of all the inputs and outputs of the new body.
+        // TODO: Not sure if this step is necessary.
+        let input_targets = self
+            .program
+            .borrow_scope(new_function_body)
+            .borrow_inputs()
+            .clone();
+        let output_targets = self
+            .program
+            .borrow_scope(new_function_body)
+            .borrow_outputs()
+            .clone();
+        for target in input_targets.iter().chain(output_targets.iter()) {
+            self.program.reset_temporary_value(*target);
+        }
+
+        // Try to set the value of any input parameters at compile time when the corresponding
+        // argument has a value that can be determined at compile time.
+        let mut runtime_inputs = Vec::new();
+        for (expression, target) in inputs.iter().zip(input_targets.iter()) {
+            match self.resolve_expression(expression)? {
+                // If we know the value of the argument, use that to set the parameter.
+                ResolveExpressionResult::Interpreted(value) => {
+                    self.program.set_temporary_value(*target, value)
+                }
+                // Otherwise, store the simplified expression for the argument as well as the
+                // parameter it corresponds to for later use.
+                ResolveExpressionResult::Modified(new_expression) => {
+                    runtime_inputs.push((new_expression, *target))
+                }
+            }
+        }
+
+        // Now that we have given specific values to as many inputs as possible, resolve each
+        // expression in the function body. Hopefully it will end up eliminating some of the
+        // instructions, resulting in a simpler body.
+        for expression in self.program.clone_scope_body(old_function_body) {
+            match self.resolve_expression(&expression)? {
+                // TODO: Warn if an output is not being used.
+                ResolveExpressionResult::Interpreted(..) => (),
+                ResolveExpressionResult::Modified(new_expression) => match new_expression {
+                    Expression::Return(..) => break,
+                    _ => self
+                        .program
+                        .add_expression(new_function_body, new_expression),
+                },
+            }
+        }
+        // Because making a scope copy using the self::copy function adds a bunch of conversions to
+        // the internal conversion table, and because that table is used when expressions are
+        // resolved, then we can read the values of the output variables on the new body to see if
+        // any of them have compile-time determinable values.
+        // TODO: This logic only works if the function has only determinate return statements! (I.E.
+        // no return statements inside branches or loops.)
+        // This variable holds the value of the inline return. This algorithm is currently designed
+        // to work only under the condition that if a function call has an inline return value, then
+        // there are no other return values. This requirement is currently enforced by the grammar,
+        // which requires that all function calls used inside of an expression (and thus having an
+        // implicit inline return) must have one and only one return value.
+        // TODO: This also implicitly assumes that functions do not have side effects. Need to check
+        // that a function does not cause any side effects.
+        let mut inline_result = Option::None;
+        let mut runtime_outputs = Vec::new();
+        for (target_access, source) in outputs.iter().zip(output_targets.iter()) {
+            let source_data = self.program.borrow_temporary_value(*source);
+            // If we don't know what the output will be, we need to leave it in the code to be
+            // computed at runtime.
+            if let KnownData::Unknown = source_data {
+                runtime_outputs.push((target_access.clone(), *source));
+            } else {
+                let cloned_data = source_data.clone();
+                // If the output 'target' is InlineReturn, then we have no variable we can assign
+                // the data to. Instead, return it as the interpreted result.
+                if let Expression::InlineReturn(..) = target_access {
+                    // TODO: Check that there is only one inline return.
+                    inline_result = Option::Some(cloned_data);
+                    continue;
+                }
+                // Check to see if we can write the known value of the output parameter to the
+                // output argument.
+                match self.assign_value_to_expression(
+                    target_access,
+                    cloned_data.clone(),
+                    FilePosition::placeholder(),
+                )? {
+                    // Don't need to do anything, we successfully set the value of the argument.
+                    Result::Ok(..) => (),
+                    // We know the value the output parameter will have, but we have to assign
+                    // it at runtime. Tack on some code to assign the value.
+                    Result::Err(..) => {
+                        // TODO?: File positions, though I'm not sure if there's any sensible
+                        // option in this case.
+                        self.program.add_expression(
+                            new_function_body,
+                            Expression::Assign {
+                                target: Box::new(Expression::Variable(
+                                    *source,
+                                    FilePosition::placeholder(),
+                                )),
+                                value: Box::new(Expression::Literal(
+                                    cloned_data,
+                                    FilePosition::placeholder(),
+                                )),
+                                position: FilePosition::placeholder(),
+                            },
+                        );
+                        runtime_outputs.push((target_access.clone(), *source));
+                    }
+                }
+            }
+        }
+
+        // Clear the input and output list in the new function body, then add back only the inputs
+        // and outputs which are required at run time.
+        let scope = self.program.borrow_scope_mut(new_function_body);
+        scope.clear_inputs();
+        scope.clear_outputs();
+        for (_, parameter) in runtime_inputs.iter() {
+            scope.add_input(*parameter);
+        }
+        for (_, parameter) in runtime_outputs.iter() {
+            scope.add_output(*parameter);
+        }
+
+        // Make a literal containing the data of the new function we created.
+        let new_function_data =
+            FunctionData::new(new_function_body, function_data.get_header().clone());
+        let new_function = Expression::Literal(
+            KnownData::Function(new_function_data),
+            function.clone_position(),
+        );
+        self.pop_table();
+
+        // Make a function call expression using only the arguments for the runtime parameters.
+        Result::Ok(match inline_result {
+            Option::Some(data) => ResolveExpressionResult::Interpreted(data),
+            Option::None => {
+                if runtime_outputs.len() == 0 {
+                    ResolveExpressionResult::Interpreted(KnownData::Void)
+                } else {
+                    ResolveExpressionResult::Modified(Expression::FuncCall {
+                        function: Box::new(new_function),
+                        inputs: runtime_inputs.into_iter().map(|item| item.0).collect(),
+                        outputs: runtime_outputs.into_iter().map(|item| item.0).collect(),
+                        position: position.clone(),
+                    })
+                }
+            }
         })
     }
 
@@ -534,6 +739,7 @@ impl<'a> ScopeResolver<'a> {
                 }
                 ResolveExpressionResult::Modified(resolved_value) => {
                     let resolved_target = self.resolve_assignment_access_expression(target)?;
+                    self.assign_unknown_to_expression(&resolved_target);
                     ResolveExpressionResult::Modified(Expression::Assign {
                         target: Box::new(resolved_target),
                         value: Box::new(resolved_value),
@@ -545,7 +751,12 @@ impl<'a> ScopeResolver<'a> {
                 ResolveExpressionResult::Modified(Expression::Return(position.clone()))
             }
 
-            Expression::FuncCall { .. } => unimplemented!(),
+            Expression::FuncCall {
+                function,
+                inputs,
+                outputs,
+                position,
+            } => self.resolve_func_call(function, inputs, outputs, position)?,
         })
     }
 

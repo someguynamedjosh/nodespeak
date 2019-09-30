@@ -56,22 +56,36 @@ pub fn wrong_number_of_outputs(
     ])
 }
 
-pub fn vague_function(func_call_pos: FilePosition, var_dec_pos: FilePosition) -> CompileProblem {
+pub fn vague_function(func_call_pos: FilePosition, expr_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
             func_call_pos,
             Error,
             concat!(
-                "Vague Function Variable\nCannot determine what function is ",
+                "Vague Function\nCannot determine what function is ",
                 "being called here:"
             ),
         ),
         ProblemDescriptor::new(
-            var_dec_pos,
+            expr_pos,
             Hint,
-            concat!("The variable that should hold the function was declared here:"),
+            concat!(
+                "The highlighted expression must have a value that can be determined at compile ",
+                "time, but it relies on values that will only be known at run time:"
+            ),
         ),
     ])
+}
+
+pub fn not_function(expr_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        expr_pos,
+        Error,
+        concat!(
+            "Incorrect Type\nThe highlighted expression should resolve to a function because it ",
+            "is being used in a function call. However, it resolves to a different data type.",
+        ),
+    )])
 }
 
 pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {

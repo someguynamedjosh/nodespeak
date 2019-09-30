@@ -1191,15 +1191,15 @@ pub mod convert {
         let input_pos = FilePosition::from_pair(&input);
         let mut input_iter = input.into_inner();
         let data_type = convert_data_type(
-            program, 
-            scope, 
-            input_iter.next().expect("Required by grammar.")
+            program,
+            scope,
+            input_iter.next().expect("Required by grammar."),
         )?;
         let name = input_iter.next().expect("Required by grammar.").as_str();
         let var_id = program.adopt_and_define_symbol(
-            scope, 
-            name, 
-            Variable::variable(input_pos.clone(), data_type, Option::None)
+            scope,
+            name,
+            Variable::variable(input_pos.clone(), data_type, Option::None),
         );
         Result::Ok(Expression::Variable(var_id, input_pos))
     }
@@ -1224,7 +1224,10 @@ pub mod convert {
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
-            assert!(child.as_rule() == Rule::func_statement_output, "Required by grammar.");
+            assert!(
+                child.as_rule() == Rule::func_statement_output,
+                "Required by grammar."
+            );
             list.push(convert_func_statement_output(program, scope, child)?);
         }
         Result::Ok(())
@@ -1247,11 +1250,11 @@ pub mod convert {
         convert_func_statement_input_list(program, scope, &mut inputs, input_list)?;
         let mut outputs = Vec::new();
         convert_func_statement_output_list(program, scope, &mut outputs, output_list)?;
-        let expression = Expression::FuncCall{
+        let expression = Expression::FuncCall {
             function: Box::new(Expression::Variable(func_var, identifier_pos)),
             inputs,
             outputs,
-            position: input_pos
+            position: input_pos,
         };
         program.add_expression(scope, expression);
         Result::Ok(())

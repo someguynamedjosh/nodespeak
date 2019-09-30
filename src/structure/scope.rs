@@ -77,6 +77,14 @@ impl Scope {
         self.intermediates.push(definition);
     }
 
+    pub fn clear_inputs(&mut self) {
+        self.inputs.clear();
+    }
+
+    pub fn clear_outputs(&mut self) {
+        self.outputs.clear();
+    }
+
     pub fn add_input(&mut self, input: VariableId) {
         self.inputs.push(input);
     }
@@ -114,8 +122,8 @@ impl Scope {
     }
 
     pub fn get_single_output(&self) -> Option<VariableId> {
-        if self.inputs.len() == 1 {
-            Option::Some(self.inputs[0])
+        if self.outputs.len() == 1 {
+            Option::Some(self.outputs[0])
         } else {
             Option::None
         }
