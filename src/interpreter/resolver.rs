@@ -699,6 +699,37 @@ impl<'a> ScopeResolver<'a> {
                     ResolveExpressionResult::Modified(Expression::Collect(items, position.clone()))
                 }
             }
+            Expression::CreationPoint(old_var_id, position) => {
+                let new_var_id = self.convert(*old_var_id);
+                let data_type = self.program.borrow_variable(new_var_id).borrow_data_type();
+                let mut new_sizes = Vec::with_capacity(data_type.borrow_sizes().len());
+                for size in data_type.borrow_sizes().clone() {
+                    match self.resolve_expression(&size)? {
+                        ResolveExpressionResult::Interpreted(result) => {
+                            if let KnownData::Int(value) = result {
+                                new_sizes.push(value);
+                            } else {
+                                return Result::Err(problem::array_size_not_int(
+                                    size.clone_position(),
+                                    &result,
+                                    position.clone(),
+                                ));
+                            }
+                        }
+                        _ => {
+                            return Result::Err(problem::vague_array_size(
+                                size.clone_position(),
+                                position.clone(),
+                            ))
+                        }
+                    }
+                }
+                self.program
+                    .borrow_variable_mut(new_var_id)
+                    .borrow_data_type_mut()
+                    .set_literal_sizes(new_sizes);
+                ResolveExpressionResult::Interpreted(KnownData::Void)
+            }
 
             Expression::Assert(value, position) => {
                 let resolved_value = self.resolve_expression(value)?;

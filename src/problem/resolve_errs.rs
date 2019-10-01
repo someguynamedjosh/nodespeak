@@ -1,4 +1,5 @@
 use super::objects::*;
+use crate::structure::KnownData;
 use ProblemType::Error;
 use ProblemType::Hint;
 
@@ -107,6 +108,43 @@ pub fn illegal_inflation(source_pos: FilePosition, target_pos: FilePosition) -> 
             target_pos,
             Hint,
             "The value cannot be inflated to fit this target:",
+        ),
+    ])
+}
+
+pub fn array_size_not_int(
+    size_pos: FilePosition,
+    size_value: &KnownData,
+    declare_pos: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            size_pos,
+            Error,
+            &format!(
+                "Array Size Is Not Int\nExpected an integer, got {:?}:",
+                size_value
+            ),
+        ),
+        ProblemDescriptor::new(
+            declare_pos,
+            Hint,
+            "Encountered while declaring this variable:",
+        ),
+    ])
+}
+
+pub fn vague_array_size(size_pos: FilePosition, declare_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            size_pos,
+            Error,
+            "Vague Array Size\nCould not determine the value of this expression at compile time:",
+        ),
+        ProblemDescriptor::new(
+            declare_pos,
+            Hint,
+            "Encountered while declaring this variable:",
         ),
     ])
 }

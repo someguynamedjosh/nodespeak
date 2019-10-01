@@ -94,6 +94,7 @@ pub enum Expression {
     ),
 
     Collect(Vec<Expression>, FilePosition),
+    CreationPoint(VariableId, FilePosition),
 
     Assert(Box<Expression>, FilePosition),
     Assign {
@@ -139,6 +140,7 @@ impl Debug for Expression {
                 }
                 write!(formatter, "]")
             }
+            Expression::CreationPoint(var_id, ..) => write!(formatter, "define {:?}", var_id),
 
             Expression::Assert(value, ..) => write!(formatter, "assert {:?};", value),
             Expression::Assign { target, value, .. } => {
@@ -176,6 +178,7 @@ impl Expression {
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
             | Expression::Collect(_, position)
+            | Expression::CreationPoint(_, position)
             | Expression::Assert(_, position)
             | Expression::Assign { position, .. }
             | Expression::Return(position)

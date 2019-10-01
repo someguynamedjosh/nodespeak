@@ -124,6 +124,15 @@ impl DataType {
         &self.sizes
     }
 
+    pub fn set_literal_sizes(&mut self, literal_sizes: Vec<i64>) {
+        assert!(literal_sizes.len() == self.sizes.len());
+        for (index, size) in literal_sizes.into_iter().enumerate() {
+            assert!(size > 0);
+            self.sizes[index] =
+                Expression::Literal(KnownData::Int(size), self.sizes[index].clone_position());
+        }
+    }
+
     pub fn borrow_base(&self) -> &BaseType {
         &self.base
     }
@@ -404,11 +413,27 @@ impl Debug for KnownData {
                     }
                     if levels > 0 {
                         for dip in 1..levels {
-                            write!(formatter, "{:indent$}]\n", "", indent = (indent_level - dip) * 4)?;
+                            write!(
+                                formatter,
+                                "{:indent$}]\n",
+                                "",
+                                indent = (indent_level - dip) * 4
+                            )?;
                         }
-                        write!(formatter, "{:indent$}],\n{:indent$}[\n", "", "", indent = (indent_level - levels) * 4)?;
+                        write!(
+                            formatter,
+                            "{:indent$}],\n{:indent$}[\n",
+                            "",
+                            "",
+                            indent = (indent_level - levels) * 4
+                        )?;
                         for dip in (1..levels).rev() {
-                            write!(formatter, "{:indent$}[\n", "", indent = (indent_level - dip) * 4)?;
+                            write!(
+                                formatter,
+                                "{:indent$}[\n",
+                                "",
+                                indent = (indent_level - dip) * 4
+                            )?;
                         }
                     }
                 }
@@ -542,6 +567,10 @@ impl Variable {
 
     pub fn borrow_data_type(&self) -> &DataType {
         &self.data_type
+    }
+
+    pub fn borrow_data_type_mut(&mut self) -> &mut DataType {
+        &mut self.data_type
     }
 
     pub fn set_initial_value(&mut self, value: KnownData) {

@@ -861,34 +861,27 @@ pub mod convert {
             let variable = Variable::variable(input_pos.clone(), data_type, None);
             program.adopt_and_define_symbol(scope, name, variable)
         };
-        for child in input_iter {
-            match child.as_rule() {
-                Rule::identifier => unreachable!("Handled above."),
-                Rule::expr => {
-                    let expr =
-                        convert_expression(program, scope, true, child).map_err(|mut err| {
-                            problem::hint_encountered_while_parsing(
-                                "initial value for a variable",
-                                input_pos.clone(),
-                                &mut err,
-                            );
-                            err
-                        })?;
-                    program.add_expression(
-                        scope,
-                        Expression::Assign {
-                            target: Box::new(Expression::Variable(
-                                variable_id,
-                                variable_position.clone(),
-                            )),
-                            value: Box::new(expr),
-                            position: input_pos.clone(),
-                        },
-                    );
-                }
-                _ => unreachable!(),
-            }
-        }
+        let expr_pair = input_iter.next().expect("Required by grammar.");
+        let expr = convert_expression(program, scope, true, expr_pair).map_err(|mut err| {
+            problem::hint_encountered_while_parsing(
+                "initial value for a variable",
+                input_pos.clone(),
+                &mut err,
+            );
+            err
+        })?;
+        program.add_expression(
+            scope,
+            Expression::CreationPoint(variable_id, input_pos.clone()),
+        );
+        program.add_expression(
+            scope,
+            Expression::Assign {
+                target: Box::new(Expression::Variable(variable_id, variable_position.clone())),
+                value: Box::new(expr),
+                position: input_pos.clone(),
+            },
+        );
         Result::Ok(())
     }
 
@@ -898,19 +891,15 @@ pub mod convert {
         data_type: DataType,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut name = Option::None;
         let input_pos = FilePosition::from_pair(&input);
-        for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::identifier => name = Option::Some(child.as_str()),
-                _ => unreachable!(),
-            }
-        }
-        program.adopt_and_define_symbol(
-            scope,
-            name.unwrap(),
-            Variable::variable(input_pos, data_type, None),
-        );
+        let name = input
+            .into_inner()
+            .next()
+            .expect("Required by grammar.")
+            .as_str();
+        let variable = Variable::variable(input_pos.clone(), data_type, None);
+        let variable_id = program.adopt_and_define_symbol(scope, name, variable);
+        program.add_expression(scope, Expression::CreationPoint(variable_id, input_pos));
         Result::Ok(())
     }
 
@@ -991,31 +980,25 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut data_type = Option::None;
         if program.borrow_scope(scope).get_parent().is_some() {
             return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
-        for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, scope, child)?)
-                }
-                Rule::identifier => {
-                    let new_input = program.adopt_and_define_symbol(
-                        scope,
-                        child.as_str(),
-                        Variable::variable(
-                            FilePosition::from_pair(&child),
-                            data_type
-                                .as_ref()
-                                .expect("Grammar requires data type before identifier.")
-                                .clone(),
-                            None,
-                        ),
-                    );
-                    program.borrow_scope_mut(scope).add_input(new_input);
-                }
-                _ => unreachable!(),
+        let mut input_iter = input.into_inner();
+        let data_type = {
+            let child = input_iter.next().expect("Required by grammar.");
+            convert_data_type(program, scope, child)?
+        };
+        for child in input_iter {
+            if let Rule::identifier = child.as_rule() {
+                let position = FilePosition::from_pair(&child);
+                let variable = Variable::variable(position.clone(), data_type.clone(), None);
+                let var_id = program.adopt_and_define_symbol(scope, child.as_str(), variable);
+                program.borrow_scope_mut(scope).add_input(var_id);
+                program.add_expression(scope, Expression::CreationPoint(var_id, position.clone()));
+            } else if let Rule::data_type = child.as_rule() {
+                unreachable!("Handled above.");
+            } else {
+                unreachable!("Grammar specifies no other children.");
             }
         }
         Result::Ok(())
@@ -1026,31 +1009,25 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut data_type = Option::None;
         if program.borrow_scope(scope).get_parent().is_some() {
             return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
-        for child in input.into_inner() {
-            match child.as_rule() {
-                Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, scope, child)?)
-                }
-                Rule::identifier => {
-                    let new_output = program.adopt_and_define_symbol(
-                        scope,
-                        child.as_str(),
-                        Variable::variable(
-                            FilePosition::from_pair(&child),
-                            data_type
-                                .as_ref()
-                                .expect("Grammar requires data type before identifier.")
-                                .clone(),
-                            None,
-                        ),
-                    );
-                    program.borrow_scope_mut(scope).add_output(new_output);
-                }
-                _ => unreachable!(),
+        let mut input_iter = input.into_inner();
+        let data_type = {
+            let child = input_iter.next().expect("Required by grammar.");
+            convert_data_type(program, scope, child)?
+        };
+        for child in input_iter {
+            if let Rule::identifier = child.as_rule() {
+                let position = FilePosition::from_pair(&child);
+                let variable = Variable::variable(position.clone(), data_type.clone(), None);
+                let var_id = program.adopt_and_define_symbol(scope, child.as_str(), variable);
+                program.borrow_scope_mut(scope).add_output(var_id);
+                program.add_expression(scope, Expression::CreationPoint(var_id, position.clone()));
+            } else if let Rule::data_type = child.as_rule() {
+                unreachable!("Handled above.");
+            } else {
+                unreachable!("Grammar specifies no other children.");
             }
         }
         Result::Ok(())
@@ -1061,28 +1038,21 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        let mut data_type = Option::None;
-        for child in input.into_inner() {
+        let mut input_iter = input.into_inner();
+        let data_type = convert_data_type(
+            program,
+            scope,
+            input_iter.next().expect("Required by grammar."),
+        )?;
+        for child in input_iter {
             match child.as_rule() {
-                Rule::data_type => {
-                    data_type = Option::Some(convert_data_type(program, scope, child)?)
+                Rule::data_type => unreachable!("Handled above."),
+                Rule::assigned_variable => {
+                    convert_assigned_variable(program, scope, data_type.clone(), child)?
                 }
-                Rule::assigned_variable => convert_assigned_variable(
-                    program,
-                    scope,
-                    data_type
-                        .clone()
-                        .expect("Grammar requires data type before variable."),
-                    child,
-                )?,
-                Rule::empty_variable => convert_empty_variable(
-                    program,
-                    scope,
-                    data_type
-                        .clone()
-                        .expect("Grammar requires data type before variable."),
-                    child,
-                )?,
+                Rule::empty_variable => {
+                    convert_empty_variable(program, scope, data_type.clone(), child)?
+                }
                 _ => unreachable!(),
             }
         }
