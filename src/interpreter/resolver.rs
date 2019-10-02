@@ -1,6 +1,6 @@
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    ArrayDimension, BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId,
+    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId,
     VariableId,
 };
 use crate::util::NVec;
@@ -689,7 +689,7 @@ impl<'a> ScopeResolver<'a> {
                 let new_var_id = self.convert(*old_var_id);
                 let data_type = self.program[new_var_id].borrow_data_type();
                 let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
-                for ArrayDimension { size, .. } in data_type.borrow_dimensions().clone() {
+                for size in data_type.borrow_dimensions().clone() {
                     match self.resolve_expression(&size)? {
                         ResolveExpressionResult::Interpreted(result) => {
                             if let KnownData::Int(value) = result {

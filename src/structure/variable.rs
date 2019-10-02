@@ -156,26 +156,4 @@ impl Variable {
     pub fn reset_temporary_value(&mut self) {
         self.temporary_value = self.initial_value.clone();
     }
-
-    // pub fn set_temporary_value(&mut self, value: KnownData) {
-    //     self.temporary_value = value;
-    //     if self.temporary_read {
-    //         self.multiple_temporary_values = true;
-    //     }
-    // }
-
-    // pub fn borrow_temporary_value(&mut self) -> &KnownData {
-    //     self.temporary_read = true;
-    //     &self.temporary_value
-    // }
-
-    // pub fn reset_temporary_value(&mut self) {
-    //     self.temporary_value = self.initial_value.clone();
-    //     self.temporary_read = false;
-    //     self.multiple_temporary_values = false;
-    // }
-
-    // pub fn had_multiple_temporary_values(&self) -> bool {
-    //     self.multiple_temporary_values
-    // }
 }

@@ -939,9 +939,9 @@ pub mod convert {
         let mut dimensions = Vec::new();
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::expr => dimensions.push(ArrayDimension::literal(convert_expression(
+                Rule::expr => dimensions.push(convert_expression(
                     program, scope, true, child,
-                )?)),
+                )?),
                 Rule::basic_data_type => {
                     // Array data type stores dimensions in the same order as the grammar, biggest to
                     // smallest.
