@@ -5,7 +5,6 @@ use crate::util::NVec;
 
 use std::fmt::{self, Debug, Formatter};
 
-
 #[derive(Clone, Debug)]
 pub struct FunctionData {
     body: ScopeId,
@@ -175,7 +174,7 @@ impl KnownData {
         match self {
             KnownData::Array(contents) => {
                 // Check that the data has the same dimensions as the data type.
-                if contents.borrow_dimensions().len() != data_type.borrow_sizes().len() {
+                if contents.borrow_dimensions().len() != data_type.borrow_dimensions().len() {
                     return false;
                 }
                 // TODO? check dimensions

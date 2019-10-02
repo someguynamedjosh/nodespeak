@@ -941,17 +941,19 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<DataType, CompileProblem> {
-        // We have to store the sizes and process them later because the base type comes after all
-        // the sizes.
-        let mut sizes = Vec::new();
+        // We have to store the dimensions and process them later because the base type comes after
+        // all the dimensions.
+        let mut dimensions = Vec::new();
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::expr => sizes.push(convert_expression(program, scope, true, child)?),
+                Rule::expr => dimensions.push(ArrayDimension::literal(convert_expression(
+                    program, scope, true, child,
+                )?)),
                 Rule::basic_data_type => {
-                    // Array data type stores sizes in the same order as the grammar, biggest to
+                    // Array data type stores dimensions in the same order as the grammar, biggest to
                     // smallest.
                     let mut data_type = convert_basic_data_type(program, scope, child)?;
-                    data_type.wrap_with_sizes(sizes);
+                    data_type.wrap_with_dimensions(dimensions);
                     return Result::Ok(data_type);
                 }
                 _ => unreachable!("Grammar allows no other children."),

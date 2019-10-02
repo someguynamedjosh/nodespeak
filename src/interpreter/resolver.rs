@@ -1,6 +1,7 @@
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId, VariableId,
+    ArrayDimension, BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId,
+    VariableId,
 };
 use crate::util::NVec;
 use std::borrow::Borrow;
@@ -702,8 +703,8 @@ impl<'a> ScopeResolver<'a> {
             Expression::CreationPoint(old_var_id, position) => {
                 let new_var_id = self.convert(*old_var_id);
                 let data_type = self.program.borrow_variable(new_var_id).borrow_data_type();
-                let mut new_sizes = Vec::with_capacity(data_type.borrow_sizes().len());
-                for size in data_type.borrow_sizes().clone() {
+                let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
+                for ArrayDimension { size, .. } in data_type.borrow_dimensions().clone() {
                     match self.resolve_expression(&size)? {
                         ResolveExpressionResult::Interpreted(result) => {
                             if let KnownData::Int(value) = result {
@@ -727,7 +728,7 @@ impl<'a> ScopeResolver<'a> {
                 self.program
                     .borrow_variable_mut(new_var_id)
                     .borrow_data_type_mut()
-                    .set_literal_sizes(new_sizes);
+                    .set_literal_dimensions(new_sizes);
                 ResolveExpressionResult::Interpreted(KnownData::Void)
             }
 

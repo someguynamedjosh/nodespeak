@@ -57,8 +57,14 @@ impl BaseType {
         DataType::scalar(self)
     }
 
-    pub fn to_array_type(self, sizes: Vec<Expression>) -> DataType {
-        DataType::array(self, sizes)
+    pub fn to_literal_array_type(self, sizes: Vec<Expression>) -> DataType {
+        DataType::array(
+            self,
+            sizes
+                .into_iter()
+                .map(|ex| ArrayDimension::literal(ex))
+                .collect(),
+        )
     }
 }
 
@@ -79,16 +85,58 @@ impl Debug for BaseType {
 }
 
 #[derive(Clone, PartialEq)]
+pub enum ArrayDimensionType {
+    /// The underlying data is an N length array. The index provided for the corresponding dimension
+    /// should be used to select an element from the array. This is the default.
+    Literal,
+    /// The underlying data is a scalar value/ No matter what value is provided to index the
+    /// corresponding dimension, that first item should always be returned.
+    ScalarProxy,
+    /// The underlying data is an array of 1 item. No matter what value is provided to index the
+    /// corresponding dimension, that first item should always be returned.
+    SingleElementProxy,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ArrayDimension {
+    pub size: Expression,
+    pub typ: ArrayDimensionType,
+}
+
+impl ArrayDimension {
+    pub fn literal(size: Expression) -> ArrayDimension {
+        ArrayDimension {
+            size,
+            typ: ArrayDimensionType::Literal,
+        }
+    }
+
+    pub fn scalar_proxy(size: Expression) -> ArrayDimension {
+        ArrayDimension {
+            size,
+            typ: ArrayDimensionType::ScalarProxy,
+        }
+    }
+
+    pub fn single_element_proxy(size: Expression) -> ArrayDimension {
+        ArrayDimension {
+            size,
+            typ: ArrayDimensionType::SingleElementProxy,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct DataType {
     base: BaseType,
-    sizes: Vec<Expression>,
+    dimensions: Vec<ArrayDimension>,
 }
 
 impl DataType {
     pub fn scalar(base: BaseType) -> DataType {
         DataType {
             base,
-            sizes: Vec::new(),
+            dimensions: Vec::new(),
         }
     }
 
@@ -96,19 +144,19 @@ impl DataType {
         Self::scalar(base)
     }
 
-    pub fn array(base: BaseType, sizes: Vec<Expression>) -> DataType {
-        DataType { base, sizes }
+    pub fn array(base: BaseType, dimensions: Vec<ArrayDimension>) -> DataType {
+        DataType { base, dimensions }
     }
 
-    // E.G. if size is 5, [2]Int becomes [5][2]Int.
-    pub fn wrap_with_size(&mut self, size: Expression) {
-        self.sizes.insert(0, size);
+    // E.G. if dimension is 5, [2]Int becomes [5][2]Int.
+    pub fn wrap_with_dimension(&mut self, dimension: ArrayDimension) {
+        self.dimensions.insert(0, dimension);
     }
 
-    // E.G. if sizes is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
-    pub fn wrap_with_sizes(&mut self, mut sizes: Vec<Expression>) {
-        sizes.append(&mut self.sizes);
-        self.sizes = sizes;
+    // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
+    pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<ArrayDimension>) {
+        dimensions.append(&mut self.dimensions);
+        self.dimensions = dimensions;
     }
 
     // [2][3]Int being unwrapped once results in [3]Int
@@ -116,20 +164,22 @@ impl DataType {
     pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
         DataType {
             base: self.base.clone(),
-            sizes: Vec::from(&self.sizes[num_unwraps..]),
+            dimensions: Vec::from(&self.dimensions[num_unwraps..]),
         }
     }
 
-    pub fn borrow_sizes(&self) -> &Vec<Expression> {
-        &self.sizes
+    pub fn borrow_dimensions(&self) -> &Vec<ArrayDimension> {
+        &self.dimensions
     }
 
-    pub fn set_literal_sizes(&mut self, literal_sizes: Vec<i64>) {
-        assert!(literal_sizes.len() == self.sizes.len());
-        for (index, size) in literal_sizes.into_iter().enumerate() {
-            assert!(size > 0);
-            self.sizes[index] =
-                Expression::Literal(KnownData::Int(size), self.sizes[index].clone_position());
+    pub fn set_literal_dimensions(&mut self, literal_dimensions: Vec<i64>) {
+        assert!(literal_dimensions.len() == self.dimensions.len());
+        for (index, dimension) in literal_dimensions.into_iter().enumerate() {
+            assert!(dimension > 0);
+            self.dimensions[index].size = Expression::Literal(
+                KnownData::Int(dimension),
+                self.dimensions[index].size.clone_position(),
+            );
         }
     }
 
@@ -138,7 +188,7 @@ impl DataType {
     }
 
     pub fn is_scalar(&self) -> bool {
-        self.sizes.len() == 0
+        self.dimensions.len() == 0
     }
 
     pub fn is_array(&self) -> bool {
@@ -154,13 +204,13 @@ impl DataType {
         if !self.base.equivalent(&other.base, program) {
             return false;
         }
-        // Check if all the sizes have known and identical values.
-        for (size, other_size) in self.sizes.iter().zip(other.sizes.iter()) {
-            let size_value = program.borrow_value_of(size);
-            let other_size_value = program.borrow_value_of(other_size);
-            if let KnownData::Unknown = size_value {
+        // Check if all the dimensions have known and identical values.
+        for (dimension, other_dimension) in self.dimensions.iter().zip(other.dimensions.iter()) {
+            let dimension_value = program.borrow_value_of(&dimension.size);
+            let other_dimension_value = program.borrow_value_of(&other_dimension.size);
+            if let KnownData::Unknown = dimension_value {
                 return false;
-            } else if size_value != other_size_value {
+            } else if dimension_value != other_dimension_value {
                 return false;
             }
         }
@@ -170,8 +220,8 @@ impl DataType {
 
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        for size in self.sizes.iter() {
-            if let Expression::Literal(KnownData::Int(dimension), ..) = size {
+        for dimension in self.dimensions.iter() {
+            if let Expression::Literal(KnownData::Int(dimension), ..) = dimension.size {
                 write!(formatter, "[{}]", dimension)?;
             } else {
                 write!(formatter, "[?]")?;
