@@ -3,8 +3,8 @@ use crate::structure::{
     self, Builtins, DataType, Expression, FunctionData, KnownData, Scope, Variable,
 };
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Index, IndexMut};
 
 /// Refers to a [`Scope`] stored in a [`Program`].
 ///
@@ -59,6 +59,34 @@ impl Debug for Program {
     }
 }
 
+impl Index<ScopeId> for Program {
+    type Output = Scope;
+
+    fn index(&self, scope: ScopeId) -> &Self::Output {
+        &self.scopes[scope.0]
+    }
+}
+
+impl IndexMut<ScopeId> for Program {
+    fn index_mut(&mut self, scope: ScopeId) -> &mut Self::Output {
+        &mut self.scopes[scope.0]
+    }
+}
+
+impl Index<VariableId> for Program {
+    type Output = Variable;
+
+    fn index(&self, variable: VariableId) -> &Self::Output {
+        &self.variables[variable.0]
+    }
+}
+
+impl IndexMut<VariableId> for Program {
+    fn index_mut(&mut self, variable: VariableId) -> &mut Self::Output {
+        &mut self.variables[variable.0]
+    }
+}
+
 impl Program {
     pub fn new() -> Program {
         let mut prog = Program {
@@ -70,8 +98,6 @@ impl Program {
         prog.builtins = Option::Some(structure::add_builtins(&mut prog));
         prog
     }
-
-    // ===SCOPES====================================================================================
 
     /// Creates a new scope that has no parent.
     pub fn create_scope(&mut self) -> ScopeId {
@@ -87,45 +113,11 @@ impl Program {
         id
     }
 
-    pub fn borrow_scope(&self, scope: ScopeId) -> &Scope {
-        assert!(scope.0 < self.scopes.len());
-        &self.scopes[scope.0]
-    }
-
-    pub fn borrow_scope_mut(&mut self, scope: ScopeId) -> &mut Scope {
-        assert!(scope.0 < self.scopes.len());
-        &mut self.scopes[scope.0]
-    }
-
-    pub fn add_expression(&mut self, add_to: ScopeId, expression: Expression) {
-        self.scopes[add_to.0].add_expression(expression);
-    }
-
-    pub fn clone_scope_body(&self, scope: ScopeId) -> Vec<Expression> {
-        self.borrow_scope(scope).borrow_body().clone()
-    }
-
-    pub fn clone_symbols_in(&self, scope: ScopeId) -> HashMap<String, VariableId> {
-        self.borrow_scope(scope).borrow_symbols().clone()
-    }
-
-    pub fn clone_intermediates_in(&self, scope: ScopeId) -> Vec<VariableId> {
-        self.borrow_scope(scope).borrow_intermediates().clone()
-    }
-
     // ===SYMBOLS/VARIABLES=========================================================================
-
-    pub fn shallow_lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
-        match self.borrow_scope(scope).borrow_symbols().get(symbol) {
-            Option::Some(value) => Option::Some(*value),
-            Option::None => Option::None,
-        }
-    }
-
     pub fn lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
-        match self.borrow_scope(scope).borrow_symbols().get(symbol) {
+        match self[scope].borrow_symbols().get(symbol) {
             Option::Some(value_) => Option::Some(*value_),
-            Option::None => match self.borrow_scope(scope).get_parent() {
+            Option::None => match self[scope].get_parent() {
                 Option::Some(parent) => self.lookup_symbol(parent, symbol),
                 Option::None => Option::None,
             },
@@ -158,67 +150,6 @@ impl Program {
         self.variables[variable.0].set_data_type(data_type);
     }
 
-    // ===DATA STORAGE==============================================================================
-
-    /// Sets the value that the specified variable is known to have at the start of the program.
-    ///
-    /// By default, all variables are given appropriate default values for their value types. Literal
-    /// variables such as [`Variable::IntLiteral`] are set to whatever the value of the literal is.
-    pub fn set_initial_value(&mut self, variable: VariableId, value: KnownData) {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].set_initial_value(value);
-    }
-
-    /// Gets the value that the specified variable is known to have at the start of the program.
-    ///
-    /// By default, all variables are given appropriate default values for their value types. Literal
-    /// variables such as [`Variable::IntLiteral`] are set to whatever the value of the literal is.
-    pub fn borrow_initial_value(&self, variable: VariableId) -> &KnownData {
-        assert!(variable.0 < self.variables.len());
-        &self.variables[variable.0].borrow_initial_value()
-    }
-
-    /// Marks the specified variable as having a value that remains unchanged from its initial value
-    /// throughout the entire program.
-    pub fn mark_as_permanent(&mut self, variable: VariableId) {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].mark_as_permanent();
-    }
-
-    /// Checks if the value of the specified variable remains unchanged from the initial value
-    /// throughout the entire program.
-    pub fn is_permanent(&mut self, variable: VariableId) -> bool {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].is_permanent()
-    }
-
-    /// Stores a temporary value for the related variable.
-    ///
-    /// This is used during interpretation and simplification to keep track of the current value
-    /// of a variable that does not have a permanent value across the entire program.
-    pub fn set_temporary_value(&mut self, variable: VariableId, value: KnownData) {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].set_temporary_value(value);
-    }
-
-    pub fn set_value_of(&mut self, expression: &Expression, value: KnownData) {
-        (*self.borrow_value_of_mut(expression)) = value;
-    }
-
-    /// Retrieves a temporary value for the related variable, set by set_temporary_value.
-    ///
-    /// This is used during interpretation and simplification to keep track of the current value
-    /// of a variable that does not have a permanent value across the entire program.
-    pub fn borrow_temporary_value(&self, variable: VariableId) -> &KnownData {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].borrow_temporary_value()
-    }
-
-    pub fn borrow_temporary_value_mut(&mut self, variable: VariableId) -> &mut KnownData {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].borrow_temporary_value_mut()
-    }
-
     pub fn borrow_value_of<'a>(&'a self, expression: &'a Expression) -> &'a KnownData {
         match expression {
             Expression::Access { base, indexes, .. } => {
@@ -243,7 +174,7 @@ impl Program {
                 }
             }
             Expression::Literal(data, ..) => data,
-            Expression::Variable(id, ..) => self.borrow_temporary_value(*id),
+            Expression::Variable(id, ..) => self[*id].borrow_temporary_value(),
             _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
@@ -272,15 +203,13 @@ impl Program {
                 }
             }
             Expression::Literal(..) => panic!("TODO error, cannot borrow literal as mutable."),
-            Expression::Variable(id, ..) => self.borrow_temporary_value_mut(*id),
+            Expression::Variable(id, ..) => self[*id].borrow_temporary_value_mut(),
             _ => panic!("TODO: error, cannot borrow value of complex expression."),
         }
     }
 
-    /// Resets the temporary value of an variable to be the initial value of that variable.
-    pub fn reset_temporary_value(&mut self, variable: VariableId) {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].reset_temporary_value();
+    pub fn set_value_of(&mut self, expression: &Expression, value: KnownData) {
+        (*self.borrow_value_of_mut(expression)) = value;
     }
 
     /// Resets the temporary value of every variable to their permanent value values.
@@ -292,25 +221,6 @@ impl Program {
             variable.reset_temporary_value();
         }
     }
-
-    /// Checks if the variable had multiple values read from it at any point during the program.
-    ///
-    /// Only use this after the entirety of a program has been interpreted.
-    // pub fn had_multiple_temporary_values(&self, variable: VariableId) -> bool {
-    //     assert!(variable.0 < self.variables.len());
-    //     self.variables[variable.0].had_multiple_temporary_values()
-    // }
-
-    // ===INTERPRETATION============================================================================
-    // pub fn enable_automatic_interpretation(&mut self) {
-    //     self.automatic_interpretation = true;
-    // }
-
-    // pub fn disable_automatic_interpretation(&mut self) {
-    //     self.automatic_interpretation = false;
-    // }
-
-    // ===UTILITIES=================================================================================
 
     pub fn get_entry_point(&self) -> ScopeId {
         self.entry_point
@@ -331,7 +241,7 @@ impl Program {
         definition: Variable,
     ) -> VariableId {
         let id = self.adopt_variable(definition);
-        self.borrow_scope_mut(scope).define_symbol(symbol, id);
+        self[scope].define_symbol(symbol, id);
         id
     }
 
@@ -341,7 +251,7 @@ impl Program {
         definition: Variable,
     ) -> VariableId {
         let id = self.adopt_variable(definition);
-        self.borrow_scope_mut(scope).define_intermediate(id);
+        self[scope].define_intermediate(id);
         id
     }
 

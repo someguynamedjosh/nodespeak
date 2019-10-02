@@ -51,11 +51,11 @@ fn main() {
     }
 
     let mut inputs = Vec::new();
-    let entry_point = program.borrow_scope(program.get_entry_point());
+    let entry_point = &program[program.get_entry_point().clone()];
     for input_id in entry_point.borrow_inputs() {
         for (name, id) in entry_point.borrow_symbols() {
             if id == input_id {
-                let data_type = program.borrow_variable(input_id.clone()).borrow_data_type();
+                let data_type = program[input_id.clone()].borrow_data_type();
                 println!(
                     "Enter data for input '{}' (data type is {:?})",
                     name, data_type
@@ -100,7 +100,7 @@ fn main() {
     );
 
     // Have to reborrow it after program was borrowed as mut.
-    let entry_point = program.borrow_scope(program.get_entry_point());
+    let entry_point = &program[program.get_entry_point()];
     for (index, output_id) in entry_point.borrow_outputs().iter().enumerate() {
         for (name, id) in entry_point.borrow_symbols() {
             if id == output_id {

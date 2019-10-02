@@ -77,10 +77,10 @@ impl<'a> ScopeResolver<'a> {
         // TODO: We probably don't need to preserve the variable names in the
         // resolved scope. Depends on how some meta features get implemented in
         // the future.
-        let symbol_table = self.program.clone_symbols_in(source);
+        let symbol_table = self.program[source].borrow_symbols().clone();
         for name_value_pair in symbol_table.iter() {
             let old = *name_value_pair.1;
-            let variable = self.program.borrow_variable(old).clone();
+            let variable = self.program[old].clone();
             // TODO: we might not need to clone every variable.
             let new = self
                 .program
@@ -88,22 +88,22 @@ impl<'a> ScopeResolver<'a> {
             self.add_conversion(old, new)
         }
 
-        let intermediate_list = self.program.clone_intermediates_in(source);
+        let intermediate_list = self.program[source].borrow_intermediates().clone();
         for old in intermediate_list.into_iter() {
-            let variable = self.program.borrow_variable(old).clone();
+            let variable = self.program[old].clone();
             // TODO: we might not need to clone every variable.
             let new = self.program.adopt_and_define_intermediate(copy, variable);
             self.add_conversion(old, new)
         }
 
-        for old_input in self.program.borrow_scope(source).borrow_inputs().clone() {
+        for old_input in self.program[source].borrow_inputs().clone() {
             let converted = self.convert(old_input);
-            self.program.borrow_scope_mut(copy).add_input(converted);
+            self.program[copy].add_input(converted);
         }
 
-        for old_output in self.program.borrow_scope(source).borrow_outputs().clone() {
+        for old_output in self.program[source].borrow_outputs().clone() {
             let converted = self.convert(old_output);
-            self.program.borrow_scope_mut(copy).add_output(converted);
+            self.program[copy].add_output(converted);
         }
 
         Result::Ok(copy)
@@ -331,7 +331,8 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<Result<(), Expression>, CompileProblem> {
         Result::Ok(match target {
             Expression::Variable(id, ..) => {
-                self.program.set_temporary_value(self.convert(*id), value);
+                let converted = self.convert(*id);
+                self.program[converted].set_temporary_value(value);
                 Result::Ok(())
             }
             Expression::Access { base, indexes, .. } => {
@@ -367,8 +368,7 @@ impl<'a> ScopeResolver<'a> {
                     }
                 }
                 if all_indexes_known {
-                    self.program
-                        .borrow_variable_mut(base_var_id)
+                    self.program[base_var_id]
                         .borrow_temporary_value_mut()
                         .require_array_mut()
                         .set_item(&known_indexes, value);
@@ -388,8 +388,8 @@ impl<'a> ScopeResolver<'a> {
     fn assign_unknown_to_expression(&mut self, target: &Expression) {
         match target {
             Expression::Variable(id, ..) => {
-                self.program
-                    .set_temporary_value(self.convert(*id), KnownData::Unknown);
+                let converted = self.convert(*id);
+                self.program[converted].set_temporary_value(KnownData::Unknown);
             }
             Expression::Access { base, .. } => {
                 // TODO: Something more efficient that takes into account any known indexes.
@@ -397,8 +397,7 @@ impl<'a> ScopeResolver<'a> {
                     Expression::Variable(id, position) => (self.convert(*id), position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
-                self.program
-                    .set_temporary_value(base_var_id, KnownData::Unknown);
+                self.program[base_var_id].set_temporary_value(KnownData::Unknown);
             }
             _ => unreachable!("Cannot have anything else in an assignment expression."),
         }
@@ -433,22 +432,14 @@ impl<'a> ScopeResolver<'a> {
         let old_function_body = function_data.get_body();
         let new_function_body = self.copy_scope(
             old_function_body,
-            self.program.borrow_scope(old_function_body).get_parent(),
+            self.program[old_function_body].get_parent(),
         )?;
         // Reset the temporary values of all the inputs and outputs of the new body.
         // TODO: Not sure if this step is necessary.
-        let input_targets = self
-            .program
-            .borrow_scope(new_function_body)
-            .borrow_inputs()
-            .clone();
-        let output_targets = self
-            .program
-            .borrow_scope(new_function_body)
-            .borrow_outputs()
-            .clone();
+        let input_targets = self.program[new_function_body].borrow_inputs().clone();
+        let output_targets = self.program[new_function_body].borrow_outputs().clone();
         for target in input_targets.iter().chain(output_targets.iter()) {
-            self.program.reset_temporary_value(*target);
+            self.program[*target].reset_temporary_value();
         }
 
         // Try to set the value of any input parameters at compile time when the corresponding
@@ -458,7 +449,7 @@ impl<'a> ScopeResolver<'a> {
             match self.resolve_expression(expression)? {
                 // If we know the value of the argument, use that to set the parameter.
                 ResolveExpressionResult::Interpreted(value) => {
-                    self.program.set_temporary_value(*target, value)
+                    self.program[*target].set_temporary_value(value)
                 }
                 // Otherwise, store the simplified expression for the argument as well as the
                 // parameter it corresponds to for later use.
@@ -471,15 +462,13 @@ impl<'a> ScopeResolver<'a> {
         // Now that we have given specific values to as many inputs as possible, resolve each
         // expression in the function body. Hopefully it will end up eliminating some of the
         // instructions, resulting in a simpler body.
-        for expression in self.program.clone_scope_body(old_function_body) {
+        for expression in self.program[old_function_body].borrow_body().clone() {
             match self.resolve_expression(&expression)? {
                 // TODO: Warn if an output is not being used.
                 ResolveExpressionResult::Interpreted(..) => (),
                 ResolveExpressionResult::Modified(new_expression) => match new_expression {
                     Expression::Return(..) => break,
-                    _ => self
-                        .program
-                        .add_expression(new_function_body, new_expression),
+                    _ => self.program[old_function_body].add_expression(new_expression),
                 },
             }
         }
@@ -499,7 +488,7 @@ impl<'a> ScopeResolver<'a> {
         let mut inline_result = Option::None;
         let mut runtime_outputs = Vec::new();
         for (target_access, source) in outputs.iter().zip(output_targets.iter()) {
-            let source_data = self.program.borrow_temporary_value(*source);
+            let source_data = self.program[*source].borrow_temporary_value();
             // If we don't know what the output will be, we need to leave it in the code to be
             // computed at runtime.
             if let KnownData::Unknown = source_data {
@@ -527,20 +516,17 @@ impl<'a> ScopeResolver<'a> {
                     Result::Err(..) => {
                         // TODO?: File positions, though I'm not sure if there's any sensible
                         // option in this case.
-                        self.program.add_expression(
-                            new_function_body,
-                            Expression::Assign {
-                                target: Box::new(Expression::Variable(
-                                    *source,
-                                    FilePosition::placeholder(),
-                                )),
-                                value: Box::new(Expression::Literal(
-                                    cloned_data,
-                                    FilePosition::placeholder(),
-                                )),
-                                position: FilePosition::placeholder(),
-                            },
-                        );
+                        self.program[new_function_body].add_expression(Expression::Assign {
+                            target: Box::new(Expression::Variable(
+                                *source,
+                                FilePosition::placeholder(),
+                            )),
+                            value: Box::new(Expression::Literal(
+                                cloned_data,
+                                FilePosition::placeholder(),
+                            )),
+                            position: FilePosition::placeholder(),
+                        });
                         runtime_outputs.push((target_access.clone(), *source));
                     }
                 }
@@ -549,7 +535,7 @@ impl<'a> ScopeResolver<'a> {
 
         // Clear the input and output list in the new function body, then add back only the inputs
         // and outputs which are required at run time.
-        let scope = self.program.borrow_scope_mut(new_function_body);
+        let scope = &mut self.program[new_function_body];
         scope.clear_inputs();
         scope.clear_outputs();
         for (_, parameter) in runtime_inputs.iter() {
@@ -594,8 +580,7 @@ impl<'a> ScopeResolver<'a> {
             Expression::Literal(value, ..) => ResolveExpressionResult::Interpreted(value.clone()),
             Expression::Variable(id, position) => {
                 let converted_id = self.convert(*id);
-                let variable = self.program.borrow_variable(converted_id);
-                let temporary_value = variable.borrow_temporary_value();
+                let temporary_value = self.program[converted_id].borrow_temporary_value();
                 match temporary_value {
                     KnownData::Unknown => ResolveExpressionResult::Modified(Expression::Variable(
                         converted_id,
@@ -702,7 +687,7 @@ impl<'a> ScopeResolver<'a> {
             }
             Expression::CreationPoint(old_var_id, position) => {
                 let new_var_id = self.convert(*old_var_id);
-                let data_type = self.program.borrow_variable(new_var_id).borrow_data_type();
+                let data_type = self.program[new_var_id].borrow_data_type();
                 let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
                 for ArrayDimension { size, .. } in data_type.borrow_dimensions().clone() {
                     match self.resolve_expression(&size)? {
@@ -725,8 +710,7 @@ impl<'a> ScopeResolver<'a> {
                         }
                     }
                 }
-                self.program
-                    .borrow_variable_mut(new_var_id)
+                self.program[new_var_id]
                     .borrow_data_type_mut()
                     .set_literal_dimensions(new_sizes);
                 ResolveExpressionResult::Interpreted(KnownData::Void)
@@ -792,8 +776,8 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn resolve_scope(&mut self, source: ScopeId) -> Result<ScopeId, CompileProblem> {
-        let copied = self.copy_scope(source, self.program.borrow_scope(source).get_parent())?;
-        let old_body = self.program.clone_scope_body(source);
+        let copied = self.copy_scope(source, self.program[source].get_parent())?;
+        let old_body = self.program[source].borrow_body().clone();
         for expression in old_body {
             let resolved = self.resolve_expression(&expression)?;
             match resolved {
@@ -802,7 +786,7 @@ impl<'a> ScopeResolver<'a> {
                 ResolveExpressionResult::Modified(expression) => match expression {
                     // TODO: Warn for expressions that have outputs that are not stored.
                     Expression::Return(..) => break,
-                    _ => self.program.add_expression(copied, expression),
+                    _ => self.program[copied].add_expression(expression),
                 },
             }
         }

@@ -31,7 +31,7 @@ impl<'a> Interpreter<'a> {
         match expression {
             Expression::Literal(data, ..) => Specific(data.clone()),
             Expression::Variable(id, ..) => {
-                let data = self.program.borrow_temporary_value(*id).clone();
+                let data = self.program[*id].borrow_temporary_value().clone();
                 match data {
                     KnownData::Unknown | KnownData::Void => {
                         if self.error_on_unknown {
@@ -145,24 +145,24 @@ impl<'a> Interpreter<'a> {
                     _ => return Unknown,
                 };
                 let body = func_data.get_body();
-                let input_targets = self.program.borrow_scope(body).borrow_inputs().clone();
+                let input_targets = self.program[body].borrow_inputs().clone();
                 for (source, target) in inputs.iter().zip(input_targets.iter()) {
                     let value = self.program.borrow_value_of(source).clone();
                     if let KnownData::Unknown | KnownData::Void = value {
                         return Unknown;
                     }
-                    self.program.set_temporary_value(target.clone(), value);
+                    self.program[*target].set_temporary_value(value);
                 }
-                for expression in self.program.clone_scope_body(body) {
+                for expression in self.program[body].borrow_body().clone() {
                     match self.interpret(&expression) {
                         Returned => break,
                         _ => (),
                     }
                 }
-                let output_sources = self.program.borrow_scope(body).borrow_outputs().clone();
+                let output_sources = self.program[body].borrow_outputs().clone();
                 let mut final_value = Option::None;
                 for (source, target) in output_sources.iter().zip(outputs.iter()) {
-                    let value = self.program.borrow_temporary_value(*source).clone();
+                    let value = self.program[*source].borrow_temporary_value().clone();
                     match target {
                         // TODO error for multiple inline returns.
                         Expression::InlineReturn(..) => final_value = Option::Some(value),
@@ -224,23 +224,23 @@ impl<'a> Interpreter<'a> {
         inputs: Vec<KnownData>,
     ) -> Result<Vec<KnownData>, CompileProblem> {
         let entry_point_id = self.program.get_entry_point();
-        let entry_point = self.program.borrow_scope(entry_point_id);
+        let entry_point = &self.program[entry_point_id];
 
         let input_iter = inputs.iter();
         let targets_iter = entry_point.borrow_inputs().iter();
         for (index, (input, target)) in input_iter.zip(targets_iter).enumerate() {
-            if !input.matches_data_type(self.program.borrow_variable(*target).borrow_data_type()) {
+            if !input.matches_data_type(self.program[*target].borrow_data_type()) {
                 panic!("Input at index {} has incorrect type.", index);
             }
         }
 
         let input_targets = entry_point.borrow_inputs().clone();
         for (source, target) in inputs.into_iter().zip(input_targets.iter()) {
-            self.program.set_temporary_value(target.clone(), source);
+            self.program[*target].set_temporary_value(source);
         }
-        for expression in self
-            .program
-            .clone_scope_body(self.program.get_entry_point())
+        for expression in self.program[self.program.get_entry_point()]
+            .borrow_body()
+            .clone()
         {
             match self.interpret(&expression) {
                 Returned => break,
@@ -249,14 +249,10 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        let output_sources = self
-            .program
-            .borrow_scope(entry_point_id)
-            .borrow_outputs()
-            .clone();
+        let output_sources = self.program[entry_point_id].borrow_outputs().clone();
         let mut output_values = Vec::new();
         for source in output_sources.iter() {
-            let value = self.program.borrow_temporary_value(source.clone()).clone();
+            let value = self.program[*source].borrow_temporary_value().clone();
             output_values.push(value);
         }
         Result::Ok(output_values)

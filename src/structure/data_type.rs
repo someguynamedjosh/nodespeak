@@ -40,8 +40,8 @@ impl BaseType {
             // known and identical.
             BaseType::Dynamic(target) | BaseType::LoadTemplateParameter(target) => match other {
                 BaseType::Dynamic(other_target) | BaseType::LoadTemplateParameter(other_target) => {
-                    let value = program.borrow_temporary_value(*target);
-                    let other_value = program.borrow_temporary_value(*other_target);
+                    let value = program[*target].borrow_temporary_value();
+                    let other_value = program[*other_target].borrow_temporary_value();
                     if let KnownData::Unknown = value {
                         false
                     } else {
@@ -204,7 +204,8 @@ impl DataType {
         if !self.base.equivalent(&other.base, program) {
             return false;
         }
-        // Check if all the dimensions have known and identical values.
+        // Check if all the dimensions have known and identical values. Since we are checking
+        // equivalence, not equality, we only check the sizes and not the types.
         for (dimension, other_dimension) in self.dimensions.iter().zip(other.dimensions.iter()) {
             let dimension_value = program.borrow_value_of(&dimension.size);
             let other_dimension_value = program.borrow_value_of(&other_dimension.size);

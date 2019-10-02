@@ -714,7 +714,7 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             let new_input = parse_named_function_parameter(program, func_scope, child)?;
-            program.borrow_scope_mut(func_scope).add_input(new_input);
+            program[func_scope].add_input(new_input);
         }
         Result::Ok(())
     }
@@ -726,7 +726,7 @@ pub mod convert {
     ) -> Result<(), CompileProblem> {
         for child in input.into_inner() {
             let new_output = parse_named_function_parameter(program, func_scope, child)?;
-            program.borrow_scope_mut(func_scope).add_output(new_output);
+            program[func_scope].add_output(new_output);
         }
         Result::Ok(())
     }
@@ -748,7 +748,7 @@ pub mod convert {
         }
         let variable = Variable::variable(input_pos, data_type.unwrap(), None);
         let new_output = program.adopt_and_define_symbol(func_scope, "!return_value", variable);
-        program.borrow_scope_mut(func_scope).add_output(new_output);
+        program[func_scope].add_output(new_output);
         Result::Ok(())
     }
 
@@ -817,11 +817,8 @@ pub mod convert {
                         convert_returnable_code_block(program, func_scope, child)?;
                     if let Option::Some(output) = possible_output {
                         let output_pos = output.clone_position();
-                        if let Option::Some(output_var) =
-                            program.borrow_scope(func_scope).get_single_output()
-                        {
-                            program.add_expression(
-                                func_scope.clone(),
+                        if let Option::Some(output_var) = program[func_scope].get_single_output() {
+                            program[func_scope].add_expression(
                                 Expression::Assign {
                                     target: Box::new(Expression::Variable(
                                         output_var,
@@ -870,12 +867,8 @@ pub mod convert {
             );
             err
         })?;
-        program.add_expression(
-            scope,
-            Expression::CreationPoint(variable_id, input_pos.clone()),
-        );
-        program.add_expression(
-            scope,
+        program[scope].add_expression(Expression::CreationPoint(variable_id, input_pos.clone()));
+        program[scope].add_expression(
             Expression::Assign {
                 target: Box::new(Expression::Variable(variable_id, variable_position.clone())),
                 value: Box::new(expr),
@@ -899,7 +892,7 @@ pub mod convert {
             .as_str();
         let variable = Variable::variable(input_pos.clone(), data_type, None);
         let variable_id = program.adopt_and_define_symbol(scope, name, variable);
-        program.add_expression(scope, Expression::CreationPoint(variable_id, input_pos));
+        program[scope].add_expression(Expression::CreationPoint(variable_id, input_pos));
         Result::Ok(())
     }
 
@@ -929,7 +922,7 @@ pub mod convert {
             Rule::dynamic_data_type => unimplemented!(),
             _ => unreachable!(),
         }
-        let type_variable = program.borrow_variable(type_variable_id);
+        let type_variable = &program[type_variable_id];
         Result::Ok(match type_variable.borrow_initial_value() {
             KnownData::DataType(real_type) => real_type.clone(),
             _ => BaseType::Dynamic(type_variable_id).to_scalar_type(),
@@ -982,7 +975,7 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        if program.borrow_scope(scope).get_parent().is_some() {
+        if program[scope].get_parent().is_some() {
             return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
         let mut input_iter = input.into_inner();
@@ -995,8 +988,8 @@ pub mod convert {
                 let position = FilePosition::from_pair(&child);
                 let variable = Variable::variable(position.clone(), data_type.clone(), None);
                 let var_id = program.adopt_and_define_symbol(scope, child.as_str(), variable);
-                program.borrow_scope_mut(scope).add_input(var_id);
-                program.add_expression(scope, Expression::CreationPoint(var_id, position.clone()));
+                program[scope].add_input(var_id);
+                program[scope].add_expression(Expression::CreationPoint(var_id, position.clone()));
             } else if let Rule::data_type = child.as_rule() {
                 unreachable!("Handled above.");
             } else {
@@ -1011,7 +1004,7 @@ pub mod convert {
         scope: ScopeId,
         input: Pair<Rule>,
     ) -> Result<(), CompileProblem> {
-        if program.borrow_scope(scope).get_parent().is_some() {
+        if program[scope].get_parent().is_some() {
             return Result::Err(problem::io_inside_function(FilePosition::from_pair(&input)));
         }
         let mut input_iter = input.into_inner();
@@ -1024,8 +1017,8 @@ pub mod convert {
                 let position = FilePosition::from_pair(&child);
                 let variable = Variable::variable(position.clone(), data_type.clone(), None);
                 let var_id = program.adopt_and_define_symbol(scope, child.as_str(), variable);
-                program.borrow_scope_mut(scope).add_output(var_id);
-                program.add_expression(scope, Expression::CreationPoint(var_id, position.clone()));
+                program[scope].add_output(var_id);
+                program[scope].add_expression(Expression::CreationPoint(var_id, position.clone()));
             } else if let Rule::data_type = child.as_rule() {
                 unreachable!("Handled above.");
             } else {
@@ -1071,10 +1064,7 @@ pub mod convert {
         let func = program
             .lookup_and_clone_parent_function(scope)
             .ok_or_else(|| problem::return_from_root(FilePosition::from_pair(&input)))?;
-        let outputs = program
-            .borrow_scope(func.get_body())
-            .borrow_outputs()
-            .clone();
+        let outputs = program[func.get_body()].borrow_outputs().clone();
         // In case we need to make an error, we can't borrow input once we enter the loop because
         // the loop consumes it.
         let statement_position = FilePosition::from_pair(&input);
@@ -1099,8 +1089,7 @@ pub mod convert {
                             );
                             err
                         })?;
-                    program.add_expression(
-                        scope,
+                    program[scope].add_expression(
                         Expression::Assign {
                             target: Box::new(Expression::Variable(
                                 outputs[index],
@@ -1123,7 +1112,7 @@ pub mod convert {
                 index,
             ));
         }
-        program.add_expression(scope, Expression::Return(input_pos));
+        program[scope].add_expression(Expression::Return(input_pos));
         Result::Ok(())
     }
 
@@ -1138,7 +1127,7 @@ pub mod convert {
             let value_input = input_iter.next().expect("Required by grammar.");
             convert_expression(program, scope, true, value_input)?
         };
-        program.add_expression(scope, Expression::Assert(Box::new(value), input_pos));
+        program[scope].add_expression(Expression::Assert(Box::new(value), input_pos));
         Result::Ok(())
     }
 
@@ -1228,7 +1217,7 @@ pub mod convert {
             outputs,
             position: input_pos,
         };
-        program.add_expression(scope, expression);
+        program[scope].add_expression(expression);
         Result::Ok(())
     }
 
@@ -1265,8 +1254,7 @@ pub mod convert {
                         debug_assert!(Rule::expr == expr.as_rule());
                         convert_expression(program, scope, true, expr)?
                     };
-                    program.add_expression(
-                        scope,
+                    program[scope].add_expression(
                         Expression::Assign {
                             target: Box::new(output),
                             value: Box::new(value),
@@ -1279,7 +1267,7 @@ pub mod convert {
                 }
                 Rule::expr => {
                     let expression = convert_expression(program, scope, false, child)?;
-                    program.add_expression(scope, expression);
+                    program[scope].add_expression(expression);
                 }
                 _ => unreachable!(),
             }
