@@ -78,6 +78,9 @@ impl Debug for BinaryOperator {
 pub enum Expression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
+    Proxy {
+        base: Box<Expression>,
+    },
     Access {
         base: Box<Expression>,
         indexes: Vec<Expression>,
@@ -117,6 +120,7 @@ impl Debug for Expression {
         match self {
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
+            Expression::Proxy { .. } => unimplemented!(),
             Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
@@ -183,6 +187,74 @@ impl Expression {
             | Expression::Assign { position, .. }
             | Expression::Return(position)
             | Expression::FuncCall { position, .. } => position.clone(),
+            Expression::Proxy { base, .. } => base.clone_position(),
+        }
+    }
+
+    /// Different expressions have some rules regarding what can or cannot be put in them. This
+    /// function checks that all those rules are true:
+    /// For a Literal, the data cannot be unknown.
+    /// For an Access, the base must be a Literal, Variable, or Proxy of a Literal or Variable.
+    /// For an Assign, the target must be a Variable or Proxy of a Variable.
+    /// These rules will be performed recursively, so any expression that contains other expressions
+    /// inside it will only be valid if all its child expressions are also valid. Note that this
+    /// cannot check that child expressions will return the proper type to be part of the overall
+    /// expression. For example, if you have an add expression with a Float on one side and an Int
+    /// on the other, it does not violate any of the above rules, so it is 'valid'.
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Expression::Literal(value, ..) => value != &KnownData::Unknown,
+            Expression::Variable(..) => true,
+            Expression::Proxy { base, .. } => base.is_valid(),
+            Expression::Access { base, indexes, .. } => {
+                (match &**base {
+                    Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
+                    Expression::Proxy {
+                        base: proxy_base, ..
+                    } => match &**proxy_base {
+                        Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
+                        _ => false,
+                    },
+                    _ => false,
+                }) && indexes
+                    .iter()
+                    .fold(true, |valid, index| valid && index.is_valid())
+            }
+            Expression::InlineReturn(..) => true,
+            Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
+            Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
+            Expression::Collect(values, ..) => values
+                .iter()
+                .fold(true, |valid, value| valid && value.is_valid()),
+            Expression::CreationPoint(..) => true,
+            Expression::Assert(argument, ..) => argument.is_valid(),
+            Expression::Assign { target, value, .. } => {
+                (match &**target {
+                    Expression::Variable(..) => target.is_valid(),
+                    Expression::Proxy {
+                        base: proxy_base, ..
+                    } => match &**proxy_base {
+                        Expression::Variable(..) => target.is_valid(),
+                        _ => false,
+                    },
+                    _ => false,
+                }) && value.is_valid()
+            }
+            Expression::Return(..) => true,
+            Expression::FuncCall {
+                function,
+                inputs,
+                outputs,
+                ..
+            } => {
+                function.is_valid()
+                    && inputs
+                        .iter()
+                        .fold(true, |valid, input| valid && input.is_valid())
+                    && outputs
+                        .iter()
+                        .fold(true, |valid, output| valid && output.is_valid())
+            }
         }
     }
 }

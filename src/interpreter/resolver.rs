@@ -1,7 +1,6 @@
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId,
-    VariableId,
+    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId, VariableId,
 };
 use crate::util::NVec;
 use std::borrow::Borrow;
@@ -589,6 +588,7 @@ impl<'a> ScopeResolver<'a> {
                     _ => ResolveExpressionResult::Interpreted(temporary_value.clone()),
                 }
             }
+            Expression::Proxy { .. } => unimplemented!(),
             Expression::Access {
                 base,
                 indexes,

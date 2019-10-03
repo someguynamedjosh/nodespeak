@@ -818,16 +818,14 @@ pub mod convert {
                     if let Option::Some(output) = possible_output {
                         let output_pos = output.clone_position();
                         if let Option::Some(output_var) = program[func_scope].get_single_output() {
-                            program[func_scope].add_expression(
-                                Expression::Assign {
-                                    target: Box::new(Expression::Variable(
-                                        output_var,
-                                        output_pos.clone(),
-                                    )),
-                                    value: Box::new(output),
-                                    position: output_pos,
-                                },
-                            );
+                            program[func_scope].add_expression(Expression::Assign {
+                                target: Box::new(Expression::Variable(
+                                    output_var,
+                                    output_pos.clone(),
+                                )),
+                                value: Box::new(output),
+                                position: output_pos,
+                            });
                         }
                     }
                     // This branch arm can only be expressioned once but I don't know how to tell rustc that,
@@ -868,13 +866,11 @@ pub mod convert {
             err
         })?;
         program[scope].add_expression(Expression::CreationPoint(variable_id, input_pos.clone()));
-        program[scope].add_expression(
-            Expression::Assign {
-                target: Box::new(Expression::Variable(variable_id, variable_position.clone())),
-                value: Box::new(expr),
-                position: input_pos.clone(),
-            },
-        );
+        program[scope].add_expression(Expression::Assign {
+            target: Box::new(Expression::Variable(variable_id, variable_position.clone())),
+            value: Box::new(expr),
+            position: input_pos.clone(),
+        });
         Result::Ok(())
     }
 
@@ -939,9 +935,7 @@ pub mod convert {
         let mut dimensions = Vec::new();
         for child in input.into_inner() {
             match child.as_rule() {
-                Rule::expr => dimensions.push(convert_expression(
-                    program, scope, true, child,
-                )?),
+                Rule::expr => dimensions.push(convert_expression(program, scope, true, child)?),
                 Rule::basic_data_type => {
                     // Array data type stores dimensions in the same order as the grammar, biggest to
                     // smallest.
@@ -1089,16 +1083,14 @@ pub mod convert {
                             );
                             err
                         })?;
-                    program[scope].add_expression(
-                        Expression::Assign {
-                            target: Box::new(Expression::Variable(
-                                outputs[index],
-                                FilePosition::placeholder(),
-                            )),
-                            value: Box::new(value),
-                            position: child_pos,
-                        },
-                    );
+                    program[scope].add_expression(Expression::Assign {
+                        target: Box::new(Expression::Variable(
+                            outputs[index],
+                            FilePosition::placeholder(),
+                        )),
+                        value: Box::new(value),
+                        position: child_pos,
+                    });
                     index += 1;
                 }
                 _ => unreachable!(),
@@ -1254,13 +1246,11 @@ pub mod convert {
                         debug_assert!(Rule::expr == expr.as_rule());
                         convert_expression(program, scope, true, expr)?
                     };
-                    program[scope].add_expression(
-                        Expression::Assign {
-                            target: Box::new(output),
-                            value: Box::new(value),
-                            position: child_pos,
-                        },
-                    );
+                    program[scope].add_expression(Expression::Assign {
+                        target: Box::new(output),
+                        value: Box::new(value),
+                        position: child_pos,
+                    });
                 }
                 Rule::multi_output_func_statement => {
                     convert_multi_output_func_statement(program, scope, child)?;

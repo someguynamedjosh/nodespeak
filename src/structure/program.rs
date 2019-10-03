@@ -151,6 +151,7 @@ impl Program {
     }
 
     pub fn borrow_value_of<'a>(&'a self, expression: &'a Expression) -> &'a KnownData {
+        debug_assert!(expression.is_valid());
         match expression {
             Expression::Access { base, indexes, .. } => {
                 // TODO handle expressions that need to be interpreted before we can determine
@@ -180,6 +181,7 @@ impl Program {
     }
 
     pub fn borrow_value_of_mut(&mut self, expression: &Expression) -> &mut KnownData {
+        debug_assert!(expression.is_valid());
         match expression {
             Expression::Access { base, indexes, .. } => {
                 // TODO handle expressions that need to be interpreted before we can determine

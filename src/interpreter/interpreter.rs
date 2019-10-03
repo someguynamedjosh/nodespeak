@@ -26,6 +26,7 @@ fn wrap(
 
 impl<'a> Interpreter<'a> {
     fn interpret(&mut self, expression: &Expression) -> InterpreterOutcome {
+        debug_assert!(expression.is_valid());
         // All the inputs and outputs should have data types that match the function signatures for the
         // provided builtin.
         match expression {

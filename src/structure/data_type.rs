@@ -97,16 +97,19 @@ impl DataType {
     }
 
     pub fn array(base: BaseType, dimensions: Vec<Expression>) -> DataType {
+        debug_assert!(dimensions.iter().fold(true, |valid, dimension| valid && dimension.is_valid()));
         DataType { base, dimensions }
     }
 
     // E.G. if dimension is 5, [2]Int becomes [5][2]Int.
     pub fn wrap_with_dimension(&mut self, dimension: Expression) {
+        debug_assert!(dimension.is_valid());
         self.dimensions.insert(0, dimension);
     }
 
     // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
     pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<Expression>) {
+        debug_assert!(dimensions.iter().fold(true, |valid, dimension| valid && dimension.is_valid()));
         dimensions.append(&mut self.dimensions);
         self.dimensions = dimensions;
     }
