@@ -71,6 +71,10 @@ impl<'a> ScopeResolver<'a> {
         *self.conversion_table.get(&from).unwrap_or(&from)
     }
 
+    fn int_literal(value: i64, position: FilePosition) -> Expression {
+        Expression::Literal(KnownData::Int(value), position)
+    }
+
     fn copy_scope(
         &mut self,
         source: ScopeId,
@@ -120,8 +124,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         resolved_base: ResolvedExpression,
         mut base_position: FilePosition,
-        resolved_indexes: Vec<ResolvedExpression>,
-        index_positions: Vec<FilePosition>,
+        resolved_indexes: Vec<(ResolvedExpression, FilePosition)>,
         position: FilePosition,
     ) -> Result<ResolvedExpression, CompileProblem> {
         let final_type = resolved_base
@@ -138,26 +141,29 @@ impl<'a> ScopeResolver<'a> {
                 let mut dynamic_indexes = Vec::new();
                 let mut known = true;
                 // Figure out how much of the indexing we can do at compile time.
-                for (index, index_position) in resolved_indexes
-                    .into_iter()
-                    .zip(index_positions.into_iter())
-                {
+                for (index, index_position) in resolved_indexes.into_iter() {
+                    if !index.data_type.is_specific_scalar(&BaseType::Int) {
+                        panic!(
+                            "TODO: nice error, data type of index must be Int not {:?}",
+                            index.data_type
+                        )
+                    }
                     match index.content {
                         // If we know the value of the index...
-                        Content::Interpreted(value) => {
+                        Content::Interpreted(KnownData::Int(value)) => {
                             // If we still know all the indexes up until this point...
                             if known {
                                 base_position.include_other(&index_position);
                                 // Store the integer value of the index.
-                                known_indexes.push(match value {
-                                    // TODO: check that number is positive.
-                                    KnownData::Int(data) => data as usize,
-                                    _ => panic!("TODO: nice error, index must be int."),
-                                });
+                                known_indexes.push(value as usize);
                             } else {
                                 // Otherwise, add it as a dynamic (run-time) index.
-                                dynamic_indexes.push(Expression::Literal(value, index_position));
+                                dynamic_indexes.push(Self::int_literal(value, index_position));
                             }
+                        }
+                        // If we know that the value isn't an int...
+                        Content::Interpreted(_non_int_value) => {
+                            unreachable!("Non-int value handled above.");
                         }
                         // Otherwise, we will have to find the value at run time.
                         Content::Modified(expression) => {
@@ -224,10 +230,7 @@ impl<'a> ScopeResolver<'a> {
             // If the base of the access does not have a value known at compile time...
             Content::Modified(new_base) => {
                 let mut new_indexes = Vec::with_capacity(resolved_indexes.len());
-                for (index, index_position) in resolved_indexes
-                    .into_iter()
-                    .zip(index_positions.into_iter())
-                {
+                for (index, index_position) in resolved_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
                         return Result::Err(problem::array_index_not_int(
                             index_position,
@@ -664,17 +667,17 @@ impl<'a> ScopeResolver<'a> {
                 // the entire array to pick out one value.
                 let base_position = base.clone_position();
                 let resolved_base = self.resolve_expression(base)?;
-                let mut index_positions = Vec::with_capacity(indexes.len());
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
-                    index_positions.push(index.clone_position());
-                    resolved_indexes.push(self.resolve_expression(index)?);
+                    resolved_indexes.push((
+                        self.resolve_expression(index)?,
+                        index.clone_position(),
+                    ));
                 }
                 self.resolve_access_expression(
                     resolved_base,
                     base_position,
                     resolved_indexes,
-                    index_positions,
                     position.clone(),
                 )?
             }
