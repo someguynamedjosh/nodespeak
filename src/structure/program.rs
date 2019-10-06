@@ -135,16 +135,6 @@ impl Program {
         id
     }
 
-    pub fn borrow_variable(&self, variable: VariableId) -> &Variable {
-        assert!(variable.0 < self.variables.len());
-        &self.variables[variable.0]
-    }
-
-    pub fn borrow_variable_mut(&mut self, variable: VariableId) -> &mut Variable {
-        assert!(variable.0 < self.variables.len());
-        &mut self.variables[variable.0]
-    }
-
     pub fn set_data_type(&mut self, variable: VariableId, data_type: DataType) {
         assert!(variable.0 < self.variables.len());
         self.variables[variable.0].set_data_type(data_type);

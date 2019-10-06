@@ -533,12 +533,8 @@ impl<'a> ScopeResolver<'a> {
             if let KnownData::Unknown = source_data {
                 runtime_outputs.push((target_access.clone(), *source));
                 if let Expression::InlineReturn(..) = target_access {
-                    runtime_inline_output_type = Option::Some(
-                        self.program
-                            .borrow_variable(*source)
-                            .borrow_data_type()
-                            .clone(),
-                    );
+                    runtime_inline_output_type =
+                        Option::Some(self.program[*source].borrow_data_type().clone());
                 }
             } else {
                 let cloned_data = source_data.clone();
@@ -548,11 +544,7 @@ impl<'a> ScopeResolver<'a> {
                     // TODO: Check that there is only one inline return.
                     inline_result = Option::Some(ResolvedExpression {
                         content: Content::Interpreted(cloned_data),
-                        data_type: self
-                            .program
-                            .borrow_variable(*source)
-                            .borrow_data_type()
-                            .clone(),
+                        data_type: self.program[*source].borrow_data_type().clone(),
                     });
                     continue;
                 }
@@ -650,18 +642,14 @@ impl<'a> ScopeResolver<'a> {
                     KnownData::Unknown => {
                         let content =
                             Content::Modified(Expression::Variable(converted_id, position.clone()));
-                        let data_type = self
-                            .program
-                            .borrow_variable(converted_id)
-                            .borrow_data_type()
-                            .clone();
+                        let data_type = self.program[converted_id].borrow_data_type().clone();
                         ResolvedExpression { content, data_type }
                     }
                     _ => {
                         let content = Content::Interpreted(temporary_value.clone());
-                        let data_type = temporary_value.get_data_type().expect(
-                            "Already checked that data was not uknown."
-                        );
+                        let data_type = temporary_value
+                            .get_data_type()
+                            .expect("Already checked that data was not uknown.");
                         ResolvedExpression { content, data_type }
                     }
                 }
@@ -742,18 +730,18 @@ impl<'a> ScopeResolver<'a> {
                         }
                         let final_data = KnownData::Array(NVec::collect(sub_arrays));
                         ResolvedExpression {
-                            data_type: final_data.get_data_type().expect(
-                                "Data cannot be unknown, we just built it."
-                            ),
+                            data_type: final_data
+                                .get_data_type()
+                                .expect("Data cannot be unknown, we just built it."),
                             content: Content::Interpreted(final_data),
                         }
                     } else {
                         // Each element is a scalar, so just make a new 1d array out of them.
                         let final_data = KnownData::Array(NVec::from_vec(data));
                         ResolvedExpression {
-                            data_type: final_data.get_data_type().expect(
-                                "Data cannot be unknown, we just built it."
-                            ),
+                            data_type: final_data
+                                .get_data_type()
+                                .expect("Data cannot be unknown, we just built it."),
                             content: Content::Interpreted(final_data),
                         }
                     }
@@ -775,7 +763,7 @@ impl<'a> ScopeResolver<'a> {
                     }
                     ResolvedExpression {
                         content: Content::Modified(Expression::Collect(items, position.clone())),
-                        data_type
+                        data_type,
                     }
                 }
             }
@@ -835,7 +823,7 @@ impl<'a> ScopeResolver<'a> {
                             Box::new(expression),
                             position.clone(),
                         )),
-                        data_type: DataType::scalar(BaseType::Void)
+                        data_type: DataType::scalar(BaseType::Void),
                     },
                 }
             }
