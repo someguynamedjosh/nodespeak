@@ -1,6 +1,7 @@
 use crate::problem::{self, CompileProblem, FilePosition};
 use crate::structure::{
-    BinaryOperator, Expression, FunctionData, KnownData, Program, ScopeId, VariableId,
+    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, Program, ScopeId,
+    VariableId,
 };
 use crate::util::NVec;
 use std::borrow::Borrow;
@@ -22,9 +23,16 @@ struct ScopeResolver<'a> {
     conversion_stack: Vec<HashMap<VariableId, VariableId>>,
 }
 
-enum ResolveExpressionResult {
-    Modified(Expression), // A simpler or resolved version of the expression was found.
-    Interpreted(KnownData), // The entire value of the expression has a determinate value.
+enum Content {
+    /// A simpler or resolved version of the expression was found.
+    Modified(Expression),
+    /// The entire value of the expression has a determinate value.
+    Interpreted(KnownData),
+}
+
+struct ResolvedExpression {
+    pub content: Content,
+    pub data_type: DataType,
 }
 
 impl<'a> ScopeResolver<'a> {
@@ -110,15 +118,18 @@ impl<'a> ScopeResolver<'a> {
 
     fn resolve_access_expression(
         &mut self,
-        resolved_base: ResolveExpressionResult,
+        resolved_base: ResolvedExpression,
         mut base_position: FilePosition,
-        resolved_indexes: Vec<ResolveExpressionResult>,
+        resolved_indexes: Vec<ResolvedExpression>,
         index_positions: Vec<FilePosition>,
         position: FilePosition,
-    ) -> Result<ResolveExpressionResult, CompileProblem> {
-        Result::Ok(match resolved_base {
+    ) -> Result<ResolvedExpression, CompileProblem> {
+        let final_type = resolved_base
+            .data_type
+            .clone_and_unwrap(resolved_indexes.len());
+        Result::Ok(match resolved_base.content {
             // If the base of the access has a value known at compile time...
-            ResolveExpressionResult::Interpreted(data) => {
+            Content::Interpreted(data) => {
                 let mut base_data = match data {
                     KnownData::Array(data) => data,
                     _ => panic!("TODO: nice error, cannot index non-array."),
@@ -131,9 +142,9 @@ impl<'a> ScopeResolver<'a> {
                     .into_iter()
                     .zip(index_positions.into_iter())
                 {
-                    match index {
+                    match index.content {
                         // If we know the value of the index...
-                        ResolveExpressionResult::Interpreted(value) => {
+                        Content::Interpreted(value) => {
                             // If we still know all the indexes up until this point...
                             if known {
                                 base_position.include_other(&index_position);
@@ -149,7 +160,7 @@ impl<'a> ScopeResolver<'a> {
                             }
                         }
                         // Otherwise, we will have to find the value at run time.
-                        ResolveExpressionResult::Modified(expression) => {
+                        Content::Modified(expression) => {
                             // Once we hit an index that cannot be determined at compile time,
                             // everything after that must be used at run time.
                             known = false;
@@ -181,102 +192,136 @@ impl<'a> ScopeResolver<'a> {
                         assert!(dynamic_indexes.len() == 0, "TODO: nice error");
                         let element = base_data.borrow_item(&known_indexes).clone();
                         // Special case return of that specific element.
-                        return Result::Ok(ResolveExpressionResult::Interpreted(element));
+                        return Result::Ok(ResolvedExpression {
+                            content: Content::Interpreted(element),
+                            data_type: final_type,
+                        });
                     }
                 }
 
                 // If there are no extra dynamic indexes, we can just return whatever portion of the
                 // data that we were able to collect at compile time.
                 if dynamic_indexes.len() == 0 {
-                    ResolveExpressionResult::Interpreted(KnownData::Array(base_data))
+                    ResolvedExpression {
+                        content: Content::Interpreted(KnownData::Array(base_data)),
+                        data_type: final_type,
+                    }
                 // Otherwise, make an access expression using the leftover dynamic indexes.
                 } else {
-                    ResolveExpressionResult::Modified(Expression::Access {
-                        base: Box::new(Expression::Literal(
-                            KnownData::Array(base_data),
-                            base_position,
-                        )),
-                        indexes: dynamic_indexes,
-                        position,
-                    })
+                    ResolvedExpression {
+                        content: Content::Modified(Expression::Access {
+                            base: Box::new(Expression::Literal(
+                                KnownData::Array(base_data),
+                                base_position,
+                            )),
+                            indexes: dynamic_indexes,
+                            position,
+                        }),
+                        data_type: final_type,
+                    }
                 }
             }
             // If the base of the access does not have a value known at compile time...
-            ResolveExpressionResult::Modified(new_base) => {
+            Content::Modified(new_base) => {
                 let mut new_indexes = Vec::with_capacity(resolved_indexes.len());
                 for (index, index_position) in resolved_indexes
                     .into_iter()
                     .zip(index_positions.into_iter())
                 {
-                    match index {
+                    if !index.data_type.is_specific_scalar(&BaseType::Int) {
+                        return Result::Err(problem::array_index_not_int(
+                            index_position,
+                            &index.data_type,
+                            base_position,
+                        ));
+                    }
+                    match index.content {
                         // If we know the value of the index, make a literal expression out of it.
-                        ResolveExpressionResult::Interpreted(value) => {
+                        Content::Interpreted(value) => {
                             new_indexes.push(Expression::Literal(value, index_position));
                         }
                         // Otherwise, keep the simplified expression.
-                        ResolveExpressionResult::Modified(expression) => {
+                        Content::Modified(expression) => {
                             new_indexes.push(expression);
                         }
                     }
                 }
                 // Make an access expression using the new indexes.
-                ResolveExpressionResult::Modified(Expression::Access {
-                    base: Box::new(new_base),
-                    indexes: new_indexes,
-                    position,
-                })
+                ResolvedExpression {
+                    content: Content::Modified(Expression::Access {
+                        base: Box::new(new_base),
+                        indexes: new_indexes,
+                        position,
+                    }),
+                    data_type: final_type,
+                }
             }
         })
     }
 
     fn resolve_binary_expression(
         &mut self,
-        resolved_operand_1: ResolveExpressionResult,
+        resolved_operand_1: ResolvedExpression,
         operand_1_position: FilePosition,
         operator: BinaryOperator,
-        resolved_operand_2: ResolveExpressionResult,
+        resolved_operand_2: ResolvedExpression,
         operand_2_position: FilePosition,
         position: FilePosition,
-    ) -> Result<ResolveExpressionResult, CompileProblem> {
-        Result::Ok(match resolved_operand_1 {
-            ResolveExpressionResult::Interpreted(dat1) => match resolved_operand_2 {
+    ) -> Result<ResolvedExpression, CompileProblem> {
+        let result_type = match super::util::biggest_type(
+            &resolved_operand_1.data_type,
+            &resolved_operand_2.data_type,
+            self.program,
+        ) {
+            Result::Ok(rtype) => rtype,
+            Result::Err(..) => {
+                return Result::Err(problem::no_bct(
+                    position,
+                    operand_1_position,
+                    &resolved_operand_1.data_type,
+                    operand_2_position,
+                    &resolved_operand_2.data_type,
+                ))
+            }
+        };
+        // TODO: Generate proxies when necessary.
+        let content = match resolved_operand_1.content {
+            Content::Interpreted(dat1) => match resolved_operand_2.content {
                 // Both values were interpreted, so the value of the whole binary
                 // expression can be computed.
-                ResolveExpressionResult::Interpreted(dat2) => ResolveExpressionResult::Interpreted(
+                Content::Interpreted(dat2) => Content::Interpreted(
                     super::util::compute_binary_operation(&dat1, operator, &dat2),
                 ),
                 // LHS was interpreted, RHS could not be. Make LHS a literal and return
                 // the resulting expression.
-                ResolveExpressionResult::Modified(expr2) => {
-                    ResolveExpressionResult::Modified(Expression::BinaryOperation(
-                        Box::new(Expression::Literal(dat1, operand_1_position)),
-                        operator,
-                        Box::new(expr2),
-                        position,
-                    ))
-                }
+                Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
+                    Box::new(Expression::Literal(dat1, operand_1_position)),
+                    operator,
+                    Box::new(expr2),
+                    position,
+                )),
             },
-            ResolveExpressionResult::Modified(expr1) => match resolved_operand_2 {
+            Content::Modified(expr1) => match resolved_operand_2.content {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
-                ResolveExpressionResult::Interpreted(dat2) => {
-                    ResolveExpressionResult::Modified(Expression::BinaryOperation(
-                        Box::new(expr1),
-                        operator,
-                        Box::new(Expression::Literal(dat2, operand_2_position)),
-                        position,
-                    ))
-                }
+                Content::Interpreted(dat2) => Content::Modified(Expression::BinaryOperation(
+                    Box::new(expr1),
+                    operator,
+                    Box::new(Expression::Literal(dat2, operand_2_position)),
+                    position,
+                )),
                 // LHS and RHS couldn't be interpreted, only simplified.
-                ResolveExpressionResult::Modified(expr2) => {
-                    ResolveExpressionResult::Modified(Expression::BinaryOperation(
-                        Box::new(expr1),
-                        operator,
-                        Box::new(expr2),
-                        position,
-                    ))
-                }
+                Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
+                    Box::new(expr1),
+                    operator,
+                    Box::new(expr2),
+                    position,
+                )),
             },
+        };
+        Result::Ok(ResolvedExpression {
+            content,
+            data_type: result_type,
         })
     }
 
@@ -300,11 +345,9 @@ impl<'a> ScopeResolver<'a> {
                 for index in indexes {
                     let index_position = index.clone_position();
                     let resolved_index = self.resolve_expression(index)?;
-                    resolved_indexes.push(match resolved_index {
-                        ResolveExpressionResult::Interpreted(value) => {
-                            Expression::Literal(value, index_position)
-                        }
-                        ResolveExpressionResult::Modified(expression) => expression,
+                    resolved_indexes.push(match resolved_index.content {
+                        Content::Interpreted(value) => Expression::Literal(value, index_position),
+                        Content::Modified(expression) => expression,
                     });
                 }
                 Expression::Access {
@@ -321,7 +364,7 @@ impl<'a> ScopeResolver<'a> {
     // Tries to assign known data to an access expression. The access expression must be
     // either a variable or an access expression. Indexes in the access expression can be
     // any kind of expression. If the value cannot be assigned at compile time, a modified
-    // expression to assign the value at run time.
+    // expression to assign the value at run time will be returned instead.
     fn assign_value_to_expression(
         &mut self,
         target: &Expression,
@@ -345,8 +388,8 @@ impl<'a> ScopeResolver<'a> {
                 for index in indexes {
                     let index_position = index.clone_position();
                     let result = self.resolve_expression(index)?;
-                    match result {
-                        ResolveExpressionResult::Interpreted(value) => {
+                    match result.content {
+                        Content::Interpreted(value) => {
                             if all_indexes_known {
                                 if let KnownData::Int(value) = value {
                                     // TODO: Check that value is positive.
@@ -360,7 +403,7 @@ impl<'a> ScopeResolver<'a> {
                             // value.
                             resolved_indexes.push(Expression::Literal(value, index_position));
                         }
-                        ResolveExpressionResult::Modified(expression) => {
+                        Content::Modified(expression) => {
                             resolved_indexes.push(expression);
                             all_indexes_known = false;
                         }
@@ -408,14 +451,14 @@ impl<'a> ScopeResolver<'a> {
         inputs: &Vec<Expression>,
         outputs: &Vec<Expression>,
         position: &FilePosition,
-    ) -> Result<ResolveExpressionResult, CompileProblem> {
+    ) -> Result<ResolvedExpression, CompileProblem> {
         // We want to make a new table specifically for this function, so that any variable
         // conversions we make won't be applied to other calls to the same funciton.
         self.push_table();
         // Make sure we can figure out what function is being called right now at compile time.
-        let resolved_function = match self.resolve_expression(function.borrow())? {
-            ResolveExpressionResult::Interpreted(value) => value,
-            ResolveExpressionResult::Modified(..) => {
+        let resolved_function = match self.resolve_expression(function.borrow())?.content {
+            Content::Interpreted(value) => value,
+            Content::Modified(..) => {
                 return Result::Err(problem::vague_function(
                     position.clone(),
                     function.clone_position(),
@@ -445,16 +488,12 @@ impl<'a> ScopeResolver<'a> {
         // argument has a value that can be determined at compile time.
         let mut runtime_inputs = Vec::new();
         for (expression, target) in inputs.iter().zip(input_targets.iter()) {
-            match self.resolve_expression(expression)? {
+            match self.resolve_expression(expression)?.content {
                 // If we know the value of the argument, use that to set the parameter.
-                ResolveExpressionResult::Interpreted(value) => {
-                    self.program[*target].set_temporary_value(value)
-                }
+                Content::Interpreted(value) => self.program[*target].set_temporary_value(value),
                 // Otherwise, store the simplified expression for the argument as well as the
                 // parameter it corresponds to for later use.
-                ResolveExpressionResult::Modified(new_expression) => {
-                    runtime_inputs.push((new_expression, *target))
-                }
+                Content::Modified(new_expression) => runtime_inputs.push((new_expression, *target)),
             }
         }
 
@@ -462,10 +501,10 @@ impl<'a> ScopeResolver<'a> {
         // expression in the function body. Hopefully it will end up eliminating some of the
         // instructions, resulting in a simpler body.
         for expression in self.program[old_function_body].borrow_body().clone() {
-            match self.resolve_expression(&expression)? {
+            match self.resolve_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
-                ResolveExpressionResult::Interpreted(..) => (),
-                ResolveExpressionResult::Modified(new_expression) => match new_expression {
+                Content::Interpreted(..) => (),
+                Content::Modified(new_expression) => match new_expression {
                     Expression::Return(..) => break,
                     _ => self.program[old_function_body].add_expression(new_expression),
                 },
@@ -486,19 +525,35 @@ impl<'a> ScopeResolver<'a> {
         // that a function does not cause any side effects.
         let mut inline_result = Option::None;
         let mut runtime_outputs = Vec::new();
+        let mut runtime_inline_output_type = Option::None;
         for (target_access, source) in outputs.iter().zip(output_targets.iter()) {
             let source_data = self.program[*source].borrow_temporary_value();
             // If we don't know what the output will be, we need to leave it in the code to be
             // computed at runtime.
             if let KnownData::Unknown = source_data {
                 runtime_outputs.push((target_access.clone(), *source));
+                if let Expression::InlineReturn(..) = target_access {
+                    runtime_inline_output_type = Option::Some(
+                        self.program
+                            .borrow_variable(*source)
+                            .borrow_data_type()
+                            .clone(),
+                    );
+                }
             } else {
                 let cloned_data = source_data.clone();
                 // If the output 'target' is InlineReturn, then we have no variable we can assign
                 // the data to. Instead, return it as the interpreted result.
                 if let Expression::InlineReturn(..) = target_access {
                     // TODO: Check that there is only one inline return.
-                    inline_result = Option::Some(cloned_data);
+                    inline_result = Option::Some(ResolvedExpression {
+                        content: Content::Interpreted(cloned_data),
+                        data_type: self
+                            .program
+                            .borrow_variable(*source)
+                            .borrow_data_type()
+                            .clone(),
+                    });
                     continue;
                 }
                 // Check to see if we can write the known value of the output parameter to the
@@ -555,17 +610,23 @@ impl<'a> ScopeResolver<'a> {
 
         // Make a function call expression using only the arguments for the runtime parameters.
         Result::Ok(match inline_result {
-            Option::Some(data) => ResolveExpressionResult::Interpreted(data),
+            Option::Some(result) => result,
             Option::None => {
                 if runtime_outputs.len() == 0 {
-                    ResolveExpressionResult::Interpreted(KnownData::Void)
+                    ResolvedExpression {
+                        content: Content::Interpreted(KnownData::Void),
+                        data_type: DataType::scalar(BaseType::Void),
+                    }
                 } else {
-                    ResolveExpressionResult::Modified(Expression::FuncCall {
+                    let content = Content::Modified(Expression::FuncCall {
                         function: Box::new(new_function),
                         inputs: runtime_inputs.into_iter().map(|item| item.0).collect(),
                         outputs: runtime_outputs.into_iter().map(|item| item.0).collect(),
                         position: position.clone(),
-                    })
+                    });
+                    let data_type =
+                        runtime_inline_output_type.unwrap_or(DataType::scalar(BaseType::Void));
+                    ResolvedExpression { content, data_type }
                 }
             }
         })
@@ -574,18 +635,35 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_expression(
         &mut self,
         old_expression: &Expression,
-    ) -> Result<ResolveExpressionResult, CompileProblem> {
+    ) -> Result<ResolvedExpression, CompileProblem> {
         Result::Ok(match old_expression {
-            Expression::Literal(value, ..) => ResolveExpressionResult::Interpreted(value.clone()),
+            Expression::Literal(value, ..) => ResolvedExpression {
+                data_type: value
+                    .get_data_type()
+                    .expect("Literals always have a known data type."),
+                content: Content::Interpreted(value.clone()),
+            },
             Expression::Variable(id, position) => {
                 let converted_id = self.convert(*id);
                 let temporary_value = self.program[converted_id].borrow_temporary_value();
                 match temporary_value {
-                    KnownData::Unknown => ResolveExpressionResult::Modified(Expression::Variable(
-                        converted_id,
-                        position.clone(),
-                    )),
-                    _ => ResolveExpressionResult::Interpreted(temporary_value.clone()),
+                    KnownData::Unknown => {
+                        let content =
+                            Content::Modified(Expression::Variable(converted_id, position.clone()));
+                        let data_type = self
+                            .program
+                            .borrow_variable(converted_id)
+                            .borrow_data_type()
+                            .clone();
+                        ResolvedExpression { content, data_type }
+                    }
+                    _ => {
+                        let content = Content::Interpreted(temporary_value.clone());
+                        let data_type = temporary_value.get_data_type().expect(
+                            "Already checked that data was not uknown."
+                        );
+                        ResolvedExpression { content, data_type }
+                    }
                 }
             }
             Expression::Proxy { .. } => unimplemented!(),
@@ -637,7 +715,7 @@ impl<'a> ScopeResolver<'a> {
                 for value in values {
                     value_positions.push(value.clone_position());
                     let resolved_value = self.resolve_expression(value)?;
-                    if let ResolveExpressionResult::Modified(..) = &resolved_value {
+                    if let Content::Modified(..) = &resolved_value.content {
                         all_known = false;
                     }
                     resolved_values.push(resolved_value);
@@ -645,8 +723,8 @@ impl<'a> ScopeResolver<'a> {
                 if all_known {
                     let mut data = Vec::with_capacity(resolved_values.len());
                     for value in resolved_values {
-                        data.push(match value {
-                            ResolveExpressionResult::Interpreted(data) => data,
+                        data.push(match value.content {
+                            Content::Interpreted(data) => data,
                             _ => unreachable!(
                                 "We previously checked that all the data was interpreted."
                             ),
@@ -662,27 +740,43 @@ impl<'a> ScopeResolver<'a> {
                                 _ => panic!("TODO: nice error, data types incompatible."),
                             })
                         }
-                        ResolveExpressionResult::Interpreted(KnownData::Array(NVec::collect(
-                            sub_arrays,
-                        )))
+                        let final_data = KnownData::Array(NVec::collect(sub_arrays));
+                        ResolvedExpression {
+                            data_type: final_data.get_data_type().expect(
+                                "Data cannot be unknown, we just built it."
+                            ),
+                            content: Content::Interpreted(final_data),
+                        }
                     } else {
                         // Each element is a scalar, so just make a new 1d array out of them.
-                        ResolveExpressionResult::Interpreted(KnownData::Array(NVec::from_vec(data)))
+                        let final_data = KnownData::Array(NVec::from_vec(data));
+                        ResolvedExpression {
+                            data_type: final_data.get_data_type().expect(
+                                "Data cannot be unknown, we just built it."
+                            ),
+                            content: Content::Interpreted(final_data),
+                        }
                     }
                 } else {
                     let mut items = Vec::with_capacity(resolved_values.len());
+                    // TODO: Error for zero-sized arrays.
+                    let data_type = resolved_values[0].data_type.clone();
                     // Standard treatment, fully interpreted values become literal expressions.
                     for (value, value_position) in
                         resolved_values.into_iter().zip(value_positions.into_iter())
                     {
-                        match value {
-                            ResolveExpressionResult::Interpreted(value) => {
+                        // TODO: Check that all the elements are the same type.
+                        match value.content {
+                            Content::Interpreted(value) => {
                                 items.push(Expression::Literal(value, value_position))
                             }
-                            ResolveExpressionResult::Modified(expression) => items.push(expression),
+                            Content::Modified(expression) => items.push(expression),
                         }
                     }
-                    ResolveExpressionResult::Modified(Expression::Collect(items, position.clone()))
+                    ResolvedExpression {
+                        content: Content::Modified(Expression::Collect(items, position.clone())),
+                        data_type
+                    }
                 }
             }
             Expression::CreationPoint(old_var_id, position) => {
@@ -690,8 +784,8 @@ impl<'a> ScopeResolver<'a> {
                 let data_type = self.program[new_var_id].borrow_data_type();
                 let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
                 for size in data_type.borrow_dimensions().clone() {
-                    match self.resolve_expression(&size)? {
-                        ResolveExpressionResult::Interpreted(result) => {
+                    match self.resolve_expression(&size)?.content {
+                        Content::Interpreted(result) => {
                             if let KnownData::Int(value) = result {
                                 new_sizes.push(value);
                             } else {
@@ -713,16 +807,22 @@ impl<'a> ScopeResolver<'a> {
                 self.program[new_var_id]
                     .borrow_data_type_mut()
                     .set_literal_dimensions(new_sizes);
-                ResolveExpressionResult::Interpreted(KnownData::Void)
+                ResolvedExpression {
+                    content: Content::Interpreted(KnownData::Void),
+                    data_type: DataType::scalar(BaseType::Void),
+                }
             }
 
             Expression::Assert(value, position) => {
                 let resolved_value = self.resolve_expression(value)?;
-                match resolved_value {
-                    ResolveExpressionResult::Interpreted(value) => {
+                match resolved_value.content {
+                    Content::Interpreted(value) => {
                         if let KnownData::Bool(succeed) = value {
                             if succeed {
-                                ResolveExpressionResult::Interpreted(KnownData::Void)
+                                ResolvedExpression {
+                                    content: Content::Interpreted(KnownData::Void),
+                                    data_type: DataType::scalar(BaseType::Void),
+                                }
                             } else {
                                 panic!("TODO: nice error, assert guaranteed to fail.")
                             }
@@ -730,40 +830,55 @@ impl<'a> ScopeResolver<'a> {
                             panic!("TODO: nice error, argument to assert is not bool.")
                         }
                     }
-                    ResolveExpressionResult::Modified(expression) => {
-                        ResolveExpressionResult::Modified(Expression::Assert(
+                    Content::Modified(expression) => ResolvedExpression {
+                        content: Content::Modified(Expression::Assert(
                             Box::new(expression),
                             position.clone(),
-                        ))
-                    }
+                        )),
+                        data_type: DataType::scalar(BaseType::Void)
+                    },
                 }
             }
             Expression::Assign {
                 target,
                 value,
                 position,
-            } => match self.resolve_expression(value)? {
-                ResolveExpressionResult::Interpreted(known_value) => {
+            } => match self.resolve_expression(value)?.content {
+                Content::Interpreted(known_value) => {
                     let result =
                         self.assign_value_to_expression(target, known_value, position.clone())?;
                     if let Result::Err(resolved_expresion) = result {
-                        ResolveExpressionResult::Modified(resolved_expresion)
+                        ResolvedExpression {
+                            content: Content::Modified(resolved_expresion),
+                            data_type: DataType::scalar(BaseType::Void),
+                        }
                     } else {
-                        ResolveExpressionResult::Interpreted(KnownData::Void)
+                        ResolvedExpression {
+                            content: Content::Interpreted(KnownData::Void),
+                            data_type: DataType::scalar(BaseType::Void),
+                        }
                     }
                 }
-                ResolveExpressionResult::Modified(resolved_value) => {
+                Content::Modified(resolved_value) => {
                     let resolved_target = self.resolve_assignment_access_expression(target)?;
                     self.assign_unknown_to_expression(&resolved_target);
-                    ResolveExpressionResult::Modified(Expression::Assign {
+                    let content = Content::Modified(Expression::Assign {
                         target: Box::new(resolved_target),
                         value: Box::new(resolved_value),
                         position: position.clone(),
-                    })
+                    });
+                    ResolvedExpression {
+                        content,
+                        data_type: DataType::scalar(BaseType::Void),
+                    }
                 }
             },
             Expression::Return(position) => {
-                ResolveExpressionResult::Modified(Expression::Return(position.clone()))
+                let content = Content::Modified(Expression::Return(position.clone()));
+                ResolvedExpression {
+                    content,
+                    data_type: DataType::scalar(BaseType::Void),
+                }
             }
 
             Expression::FuncCall {
@@ -780,10 +895,10 @@ impl<'a> ScopeResolver<'a> {
         let old_body = self.program[source].borrow_body().clone();
         for expression in old_body {
             let resolved = self.resolve_expression(&expression)?;
-            match resolved {
+            match resolved.content {
                 // If it was successfully interpreted, we don't need to do anything.
-                ResolveExpressionResult::Interpreted(..) => (),
-                ResolveExpressionResult::Modified(expression) => match expression {
+                Content::Interpreted(..) => (),
+                Content::Modified(expression) => match expression {
                     // TODO: Warn for expressions that have outputs that are not stored.
                     Expression::Return(..) => break,
                     _ => self.program[copied].add_expression(expression),

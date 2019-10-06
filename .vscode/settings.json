@@ -1,10 +1,10 @@
 {
   "editor.tabSize": 4,
   "files.watcherExclude": {
-    "**/target/debug": true,
-    "**/target/doc": true,
-    "**/target/release": true,
-    "**/target/rls": true
+    "**/target/debug/**": true,
+    "**/target/doc/**": true,
+    "**/target/release/**": true,
+    "**/target/rls/**": true
   },
   "terminal.integrated.scrollback": 4000
 }

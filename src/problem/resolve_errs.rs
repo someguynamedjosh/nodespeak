@@ -1,5 +1,5 @@
 use super::objects::*;
-use crate::structure::KnownData;
+use crate::structure::{DataType, KnownData};
 use ProblemType::Error;
 use ProblemType::Hint;
 
@@ -112,6 +112,28 @@ pub fn illegal_inflation(source_pos: FilePosition, target_pos: FilePosition) -> 
     ])
 }
 
+pub fn array_index_not_int(
+    index: FilePosition,
+    index_type: &DataType,
+    expression: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            index,
+            Error,
+            &format!(
+                "Array Index Not Int\nExpected an integer, got a {:?}:",
+                index_type
+            ),
+        ),
+        ProblemDescriptor::new(
+            expression,
+            Hint,
+            "Encountered while resolving this expression:",
+        ),
+    ])
+}
+
 pub fn array_size_not_int(
     size_pos: FilePosition,
     size_value: &KnownData,
@@ -122,7 +144,7 @@ pub fn array_size_not_int(
             size_pos,
             Error,
             &format!(
-                "Array Size Is Not Int\nExpected an integer, got {:?}:",
+                "Array Size Not Int\nExpected an integer, got {:?}:",
                 size_value
             ),
         ),
@@ -145,6 +167,35 @@ pub fn vague_array_size(size_pos: FilePosition, declare_pos: FilePosition) -> Co
             declare_pos,
             Hint,
             "Encountered while declaring this variable:",
+        ),
+    ])
+}
+
+pub fn no_bct(
+    expression: FilePosition,
+    op1: FilePosition,
+    op1_type: &DataType,
+    op2: FilePosition,
+    op2_type: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            expression,
+            Error,
+            concat!(
+                "No Biggest Common Type\nCannot determine what data type the result of the ",
+                "highlighted expression will have:"
+            ),
+        ),
+        ProblemDescriptor::new(
+            op1,
+            Hint,
+            &format!("The first operand has data type {:?}:", op1_type),
+        ),
+        ProblemDescriptor::new(
+            op2,
+            Hint,
+            &format!("But the second operand has data type {:?}:", op2_type),
         ),
     ])
 }

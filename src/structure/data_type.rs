@@ -97,7 +97,9 @@ impl DataType {
     }
 
     pub fn array(base: BaseType, dimensions: Vec<Expression>) -> DataType {
-        debug_assert!(dimensions.iter().fold(true, |valid, dimension| valid && dimension.is_valid()));
+        debug_assert!(dimensions
+            .iter()
+            .fold(true, |valid, dimension| valid && dimension.is_valid()));
         DataType { base, dimensions }
     }
 
@@ -109,7 +111,9 @@ impl DataType {
 
     // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
     pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<Expression>) {
-        debug_assert!(dimensions.iter().fold(true, |valid, dimension| valid && dimension.is_valid()));
+        debug_assert!(dimensions
+            .iter()
+            .fold(true, |valid, dimension| valid && dimension.is_valid()));
         dimensions.append(&mut self.dimensions);
         self.dimensions = dimensions;
     }
@@ -144,6 +148,10 @@ impl DataType {
 
     pub fn is_scalar(&self) -> bool {
         self.dimensions.len() == 0
+    }
+
+    pub fn is_specific_scalar(&self, base_type: &BaseType) -> bool {
+        self.is_scalar() && &self.base == base_type
     }
 
     pub fn is_array(&self) -> bool {

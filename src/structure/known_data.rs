@@ -1,6 +1,6 @@
 use super::{BaseType, DataType};
 use crate::problem::FilePosition;
-use crate::structure::ScopeId;
+use crate::structure::{Expression, ScopeId};
 use crate::util::NVec;
 
 use std::fmt::{self, Debug, Formatter};
@@ -70,6 +70,38 @@ impl KnownData {
         } else {
             KnownData::Array(NVec::from_vec(items))
         }
+    }
+
+    fn get_base_type(&self) -> BaseType {
+        match self {
+            KnownData::Void => BaseType::Void,
+            KnownData::Bool(..) => BaseType::Bool,
+            KnownData::Int(..) => BaseType::Int,
+            KnownData::Float(..) => BaseType::Float,
+            KnownData::DataType(..) => BaseType::DataType_,
+            KnownData::Function(..) => BaseType::Function_,
+            _ => unreachable!(),
+        }
+    }
+
+    /// Returns Err if the value is KnownData::Unknown.
+    pub fn get_data_type(&self) -> Result<DataType, ()> {
+        Result::Ok(match self {
+            KnownData::Unknown => return Result::Err(()),
+            KnownData::Array(data) => DataType::array(
+                data.borrow_all_items()[0].get_base_type(),
+                data.borrow_dimensions()
+                    .iter()
+                    .map(|dim| {
+                        Expression::Literal(
+                            KnownData::Int(*dim as i64),
+                            FilePosition::placeholder(),
+                        )
+                    })
+                    .collect(),
+            ),
+            _ => DataType::scalar(self.get_base_type()),
+        })
     }
 
     pub fn require_bool(&self) -> bool {

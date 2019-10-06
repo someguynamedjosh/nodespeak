@@ -1,4 +1,5 @@
-use crate::structure::{BinaryOperator, KnownData};
+use crate::problem::FilePosition;
+use crate::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
 use crate::util::NVec;
 use std::convert::TryInto;
 
@@ -221,5 +222,73 @@ fn compute_binary_operation_impl(
             KnownData::Float(value) => KnownData::Bool(*value >= b.require_float()),
             _ => unreachable!(),
         },
+    }
+}
+
+fn biggest_scalar(a: &BaseType, b: &BaseType, program: &Program) -> Result<BaseType, ()> {
+    // BCT rule 1
+    if a == &BaseType::Automatic {
+        Result::Ok(b.clone())
+    } else if b == &BaseType::Automatic {
+        Result::Ok(a.clone())
+    } else if a.equivalent(b, program) {
+        Result::Ok(a.clone())
+    } else {
+        Result::Err(())
+    }
+}
+
+/// Returns Result::Err if there is no biggest type.
+pub(super) fn biggest_type(a: &DataType, b: &DataType, program: &Program) -> Result<DataType, ()> {
+    // BCT rule 1
+    if a.is_specific_scalar(&BaseType::Automatic) {
+        Result::Ok(b.clone())
+    } else if b.is_specific_scalar(&BaseType::Automatic) {
+        Result::Ok(a.clone())
+    // BCT rule 2
+    } else if a.equivalent(b, program) {
+        Result::Ok(a.clone())
+    // BCT rules 3 - 5
+    } else if a.is_array() || b.is_array() {
+        // TODO: Nice error if array dimension not int.
+        let a_dims: Vec<_> = a
+            .borrow_dimensions()
+            .iter()
+            .map(|dim| program.borrow_value_of(dim).require_int())
+            .collect();
+        let b_dims: Vec<_> = a
+            .borrow_dimensions()
+            .iter()
+            .map(|dim| program.borrow_value_of(dim).require_int())
+            .collect();
+        let mut final_dims = Vec::new();
+        for index in 0..a_dims.len().max(b_dims.len()) {
+            // BCT rule 3
+            if a_dims[index] == b_dims[index] {
+                final_dims.push(a_dims[index]);
+            // BCT rule 4
+            } else if a_dims[index] == 1 {
+                final_dims.push(b_dims[index]);
+            } else if b_dims[index] == 1 {
+                final_dims.push(a_dims[index]);
+            // BCT rule 5
+            } else if index >= a_dims.len() {
+                final_dims.push(b_dims[index]);
+            } else if index >= b_dims.len() {
+                final_dims.push(a_dims[index]);
+            } else {
+                return Result::Err(());
+            }
+        }
+        let base_type = biggest_scalar(a.borrow_base(), b.borrow_base(), program)?;
+        Result::Ok(DataType::array(
+            base_type,
+            final_dims
+                .into_iter()
+                .map(|dim| Expression::Literal(KnownData::Int(dim), FilePosition::placeholder()))
+                .collect(),
+        ))
+    } else {
+        Result::Err(())
     }
 }
