@@ -328,42 +328,6 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
-    // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
-    // value instead of reads from it, there is no way to return an "interpreted" result.
-    fn resolve_assignment_access_expression(
-        &mut self,
-        access_expression: &Expression,
-    ) -> Result<Expression, CompileProblem> {
-        Result::Ok(match access_expression {
-            Expression::Variable(id, position) => {
-                Expression::Variable(self.convert(*id), position.clone())
-            }
-            Expression::Access {
-                base,
-                indexes,
-                position,
-            } => {
-                let resolved_base = self.resolve_assignment_access_expression(base)?;
-                let mut resolved_indexes = Vec::with_capacity(indexes.len());
-                for index in indexes {
-                    let index_position = index.clone_position();
-                    let resolved_index = self.resolve_expression(index)?;
-                    resolved_indexes.push(match resolved_index.content {
-                        Content::Interpreted(value) => Expression::Literal(value, index_position),
-                        Content::Modified(expression) => expression,
-                    });
-                }
-                Expression::Access {
-                    base: Box::new(resolved_base),
-                    indexes: resolved_indexes,
-                    position: position.clone(),
-                }
-            }
-            Expression::InlineReturn(..) => access_expression.clone(),
-            _ => unreachable!("No other expression types found in assignment access expressions."),
-        })
-    }
-
     // Tries to assign known data to an access expression. The access expression must be
     // either a variable or an access expression. Indexes in the access expression can be
     // any kind of expression. If the value cannot be assigned at compile time, a modified
@@ -446,6 +410,93 @@ impl<'a> ScopeResolver<'a> {
             }
             _ => unreachable!("Cannot have anything else in an assignment expression."),
         }
+    }
+
+    // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
+    // value instead of reads from it, there is no way to return an "interpreted" result.
+    fn resolve_assignment_access_expression(
+        &mut self,
+        access_expression: &Expression,
+    ) -> Result<(Expression, DataType), CompileProblem> {
+        Result::Ok(match access_expression {
+            Expression::Variable(id, position) => (
+                Expression::Variable(self.convert(*id), position.clone()),
+                self.program[self.convert(*id)].borrow_data_type().clone(),
+            ),
+            Expression::Access {
+                base,
+                indexes,
+                position,
+            } => {
+                let resolved_base = self.resolve_assignment_access_expression(base)?;
+                let mut resolved_indexes = Vec::with_capacity(indexes.len());
+                for index in indexes {
+                    let index_position = index.clone_position();
+                    let resolved_index = self.resolve_expression(index)?;
+                    resolved_indexes.push(match resolved_index.content {
+                        Content::Interpreted(value) => Expression::Literal(value, index_position),
+                        Content::Modified(expression) => expression,
+                    });
+                }
+                let num_indexes = resolved_indexes.len();
+                let expr = Expression::Access {
+                    base: Box::new(resolved_base.0),
+                    indexes: resolved_indexes,
+                    position: position.clone(),
+                };
+                (
+                    expr,
+                    resolved_base.1.clone_and_unwrap(num_indexes)
+                )
+            }
+            Expression::InlineReturn(..) => (
+                access_expression.clone(),
+                DataType::scalar(BaseType::Automatic),
+            ),
+            _ => unreachable!("No other expression types found in assignment access expressions."),
+        })
+    }
+
+    fn resolve_assign_statement(
+        &mut self,
+        target: &Expression,
+        value: &Expression,
+        position: &FilePosition,
+    ) -> Result<ResolvedExpression, CompileProblem> {
+        let resolved_target = self.resolve_assignment_access_expression(target)?;
+        let resolved_value = self.resolve_expression(value)?;
+        if !resolved_value.data_type.equivalent(&resolved_target.1, self.program) {
+            panic!("TODO: nice error, mismatched data types in assignment.");
+        }
+        Result::Ok(match resolved_value.content {
+            Content::Interpreted(known_value) => {
+                let result =
+                    self.assign_value_to_expression(&resolved_target.0, known_value, position.clone())?;
+                if let Result::Err(resolved_expresion) = result {
+                    ResolvedExpression {
+                        content: Content::Modified(resolved_expresion),
+                        data_type: DataType::scalar(BaseType::Void),
+                    }
+                } else {
+                    ResolvedExpression {
+                        content: Content::Interpreted(KnownData::Void),
+                        data_type: DataType::scalar(BaseType::Void),
+                    }
+                }
+            }
+            Content::Modified(resolved_value) => {
+                self.assign_unknown_to_expression(&resolved_target.0);
+                let content = Content::Modified(Expression::Assign {
+                    target: Box::new(resolved_target.0),
+                    value: Box::new(resolved_value),
+                    position: position.clone(),
+                });
+                ResolvedExpression {
+                    content,
+                    data_type: DataType::scalar(BaseType::Void),
+                }
+            }
+        })
     }
 
     fn resolve_func_call(
@@ -834,36 +885,7 @@ impl<'a> ScopeResolver<'a> {
                 target,
                 value,
                 position,
-            } => match self.resolve_expression(value)?.content {
-                Content::Interpreted(known_value) => {
-                    let result =
-                        self.assign_value_to_expression(target, known_value, position.clone())?;
-                    if let Result::Err(resolved_expresion) = result {
-                        ResolvedExpression {
-                            content: Content::Modified(resolved_expresion),
-                            data_type: DataType::scalar(BaseType::Void),
-                        }
-                    } else {
-                        ResolvedExpression {
-                            content: Content::Interpreted(KnownData::Void),
-                            data_type: DataType::scalar(BaseType::Void),
-                        }
-                    }
-                }
-                Content::Modified(resolved_value) => {
-                    let resolved_target = self.resolve_assignment_access_expression(target)?;
-                    self.assign_unknown_to_expression(&resolved_target);
-                    let content = Content::Modified(Expression::Assign {
-                        target: Box::new(resolved_target),
-                        value: Box::new(resolved_value),
-                        position: position.clone(),
-                    });
-                    ResolvedExpression {
-                        content,
-                        data_type: DataType::scalar(BaseType::Void),
-                    }
-                }
-            },
+            } => self.resolve_assign_statement(target, value, position)?,
             Expression::Return(position) => {
                 let content = Content::Modified(Expression::Return(position.clone()));
                 ResolvedExpression {
