@@ -86,7 +86,7 @@ pub enum Expression {
         indexes: Vec<Expression>,
         position: FilePosition,
     },
-    InlineReturn(FilePosition),
+    InlineReturn(Box<Expression>, FilePosition),
 
     UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
     BinaryOperation(
@@ -96,6 +96,8 @@ pub enum Expression {
         FilePosition,
     ),
 
+    PickInput(VariableId, usize, FilePosition),
+    PickOutput(VariableId, usize, FilePosition),
     Collect(Vec<Expression>, FilePosition),
     CreationPoint(VariableId, FilePosition),
 
@@ -109,8 +111,8 @@ pub enum Expression {
 
     FuncCall {
         function: Box<Expression>,
-        inputs: Vec<Expression>,
-        outputs: Vec<Expression>,
+        setup: Vec<Expression>,
+        teardown: Vec<Expression>,
         position: FilePosition,
     },
 }
@@ -154,17 +156,17 @@ impl Debug for Expression {
 
             Expression::FuncCall {
                 function,
-                inputs,
-                outputs,
+                setup,
+                teardown,
                 ..
             } => {
                 write!(formatter, "{:?}(", function)?;
-                for input in inputs {
-                    write!(formatter, "{:?}, ", input)?;
+                for expr in setup {
+                    write!(formatter, "{:?}, ", expr)?;
                 }
                 write!(formatter, "):(")?;
-                for output in outputs {
-                    write!(formatter, "{:?}, ", output)?;
+                for expr in teardown {
+                    write!(formatter, "{:?}, ", expr)?;
                 }
                 write!(formatter, ")")
             }
@@ -178,7 +180,7 @@ impl Expression {
             Expression::Literal(_, position)
             | Expression::Variable(_, position)
             | Expression::Access { position, .. }
-            | Expression::InlineReturn(position)
+            | Expression::InlineReturn(_, position)
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
             | Expression::Collect(_, position)
@@ -243,17 +245,13 @@ impl Expression {
             Expression::Return(..) => true,
             Expression::FuncCall {
                 function,
-                inputs,
-                outputs,
+                setup,
+                teardown,
                 ..
             } => {
                 function.is_valid()
-                    && inputs
-                        .iter()
-                        .fold(true, |valid, input| valid && input.is_valid())
-                    && outputs
-                        .iter()
-                        .fold(true, |valid, output| valid && output.is_valid())
+                    && setup.iter().chain(teardown.iter())
+                        .fold(true, |valid, expr| valid && expr.is_valid())
             }
         }
     }

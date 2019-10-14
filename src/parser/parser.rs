@@ -43,7 +43,10 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::index_expr => "array access",
         Rule::operator => "binary operator",
 
-        Rule::func_expr_input_list => "input list for single-output function expression",
+        Rule::func_expr_input_list => "input list for function call",
+        Rule::inline_output => "inline keyword",
+        Rule::inline_var_dec => "inline variable declaration",
+        Rule::func_expr_output_list => "output list for function call",
         Rule::func_expr => "single-output function expression",
 
         Rule::named_data_type => "name of a data type",
@@ -69,12 +72,6 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::assign_array_access => "LHS assignment indexing",
         Rule::assign_expr => "LHS assignment expression",
         Rule::assign_statement => "assignment expression",
-
-        Rule::func_statement_input_list => "input list for multi-output function call",
-        Rule::func_statement_var_dec => "new variable output",
-        Rule::func_statement_output => "output for multi-output function call",
-        Rule::func_statement_output_list => "output list for multi-output function call",
-        Rule::multi_output_func_statement => "multi-output function call",
 
         Rule::code_block => "code block",
         Rule::returnable_code_block => "code block",
@@ -169,19 +166,6 @@ pub mod convert {
             .expect("Grammar requires valid binary int.")
     }
 
-    fn convert_func_expr_input_list(
-        program: &mut Program,
-        scope: ScopeId,
-        inputs: &mut Vec<Expression>,
-        input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
-        for child in input.into_inner() {
-            debug_assert!(child.as_rule() == Rule::expr, "Required by grammar.");
-            inputs.push(convert_expression(program, scope, true, child)?);
-        }
-        Result::Ok(())
-    }
-
     fn lookup_symbol_with_error(
         program: &Program,
         scope: ScopeId,
@@ -195,12 +179,32 @@ pub mod convert {
         }
     }
 
+    fn convert_func_expr_input_list(
+        program: &mut Program,
+        scope: ScopeId,
+        func_var: VariableId,
+        input: Pair<Rule>,
+    ) -> Result<Vec<Expression>, CompileProblem> {
+        let mut setup = Vec::new();
+        for (index, child) in input.into_inner().enumerate() {
+            debug_assert!(child.as_rule() == Rule::expr, "Required by grammar.");
+            let child_pos = FilePosition::from_pair(&child);
+            setup.push(Expression::Assign {
+                target: Box::new(Expression::PickInput(func_var, index, child_pos.clone())),
+                value: Box::new(convert_expression(program, scope, true, child)?),
+                position: child_pos
+            });
+        }
+        Result::Ok(setup)
+    }
+
     fn convert_func_expr(
         program: &mut Program,
         scope: ScopeId,
         force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
+        // TODO: Handle multi output and no input function calls.
         let input_pos = FilePosition::from_pair(&input);
 
         let mut input_iter = input.into_inner();
@@ -209,13 +213,15 @@ pub mod convert {
         let input_list = input_iter.next().expect("Required by grammar.");
 
         let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
-        let mut inputs = Vec::new();
-        convert_func_expr_input_list(program, scope, &mut inputs, input_list)?;
+        let setup = convert_func_expr_input_list(program, scope, function_var, input_list)?;
         Result::Ok(Expression::FuncCall {
             function: Box::new(Expression::Variable(function_var, identifier_pos)),
-            inputs,
-            outputs: if force_func_output {
-                vec![Expression::InlineReturn(input_pos.clone())]
+            setup,
+            teardown: if force_func_output {
+                vec![Expression::InlineReturn(
+                    Box::new(Expression::PickOutput(function_var, 0, input_pos.clone())),
+                    input_pos.clone()
+                )]
             } else {
                 vec![]
             },
@@ -1123,96 +1129,6 @@ pub mod convert {
         Result::Ok(())
     }
 
-    fn convert_func_statement_input_list(
-        program: &mut Program,
-        scope: ScopeId,
-        list: &mut Vec<Expression>,
-        input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
-        for child in input.into_inner() {
-            assert!(child.as_rule() == Rule::expr, "Required by grammar.");
-            list.push(convert_expression(program, scope, true, child)?);
-        }
-        Result::Ok(())
-    }
-
-    fn convert_func_statement_var_dec(
-        program: &mut Program,
-        scope: ScopeId,
-        input: Pair<Rule>,
-    ) -> Result<Expression, CompileProblem> {
-        let input_pos = FilePosition::from_pair(&input);
-        let mut input_iter = input.into_inner();
-        let data_type = convert_data_type(
-            program,
-            scope,
-            input_iter.next().expect("Required by grammar."),
-        )?;
-        let name = input_iter.next().expect("Required by grammar.").as_str();
-        let var_id = program.adopt_and_define_symbol(
-            scope,
-            name,
-            Variable::variable(input_pos.clone(), data_type, Option::None),
-        );
-        Result::Ok(Expression::Variable(var_id, input_pos))
-    }
-
-    fn convert_func_statement_output(
-        program: &mut Program,
-        scope: ScopeId,
-        input: Pair<Rule>,
-    ) -> Result<Expression, CompileProblem> {
-        let child = input.into_inner().next().expect("Required by grammar.");
-        match child.as_rule() {
-            Rule::func_statement_var_dec => convert_func_statement_var_dec(program, scope, child),
-            Rule::assign_expr => convert_assign_expr(program, scope, child),
-            _ => unreachable!("Grammar specifies no other children."),
-        }
-    }
-
-    fn convert_func_statement_output_list(
-        program: &mut Program,
-        scope: ScopeId,
-        list: &mut Vec<Expression>,
-        input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
-        for child in input.into_inner() {
-            assert!(
-                child.as_rule() == Rule::func_statement_output,
-                "Required by grammar."
-            );
-            list.push(convert_func_statement_output(program, scope, child)?);
-        }
-        Result::Ok(())
-    }
-
-    fn convert_multi_output_func_statement(
-        program: &mut Program,
-        scope: ScopeId,
-        input: Pair<Rule>,
-    ) -> Result<(), CompileProblem> {
-        let input_pos = FilePosition::from_pair(&input);
-        let mut input_iter = input.into_inner();
-        let identifier = input_iter.next().expect("Required by grammar.");
-        let identifier_pos = FilePosition::from_pair(&identifier);
-        let input_list = input_iter.next().expect("Required by grammar.");
-        let output_list = input_iter.next().expect("Required by grammar.");
-
-        let func_var = lookup_symbol_with_error(program, scope, &identifier)?;
-        let mut inputs = Vec::new();
-        convert_func_statement_input_list(program, scope, &mut inputs, input_list)?;
-        let mut outputs = Vec::new();
-        convert_func_statement_output_list(program, scope, &mut outputs, output_list)?;
-        let expression = Expression::FuncCall {
-            function: Box::new(Expression::Variable(func_var, identifier_pos)),
-            inputs,
-            outputs,
-            position: input_pos,
-        };
-        program[scope].add_expression(expression);
-        Result::Ok(())
-    }
-
     fn convert_statement(
         program: &mut Program,
         scope: ScopeId,
@@ -1251,9 +1167,6 @@ pub mod convert {
                         value: Box::new(value),
                         position: child_pos,
                     });
-                }
-                Rule::multi_output_func_statement => {
-                    convert_multi_output_func_statement(program, scope, child)?;
                 }
                 Rule::expr => {
                     let expression = convert_expression(program, scope, false, child)?;

@@ -52,7 +52,11 @@ expr = { expr_part ~ (operator ~ expr_part)* }
 // Single-return function calls (part of expressions, so they are called function epressions.)
 
 func_expr_input_list = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
-func_expr = { identifier ~ func_expr_input_list }
+inline_output = { "inline" }
+inline_var_dec = { data_type ~ identifier }
+func_expr_output = { assign_expr | inline_var_dec | inline_output }
+func_expr_output_list = { ":" ~ "(" ~ (func_expr_output~ ("," ~ func_expr_output)*)? ~ ")" }
+func_expr = { identifier ~ func_expr_input_list ~ func_expr_output_list? }
 
 // Data types.
 
@@ -101,16 +105,6 @@ assign_array_access = { "[" ~ expr ~ "]" }
 assign_expr = { identifier ~ (assign_array_access)* }
 assign_statement = { assign_expr ~ "=" ~ expr ~ ";" }
 
-func_statement_input_list = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
-func_statement_var_dec = { data_type ~ identifier }
-func_statement_output = { func_statement_var_dec | assign_expr }
-func_statement_output_list = { 
-    ":" ~ "(" ~ (func_statement_output~ ("," ~ func_statement_output)*)? ~ ")" 
-}
-multi_output_func_statement = { 
-    identifier ~ func_statement_input_list ~ func_statement_output_list ~ ";"
-}
-
 raw_expr_statement = _{ expr ~ ";" }
 
 code_block = { "{" ~ statement* ~ "}" }
@@ -124,7 +118,7 @@ assert_statement = { "assert" ~ expr ~ ";" }
 statement = { 
     function_definition | code_block | return_statement | assert_statement
     | input_variable_statement | output_variable_statement | create_variable_statement 
-    | assign_statement | multi_output_func_statement | raw_expr_statement  
+    | assign_statement | raw_expr_statement  
 }
 
 root = { SOI ~ statement* ~ EOI }

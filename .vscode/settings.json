@@ -1,6 +1,9 @@
 {
   "editor.tabSize": 4,
   "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/.git/objects/**": false,
+    "**/.git/subtree-cache/**": false,
     "**/target/debug/**": true,
     "**/target/doc/**": true,
     "**/target/release/**": true,
