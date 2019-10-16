@@ -242,8 +242,8 @@ impl Expression {
             Expression::Assert(argument, ..) => argument.is_valid(),
             Expression::Assign { target, value, .. } => {
                 (match &**target {
-                    Expression::Variable(..) 
-                    | Expression::Access{..}
+                    Expression::Variable(..)
+                    | Expression::Access { .. }
                     | Expression::PickInput(..)
                     | Expression::PickOutput(..) => target.is_valid(),
                     Expression::Proxy {

@@ -62,5 +62,19 @@ pub fn interpret(
     inputs: Vec<structure::KnownData>,
     sources: &SourceSet,
 ) -> Result<Vec<structure::KnownData>, String> {
-    unimplemented!()
+    let entry_point = compiled_program.get_entry_point();
+    let input_targets = compiled_program[entry_point].borrow_inputs().clone();
+    for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
+        compiled_program[target].set_temporary_value(source);
+    }
+    let entry_point = interpreter::resolve_scope(compiled_program, entry_point).map_err(|err| {
+        let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
+        format!("Compilation failed.\n\n{}", err.format(width, sources))
+    })?;
+    let mut outputs = Vec::new();
+    let output_sources = compiled_program[entry_point].borrow_outputs().clone();
+    for source in output_sources.into_iter() {
+        outputs.push(compiled_program[source].borrow_temporary_value().clone());
+    }
+    Result::Ok(outputs)
 }

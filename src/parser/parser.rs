@@ -215,7 +215,7 @@ pub mod convert {
                     teardown.push(Expression::Assign {
                         target: Box::new(assign_expr),
                         value: output,
-                        position: child_pos
+                        position: child_pos,
                     });
                 }
                 Rule::inline_var_dec => {
@@ -231,12 +231,12 @@ pub mod convert {
                     teardown.push(Expression::Assign {
                         target: Box::new(Expression::Variable(id, child_pos.clone())),
                         value: output,
-                        position: child_pos
+                        position: child_pos,
                     });
                 }
                 // TODO: error if more than one inline output.
                 Rule::inline_output => teardown.push(Expression::InlineReturn(output, child_pos)),
-                _ => unreachable!("Grammar specifies no other children.")
+                _ => unreachable!("Grammar specifies no other children."),
             }
         }
         Result::Ok(teardown)
@@ -261,7 +261,7 @@ pub mod convert {
         let teardown = if let Option::Some(output_list) = input_iter.next() {
             debug_assert!(output_list.as_rule() == Rule::func_expr_output_list);
             convert_func_expr_output_list(program, scope, function_var, output_list)?
-            // TODO: if force_func_output is true, check that one of the outputs is inline.
+        // TODO: if force_func_output is true, check that one of the outputs is inline.
         } else if force_func_output {
             vec![Expression::InlineReturn(
                 Box::new(Expression::PickOutput(function_var, 0, input_pos.clone())),

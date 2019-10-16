@@ -75,20 +75,20 @@ impl<'a> ScopeResolver<'a> {
         Expression::Literal(KnownData::Int(value), position)
     }
 
-    fn resolve_automatic_type(&mut self, target: &Expression, data_type: &DataType) -> Result<(), CompileProblem> {
+    fn resolve_automatic_type(
+        &mut self,
+        target: &Expression,
+        data_type: &DataType,
+    ) -> Result<(), CompileProblem> {
         match target {
-            Expression::Access {
-                base,
-                indexes,
-                ..
-            } => {
+            Expression::Access { base, indexes, .. } => {
                 self.resolve_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
             }
             // TODO: Handle arrays of automatic types.
             Expression::Variable(id, ..) => {
                 self.program[*id].set_data_type(data_type.clone());
             }
-            _ => unreachable!("Should not resolve automatic types of anything else.")
+            _ => unreachable!("Should not resolve automatic types of anything else."),
         }
         Result::Ok(())
     }
@@ -861,7 +861,6 @@ impl<'a> ScopeResolver<'a> {
             }
 
             Expression::Assert(value, position) => {
-                eprintln!("{:?}", value);
                 let resolved_value = self.resolve_expression(value)?;
                 match resolved_value.content {
                     Content::Interpreted(value) => {
