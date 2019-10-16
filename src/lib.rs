@@ -7,6 +7,7 @@ use terminal_size;
 
 pub mod parser;
 pub mod problem;
+pub mod runtime;
 pub mod simplifier;
 pub mod structure;
 pub mod util;
