@@ -1,0 +1,19 @@
+fn test2(Int a, Int b):(Int result) {
+    result = 0;
+    result = result + a;
+    result = result + b;
+}
+
+fn test1(Int a, Int b):Int {
+    return test2(a, b);
+}
+
+fn swap(Int a, Int b):(Int c, Int d) {
+    return b, a;
+}
+
+Int sum = test1(10, 15);
+assert sum == 25;
+Auto other = 10;
+swap(sum, other):(sum, other);
+assert sum == 10;
