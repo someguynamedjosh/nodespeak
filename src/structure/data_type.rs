@@ -66,8 +66,8 @@ impl Debug for BaseType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             BaseType::Automatic => write!(formatter, "Auto"),
-            BaseType::Dynamic(_var) => write!(formatter, "Unresolved"),
-            BaseType::LoadTemplateParameter(_var) => write!(formatter, "Unresolved"),
+            BaseType::Dynamic(_var) => write!(formatter, "Unsimplified"),
+            BaseType::LoadTemplateParameter(_var) => write!(formatter, "Unsimplified"),
             BaseType::Bool => write!(formatter, "Bool"),
             BaseType::Int => write!(formatter, "Int"),
             BaseType::Float => write!(formatter, "Float"),

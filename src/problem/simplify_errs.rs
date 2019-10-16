@@ -83,8 +83,8 @@ pub fn not_function(expr_pos: FilePosition) -> CompileProblem {
         expr_pos,
         Error,
         concat!(
-            "Incorrect Type\nThe highlighted expression should resolve to a function because it ",
-            "is being used in a function call. However, it resolves to a different data type.",
+            "Incorrect Type\nThe highlighted expression should simplify to a function because it ",
+            "is being used in a function call. However, it simplifies to a different data type.",
         ),
     )])
 }
@@ -129,7 +129,7 @@ pub fn array_index_not_int(
         ProblemDescriptor::new(
             expression,
             Hint,
-            "Encountered while resolving this expression:",
+            "Encountered while simplifying this expression:",
         ),
     ])
 }

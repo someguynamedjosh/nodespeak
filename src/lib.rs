@@ -5,9 +5,9 @@ extern crate pest_derive;
 
 use terminal_size;
 
-pub mod interpreter;
 pub mod parser;
 pub mod problem;
+pub mod simplifier;
 pub mod structure;
 pub mod util;
 
@@ -44,7 +44,7 @@ fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompilePr
     let mut ast_result = parser::parse(sources.borrow_sources()[1].1)?;
     let mut program = parser::convert_ast_to_structure(&mut ast_result)?;
     let entry_point = program.get_entry_point();
-    let new_entry_point = interpreter::resolve_scope(&mut program, entry_point)?;
+    let new_entry_point = simplifier::simplify_scope(&mut program, entry_point)?;
     program.set_entry_point(new_entry_point);
     Result::Ok(CompileResult { program: program })
 }
@@ -67,7 +67,7 @@ pub fn interpret(
     for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
         compiled_program[target].set_temporary_value(source);
     }
-    let entry_point = interpreter::resolve_scope(compiled_program, entry_point).map_err(|err| {
+    let entry_point = simplifier::simplify_scope(compiled_program, entry_point).map_err(|err| {
         let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
         format!("Compilation failed.\n\n{}", err.format(width, sources))
     })?;

@@ -7,37 +7,37 @@ use crate::util::NVec;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-pub fn resolve_scope(program: &mut Program, scope: ScopeId) -> Result<ScopeId, CompileProblem> {
-    let mut resolver = ScopeResolver::new(program);
-    resolver.entry_point(scope)
+pub fn simplify_scope(program: &mut Program, scope: ScopeId) -> Result<ScopeId, CompileProblem> {
+    let mut simplifier = ScopeSimplifier::new(program);
+    simplifier.entry_point(scope)
 }
 
-struct ScopeResolver<'a> {
+struct ScopeSimplifier<'a> {
     program: &'a mut Program,
     conversion_table: HashMap<VariableId, VariableId>,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having
-    // multiple conversions. For example, type parameters can be resolved to
+    // multiple conversions. For example, type parameters can be simplified to
     // different values depending on the types used for the inputs and outputs
     // of the function.
     conversion_stack: Vec<HashMap<VariableId, VariableId>>,
 }
 
 enum Content {
-    /// A simpler or resolved version of the expression was found.
+    /// A simpler or simplified version of the expression was found.
     Modified(Expression),
     /// The entire value of the expression has a determinate value.
     Interpreted(KnownData),
 }
 
-struct ResolvedExpression {
+struct SimplifiedExpression {
     pub content: Content,
     pub data_type: DataType,
 }
 
-impl<'a> ScopeResolver<'a> {
-    fn new(program: &'a mut Program) -> ScopeResolver<'a> {
-        ScopeResolver {
+impl<'a> ScopeSimplifier<'a> {
+    fn new(program: &'a mut Program) -> ScopeSimplifier<'a> {
+        ScopeSimplifier {
             program,
             conversion_table: HashMap::new(),
             conversion_stack: Vec::new(),
@@ -75,20 +75,20 @@ impl<'a> ScopeResolver<'a> {
         Expression::Literal(KnownData::Int(value), position)
     }
 
-    fn resolve_automatic_type(
+    fn simplify_automatic_type(
         &mut self,
         target: &Expression,
         data_type: &DataType,
     ) -> Result<(), CompileProblem> {
         match target {
             Expression::Access { base, indexes, .. } => {
-                self.resolve_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
+                self.simplify_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
             }
             // TODO: Handle arrays of automatic types.
             Expression::Variable(id, ..) => {
                 self.program[*id].set_data_type(data_type.clone());
             }
-            _ => unreachable!("Should not resolve automatic types of anything else."),
+            _ => unreachable!("Should not simplify automatic types of anything else."),
         }
         Result::Ok(())
     }
@@ -104,7 +104,7 @@ impl<'a> ScopeResolver<'a> {
         };
 
         // TODO: We probably don't need to preserve the variable names in the
-        // resolved scope. Depends on how some meta features get implemented in
+        // simplified scope. Depends on how some meta features get implemented in
         // the future.
         let symbol_table = self.program[source].borrow_symbols().clone();
         for name_value_pair in symbol_table.iter() {
@@ -138,17 +138,17 @@ impl<'a> ScopeResolver<'a> {
         Result::Ok(copy)
     }
 
-    fn resolve_access_expression(
+    fn simplify_access_expression(
         &mut self,
-        resolved_base: ResolvedExpression,
+        simplified_base: SimplifiedExpression,
         mut base_position: FilePosition,
-        resolved_indexes: Vec<(ResolvedExpression, FilePosition)>,
+        simplified_indexes: Vec<(SimplifiedExpression, FilePosition)>,
         position: FilePosition,
-    ) -> Result<ResolvedExpression, CompileProblem> {
-        let final_type = resolved_base
+    ) -> Result<SimplifiedExpression, CompileProblem> {
+        let final_type = simplified_base
             .data_type
-            .clone_and_unwrap(resolved_indexes.len());
-        Result::Ok(match resolved_base.content {
+            .clone_and_unwrap(simplified_indexes.len());
+        Result::Ok(match simplified_base.content {
             // If the base of the access has a value known at compile time...
             Content::Interpreted(data) => {
                 let mut base_data = match data {
@@ -159,7 +159,7 @@ impl<'a> ScopeResolver<'a> {
                 let mut dynamic_indexes = Vec::new();
                 let mut known = true;
                 // Figure out how much of the indexing we can do at compile time.
-                for (index, index_position) in resolved_indexes.into_iter() {
+                for (index, index_position) in simplified_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
                         panic!(
                             "TODO: nice error, data type of index must be Int not {:?}",
@@ -216,7 +216,7 @@ impl<'a> ScopeResolver<'a> {
                         assert!(dynamic_indexes.len() == 0, "TODO: nice error");
                         let element = base_data.borrow_item(&known_indexes).clone();
                         // Special case return of that specific element.
-                        return Result::Ok(ResolvedExpression {
+                        return Result::Ok(SimplifiedExpression {
                             content: Content::Interpreted(element),
                             data_type: final_type,
                         });
@@ -226,13 +226,13 @@ impl<'a> ScopeResolver<'a> {
                 // If there are no extra dynamic indexes, we can just return whatever portion of the
                 // data that we were able to collect at compile time.
                 if dynamic_indexes.len() == 0 {
-                    ResolvedExpression {
+                    SimplifiedExpression {
                         content: Content::Interpreted(KnownData::Array(base_data)),
                         data_type: final_type,
                     }
                 // Otherwise, make an access expression using the leftover dynamic indexes.
                 } else {
-                    ResolvedExpression {
+                    SimplifiedExpression {
                         content: Content::Modified(Expression::Access {
                             base: Box::new(Expression::Literal(
                                 KnownData::Array(base_data),
@@ -247,8 +247,8 @@ impl<'a> ScopeResolver<'a> {
             }
             // If the base of the access does not have a value known at compile time...
             Content::Modified(new_base) => {
-                let mut new_indexes = Vec::with_capacity(resolved_indexes.len());
-                for (index, index_position) in resolved_indexes.into_iter() {
+                let mut new_indexes = Vec::with_capacity(simplified_indexes.len());
+                for (index, index_position) in simplified_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
                         return Result::Err(problem::array_index_not_int(
                             index_position,
@@ -268,7 +268,7 @@ impl<'a> ScopeResolver<'a> {
                     }
                 }
                 // Make an access expression using the new indexes.
-                ResolvedExpression {
+                SimplifiedExpression {
                     content: Content::Modified(Expression::Access {
                         base: Box::new(new_base),
                         indexes: new_indexes,
@@ -280,18 +280,18 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
-    fn resolve_binary_expression(
+    fn simplify_binary_expression(
         &mut self,
-        resolved_operand_1: ResolvedExpression,
+        simplified_operand_1: SimplifiedExpression,
         operand_1_position: FilePosition,
         operator: BinaryOperator,
-        resolved_operand_2: ResolvedExpression,
+        simplified_operand_2: SimplifiedExpression,
         operand_2_position: FilePosition,
         position: FilePosition,
-    ) -> Result<ResolvedExpression, CompileProblem> {
+    ) -> Result<SimplifiedExpression, CompileProblem> {
         let result_type = match super::util::biggest_type(
-            &resolved_operand_1.data_type,
-            &resolved_operand_2.data_type,
+            &simplified_operand_1.data_type,
+            &simplified_operand_2.data_type,
             self.program,
         ) {
             Result::Ok(rtype) => rtype,
@@ -299,15 +299,15 @@ impl<'a> ScopeResolver<'a> {
                 return Result::Err(problem::no_bct(
                     position,
                     operand_1_position,
-                    &resolved_operand_1.data_type,
+                    &simplified_operand_1.data_type,
                     operand_2_position,
-                    &resolved_operand_2.data_type,
+                    &simplified_operand_2.data_type,
                 ))
             }
         };
         // TODO: Generate proxies when necessary.
-        let content = match resolved_operand_1.content {
-            Content::Interpreted(dat1) => match resolved_operand_2.content {
+        let content = match simplified_operand_1.content {
+            Content::Interpreted(dat1) => match simplified_operand_2.content {
                 // Both values were interpreted, so the value of the whole binary
                 // expression can be computed.
                 Content::Interpreted(dat2) => Content::Interpreted(
@@ -322,7 +322,7 @@ impl<'a> ScopeResolver<'a> {
                     position,
                 )),
             },
-            Content::Modified(expr1) => match resolved_operand_2.content {
+            Content::Modified(expr1) => match simplified_operand_2.content {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
                 Content::Interpreted(dat2) => Content::Modified(Expression::BinaryOperation(
@@ -340,13 +340,13 @@ impl<'a> ScopeResolver<'a> {
                 )),
             },
         };
-        Result::Ok(ResolvedExpression {
+        Result::Ok(SimplifiedExpression {
             content,
             data_type: result_type,
         })
     }
 
-    fn require_resolved_function_data(
+    fn require_simplified_function_data(
         &self,
         from: VariableId,
     ) -> Result<FunctionData, CompileProblem> {
@@ -380,10 +380,10 @@ impl<'a> ScopeResolver<'a> {
                 };
                 let mut all_indexes_known = true;
                 let mut known_indexes = Vec::new();
-                let mut resolved_indexes = Vec::with_capacity(indexes.len());
+                let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
-                    let result = self.resolve_expression(index)?;
+                    let result = self.simplify_expression(index)?;
                     match result.content {
                         Content::Interpreted(value) => {
                             if all_indexes_known {
@@ -394,13 +394,13 @@ impl<'a> ScopeResolver<'a> {
                                     panic!("TODO: nice error, index must be int.");
                                 }
                             }
-                            // Also put a literal into resolved indexes in case we don't know all
+                            // Also put a literal into simplified indexes in case we don't know all
                             // the indexes and need to construct a runtime expression to set the
                             // value.
-                            resolved_indexes.push(Expression::Literal(value, index_position));
+                            simplified_indexes.push(Expression::Literal(value, index_position));
                         }
                         Content::Modified(expression) => {
-                            resolved_indexes.push(expression);
+                            simplified_indexes.push(expression);
                             all_indexes_known = false;
                         }
                     }
@@ -414,7 +414,7 @@ impl<'a> ScopeResolver<'a> {
                 } else {
                     Result::Err(Expression::Access {
                         base: Box::new(Expression::Variable(base_var_id, base_var_pos)),
-                        indexes: resolved_indexes,
+                        indexes: simplified_indexes,
                         position,
                     })
                 }
@@ -443,7 +443,7 @@ impl<'a> ScopeResolver<'a> {
 
     // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
     // value instead of reads from it, there is no way to return an "interpreted" result.
-    fn resolve_assignment_access_expression(
+    fn simplify_assignment_access_expression(
         &mut self,
         access_expression: &Expression,
     ) -> Result<(Expression, DataType), CompileProblem> {
@@ -453,7 +453,7 @@ impl<'a> ScopeResolver<'a> {
                 self.program[self.convert(*id)].borrow_data_type().clone(),
             ),
             Expression::PickInput(function, index, position) => {
-                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let scope = self.require_simplified_function_data(*function)?.get_body();
                 let converted = self.convert(self.program[scope].get_input(*index));
                 (
                     Expression::Variable(converted, position.clone()),
@@ -461,7 +461,7 @@ impl<'a> ScopeResolver<'a> {
                 )
             }
             Expression::PickOutput(function, index, position) => {
-                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let scope = self.require_simplified_function_data(*function)?.get_body();
                 let converted = self.convert(self.program[scope].get_output(*index));
                 (
                     Expression::Variable(converted, position.clone()),
@@ -473,23 +473,23 @@ impl<'a> ScopeResolver<'a> {
                 indexes,
                 position,
             } => {
-                let resolved_base = self.resolve_assignment_access_expression(base)?;
-                let mut resolved_indexes = Vec::with_capacity(indexes.len());
+                let simplified_base = self.simplify_assignment_access_expression(base)?;
+                let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
-                    let resolved_index = self.resolve_expression(index)?;
-                    resolved_indexes.push(match resolved_index.content {
+                    let simplified_index = self.simplify_expression(index)?;
+                    simplified_indexes.push(match simplified_index.content {
                         Content::Interpreted(value) => Expression::Literal(value, index_position),
                         Content::Modified(expression) => expression,
                     });
                 }
-                let num_indexes = resolved_indexes.len();
+                let num_indexes = simplified_indexes.len();
                 let expr = Expression::Access {
-                    base: Box::new(resolved_base.0),
-                    indexes: resolved_indexes,
+                    base: Box::new(simplified_base.0),
+                    indexes: simplified_indexes,
                     position: position.clone(),
                 };
-                (expr, resolved_base.1.clone_and_unwrap(num_indexes))
+                (expr, simplified_base.1.clone_and_unwrap(num_indexes))
             }
             Expression::InlineReturn(..) => (
                 access_expression.clone(),
@@ -499,49 +499,49 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
-    fn resolve_assign_statement(
+    fn simplify_assign_statement(
         &mut self,
         target: &Expression,
         value: &Expression,
         position: &FilePosition,
-    ) -> Result<ResolvedExpression, CompileProblem> {
-        let resolved_target = self.resolve_assignment_access_expression(target)?;
-        let resolved_value = self.resolve_expression(value)?;
-        if resolved_target.1.is_automatic() {
-            self.resolve_automatic_type(&resolved_target.0, &resolved_value.data_type)?;
-        } else if !resolved_value
+    ) -> Result<SimplifiedExpression, CompileProblem> {
+        let simplified_target = self.simplify_assignment_access_expression(target)?;
+        let simplified_value = self.simplify_expression(value)?;
+        if simplified_target.1.is_automatic() {
+            self.simplify_automatic_type(&simplified_target.0, &simplified_value.data_type)?;
+        } else if !simplified_value
             .data_type
-            .equivalent(&resolved_target.1, self.program)
+            .equivalent(&simplified_target.1, self.program)
         {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
-        Result::Ok(match resolved_value.content {
+        Result::Ok(match simplified_value.content {
             Content::Interpreted(known_value) => {
                 let result = self.assign_value_to_expression(
-                    &resolved_target.0,
+                    &simplified_target.0,
                     known_value,
                     position.clone(),
                 )?;
-                if let Result::Err(resolved_expresion) = result {
-                    ResolvedExpression {
-                        content: Content::Modified(resolved_expresion),
+                if let Result::Err(simplified_expresion) = result {
+                    SimplifiedExpression {
+                        content: Content::Modified(simplified_expresion),
                         data_type: DataType::scalar(BaseType::Void),
                     }
                 } else {
-                    ResolvedExpression {
+                    SimplifiedExpression {
                         content: Content::Interpreted(KnownData::Void),
                         data_type: DataType::scalar(BaseType::Void),
                     }
                 }
             }
-            Content::Modified(resolved_value) => {
-                self.assign_unknown_to_expression(&resolved_target.0);
+            Content::Modified(simplified_value) => {
+                self.assign_unknown_to_expression(&simplified_target.0);
                 let content = Content::Modified(Expression::Assign {
-                    target: Box::new(resolved_target.0),
-                    value: Box::new(resolved_value),
+                    target: Box::new(simplified_target.0),
+                    value: Box::new(simplified_value),
                     position: position.clone(),
                 });
-                ResolvedExpression {
+                SimplifiedExpression {
                     content,
                     data_type: DataType::scalar(BaseType::Void),
                 }
@@ -549,18 +549,18 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
-    fn resolve_func_call(
+    fn simplify_func_call(
         &mut self,
         function: &Expression,
         setup: &Vec<Expression>,
         teardown: &Vec<Expression>,
         position: &FilePosition,
-    ) -> Result<ResolvedExpression, CompileProblem> {
+    ) -> Result<SimplifiedExpression, CompileProblem> {
         // We want to make a new table specifically for this function, so that any variable
         // conversions we make won't be applied to other calls to the same funciton.
         self.push_table();
         // Make sure we can figure out what function is being called right now at compile time.
-        let resolved_function = match self.resolve_expression(function.borrow())?.content {
+        let simplified_function = match self.simplify_expression(function.borrow())?.content {
             Content::Interpreted(value) => value,
             Content::Modified(..) => {
                 return Result::Err(problem::vague_function(
@@ -570,7 +570,7 @@ impl<'a> ScopeResolver<'a> {
             }
         };
         // Get the actual function data.
-        let function_data = match resolved_function {
+        let function_data = match simplified_function {
             KnownData::Function(data) => data,
             _ => return Result::Err(problem::not_function(function.clone_position())),
         };
@@ -591,7 +591,7 @@ impl<'a> ScopeResolver<'a> {
         // Try and do as much setup at compile time as possible.
         let mut runtime_setup = Vec::new();
         for expr in setup {
-            match self.resolve_expression(expr)?.content {
+            match self.simplify_expression(expr)?.content {
                 // Fully computed at compile time.
                 Content::Interpreted(..) => (),
                 // Still requires at least some computation during run time.
@@ -606,7 +606,7 @@ impl<'a> ScopeResolver<'a> {
         // TODO: This also implicitly assumes that functions do not have side effects. Need to check
         // that a function does not cause any side effects.
         for expression in self.program[old_function_body].borrow_body().clone() {
-            match self.resolve_expression(&expression)?.content {
+            match self.simplify_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
                 // Fully computed at compile time.
                 Content::Interpreted(..) => (),
@@ -623,24 +623,24 @@ impl<'a> ScopeResolver<'a> {
             }
         }
 
-        // Now try and resolve as much of the teardown as possible. Keep track of whether or not
+        // Now try and simplify as much of the teardown as possible. Keep track of whether or not
         // there is an inline return statement and what value it contains.
         let mut runtime_teardown = Vec::new();
         let mut inline_output = None;
         for expr in teardown {
             match expr {
                 Expression::InlineReturn(return_value, position) => {
-                    let resolved = self.resolve_expression(return_value)?;
-                    if let Content::Modified(new_expression) = &resolved.content {
+                    let simplified = self.simplify_expression(return_value)?;
+                    if let Content::Modified(new_expression) = &simplified.content {
                         runtime_teardown.push(Expression::InlineReturn(
                             Box::new(new_expression.clone()),
                             position.clone(),
                         ))
                     }
-                    inline_output = Some(resolved);
+                    inline_output = Some(simplified);
                 }
                 _ => {
-                    if let Content::Modified(new_expr) = self.resolve_expression(expr)?.content {
+                    if let Content::Modified(new_expr) = self.simplify_expression(expr)?.content {
                         runtime_teardown.push(new_expr);
                     }
                 }
@@ -652,13 +652,13 @@ impl<'a> ScopeResolver<'a> {
         Result::Ok(if empty_body && runtime_teardown.len() == 0 {
             match inline_output {
                 Some(value) => value,
-                None => ResolvedExpression {
+                None => SimplifiedExpression {
                     content: Content::Interpreted(KnownData::Void),
                     data_type: DataType::scalar(BaseType::Void),
                 },
             }
         } else {
-            ResolvedExpression {
+            SimplifiedExpression {
                 content: Content::Modified(Expression::FuncCall {
                     function: Box::new(Expression::Literal(
                         KnownData::Function(FunctionData::new(
@@ -672,19 +672,19 @@ impl<'a> ScopeResolver<'a> {
                     position: position.clone(),
                 }),
                 data_type: match inline_output {
-                    Some(resolved) => resolved.data_type,
+                    Some(simplified) => simplified.data_type,
                     None => DataType::scalar(BaseType::Void),
                 },
             }
         })
     }
 
-    fn resolve_expression(
+    fn simplify_expression(
         &mut self,
         old_expression: &Expression,
-    ) -> Result<ResolvedExpression, CompileProblem> {
+    ) -> Result<SimplifiedExpression, CompileProblem> {
         Result::Ok(match old_expression {
-            Expression::Literal(value, ..) => ResolvedExpression {
+            Expression::Literal(value, ..) => SimplifiedExpression {
                 data_type: value
                     .get_data_type()
                     .expect("Literals always have a known data type."),
@@ -698,14 +698,14 @@ impl<'a> ScopeResolver<'a> {
                         let content =
                             Content::Modified(Expression::Variable(converted_id, position.clone()));
                         let data_type = self.program[converted_id].borrow_data_type().clone();
-                        ResolvedExpression { content, data_type }
+                        SimplifiedExpression { content, data_type }
                     }
                     _ => {
                         let content = Content::Interpreted(temporary_value.clone());
                         let data_type = temporary_value
                             .get_data_type()
                             .expect("Already checked that data was not uknown.");
-                        ResolvedExpression { content, data_type }
+                        SimplifiedExpression { content, data_type }
                     }
                 }
             }
@@ -718,16 +718,16 @@ impl<'a> ScopeResolver<'a> {
                 // TODO: Optimize accessing values in big arrays so that we don't have to clone
                 // the entire array to pick out one value.
                 let base_position = base.clone_position();
-                let resolved_base = self.resolve_expression(base)?;
-                let mut resolved_indexes = Vec::with_capacity(indexes.len());
+                let simplified_base = self.simplify_expression(base)?;
+                let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
-                    resolved_indexes
-                        .push((self.resolve_expression(index)?, index.clone_position()));
+                    simplified_indexes
+                        .push((self.simplify_expression(index)?, index.clone_position()));
                 }
-                self.resolve_access_expression(
-                    resolved_base,
+                self.simplify_access_expression(
+                    simplified_base,
                     base_position,
-                    resolved_indexes,
+                    simplified_indexes,
                     position.clone(),
                 )?
             }
@@ -736,14 +736,14 @@ impl<'a> ScopeResolver<'a> {
             Expression::UnaryOperation(..) => unimplemented!(),
             Expression::BinaryOperation(operand_1, operator, operand_2, position) => {
                 let operand_1_position = operand_1.clone_position();
-                let resolved_operand_1 = self.resolve_expression(operand_1)?;
+                let simplified_operand_1 = self.simplify_expression(operand_1)?;
                 let operand_2_position = operand_2.clone_position();
-                let resolved_operand_2 = self.resolve_expression(operand_2)?;
-                self.resolve_binary_expression(
-                    resolved_operand_1,
+                let simplified_operand_2 = self.simplify_expression(operand_2)?;
+                self.simplify_binary_expression(
+                    simplified_operand_1,
                     operand_1_position,
                     *operator,
-                    resolved_operand_2,
+                    simplified_operand_2,
                     operand_2_position,
                     position.clone(),
                 )?
@@ -751,25 +751,26 @@ impl<'a> ScopeResolver<'a> {
 
             Expression::PickInput(..) => unreachable!("Should be handled elsewhere."),
             Expression::PickOutput(function, index, position) => {
-                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let scope = self.require_simplified_function_data(*function)?.get_body();
                 let converted = self.convert(self.program[scope].get_output(*index));
-                return self.resolve_expression(&Expression::Variable(converted, position.clone()));
+                return self
+                    .simplify_expression(&Expression::Variable(converted, position.clone()));
             }
             Expression::Collect(values, position) => {
-                let mut resolved_values = Vec::with_capacity(values.len());
+                let mut simplified_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
                 let mut all_known = true;
                 for value in values {
                     value_positions.push(value.clone_position());
-                    let resolved_value = self.resolve_expression(value)?;
-                    if let Content::Modified(..) = &resolved_value.content {
+                    let simplified_value = self.simplify_expression(value)?;
+                    if let Content::Modified(..) = &simplified_value.content {
                         all_known = false;
                     }
-                    resolved_values.push(resolved_value);
+                    simplified_values.push(simplified_value);
                 }
                 if all_known {
-                    let mut data = Vec::with_capacity(resolved_values.len());
-                    for value in resolved_values {
+                    let mut data = Vec::with_capacity(simplified_values.len());
+                    for value in simplified_values {
                         data.push(match value.content {
                             Content::Interpreted(data) => data,
                             _ => unreachable!(
@@ -788,7 +789,7 @@ impl<'a> ScopeResolver<'a> {
                             })
                         }
                         let final_data = KnownData::Array(NVec::collect(sub_arrays));
-                        ResolvedExpression {
+                        SimplifiedExpression {
                             data_type: final_data
                                 .get_data_type()
                                 .expect("Data cannot be unknown, we just built it."),
@@ -797,7 +798,7 @@ impl<'a> ScopeResolver<'a> {
                     } else {
                         // Each element is a scalar, so just make a new 1d array out of them.
                         let final_data = KnownData::Array(NVec::from_vec(data));
-                        ResolvedExpression {
+                        SimplifiedExpression {
                             data_type: final_data
                                 .get_data_type()
                                 .expect("Data cannot be unknown, we just built it."),
@@ -805,12 +806,13 @@ impl<'a> ScopeResolver<'a> {
                         }
                     }
                 } else {
-                    let mut items = Vec::with_capacity(resolved_values.len());
+                    let mut items = Vec::with_capacity(simplified_values.len());
                     // TODO: Error for zero-sized arrays.
-                    let data_type = resolved_values[0].data_type.clone();
+                    let data_type = simplified_values[0].data_type.clone();
                     // Standard treatment, fully interpreted values become literal expressions.
-                    for (value, value_position) in
-                        resolved_values.into_iter().zip(value_positions.into_iter())
+                    for (value, value_position) in simplified_values
+                        .into_iter()
+                        .zip(value_positions.into_iter())
                     {
                         // TODO: Check that all the elements are the same type.
                         match value.content {
@@ -820,7 +822,7 @@ impl<'a> ScopeResolver<'a> {
                             Content::Modified(expression) => items.push(expression),
                         }
                     }
-                    ResolvedExpression {
+                    SimplifiedExpression {
                         content: Content::Modified(Expression::Collect(items, position.clone())),
                         data_type,
                     }
@@ -831,7 +833,7 @@ impl<'a> ScopeResolver<'a> {
                 let data_type = self.program[new_var_id].borrow_data_type();
                 let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
                 for size in data_type.borrow_dimensions().clone() {
-                    match self.resolve_expression(&size)?.content {
+                    match self.simplify_expression(&size)?.content {
                         Content::Interpreted(result) => {
                             if let KnownData::Int(value) = result {
                                 new_sizes.push(value);
@@ -854,19 +856,19 @@ impl<'a> ScopeResolver<'a> {
                 self.program[new_var_id]
                     .borrow_data_type_mut()
                     .set_literal_dimensions(new_sizes);
-                ResolvedExpression {
+                SimplifiedExpression {
                     content: Content::Interpreted(KnownData::Void),
                     data_type: DataType::scalar(BaseType::Void),
                 }
             }
 
             Expression::Assert(value, position) => {
-                let resolved_value = self.resolve_expression(value)?;
-                match resolved_value.content {
+                let simplified_value = self.simplify_expression(value)?;
+                match simplified_value.content {
                     Content::Interpreted(value) => {
                         if let KnownData::Bool(succeed) = value {
                             if succeed {
-                                ResolvedExpression {
+                                SimplifiedExpression {
                                     content: Content::Interpreted(KnownData::Void),
                                     data_type: DataType::scalar(BaseType::Void),
                                 }
@@ -877,7 +879,7 @@ impl<'a> ScopeResolver<'a> {
                             panic!("TODO: nice error, argument to assert is not bool.")
                         }
                     }
-                    Content::Modified(expression) => ResolvedExpression {
+                    Content::Modified(expression) => SimplifiedExpression {
                         content: Content::Modified(Expression::Assert(
                             Box::new(expression),
                             position.clone(),
@@ -890,10 +892,10 @@ impl<'a> ScopeResolver<'a> {
                 target,
                 value,
                 position,
-            } => self.resolve_assign_statement(target, value, position)?,
+            } => self.simplify_assign_statement(target, value, position)?,
             Expression::Return(position) => {
                 let content = Content::Modified(Expression::Return(position.clone()));
-                ResolvedExpression {
+                SimplifiedExpression {
                     content,
                     data_type: DataType::scalar(BaseType::Void),
                 }
@@ -904,16 +906,16 @@ impl<'a> ScopeResolver<'a> {
                 setup,
                 teardown,
                 position,
-            } => self.resolve_func_call(function, setup, teardown, position)?,
+            } => self.simplify_func_call(function, setup, teardown, position)?,
         })
     }
 
-    fn resolve_scope(&mut self, source: ScopeId) -> Result<ScopeId, CompileProblem> {
+    fn simplify_scope(&mut self, source: ScopeId) -> Result<ScopeId, CompileProblem> {
         let copied = self.copy_scope(source, self.program[source].get_parent())?;
         let old_body = self.program[source].borrow_body().clone();
         for expression in old_body {
-            let resolved = self.resolve_expression(&expression)?;
-            match resolved.content {
+            let simplified = self.simplify_expression(&expression)?;
+            match simplified.content {
                 // If it was successfully interpreted, we don't need to do anything.
                 Content::Interpreted(..) => (),
                 Content::Modified(expression) => match expression {
@@ -927,6 +929,6 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn entry_point(&mut self, entry_scope: ScopeId) -> Result<ScopeId, CompileProblem> {
-        self.resolve_scope(entry_scope)
+        self.simplify_scope(entry_scope)
     }
 }
