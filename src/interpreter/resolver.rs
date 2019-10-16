@@ -328,6 +328,17 @@ impl<'a> ScopeResolver<'a> {
         })
     }
 
+    fn require_resolved_function_data(
+        &self,
+        from: VariableId,
+    ) -> Result<FunctionData, CompileProblem> {
+        match self.program[from].borrow_temporary_value() {
+            KnownData::Unknown => panic!("TODO: nice error, vague function variable."),
+            KnownData::Function(data) => Result::Ok(data.clone()),
+            _ => panic!("TODO: variable does not contain a function."),
+        }
+    }
+
     // Tries to assign known data to an access expression. The access expression must be
     // either a variable or an access expression. Indexes in the access expression can be
     // any kind of expression. If the value cannot be assigned at compile time, a modified
@@ -423,6 +434,22 @@ impl<'a> ScopeResolver<'a> {
                 Expression::Variable(self.convert(*id), position.clone()),
                 self.program[self.convert(*id)].borrow_data_type().clone(),
             ),
+            Expression::PickInput(function, index, position) => {
+                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let converted = self.convert(self.program[scope].get_input(*index));
+                (
+                    Expression::Variable(converted, position.clone()),
+                    self.program[converted].borrow_data_type().clone(),
+                )
+            }
+            Expression::PickOutput(function, index, position) => {
+                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let converted = self.convert(self.program[scope].get_output(*index));
+                (
+                    Expression::Variable(converted, position.clone()),
+                    self.program[converted].borrow_data_type().clone(),
+                )
+            }
             Expression::Access {
                 base,
                 indexes,
@@ -444,10 +471,7 @@ impl<'a> ScopeResolver<'a> {
                     indexes: resolved_indexes,
                     position: position.clone(),
                 };
-                (
-                    expr,
-                    resolved_base.1.clone_and_unwrap(num_indexes)
-                )
+                (expr, resolved_base.1.clone_and_unwrap(num_indexes))
             }
             Expression::InlineReturn(..) => (
                 access_expression.clone(),
@@ -465,13 +489,19 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedExpression, CompileProblem> {
         let resolved_target = self.resolve_assignment_access_expression(target)?;
         let resolved_value = self.resolve_expression(value)?;
-        if !resolved_value.data_type.equivalent(&resolved_target.1, self.program) {
+        if !resolved_value
+            .data_type
+            .equivalent(&resolved_target.1, self.program)
+        {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
         Result::Ok(match resolved_value.content {
             Content::Interpreted(known_value) => {
-                let result =
-                    self.assign_value_to_expression(&resolved_target.0, known_value, position.clone())?;
+                let result = self.assign_value_to_expression(
+                    &resolved_target.0,
+                    known_value,
+                    position.clone(),
+                )?;
                 if let Result::Err(resolved_expresion) = result {
                     ResolvedExpression {
                         content: Content::Modified(resolved_expresion),
@@ -502,8 +532,8 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_func_call(
         &mut self,
         function: &Expression,
-        inputs: &Vec<Expression>,
-        outputs: &Vec<Expression>,
+        setup: &Vec<Expression>,
+        teardown: &Vec<Expression>,
         position: &FilePosition,
     ) -> Result<ResolvedExpression, CompileProblem> {
         // We want to make a new table specifically for this function, so that any variable
@@ -538,142 +568,93 @@ impl<'a> ScopeResolver<'a> {
             self.program[*target].reset_temporary_value();
         }
 
-        // Try to set the value of any input parameters at compile time when the corresponding
-        // argument has a value that can be determined at compile time.
-        let mut runtime_inputs = Vec::new();
-        for (expression, target) in inputs.iter().zip(input_targets.iter()) {
-            match self.resolve_expression(expression)?.content {
-                // If we know the value of the argument, use that to set the parameter.
-                Content::Interpreted(value) => self.program[*target].set_temporary_value(value),
-                // Otherwise, store the simplified expression for the argument as well as the
-                // parameter it corresponds to for later use.
-                Content::Modified(new_expression) => runtime_inputs.push((new_expression, *target)),
+        // Try and do as much setup at compile time as possible.
+        let mut runtime_setup = Vec::new();
+        for expr in setup {
+            match self.resolve_expression(expr)?.content {
+                // Fully computed at compile time.
+                Content::Interpreted(..) => (),
+                // Still requires at least some computation during run time.
+                Content::Modified(new_expression) => runtime_setup.push(new_expression),
             }
         }
 
-        // Now that we have given specific values to as many inputs as possible, resolve each
-        // expression in the function body. Hopefully it will end up eliminating some of the
-        // instructions, resulting in a simpler body.
+        let mut empty_body = true;
+        // Now try and simplify the body as much as possible.
+        // TODO: This logic only works if the function has only determinate return statements! (I.E.
+        // no return statements inside branches or loops.)
+        // TODO: This also implicitly assumes that functions do not have side effects. Need to check
+        // that a function does not cause any side effects.
         for expression in self.program[old_function_body].borrow_body().clone() {
             match self.resolve_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
+                // Fully computed at compile time.
                 Content::Interpreted(..) => (),
+                // We still need to do something at run time.
                 Content::Modified(new_expression) => match new_expression {
+                    // If a return is unconditionally encountered, we can just skip the rest of the
+                    // code in the scope.
                     Expression::Return(..) => break,
-                    _ => self.program[old_function_body].add_expression(new_expression),
+                    _ => {
+                        empty_body = false;
+                        self.program[new_function_body].add_expression(new_expression);
+                    }
                 },
             }
         }
-        // Because making a scope copy using the self::copy function adds a bunch of conversions to
-        // the internal conversion table, and because that table is used when expressions are
-        // resolved, then we can read the values of the output variables on the new body to see if
-        // any of them have compile-time determinable values.
-        // TODO: This logic only works if the function has only determinate return statements! (I.E.
-        // no return statements inside branches or loops.)
-        // This variable holds the value of the inline return. This algorithm is currently designed
-        // to work only under the condition that if a function call has an inline return value, then
-        // there are no other return values. This requirement is currently enforced by the grammar,
-        // which requires that all function calls used inside of an expression (and thus having an
-        // implicit inline return) must have one and only one return value.
-        // TODO: This also implicitly assumes that functions do not have side effects. Need to check
-        // that a function does not cause any side effects.
-        let mut inline_result = Option::None;
-        let mut runtime_outputs = Vec::new();
-        let mut runtime_inline_output_type = Option::None;
-        for (target_access, source) in outputs.iter().zip(output_targets.iter()) {
-            let source_data = self.program[*source].borrow_temporary_value();
-            // If we don't know what the output will be, we need to leave it in the code to be
-            // computed at runtime.
-            if let KnownData::Unknown = source_data {
-                runtime_outputs.push((target_access.clone(), *source));
-                if let Expression::InlineReturn(..) = target_access {
-                    runtime_inline_output_type =
-                        Option::Some(self.program[*source].borrow_data_type().clone());
+
+        // Now try and resolve as much of the teardown as possible. Keep track of whether or not
+        // there is an inline return statement and what value it contains.
+        let mut runtime_teardown = Vec::new();
+        let mut inline_output = None;
+        for expr in teardown {
+            match expr {
+                Expression::InlineReturn(return_value, position) => {
+                    let resolved = self.resolve_expression(return_value)?;
+                    if let Content::Modified(new_expression) = &resolved.content {
+                        runtime_teardown.push(Expression::InlineReturn(
+                            Box::new(new_expression.clone()),
+                            position.clone(),
+                        ))
+                    }
+                    inline_output = Some(resolved);
                 }
-            } else {
-                let cloned_data = source_data.clone();
-                // If the output 'target' is InlineReturn, then we have no variable we can assign
-                // the data to. Instead, return it as the interpreted result.
-                if let Expression::InlineReturn(..) = target_access {
-                    // TODO: Check that there is only one inline return.
-                    inline_result = Option::Some(ResolvedExpression {
-                        content: Content::Interpreted(cloned_data),
-                        data_type: self.program[*source].borrow_data_type().clone(),
-                    });
-                    continue;
-                }
-                // Check to see if we can write the known value of the output parameter to the
-                // output argument.
-                match self.assign_value_to_expression(
-                    target_access,
-                    cloned_data.clone(),
-                    FilePosition::placeholder(),
-                )? {
-                    // Don't need to do anything, we successfully set the value of the argument.
-                    Result::Ok(..) => (),
-                    // We know the value the output parameter will have, but we have to assign
-                    // it at runtime. Tack on some code to assign the value.
-                    Result::Err(..) => {
-                        // TODO?: File positions, though I'm not sure if there's any sensible
-                        // option in this case.
-                        self.program[new_function_body].add_expression(Expression::Assign {
-                            target: Box::new(Expression::Variable(
-                                *source,
-                                FilePosition::placeholder(),
-                            )),
-                            value: Box::new(Expression::Literal(
-                                cloned_data,
-                                FilePosition::placeholder(),
-                            )),
-                            position: FilePosition::placeholder(),
-                        });
-                        runtime_outputs.push((target_access.clone(), *source));
+                _ => {
+                    if let Content::Modified(new_expr) = self.resolve_expression(expr)?.content {
+                        runtime_teardown.push(new_expr);
                     }
                 }
             }
         }
 
-        // Clear the input and output list in the new function body, then add back only the inputs
-        // and outputs which are required at run time.
-        let scope = &mut self.program[new_function_body];
-        scope.clear_inputs();
-        scope.clear_outputs();
-        for (_, parameter) in runtime_inputs.iter() {
-            scope.add_input(*parameter);
-        }
-        for (_, parameter) in runtime_outputs.iter() {
-            scope.add_output(*parameter);
-        }
-
-        // Make a literal containing the data of the new function we created.
-        let new_function_data =
-            FunctionData::new(new_function_body, function_data.get_header().clone());
-        let new_function = Expression::Literal(
-            KnownData::Function(new_function_data),
-            function.clone_position(),
-        );
         self.pop_table();
 
-        // Make a function call expression using only the arguments for the runtime parameters.
-        Result::Ok(match inline_result {
-            Option::Some(result) => result,
-            Option::None => {
-                if runtime_outputs.len() == 0 {
-                    ResolvedExpression {
-                        content: Content::Interpreted(KnownData::Void),
-                        data_type: DataType::scalar(BaseType::Void),
-                    }
-                } else {
-                    let content = Content::Modified(Expression::FuncCall {
-                        function: Box::new(new_function),
-                        inputs: runtime_inputs.into_iter().map(|item| item.0).collect(),
-                        outputs: runtime_outputs.into_iter().map(|item| item.0).collect(),
-                        position: position.clone(),
-                    });
-                    let data_type =
-                        runtime_inline_output_type.unwrap_or(DataType::scalar(BaseType::Void));
-                    ResolvedExpression { content, data_type }
-                }
+        Result::Ok(if empty_body && runtime_teardown.len() == 0 {
+            match inline_output {
+                Some(value) => value,
+                None => ResolvedExpression {
+                    content: Content::Interpreted(KnownData::Void),
+                    data_type: DataType::scalar(BaseType::Void),
+                },
+            }
+        } else {
+            ResolvedExpression {
+                content: Content::Modified(Expression::FuncCall {
+                    function: Box::new(Expression::Literal(
+                        KnownData::Function(FunctionData::new(
+                            new_function_body,
+                            function_data.get_header().clone(),
+                        )),
+                        function.clone_position(),
+                    )),
+                    setup: runtime_setup,
+                    teardown: runtime_teardown,
+                    position: position.clone(),
+                }),
+                data_type: match inline_output {
+                    Some(resolved) => resolved.data_type,
+                    None => DataType::scalar(BaseType::Void),
+                },
             }
         })
     }
@@ -720,10 +701,8 @@ impl<'a> ScopeResolver<'a> {
                 let resolved_base = self.resolve_expression(base)?;
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
-                    resolved_indexes.push((
-                        self.resolve_expression(index)?,
-                        index.clone_position(),
-                    ));
+                    resolved_indexes
+                        .push((self.resolve_expression(index)?, index.clone_position()));
                 }
                 self.resolve_access_expression(
                     resolved_base,
@@ -750,6 +729,12 @@ impl<'a> ScopeResolver<'a> {
                 )?
             }
 
+            Expression::PickInput(..) => unreachable!("Should be handled elsewhere."),
+            Expression::PickOutput(function, index, position) => {
+                let scope = self.require_resolved_function_data(*function)?.get_body();
+                let converted = self.convert(self.program[scope].get_output(*index));
+                return self.resolve_expression(&Expression::Variable(converted, position.clone()));
+            }
             Expression::Collect(values, position) => {
                 let mut resolved_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
@@ -896,10 +881,10 @@ impl<'a> ScopeResolver<'a> {
 
             Expression::FuncCall {
                 function,
-                inputs,
-                outputs,
+                setup,
+                teardown,
                 position,
-            } => self.resolve_func_call(function, inputs, outputs, position)?,
+            } => self.resolve_func_call(function, setup, teardown, position)?,
         })
     }
 

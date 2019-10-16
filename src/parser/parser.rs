@@ -46,6 +46,7 @@ fn rule_name(rule: &Rule) -> &'static str {
         Rule::func_expr_input_list => "input list for function call",
         Rule::inline_output => "inline keyword",
         Rule::inline_var_dec => "inline variable declaration",
+        Rule::func_expr_output => "output for function call",
         Rule::func_expr_output_list => "output list for function call",
         Rule::func_expr => "single-output function expression",
 
@@ -192,7 +193,7 @@ pub mod convert {
             setup.push(Expression::Assign {
                 target: Box::new(Expression::PickInput(func_var, index, child_pos.clone())),
                 value: Box::new(convert_expression(program, scope, true, child)?),
-                position: child_pos
+                position: child_pos,
             });
         }
         Result::Ok(setup)
@@ -220,7 +221,7 @@ pub mod convert {
             teardown: if force_func_output {
                 vec![Expression::InlineReturn(
                     Box::new(Expression::PickOutput(function_var, 0, input_pos.clone())),
-                    input_pos.clone()
+                    input_pos.clone(),
                 )]
             } else {
                 vec![]

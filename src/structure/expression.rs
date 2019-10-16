@@ -130,7 +130,7 @@ impl Debug for Expression {
                 }
                 write!(formatter, "")
             }
-            Expression::InlineReturn(..) => write!(formatter, "inline"),
+            Expression::InlineReturn(value, ..) => write!(formatter, "inline({:?})", value),
 
             Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -139,6 +139,12 @@ impl Debug for Expression {
                 write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
 
+            Expression::PickInput(function, index, ..) => {
+                write!(formatter, "input {} of {:?}", index, function)
+            }
+            Expression::PickOutput(function, index, ..) => {
+                write!(formatter, "output {} of {:?}", index, function)
+            }
             Expression::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
@@ -160,15 +166,15 @@ impl Debug for Expression {
                 teardown,
                 ..
             } => {
-                write!(formatter, "{:?}(", function)?;
+                write!(formatter, "{{ ")?;
                 for expr in setup {
-                    write!(formatter, "{:?}, ", expr)?;
+                    write!(formatter, "{:?} ", expr)?;
                 }
-                write!(formatter, "):(")?;
+                write!(formatter, "}} call {:?} {{ ", function)?;
                 for expr in teardown {
-                    write!(formatter, "{:?}, ", expr)?;
+                    write!(formatter, "{:?} ", expr)?;
                 }
-                write!(formatter, ")")
+                write!(formatter, "}}")
             }
         }
     }
@@ -183,6 +189,8 @@ impl Expression {
             | Expression::InlineReturn(_, position)
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
+            | Expression::PickInput(_, _, position)
+            | Expression::PickOutput(_, _, position)
             | Expression::Collect(_, position)
             | Expression::CreationPoint(_, position)
             | Expression::Assert(_, position)
@@ -225,6 +233,8 @@ impl Expression {
             Expression::InlineReturn(..) => true,
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
+            Expression::PickInput(..) => true,
+            Expression::PickOutput(..) => true,
             Expression::Collect(values, ..) => values
                 .iter()
                 .fold(true, |valid, value| valid && value.is_valid()),
@@ -232,7 +242,10 @@ impl Expression {
             Expression::Assert(argument, ..) => argument.is_valid(),
             Expression::Assign { target, value, .. } => {
                 (match &**target {
-                    Expression::Variable(..) => target.is_valid(),
+                    Expression::Variable(..) 
+                    | Expression::Access{..}
+                    | Expression::PickInput(..)
+                    | Expression::PickOutput(..) => target.is_valid(),
                     Expression::Proxy {
                         base: proxy_base, ..
                     } => match &**proxy_base {
@@ -250,7 +263,9 @@ impl Expression {
                 ..
             } => {
                 function.is_valid()
-                    && setup.iter().chain(teardown.iter())
+                    && setup
+                        .iter()
+                        .chain(teardown.iter())
                         .fold(true, |valid, expr| valid && expr.is_valid())
             }
         }

@@ -66,6 +66,7 @@ impl Scope {
     }
 
     pub fn add_expression(&mut self, expression: Expression) {
+        println!("{:?}", expression);
         debug_assert!(expression.is_valid());
         self.body.push(expression)
     }
