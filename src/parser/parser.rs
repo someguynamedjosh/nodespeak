@@ -199,13 +199,56 @@ pub mod convert {
         Result::Ok(setup)
     }
 
+    fn convert_func_expr_output_list(
+        program: &mut Program,
+        scope: ScopeId,
+        func_var: VariableId,
+        input: Pair<Rule>,
+    ) -> Result<Vec<Expression>, CompileProblem> {
+        let mut teardown = Vec::new();
+        for (index, child) in input.into_inner().enumerate() {
+            let child_pos = FilePosition::from_pair(&child);
+            let output = Box::new(Expression::PickOutput(func_var, index, child_pos.clone()));
+            match child.as_rule() {
+                Rule::assign_expr => {
+                    let assign_expr = convert_assign_expr(program, scope, child)?;
+                    teardown.push(Expression::Assign {
+                        target: Box::new(assign_expr),
+                        value: output,
+                        position: child_pos
+                    });
+                }
+                Rule::inline_var_dec => {
+                    let mut child_iter = child.into_inner();
+                    let data_type_pair = child_iter.next().expect("Required by grammar.");
+                    let identifier_pair = child_iter.next().expect("Required by grammar.");
+
+                    let data_type = convert_data_type(program, scope, data_type_pair)?;
+                    let variable = Variable::variable(child_pos.clone(), data_type, None);
+                    let id = program.adopt_variable(variable);
+                    program[scope].define_symbol(identifier_pair.as_str(), id);
+
+                    teardown.push(Expression::Assign {
+                        target: Box::new(Expression::Variable(id, child_pos.clone())),
+                        value: output,
+                        position: child_pos
+                    });
+                }
+                // TODO: error if more than one inline output.
+                Rule::inline_output => teardown.push(Expression::InlineReturn(output, child_pos)),
+                _ => unreachable!("Grammar specifies no other children.")
+            }
+        }
+        Result::Ok(teardown)
+    }
+
     fn convert_func_expr(
         program: &mut Program,
         scope: ScopeId,
         force_func_output: bool,
         input: Pair<Rule>,
     ) -> Result<Expression, CompileProblem> {
-        // TODO: Handle multi output and no input function calls.
+        // TODO?: add function calls with no input list (e.g. rand:(thing))
         let input_pos = FilePosition::from_pair(&input);
 
         let mut input_iter = input.into_inner();
@@ -215,17 +258,22 @@ pub mod convert {
 
         let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
         let setup = convert_func_expr_input_list(program, scope, function_var, input_list)?;
+        let teardown = if let Option::Some(output_list) = input_iter.next() {
+            debug_assert!(output_list.as_rule() == Rule::func_expr_output_list);
+            convert_func_expr_output_list(program, scope, function_var, output_list)?
+            // TODO: if force_func_output is true, check that one of the outputs is inline.
+        } else if force_func_output {
+            vec![Expression::InlineReturn(
+                Box::new(Expression::PickOutput(function_var, 0, input_pos.clone())),
+                input_pos.clone(),
+            )]
+        } else {
+            vec![]
+        };
         Result::Ok(Expression::FuncCall {
             function: Box::new(Expression::Variable(function_var, identifier_pos)),
             setup,
-            teardown: if force_func_output {
-                vec![Expression::InlineReturn(
-                    Box::new(Expression::PickOutput(function_var, 0, input_pos.clone())),
-                    input_pos.clone(),
-                )]
-            } else {
-                vec![]
-            },
+            teardown,
             position: input_pos,
         })
     }

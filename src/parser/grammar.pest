@@ -49,12 +49,12 @@ operator = {
 
 expr = { expr_part ~ (operator ~ expr_part)* }
 
-// Single-return function calls (part of expressions, so they are called function epressions.)
+// Function calls (part of expressions, so they are called function expressions.)
 
 func_expr_input_list = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 inline_output = { "inline" }
 inline_var_dec = { data_type ~ identifier }
-func_expr_output = { assign_expr | inline_var_dec | inline_output }
+func_expr_output = _{ assign_expr | inline_var_dec | inline_output }
 func_expr_output_list = { ":" ~ "(" ~ (func_expr_output~ ("," ~ func_expr_output)*)? ~ ")" }
 func_expr = { identifier ~ func_expr_input_list ~ func_expr_output_list? }
 
