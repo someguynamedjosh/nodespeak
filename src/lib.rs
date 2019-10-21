@@ -10,6 +10,7 @@ pub mod problem;
 pub mod runtime;
 pub mod simplifier;
 pub mod structure;
+pub mod trivial;
 pub mod util;
 
 pub struct SourceSet<'a> {
