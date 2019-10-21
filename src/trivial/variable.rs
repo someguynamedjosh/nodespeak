@@ -7,7 +7,7 @@ pub enum VariableType {
 #[derive(Clone, Debug)]
 pub struct Variable {
     variable_type: VariableType,
-    dimensions: Vec<usize>,
+    dimensions: Vec<u64>,
 }
 
 impl Variable {
@@ -26,18 +26,18 @@ impl Variable {
         Self::new(VariableType::I32)
     }
 
-    pub fn new_array(typ: VariableType, dimensions: Vec<usize>) -> Variable {
+    pub fn new_array(typ: VariableType, dimensions: Vec<u64>) -> Variable {
         Variable {
             variable_type: typ,
             dimensions,
         }
     }
 
-    pub fn f32_array(dimensions: Vec<usize>) -> Variable {
+    pub fn f32_array(dimensions: Vec<u64>) -> Variable {
         Self::new_array(VariableType::F32, dimensions)
     }
 
-    pub fn i32_array(dimensions: Vec<usize>) -> Variable {
+    pub fn i32_array(dimensions: Vec<u64>) -> Variable {
         Self::new_array(VariableType::I32, dimensions)
     }
 
@@ -53,11 +53,11 @@ impl Variable {
         self.variable_type == VariableType::I32
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+    pub fn borrow_dimensions(&self) -> &Vec<u64> {
         &self.dimensions
     }
 
-    pub fn get_physical_size(&self) -> usize {
+    pub fn get_physical_size(&self) -> u64 {
         let mut size = 1;
         for dim in self.dimensions.iter() {
             size *= *dim;
