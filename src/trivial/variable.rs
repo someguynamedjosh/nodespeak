@@ -29,7 +29,7 @@ impl Variable {
     pub fn new_array(typ: VariableType, dimensions: Vec<usize>) -> Variable {
         Variable {
             variable_type: typ,
-            dimensions
+            dimensions,
         }
     }
 

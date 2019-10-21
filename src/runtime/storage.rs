@@ -13,18 +13,14 @@ impl Index<usize> for CodeBlock {
 
     fn index(&self, index: usize) -> &u8 {
         assert!(index < self.size);
-        unsafe {
-            &*self.contents.offset(index as isize)
-        }
+        unsafe { &*self.contents.offset(index as isize) }
     }
 }
 
 impl IndexMut<usize> for CodeBlock {
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         assert!(index < self.size);
-        unsafe {
-            &mut *self.contents.offset(index as isize)
-        }
+        unsafe { &mut *self.contents.offset(index as isize) }
     }
 }
 
@@ -43,12 +39,16 @@ impl CodeBlock {
             let num_bytes = num_pages * PAGE_SIZE;
             let mut memory_block: *mut libc::c_void = mem::uninitialized();
             libc::posix_memalign(&mut memory_block, PAGE_SIZE, num_bytes);
-            libc::mprotect(memory_block, num_bytes, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            libc::mprotect(
+                memory_block,
+                num_bytes,
+                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
+            );
             // Fill with 0xc3 RET command to help soften the blow of trivial errors.
             libc::memset(memory_block, 0xc3, num_bytes);
             CodeBlock {
                 contents: mem::transmute(memory_block),
-                size
+                size,
             }
         }
     }
@@ -69,18 +69,14 @@ impl Index<usize> for StorageBlock {
 
     fn index(&self, index: usize) -> &u8 {
         assert!(index < self.size);
-        unsafe {
-            &*self.contents.offset(index as isize)
-        }
+        unsafe { &*self.contents.offset(index as isize) }
     }
 }
 
 impl IndexMut<usize> for StorageBlock {
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         assert!(index < self.size);
-        unsafe {
-            &mut *self.contents.offset(index as isize)
-        }
+        unsafe { &mut *self.contents.offset(index as isize) }
     }
 }
 
@@ -104,7 +100,7 @@ impl StorageBlock {
             libc::memset(memory_block, 0xc3, num_bytes);
             StorageBlock {
                 contents: mem::transmute(memory_block),
-                size
+                size,
             }
         }
     }
@@ -112,7 +108,6 @@ impl StorageBlock {
     fn get_address(&self) -> usize {
         self.contents as usize
     }
-
 }
 
 pub struct RuntimeProgram {
@@ -136,7 +131,11 @@ impl RuntimeProgram {
         self.code[index] = value;
     }
 
-    pub fn write_iter_to_code<'a>(&mut self, mut index: usize, values: impl Iterator<Item = &'a u8>) {
+    pub fn write_iter_to_code<'a>(
+        &mut self,
+        mut index: usize,
+        values: impl Iterator<Item = &'a u8>,
+    ) {
         for value in values {
             self.code[index] = *value;
             index += 1;
@@ -151,7 +150,11 @@ impl RuntimeProgram {
         self.storage[index] = value;
     }
 
-    pub fn write_iter_to_storage<'a>(&mut self, mut index: usize, values: impl Iterator<Item = &'a u8>) {
+    pub fn write_iter_to_storage<'a>(
+        &mut self,
+        mut index: usize,
+        values: impl Iterator<Item = &'a u8>,
+    ) {
         for value in values {
             self.storage[index] = *value;
             index += 1;
@@ -174,10 +177,14 @@ mod test {
         let mut program = RuntimeProgram::new(11, 8);
 
         // Function that returns the first 8 bytes of the storage block.
-        program.write_iter_to_code(0, [
-            0x48, 0xA1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov
-            0xC3                                                        // rtn
-        ].into_iter());
+        program.write_iter_to_code(
+            0,
+            [
+                0x48, 0xA1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov
+                0xC3, // rtn
+            ]
+            .into_iter(),
+        );
         // Set the address for the mov instruction to the start of the storage block.
         let address = program.get_storage_address(0) as u64;
         program.write_u64_to_code(2, address);
