@@ -1,5 +1,5 @@
 use crate::problem::CompileProblem;
-use crate::vague::structure::{DataType, Expression, KnownData, Program, ScopeId, VariableId};
+use super::structure::{DataType, Expression, KnownData, Program, ScopeId, VariableId};
 use std::collections::HashMap;
 
 mod expressions;
@@ -9,10 +9,11 @@ mod statements;
 pub(self) mod util;
 pub(self) mod problems;
 
-pub fn ingest(program: &mut Program) -> Result<ScopeId, CompileProblem> {
+pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     let entry_point = program.get_entry_point();
     let mut simplifier = ScopeSimplifier::new(program);
-    simplifier.simplify_scope(entry_point)
+    simplifier.simplify_scope(entry_point)?;
+    Result::Ok(())
 }
 
 pub(self) struct ScopeSimplifier<'a> {

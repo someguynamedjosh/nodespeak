@@ -8,7 +8,6 @@ use terminal_size;
 pub mod ast;
 pub mod problem;
 pub mod runtime;
-pub mod simple;
 pub mod vague;
 pub mod trivial;
 pub mod util;
@@ -45,8 +44,7 @@ pub struct CompileResult {
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
     let mut ast_result = ast::ingest(sources.borrow_sources()[1].1)?;
     let mut program = vague::ingest(&mut ast_result)?;
-    let new_entry_point = simple::ingest(&mut program)?;
-    program.set_entry_point(new_entry_point);
+    vague::simplify(&mut program)?;
     Result::Ok(CompileResult { program: program })
 }
 
@@ -68,10 +66,11 @@ pub fn interpret(
     for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
         compiled_program[target].set_temporary_value(source);
     }
-    let entry_point = simple::ingest(compiled_program).map_err(|err| {
+    vague::simplify(compiled_program).map_err(|err| {
         let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
         format!("Compilation failed.\n\n{}", err.format(width, sources))
     })?;
+    let entry_point = compiled_program.get_entry_point();
     let mut outputs = Vec::new();
     let output_sources = compiled_program[entry_point].borrow_outputs().clone();
     for source in output_sources.into_iter() {
