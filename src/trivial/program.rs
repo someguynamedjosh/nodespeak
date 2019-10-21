@@ -1,4 +1,4 @@
-use crate::trivial::Instruction;
+use crate::trivial::{Variable, Instruction};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -22,4 +22,44 @@ impl Debug for LabelId {
 
 pub struct Program {
     instructions: Vec<Instruction>,
+    variables: Vec<Variable>,
+    labels: usize,
+}
+
+impl Program {
+    pub fn new() -> Program {
+        Program {
+            instructions: Vec::new(),
+            variables: Vec::new(),
+            labels: 0,
+        }
+    }
+
+    pub fn add_instruction(&mut self, instruction: Instruction) {
+        self.instructions.push(instruction);
+    }
+
+    pub fn borrow_instructions(&self) -> &Vec<Instruction> {
+        &self.instructions
+    }
+
+    pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
+        let id = VariableId(self.variables.len());
+        self.variables.push(variable);
+        id
+    }
+
+    pub fn borrow_variable(&self, id: VariableId) -> &Variable {
+        &self.variables[id.0]
+    }
+
+    pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut Variable {
+        &mut self.variables[id.0]
+    }
+
+    pub fn create_label(&mut self) -> LabelId {
+        let id = LabelId(self.labels);
+        self.labels += 1;
+        id
+    }
 }
