@@ -1,9 +1,4 @@
-mod instruction;
-mod program;
-mod trivializer;
-mod variable;
+pub mod structure;
 
-pub use instruction::*;
-pub use program::*;
-pub use trivializer::*;
-pub use variable::*;
+mod ingest;
+pub use ingest::ingest as ingest;

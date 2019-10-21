@@ -1,4 +1,4 @@
-use crate::trivial::{LabelId, VariableId};
+use crate::trivial::structure::{LabelId, VariableId};
 
 pub enum Condition {
     LessThan,

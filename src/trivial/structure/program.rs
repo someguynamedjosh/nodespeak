@@ -1,4 +1,4 @@
-use crate::trivial::{Variable, Instruction};
+use crate::trivial::structure::{Variable, Instruction};
 
 use std::fmt::{self, Debug, Formatter};
 
