@@ -1,6 +1,6 @@
-use super::{Content, ScopeSimplifier, SimplifiedExpression};
-use crate::problem::{self, CompileProblem, FilePosition};
-use crate::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId};
+use super::{Content, ScopeSimplifier, SimplifiedExpression, problems};
+use crate::problem::{CompileProblem, FilePosition};
+use crate::vague::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId};
 use crate::util::NVec;
 use std::collections::HashMap;
 
@@ -248,7 +248,7 @@ impl<'a> ScopeSimplifier<'a> {
                             if let KnownData::Int(value) = result {
                                 new_sizes.push(value);
                             } else {
-                                return Result::Err(problem::array_size_not_int(
+                                return Result::Err(problems::array_size_not_int(
                                     size.clone_position(),
                                     &result,
                                     position.clone(),
@@ -256,7 +256,7 @@ impl<'a> ScopeSimplifier<'a> {
                             }
                         }
                         _ => {
-                            return Result::Err(problem::vague_array_size(
+                            return Result::Err(problems::vague_array_size(
                                 size.clone_position(),
                                 position.clone(),
                             ))

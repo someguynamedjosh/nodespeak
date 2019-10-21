@@ -1,6 +1,6 @@
 use super::KnownData;
 
-use crate::structure::{Expression, Program, VariableId};
+use crate::vague::structure::{Expression, Program, VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 

@@ -1,6 +1,6 @@
-use super::{Content, ScopeSimplifier, SimplifiedExpression};
-use crate::problem::{self, CompileProblem, FilePosition};
-use crate::structure::{BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData};
+use super::{Content, ScopeSimplifier, SimplifiedExpression, problems};
+use crate::problem::{CompileProblem, FilePosition};
+use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData};
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -116,7 +116,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let mut new_indexes = Vec::with_capacity(simplified_indexes.len());
                 for (index, index_position) in simplified_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
-                        return Result::Err(problem::array_index_not_int(
+                        return Result::Err(problems::array_index_not_int(
                             index_position,
                             &index.data_type,
                             base_position,
@@ -162,7 +162,7 @@ impl<'a> ScopeSimplifier<'a> {
         ) {
             Result::Ok(rtype) => rtype,
             Result::Err(..) => {
-                return Result::Err(problem::no_bct(
+                return Result::Err(problems::no_bct(
                     position,
                     operand_1_position,
                     &simplified_operand_1.data_type,
@@ -226,7 +226,7 @@ impl<'a> ScopeSimplifier<'a> {
         let simplified_function = match self.simplify_expression(function.borrow())?.content {
             Content::Interpreted(value) => value,
             Content::Modified(..) => {
-                return Result::Err(problem::vague_function(
+                return Result::Err(problems::vague_function(
                     position.clone(),
                     function.clone_position(),
                 ))
@@ -235,7 +235,7 @@ impl<'a> ScopeSimplifier<'a> {
         // Get the actual function data.
         let function_data = match simplified_function {
             KnownData::Function(data) => data,
-            _ => return Result::Err(problem::not_function(function.clone_position())),
+            _ => return Result::Err(problems::not_function(function.clone_position())),
         };
         // Make a copy of the function body.
         let old_function_body = function_data.get_body();

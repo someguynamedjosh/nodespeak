@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
+use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
 use crate::util::NVec;
 use std::convert::TryInto;
 

@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{
+use crate::vague::structure::{
     self, Builtins, DataType, Expression, FunctionData, KnownData, Scope, Variable,
 };
 use std::borrow::Borrow;
@@ -9,7 +9,7 @@ use std::ops::{Index, IndexMut};
 /// Refers to a [`Scope`] stored in a [`Program`].
 ///
 /// You'll notice that this struct requires no lifetime. This was chosen to allow for easy
-/// implementation of tree-like and cyclic data structures inside the library.
+/// implementation of tree-like and cyclic data vague::structures inside the library.
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ScopeId(usize);
 

@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::structure::{KnownData, VariableId};
+use crate::vague::structure::{KnownData, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]

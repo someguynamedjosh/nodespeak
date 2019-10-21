@@ -1,6 +1,6 @@
 use super::{Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::structure::{BaseType, DataType, Expression, KnownData};
+use crate::vague::structure::{BaseType, DataType, Expression, KnownData};
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_assign_statement(

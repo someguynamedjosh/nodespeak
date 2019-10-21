@@ -1,4 +1,4 @@
-use crate::structure as s;
+use crate::vague::structure as s;
 use crate::trivial as t;
 use std::collections::HashMap;
 

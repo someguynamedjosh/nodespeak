@@ -1,4 +1,4 @@
-use super::objects::*;
+use crate::problem::*;
 use ProblemType::Error;
 use ProblemType::Hint;
 

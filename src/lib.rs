@@ -5,11 +5,11 @@ extern crate pest_derive;
 
 use terminal_size;
 
-pub mod parser;
+pub mod ast;
 pub mod problem;
 pub mod runtime;
-pub mod simplifier;
-pub mod structure;
+pub mod simple;
+pub mod vague;
 pub mod trivial;
 pub mod util;
 
@@ -22,7 +22,7 @@ impl<'a> SourceSet<'a> {
         SourceSet {
             sources: vec![(
                 "(internal code) builtins".to_owned(),
-                structure::FAKE_BUILTIN_SOURCE,
+                vague::structure::FAKE_BUILTIN_SOURCE,
             )],
         }
     }
@@ -39,14 +39,13 @@ impl<'a> SourceSet<'a> {
 }
 
 pub struct CompileResult {
-    pub program: structure::Program,
+    pub program: vague::structure::Program,
 }
 
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
-    let mut ast_result = parser::parse(sources.borrow_sources()[1].1)?;
-    let mut program = parser::convert_ast_to_structure(&mut ast_result)?;
-    let entry_point = program.get_entry_point();
-    let new_entry_point = simplifier::simplify_scope(&mut program, entry_point)?;
+    let mut ast_result = ast::ingest(sources.borrow_sources()[1].1)?;
+    let mut program = vague::ingest(&mut ast_result)?;
+    let new_entry_point = simple::ingest(&mut program)?;
     program.set_entry_point(new_entry_point);
     Result::Ok(CompileResult { program: program })
 }
@@ -60,16 +59,16 @@ pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
 }
 
 pub fn interpret(
-    compiled_program: &mut structure::Program,
-    inputs: Vec<structure::KnownData>,
+    compiled_program: &mut vague::structure::Program,
+    inputs: Vec<vague::structure::KnownData>,
     sources: &SourceSet,
-) -> Result<Vec<structure::KnownData>, String> {
+) -> Result<Vec<vague::structure::KnownData>, String> {
     let entry_point = compiled_program.get_entry_point();
     let input_targets = compiled_program[entry_point].borrow_inputs().clone();
     for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
         compiled_program[target].set_temporary_value(source);
     }
-    let entry_point = simplifier::simplify_scope(compiled_program, entry_point).map_err(|err| {
+    let entry_point = simple::ingest(compiled_program).map_err(|err| {
         let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
         format!("Compilation failed.\n\n{}", err.format(width, sources))
     })?;
