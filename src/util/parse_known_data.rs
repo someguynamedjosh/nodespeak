@@ -1,7 +1,7 @@
 extern crate pest;
 
-use crate::vague::structure::KnownData;
 use crate::util::NVec;
+use crate::vague::structure::KnownData;
 
 use pest::iterators::Pair;
 use pest::Parser;

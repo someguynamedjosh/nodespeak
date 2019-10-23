@@ -1,6 +1,6 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
 use crate::util::NVec;
+use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
 use std::convert::TryInto;
 
 enum IndexMethod {

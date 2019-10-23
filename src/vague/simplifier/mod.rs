@@ -1,13 +1,13 @@
-use crate::problem::{CompileProblem, FilePosition};
 use super::structure::{DataType, Expression, KnownData, Program, VariableId};
+use crate::problem::{CompileProblem, FilePosition};
 use std::collections::HashMap;
 
 mod expressions;
 mod foundation;
 mod helpers;
+pub(self) mod problems;
 mod statements;
 pub(self) mod util;
-pub(self) mod problems;
 
 pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     let entry_point = program.get_entry_point();
@@ -38,7 +38,7 @@ impl Content {
     pub(self) fn into_expression(self, position: FilePosition) -> Expression {
         match self {
             Content::Modified(expr) => expr,
-            Content::Interpreted(data) => Expression::Literal(data, position)
+            Content::Interpreted(data) => Expression::Literal(data, position),
         }
     }
 }

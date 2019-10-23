@@ -22,7 +22,7 @@ impl<'a> Trivializer<'a> {
         Trivializer {
             source,
             target: o::Program::new(),
-            variable_map: HashMap::new()
+            variable_map: HashMap::new(),
         }
     }
 
@@ -30,7 +30,9 @@ impl<'a> Trivializer<'a> {
         unimplemented!()
     }
 
-    fn trivialize_data_type(data_type: &i::DataType) -> Result<(o::VariableType, Vec<u64>), CompileProblem> {
+    fn trivialize_data_type(
+        data_type: &i::DataType,
+    ) -> Result<(o::VariableType, Vec<u64>), CompileProblem> {
         Result::Ok((
             match data_type.borrow_base() {
                 i::BaseType::Float => o::VariableType::F32,
@@ -44,21 +46,29 @@ impl<'a> Trivializer<'a> {
                     match dimension {
                         i::Expression::Literal(value, position) => match value {
                             i::KnownData::Int(value) => results.push(*value as u64),
-                            _ => return Result::Err(
-                                problems::array_size_not_int(position.clone(), &value)
-                            )
+                            _ => {
+                                return Result::Err(problems::array_size_not_int(
+                                    position.clone(),
+                                    &value,
+                                ))
+                            }
                         },
-                        _ => return Result::Err(
-                            problems::vague_array_size(dimension.clone_position())
-                        )
+                        _ => {
+                            return Result::Err(problems::vague_array_size(
+                                dimension.clone_position(),
+                            ))
+                        }
                     }
                 }
                 results
-            }
+            },
         ))
     }
 
-    fn trivialize_variable(&mut self, variable: i::VariableId) -> Result<o::VariableId, CompileProblem> {
+    fn trivialize_variable(
+        &mut self,
+        variable: i::VariableId,
+    ) -> Result<o::VariableId, CompileProblem> {
         Result::Ok(match self.variable_map.get(&variable) {
             Some(trivialized) => *trivialized,
             None => {

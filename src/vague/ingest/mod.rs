@@ -1,6 +1,6 @@
 use crate::ast::structure as i;
-use crate::vague::structure as o;
 use crate::problem::{CompileProblem, FilePosition};
+use crate::vague::structure as o;
 
 mod problems;
 
@@ -42,14 +42,12 @@ fn parse_hex_int(input: &str) -> i64 {
 
 fn parse_oct_int(input: &str) -> i64 {
     // Slice trims off 0o at beginning.
-    i64::from_str_radix(&input.replace("_", "")[2..], 8)
-        .expect("Grammar requires valid octal int.")
+    i64::from_str_radix(&input.replace("_", "")[2..], 8).expect("Grammar requires valid octal int.")
 }
 
 fn parse_legacy_oct_int(input: &str) -> i64 {
     // Slice trims off 0 at beginning.
-    i64::from_str_radix(&input.replace("_", "")[1..], 8)
-        .expect("Grammar requires valid octal int.")
+    i64::from_str_radix(&input.replace("_", "")[1..], 8).expect("Grammar requires valid octal int.")
 }
 
 fn parse_bin_int(input: &str) -> i64 {
@@ -99,7 +97,11 @@ fn convert_func_expr_output_list(
     let mut teardown = Vec::new();
     for (index, child) in input.into_inner().enumerate() {
         let child_pos = FilePosition::from_pair(&child);
-        let output = Box::new(o::Expression::PickOutput(func_var, index, child_pos.clone()));
+        let output = Box::new(o::Expression::PickOutput(
+            func_var,
+            index,
+            child_pos.clone(),
+        ));
         match child.as_rule() {
             i::Rule::assign_expr => {
                 let assign_expr = convert_assign_expr(program, scope, child)?;
@@ -155,7 +157,11 @@ fn convert_func_expr(
     // TODO: if force_func_output is true, check that one of the outputs is inline.
     } else if force_func_output {
         vec![o::Expression::InlineReturn(
-            Box::new(o::Expression::PickOutput(function_var, 0, input_pos.clone())),
+            Box::new(o::Expression::PickOutput(
+                function_var,
+                0,
+                input_pos.clone(),
+            )),
             input_pos.clone(),
         )]
     } else {
@@ -214,7 +220,10 @@ fn convert_expr_part_1(
             }
             i::Rule::float => {
                 let value = parse_float(child.as_str());
-                return Result::Ok(o::Expression::Literal(o::KnownData::Float(value), child_pos));
+                return Result::Ok(o::Expression::Literal(
+                    o::KnownData::Float(value),
+                    child_pos,
+                ));
             }
             i::Rule::func_expr => {
                 return convert_func_expr(program, scope, force_func_output, child)
@@ -759,8 +768,7 @@ fn convert_function_definition(
                 // So that code inside the body can refer to the function.
                 program.adopt_and_define_symbol(scope, name, o::Variable::function_def(function));
 
-                let possible_output =
-                    convert_returnable_code_block(program, func_scope, child)?;
+                let possible_output = convert_returnable_code_block(program, func_scope, child)?;
                 if let Option::Some(output) = possible_output {
                     let output_pos = output.clone_position();
                     if let Option::Some(output_var) = program[func_scope].get_single_output() {
@@ -813,7 +821,10 @@ fn convert_assigned_variable(
     })?;
     program[scope].add_expression(o::Expression::CreationPoint(variable_id, input_pos.clone()));
     program[scope].add_expression(o::Expression::Assign {
-        target: Box::new(o::Expression::Variable(variable_id, variable_position.clone())),
+        target: Box::new(o::Expression::Variable(
+            variable_id,
+            variable_position.clone(),
+        )),
         value: Box::new(expr),
         position: input_pos.clone(),
     });
@@ -916,7 +927,9 @@ fn convert_input_variable_statement(
     input: i::Node,
 ) -> Result<(), CompileProblem> {
     if program[scope].get_parent().is_some() {
-        return Result::Err(problems::io_inside_function(FilePosition::from_pair(&input)));
+        return Result::Err(problems::io_inside_function(FilePosition::from_pair(
+            &input,
+        )));
     }
     let mut input_iter = input.into_inner();
     let data_type = {
@@ -945,7 +958,9 @@ fn convert_output_variable_statement(
     input: i::Node,
 ) -> Result<(), CompileProblem> {
     if program[scope].get_parent().is_some() {
-        return Result::Err(problems::io_inside_function(FilePosition::from_pair(&input)));
+        return Result::Err(problems::io_inside_function(FilePosition::from_pair(
+            &input,
+        )));
     }
     let mut input_iter = input.into_inner();
     let data_type = {
@@ -1020,15 +1035,14 @@ fn convert_return_statement(
                         outputs.len(),
                     ));
                 }
-                let value =
-                    convert_expression(program, scope, true, child).map_err(|mut err| {
-                        problems::hint_encountered_while_parsing(
-                            "a return statement",
-                            statement_position.clone(),
-                            &mut err,
-                        );
-                        err
-                    })?;
+                let value = convert_expression(program, scope, true, child).map_err(|mut err| {
+                    problems::hint_encountered_while_parsing(
+                        "a return statement",
+                        statement_position.clone(),
+                        &mut err,
+                    );
+                    err
+                })?;
                 program[scope].add_expression(o::Expression::Assign {
                     target: Box::new(o::Expression::Variable(
                         outputs[index],

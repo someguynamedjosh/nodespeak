@@ -1,7 +1,9 @@
-use super::{Content, ScopeSimplifier, SimplifiedExpression, problems};
+use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure::{BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId};
 use crate::util::NVec;
+use crate::vague::structure::{
+    BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId,
+};
 use std::collections::HashMap;
 
 impl<'a> ScopeSimplifier<'a> {

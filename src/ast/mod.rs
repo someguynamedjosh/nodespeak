@@ -9,7 +9,7 @@ use pest::Parser;
 struct WaveguideParser;
 
 pub mod structure {
-    pub use super::Rule as Rule;
+    pub use super::Rule;
     use pest::iterators::{Pair, Pairs};
 
     pub type Program<'a> = Pairs<'a, Rule>;

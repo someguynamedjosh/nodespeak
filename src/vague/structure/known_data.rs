@@ -1,7 +1,7 @@
 use super::{BaseType, DataType};
 use crate::problem::FilePosition;
-use crate::vague::structure::{Expression, ScopeId};
 use crate::util::NVec;
+use crate::vague::structure::{Expression, ScopeId};
 
 use std::fmt::{self, Debug, Formatter};
 
