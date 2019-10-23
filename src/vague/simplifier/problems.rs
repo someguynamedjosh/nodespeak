@@ -134,43 +134,6 @@ pub fn array_index_not_int(
     ])
 }
 
-pub fn array_size_not_int(
-    size_pos: FilePosition,
-    size_value: &KnownData,
-    declare_pos: FilePosition,
-) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            size_pos,
-            Error,
-            &format!(
-                "Array Size Not Int\nExpected an integer, got {:?}:",
-                size_value
-            ),
-        ),
-        ProblemDescriptor::new(
-            declare_pos,
-            Hint,
-            "Encountered while declaring this variable:",
-        ),
-    ])
-}
-
-pub fn vague_array_size(size_pos: FilePosition, declare_pos: FilePosition) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            size_pos,
-            Error,
-            "Vague Array Size\nCould not determine the value of this expression at compile time:",
-        ),
-        ProblemDescriptor::new(
-            declare_pos,
-            Hint,
-            "Encountered while declaring this variable:",
-        ),
-    ])
-}
-
 pub fn no_bct(
     expression: FilePosition,
     op1: FilePosition,

@@ -238,34 +238,17 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                 }
             }
-            Expression::CreationPoint(old_var_id, position) => {
+            Expression::CreationPoint(old_var_id, ..) => {
                 let new_var_id = self.convert(*old_var_id);
                 let data_type = self.program[new_var_id].borrow_data_type();
                 let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
                 for size in data_type.borrow_dimensions().clone() {
-                    match self.simplify_expression(&size)?.content {
-                        Content::Interpreted(result) => {
-                            if let KnownData::Int(value) = result {
-                                new_sizes.push(value);
-                            } else {
-                                return Result::Err(problems::array_size_not_int(
-                                    size.clone_position(),
-                                    &result,
-                                    position.clone(),
-                                ));
-                            }
-                        }
-                        _ => {
-                            return Result::Err(problems::vague_array_size(
-                                size.clone_position(),
-                                position.clone(),
-                            ))
-                        }
-                    }
+                    let content = self.simplify_expression(&size)?.content;
+                    new_sizes.push(content.into_expression(size.clone_position()));
                 }
                 self.program[new_var_id]
                     .borrow_data_type_mut()
-                    .set_literal_dimensions(new_sizes);
+                    .set_dimensions(new_sizes);
                 SimplifiedExpression {
                     content: Content::Interpreted(KnownData::Void),
                     data_type: DataType::scalar(BaseType::Void),

@@ -1,5 +1,5 @@
-use crate::problem::CompileProblem;
-use super::structure::{DataType, Expression, KnownData, Program, ScopeId, VariableId};
+use crate::problem::{CompileProblem, FilePosition};
+use super::structure::{DataType, Expression, KnownData, Program, VariableId};
 use std::collections::HashMap;
 
 mod expressions;
@@ -32,6 +32,15 @@ pub(self) enum Content {
     Modified(Expression),
     /// The entire value of the expression has a determinate value.
     Interpreted(KnownData),
+}
+
+impl Content {
+    pub(self) fn into_expression(self, position: FilePosition) -> Expression {
+        match self {
+            Content::Modified(expr) => expr,
+            Content::Interpreted(data) => Expression::Literal(data, position)
+        }
+    }
 }
 
 pub(self) struct SimplifiedExpression {

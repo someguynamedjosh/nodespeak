@@ -131,14 +131,10 @@ impl DataType {
         &self.dimensions
     }
 
-    pub fn set_literal_dimensions(&mut self, literal_dimensions: Vec<i64>) {
-        assert!(literal_dimensions.len() == self.dimensions.len());
-        for (index, dimension) in literal_dimensions.into_iter().enumerate() {
-            assert!(dimension > 0);
-            self.dimensions[index] = Expression::Literal(
-                KnownData::Int(dimension),
-                self.dimensions[index].clone_position(),
-            );
+    pub fn set_dimensions(&mut self, new_dimensions: Vec<Expression>) {
+        assert!(new_dimensions.len() == self.dimensions.len());
+        for (index, dimension) in new_dimensions.into_iter().enumerate() {
+            self.dimensions[index] = dimension;
         }
     }
 
