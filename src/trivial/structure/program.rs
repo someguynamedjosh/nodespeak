@@ -26,6 +26,21 @@ pub struct Program {
     labels: usize,
 }
 
+impl Debug for Program {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        writeln!(formatter, "variables:")?;
+        for variable in self.variables.iter() {
+            writeln!(formatter, "  {:?}", variable)?;
+        }
+        writeln!(formatter, "{} labels", self.labels)?;
+        writeln!(formatter, "instructions:")?;
+        for instruction in self.instructions.iter() {
+            writeln!(formatter, "  {:?}", instruction)?;
+        }
+        write!(formatter, "")
+    }
+}
+
 impl Program {
     pub fn new() -> Program {
         Program {

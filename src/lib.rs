@@ -38,14 +38,17 @@ impl<'a> SourceSet<'a> {
 }
 
 pub struct CompileResult {
-    pub program: vague::structure::Program,
+    pub program: trivial::structure::Program,
 }
 
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
     let mut ast_result = ast::ingest(sources.borrow_sources()[1].1)?;
     let mut program = vague::ingest(&mut ast_result)?;
     vague::simplify(&mut program)?;
-    Result::Ok(CompileResult { program: program })
+    let trivialized = trivial::ingest(&mut program)?;
+    Result::Ok(CompileResult {
+        program: trivialized,
+    })
 }
 
 pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {

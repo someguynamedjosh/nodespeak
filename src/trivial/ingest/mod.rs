@@ -5,10 +5,10 @@ use std::collections::HashMap;
 
 mod problems;
 
-pub fn ingest(program: &i::Program) -> o::Program {
+pub fn ingest(program: &i::Program) -> Result<o::Program, CompileProblem> {
     let mut trivializer = Trivializer::new(program);
-    trivializer.entry_point();
-    trivializer.target
+    trivializer.entry_point()?;
+    Result::Ok(trivializer.target)
 }
 
 struct Trivializer<'a> {
@@ -26,8 +26,33 @@ impl<'a> Trivializer<'a> {
         }
     }
 
-    fn entry_point(&mut self) {
-        unimplemented!()
+    fn entry_point(&mut self) -> Result<(), CompileProblem> {
+        let source_entry_point = self.source.get_entry_point();
+        for expr in self.source[source_entry_point].borrow_body().clone() {
+            self.trivialize_expression(&expr)?;
+        }
+        Result::Ok(())
+    }
+
+    fn trivialize_known_data(data: &i::KnownData) -> o::LiteralData {
+        match data {
+            i::KnownData::Int(value) => o::LiteralData::Int(*value),
+            i::KnownData::Float(value) => o::LiteralData::Float(*value),
+            i::KnownData::Bool(value) => o::LiteralData::Bool(*value),
+            _ => panic!("TODO: nice error, encountered ct-only data type after simplification.")
+        }
+    }
+
+    fn trivialize_expression(
+        &mut self,
+        expression: &i::Expression
+    ) -> Result<Option<o::Value>, CompileProblem> {
+        Result::Ok(match expression {
+            i::Expression::Literal(data, ..) => Option::Some(
+                o::Value::Literal(Self::trivialize_known_data(data))
+            ),
+            _ => unimplemented!("TODO: implement trivialization of {:?}", expression)
+        })
     }
 
     fn trivialize_data_type(

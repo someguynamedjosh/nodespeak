@@ -50,6 +50,7 @@ fn main() {
         return;
     }
 
+    /*
     let mut inputs = Vec::new();
     let entry_point = &program[program.get_entry_point().clone()];
     for input_id in entry_point.borrow_inputs() {
@@ -109,4 +110,5 @@ fn main() {
             }
         }
     }
+    */
 }
