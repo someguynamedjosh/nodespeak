@@ -1,4 +1,4 @@
-use crate::trivial::structure::{LabelId, VariableId, Value};
+use crate::trivial::structure::{LabelId, Value};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -13,69 +13,35 @@ pub enum Condition {
     Unconditional,
 }
 
+pub enum BinaryOperator {
+    AddI,
+    SubI,
+    MulI,
+    DivI,
+
+    AddF,
+    SubF,
+    MulF,
+    DivF,
+
+    BAnd,
+    BOr,
+    BXor,
+}
+
 pub enum Instruction {
     Move {
         from: Value,
         to: Value,
     },
 
-    AddI {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    SubI {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    MulI {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    DivI {
+    BinaryOperation {
+        op: BinaryOperator,
         a: Value,
         b: Value,
         x: Value,
     },
 
-    AddF {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    SubF {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    MulF {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    DivF {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-
-    And {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    Or {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
-    Xor {
-        a: Value,
-        b: Value,
-        x: Value,
-    },
     Not {
         a: Value,
         x: Value,
@@ -97,35 +63,23 @@ impl Debug for Instruction {
         match self {
             Instruction::Move { from, to } => write!(formatter, "move {:?} -> {:?}", from, to),
 
-            Instruction::AddI { a, b, x } => {
-                write!(formatter, "addi {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::SubI { a, b, x } => {
-                write!(formatter, "subi {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::MulI { a, b, x } => {
-                write!(formatter, "muli {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::DivI { a, b, x } => {
-                write!(formatter, "divi {:?}, {:?} -> {:?}", a, b, x)
-            }
+            Instruction::BinaryOperation { op, a, b, x } => {
+                write!(formatter, "{} {:?}, {:?} -> {:?}", match op {
+                    BinaryOperator::AddI => "addi",
+                    BinaryOperator::SubI => "subi",
+                    BinaryOperator::MulI => "muli",
+                    BinaryOperator::DivI => "divi",
 
-            Instruction::AddF { a, b, x } => {
-                write!(formatter, "addf {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::SubF { a, b, x } => {
-                write!(formatter, "subf {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::MulF { a, b, x } => {
-                write!(formatter, "mulf {:?}, {:?} -> {:?}", a, b, x)
-            }
-            Instruction::DivF { a, b, x } => {
-                write!(formatter, "divf {:?}, {:?} -> {:?}", a, b, x)
-            }
+                    BinaryOperator::AddF => "addf",
+                    BinaryOperator::SubF => "subf",
+                    BinaryOperator::MulF => "mulf",
+                    BinaryOperator::DivF => "divf",
 
-            Instruction::And { a, b, x } => write!(formatter, "and  {:?}, {:?} -> {:?}", a, b, x),
-            Instruction::Or { a, b, x } => write!(formatter, "or   {:?}, {:?} -> {:?}", a, b, x),
-            Instruction::Xor { a, b, x } => write!(formatter, "xor  {:?}, {:?} -> {:?}", a, b, x),
+                    BinaryOperator::BAnd => "band",
+                    BinaryOperator::BOr => "bor ",
+                    BinaryOperator::BXor => "bxor",
+                }, a, b, x)
+            }
             Instruction::Not { a, x } => write!(formatter, "not  {:?}, -> {:?}", a, x),
 
             Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),

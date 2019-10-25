@@ -108,32 +108,32 @@ impl<'a> Trivializer<'a> {
         let typ = a.get_type(&self.target);
         let x = o::Value::Variable(self.target.adopt_variable(o::Variable::new(typ)));
         let x2 = x.clone();
-        match operator {
-            i::BinaryOperator::Add => self.target.add_instruction(match typ {
-                o::VariableType::I32 => o::Instruction::AddI { a, b, x },
-                o::VariableType::F32 => o::Instruction::AddF { a, b, x },
+        let toperator = match operator {
+            i::BinaryOperator::Add => match typ {
+                o::VariableType::F32 => o::BinaryOperator::AddF,
+                o::VariableType::I32 => o::BinaryOperator::AddI,
                 o::VariableType::B8 => unimplemented!()
-            }),
-            i::BinaryOperator::Subtract => self.target.add_instruction(match typ {
-                o::VariableType::I32 => o::Instruction::SubI { a, b, x },
-                o::VariableType::F32 => o::Instruction::SubF { a, b, x },
+            },
+            i::BinaryOperator::Subtract => match typ {
+                o::VariableType::F32 => o::BinaryOperator::SubF,
+                o::VariableType::I32 => o::BinaryOperator::SubI,
                 o::VariableType::B8 => unimplemented!()
-            }),
-            i::BinaryOperator::Multiply => self.target.add_instruction(match typ {
-                o::VariableType::I32 => o::Instruction::MulI { a, b, x },
-                o::VariableType::F32 => o::Instruction::MulF { a, b, x },
+            },
+            i::BinaryOperator::Multiply => match typ {
+                o::VariableType::F32 => o::BinaryOperator::MulF,
+                o::VariableType::I32 => o::BinaryOperator::MulI,
                 o::VariableType::B8 => unimplemented!()
-            }),
-            i::BinaryOperator::Divide => self.target.add_instruction(match typ {
+            },
+            i::BinaryOperator::Divide => match typ {
+                o::VariableType::F32 => o::BinaryOperator::DivF,
                 o::VariableType::I32 => unimplemented!(),
-                o::VariableType::F32 => o::Instruction::DivF { a, b, x },
                 o::VariableType::B8 => unimplemented!()
-            }),
-            i::BinaryOperator::IntDiv => self.target.add_instruction(match typ {
-                o::VariableType::I32 => o::Instruction::DivI { a, b, x },
+            },
+            i::BinaryOperator::IntDiv => match typ {
                 o::VariableType::F32 => unimplemented!(),
+                o::VariableType::I32 => o::BinaryOperator::DivI,
                 o::VariableType::B8 => unimplemented!()
-            }),
+            },
             i::BinaryOperator::Modulo => unimplemented!(),
             i::BinaryOperator::Power => unimplemented!(),
 
@@ -150,7 +150,15 @@ impl<'a> Trivializer<'a> {
             i::BinaryOperator::BAnd => unimplemented!(),
             i::BinaryOperator::BOr => unimplemented!(),
             i::BinaryOperator::BXor => unimplemented!(),
-        }
+        };
+
+        self.target.add_instruction(o::Instruction::BinaryOperation {
+            op: toperator,
+            a,
+            b,
+            x
+        });
+
         Result::Ok(x2)
     }
 
