@@ -1,14 +1,35 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+use std::fmt::{self, Debug, Formatter};
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum VariableType {
     F32,
     I32,
     B8,
 }
 
-#[derive(Clone, Debug)]
+impl Debug for VariableType {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "{}", match self {
+            Self::F32 => "f32",
+            Self::I32 => "i32",
+            Self::B8 => "b8"
+        })
+    }
+}
+
+#[derive(Clone)]
 pub struct Variable {
     variable_type: VariableType,
     dimensions: Vec<u64>,
+}
+
+impl Debug for Variable {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        for dim in self.dimensions.iter() {
+            write!(formatter, "[{}]", dim)?;
+        }
+        write!(formatter, "{:?}", self.variable_type)
+    }
 }
 
 impl Variable {
