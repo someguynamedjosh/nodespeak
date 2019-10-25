@@ -12,7 +12,8 @@ pub(self) mod util;
 pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     let entry_point = program.get_entry_point();
     let mut simplifier = ScopeSimplifier::new(program);
-    simplifier.simplify_scope(entry_point)?;
+    let new_scope = simplifier.simplify_scope(entry_point)?;
+    program.set_entry_point(new_scope);
     Result::Ok(())
 }
 

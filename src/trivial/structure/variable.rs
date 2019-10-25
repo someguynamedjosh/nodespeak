@@ -2,6 +2,7 @@
 pub enum VariableType {
     F32,
     I32,
+    B8,
 }
 
 #[derive(Clone, Debug)]

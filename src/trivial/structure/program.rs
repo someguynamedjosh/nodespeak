@@ -1,6 +1,7 @@
 use crate::trivial::structure::{Instruction, Variable};
 
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy)]
 pub struct VariableId(usize);
@@ -29,8 +30,8 @@ pub struct Program {
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         writeln!(formatter, "variables:")?;
-        for variable in self.variables.iter() {
-            writeln!(formatter, "  {:?}", variable)?;
+        for (index, variable) in self.variables.iter().enumerate() {
+            writeln!(formatter, "  tv{}: {:?}", index, variable)?;
         }
         writeln!(formatter, "{} labels", self.labels)?;
         writeln!(formatter, "instructions:")?;
@@ -38,6 +39,20 @@ impl Debug for Program {
             writeln!(formatter, "  {:?}", instruction)?;
         }
         write!(formatter, "")
+    }
+}
+
+impl Index<VariableId> for Program {
+    type Output = Variable;
+
+    fn index(&self, variable: VariableId) -> &Self::Output {
+        &self.variables[variable.0]
+    }
+}
+
+impl IndexMut<VariableId> for Program {
+    fn index_mut(&mut self, variable: VariableId) -> &mut Self::Output {
+        &mut self.variables[variable.0]
     }
 }
 
