@@ -134,7 +134,11 @@ impl<'a> Trivializer<'a> {
                 o::VariableType::I32 => o::BinaryOperator::DivI,
                 o::VariableType::B8 => unimplemented!()
             },
-            i::BinaryOperator::Modulo => unimplemented!(),
+            i::BinaryOperator::Modulo => match typ {
+                o::VariableType::F32 => o::BinaryOperator::ModF,
+                o::VariableType::I32 => o::BinaryOperator::ModI,
+                o::VariableType::B8 => unimplemented!()
+            },
             i::BinaryOperator::Power => unimplemented!(),
 
             i::BinaryOperator::Equal => unimplemented!(),
@@ -191,6 +195,34 @@ impl<'a> Trivializer<'a> {
         Result::Ok(())
     }
 
+    fn trivialize_for_jump(
+        &mut self,
+        expression: &i::Expression
+    ) -> Result<o::Condition, CompileProblem> {
+        Result::Ok(match expression {
+            i::Expression::BinaryOperation(lhs, op, rhs, ..) => {
+                let a = self.trivialize_and_require_value(lhs, expression)?;
+                let b = self.trivialize_and_require_value(rhs, expression)?;
+                // TODO: Error if type of A and B is not bool.
+                let condition = match op {
+                    i::BinaryOperator::Equal => o::Condition::Equal,
+                    i::BinaryOperator::NotEqual => o::Condition::NotEqual,
+                    i::BinaryOperator::GreaterThan => o::Condition::GreaterThan,
+                    i::BinaryOperator::GreaterThanOrEqual => o::Condition::GreaterThanOrEqual,
+                    i::BinaryOperator::LessThan => o::Condition::LessThan,
+                    i::BinaryOperator::LessThanOrEqual => o::Condition::LessThanOrEqual,
+                    _ => panic!("TODO: Nice error, operation does not return a bool.")
+                };
+                self.target.add_instruction(o::Instruction::Compare{a, b});
+                condition
+            }
+            i::Expression::UnaryOperation(..) => unimplemented!(),
+            i::Expression::Variable(..) => unimplemented!(),
+            i::Expression::Access{..} => unimplemented!(),
+            _ => panic!("TODO: Nice error, operation does not return a bool.")
+        })
+    }
+
     fn trivialize_expression(
         &mut self,
         expression: &i::Expression
@@ -216,14 +248,43 @@ impl<'a> Trivializer<'a> {
             i::Expression::Collect(..) => unimplemented!(),
             i::Expression::CreationPoint(..) => unreachable!("trivialize called on unsimplified code."),
 
-            i::Expression::Assert(..) => unimplemented!(),
+            i::Expression::Assert(value, ..) => {
+                let condition = self.trivialize_for_jump(value)?;
+                self.target.add_instruction(o::Instruction::Assert(condition));
+                None
+            }
             i::Expression::Assign{target, value, ..} => {
                 self.trivialize_assignment(expression, target, value)?;
                 None
             }
             i::Expression::Return(..) => unimplemented!(),
 
-            i::Expression::FuncCall{..} => unimplemented!(),
+            i::Expression::FuncCall{function, setup, teardown, ..} => {
+                let mut output_value = None;
+
+                for expr in setup {
+                    self.trivialize_expression(expr)?;
+                }
+                let scope = match function.borrow() {
+                    i::Expression::Literal(data, ..) => match data {
+                        i::KnownData::Function(data) => data.get_body(),
+                        _ => panic!("TODO: nice error, target of func call must be function.")
+                    },
+                    _ => panic!("TODO: nice error, vague function.")
+                };
+                for expr in self.source[scope].borrow_body().clone() {
+                    self.trivialize_expression(&expr)?;
+                }
+
+                for expr in teardown {
+                    match expr {
+                        i::Expression::InlineReturn(value, ..) => output_value = Option::Some(self.trivialize_and_require_value(value.borrow(), expr)?),
+                        _ => { self.trivialize_expression(expr)?; }
+                    }
+                }
+
+                output_value
+            }
         })
     }
 }

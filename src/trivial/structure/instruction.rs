@@ -18,11 +18,13 @@ pub enum BinaryOperator {
     SubI,
     MulI,
     DivI,
+    ModI,
 
     AddF,
     SubF,
     MulF,
     DivF,
+    ModF,
 
     BAnd,
     BOr,
@@ -56,6 +58,8 @@ pub enum Instruction {
         label: LabelId,
         condition: Condition,
     },
+
+    Assert(Condition),
 }
 
 impl Debug for Instruction {
@@ -69,11 +73,13 @@ impl Debug for Instruction {
                     BinaryOperator::SubI => "subi",
                     BinaryOperator::MulI => "muli",
                     BinaryOperator::DivI => "divi",
+                    BinaryOperator::ModI => "modi",
 
                     BinaryOperator::AddF => "addf",
                     BinaryOperator::SubF => "subf",
                     BinaryOperator::MulF => "mulf",
                     BinaryOperator::DivF => "divf",
+                    BinaryOperator::ModF => "modf",
 
                     BinaryOperator::BAnd => "band",
                     BinaryOperator::BOr => "bor ",
@@ -87,6 +93,8 @@ impl Debug for Instruction {
             Instruction::Jump { label, condition } => {
                 write!(formatter, "jump {:?} if {:?}", label, condition)
             }
+
+            Instruction::Assert(value) => write!(formatter, "asrt {:?}", value),
         }
     }
 }

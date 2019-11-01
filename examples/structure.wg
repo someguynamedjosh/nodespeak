@@ -17,3 +17,9 @@ assert sum == 25;
 Auto other = 10;
 swap(sum, other):(sum, other);
 assert sum == 10;
+
+input Int a, b;
+Int sum2 = test1(a, b);
+swap(a, b):(Int swapb, Int swapa);
+assert swapa == a;
+assert swapb == b;
