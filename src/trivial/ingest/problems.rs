@@ -32,7 +32,7 @@ pub fn void_value(value_pos: FilePosition, use_pos: FilePosition) -> CompileProb
         ProblemDescriptor::new(
             use_pos,
             Hint,
-            "The above expression being void makes this highlighted expression invalid:"
-        )
+            "The above expression being void makes this highlighted expression invalid:",
+        ),
     ])
 }

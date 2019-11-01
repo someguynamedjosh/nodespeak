@@ -9,11 +9,15 @@ pub enum VariableType {
 
 impl Debug for VariableType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{}", match self {
-            Self::F32 => "f32",
-            Self::I32 => "i32",
-            Self::B8 => "b8"
-        })
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Self::F32 => "f32",
+                Self::I32 => "i32",
+                Self::B8 => "b8",
+            }
+        )
     }
 }
 

@@ -67,8 +67,10 @@ impl Debug for Instruction {
         match self {
             Instruction::Move { from, to } => write!(formatter, "move {:?} -> {:?}", from, to),
 
-            Instruction::BinaryOperation { op, a, b, x } => {
-                write!(formatter, "{} {:?}, {:?} -> {:?}", match op {
+            Instruction::BinaryOperation { op, a, b, x } => write!(
+                formatter,
+                "{} {:?}, {:?} -> {:?}",
+                match op {
                     BinaryOperator::AddI => "addi",
                     BinaryOperator::SubI => "subi",
                     BinaryOperator::MulI => "muli",
@@ -84,8 +86,11 @@ impl Debug for Instruction {
                     BinaryOperator::BAnd => "band",
                     BinaryOperator::BOr => "bor ",
                     BinaryOperator::BXor => "bxor",
-                }, a, b, x)
-            }
+                },
+                a,
+                b,
+                x
+            ),
             Instruction::Not { a, x } => write!(formatter, "not  {:?}, -> {:?}", a, x),
 
             Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),

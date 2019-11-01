@@ -1,4 +1,4 @@
-use super::{Program, VariableType, VariableId};
+use super::{Program, VariableId, VariableType};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -24,7 +24,7 @@ impl LiteralData {
         match self {
             Self::Int(..) => VariableType::I32,
             Self::Float(..) => VariableType::F32,
-            Self::Bool(..) => VariableType::B8
+            Self::Bool(..) => VariableType::B8,
         }
     }
 }
@@ -41,7 +41,7 @@ impl Debug for Value {
         match self {
             Self::Literal(data) => write!(formatter, "{:?}", data),
             Self::Variable(var) => write!(formatter, "{:?}", var),
-            Self::Index(..) => unimplemented!()
+            Self::Index(..) => unimplemented!(),
         }
     }
 }
@@ -50,8 +50,7 @@ impl Value {
     pub fn get_type(&self, program: &Program) -> VariableType {
         match self {
             Self::Literal(data) => data.get_type(),
-            Self::Variable(var)
-            | Self::Index(var, ..) => program[*var].get_type()
+            Self::Variable(var) | Self::Index(var, ..) => program[*var].get_type(),
         }
     }
 }
