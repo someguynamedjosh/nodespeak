@@ -293,22 +293,8 @@ impl<'a> ScopeSimplifier<'a> {
         let mut runtime_teardown = Vec::new();
         let mut inline_output = None;
         for expr in teardown {
-            match expr {
-                Expression::InlineReturn(return_value, position) => {
-                    let simplified = self.simplify_expression(return_value)?;
-                    if let Content::Modified(new_expression) = &simplified.content {
-                        runtime_teardown.push(Expression::InlineReturn(
-                            Box::new(new_expression.clone()),
-                            position.clone(),
-                        ))
-                    }
-                    inline_output = Some(simplified);
-                }
-                _ => {
-                    if let Content::Modified(new_expr) = self.simplify_expression(expr)?.content {
-                        runtime_teardown.push(new_expr);
-                    }
-                }
+            if let Content::Modified(new_expr) = self.simplify_expression(expr)?.content {
+                runtime_teardown.push(new_expr);
             }
         }
 

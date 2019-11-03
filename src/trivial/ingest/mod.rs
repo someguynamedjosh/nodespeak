@@ -245,8 +245,8 @@ impl<'a> Trivializer<'a> {
                 Option::Some(self.trivialize_binary_expression(expression, left, *operator, right)?)
             }
 
-            i::Expression::PickInput(..) => unreachable!("trivialize called on unsimplified code."),
-            i::Expression::PickOutput(..) => {
+            i::Expression::AssignInput{..} => unreachable!("trivialize called on unsimplified code."),
+            i::Expression::AssignOutput{..} => {
                 unreachable!("trivialize called on unsimplified code.")
             }
             i::Expression::Collect(..) => unimplemented!(),
@@ -289,16 +289,7 @@ impl<'a> Trivializer<'a> {
                 }
 
                 for expr in teardown {
-                    match expr {
-                        i::Expression::InlineReturn(value, ..) => {
-                            output_value = Option::Some(
-                                self.trivialize_and_require_value(value.borrow(), expr)?,
-                            )
-                        }
-                        _ => {
-                            self.trivialize_expression(expr)?;
-                        }
-                    }
+                    self.trivialize_expression(expr)?;
                 }
 
                 output_value

@@ -86,7 +86,7 @@ pub enum Expression {
         indexes: Vec<Expression>,
         position: FilePosition,
     },
-    InlineReturn(Box<Expression>, FilePosition),
+    InlineReturn(FilePosition),
 
     UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
     BinaryOperation(
@@ -96,8 +96,16 @@ pub enum Expression {
         FilePosition,
     ),
 
-    PickInput(VariableId, usize, FilePosition),
-    PickOutput(VariableId, usize, FilePosition),
+    AssignInput {
+        index: usize,
+        value: Box<Expression>,
+        position: FilePosition,
+    },
+    AssignOutput{
+        index: usize, 
+        value: Box<Expression>,
+        position: FilePosition,
+    },
     Collect(Vec<Expression>, FilePosition),
     CreationPoint(VariableId, FilePosition),
 
@@ -130,7 +138,7 @@ impl Debug for Expression {
                 }
                 write!(formatter, "")
             }
-            Expression::InlineReturn(value, ..) => write!(formatter, "inline({:?})", value),
+            Expression::InlineReturn(..) => write!(formatter, "inline return"),
 
             Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -139,11 +147,11 @@ impl Debug for Expression {
                 write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
 
-            Expression::PickInput(function, index, ..) => {
-                write!(formatter, "input {} of {:?}", index, function)
+            Expression::AssignInput{index, value, ..} => {
+                write!(formatter, "input {} becomes {:?}", index, value)
             }
-            Expression::PickOutput(function, index, ..) => {
-                write!(formatter, "output {} of {:?}", index, function)
+            Expression::AssignOutput{index, value, ..} => {
+                write!(formatter, "output {} becomes {:?}", index, value)
             }
             Expression::Collect(values, ..) => {
                 write!(formatter, "[")?;
@@ -186,11 +194,11 @@ impl Expression {
             Expression::Literal(_, position)
             | Expression::Variable(_, position)
             | Expression::Access { position, .. }
-            | Expression::InlineReturn(_, position)
+            | Expression::InlineReturn(position)
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
-            | Expression::PickInput(_, _, position)
-            | Expression::PickOutput(_, _, position)
+            | Expression::AssignInput{position, ..}
+            | Expression::AssignOutput{position, ..}
             | Expression::Collect(_, position)
             | Expression::CreationPoint(_, position)
             | Expression::Assert(_, position)
@@ -233,8 +241,8 @@ impl Expression {
             Expression::InlineReturn(..) => true,
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
-            Expression::PickInput(..) => true,
-            Expression::PickOutput(..) => true,
+            Expression::AssignInput{value, ..} => value.is_valid(),
+            Expression::AssignOutput{value, ..} => value.is_valid(),
             Expression::Collect(values, ..) => values
                 .iter()
                 .fold(true, |valid, value| valid && value.is_valid()),
@@ -243,9 +251,7 @@ impl Expression {
             Expression::Assign { target, value, .. } => {
                 (match &**target {
                     Expression::Variable(..)
-                    | Expression::Access { .. }
-                    | Expression::PickInput(..)
-                    | Expression::PickOutput(..) => target.is_valid(),
+                    | Expression::Access { .. } => target.is_valid(),
                     Expression::Proxy {
                         base: proxy_base, ..
                     } => match &**proxy_base {

@@ -130,22 +130,6 @@ impl<'a> ScopeSimplifier<'a> {
                 Expression::Variable(self.convert(*id), position.clone()),
                 self.program[self.convert(*id)].borrow_data_type().clone(),
             ),
-            Expression::PickInput(function, index, position) => {
-                let scope = self.require_simplified_function_data(*function)?.get_body();
-                let converted = self.convert(self.program[scope].get_input(*index));
-                (
-                    Expression::Variable(converted, position.clone()),
-                    self.program[converted].borrow_data_type().clone(),
-                )
-            }
-            Expression::PickOutput(function, index, position) => {
-                let scope = self.require_simplified_function_data(*function)?.get_body();
-                let converted = self.convert(self.program[scope].get_output(*index));
-                (
-                    Expression::Variable(converted, position.clone()),
-                    self.program[converted].borrow_data_type().clone(),
-                )
-            }
             Expression::Access {
                 base,
                 indexes,
