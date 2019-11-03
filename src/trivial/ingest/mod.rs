@@ -245,8 +245,10 @@ impl<'a> Trivializer<'a> {
                 Option::Some(self.trivialize_binary_expression(expression, left, *operator, right)?)
             }
 
-            i::Expression::AssignInput{..} => unreachable!("trivialize called on unsimplified code."),
-            i::Expression::AssignOutput{..} => {
+            i::Expression::AssignInput { .. } => {
+                unreachable!("trivialize called on unsimplified code.")
+            }
+            i::Expression::AssignOutput { .. } => {
                 unreachable!("trivialize called on unsimplified code.")
             }
             i::Expression::Collect(..) => unimplemented!(),

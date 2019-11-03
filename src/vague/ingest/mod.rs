@@ -98,9 +98,7 @@ fn convert_func_expr_output_list(
     for (index, child) in input.into_inner().enumerate() {
         let child_pos = FilePosition::from_pair(&child);
         let value = match child.as_rule() {
-            i::Rule::assign_expr => {
-                convert_assign_expr(program, scope, child)?
-            }
+            i::Rule::assign_expr => convert_assign_expr(program, scope, child)?,
             i::Rule::inline_var_dec => {
                 let mut child_iter = child.into_inner();
                 let data_type_pair = child_iter.next().expect("Required by grammar.");
@@ -120,7 +118,7 @@ fn convert_func_expr_output_list(
         setup.push(o::Expression::AssignOutput {
             index,
             value: Box::new(value),
-            position: child_pos
+            position: child_pos,
         });
     }
     Result::Ok(setup)
@@ -142,21 +140,19 @@ fn convert_func_expr(
 
     let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
     let mut setup = convert_func_expr_input_list(program, scope, function_var, input_list)?;
-    setup.extend(
-        if let Option::Some(output_list) = input_iter.next() {
-            debug_assert!(output_list.as_rule() == i::Rule::func_expr_output_list);
-            convert_func_expr_output_list(program, scope, function_var, output_list)?
-        // TODO: if force_func_output is true, check that one of the outputs is inline.
-        } else if force_func_output {
-            vec![o::Expression::AssignOutput {
-                index: 0,
-                value: Box::new(o::Expression::InlineReturn(input_pos.clone())),
-                position: input_pos.clone(),
-            }]
-        } else {
-            vec![]
-        }
-    );
+    setup.extend(if let Option::Some(output_list) = input_iter.next() {
+        debug_assert!(output_list.as_rule() == i::Rule::func_expr_output_list);
+        convert_func_expr_output_list(program, scope, function_var, output_list)?
+    // TODO: if force_func_output is true, check that one of the outputs is inline.
+    } else if force_func_output {
+        vec![o::Expression::AssignOutput {
+            index: 0,
+            value: Box::new(o::Expression::InlineReturn(input_pos.clone())),
+            position: input_pos.clone(),
+        }]
+    } else {
+        vec![]
+    });
     Result::Ok(o::Expression::FuncCall {
         function: Box::new(o::Expression::Variable(function_var, identifier_pos)),
         setup,

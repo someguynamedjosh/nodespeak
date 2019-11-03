@@ -161,13 +161,13 @@ impl<'a> ScopeSimplifier<'a> {
                 )?
             }
 
-            Expression::AssignInput{..} => unreachable!("Should be handled elsewhere."),
-            Expression::AssignOutput{..} => unreachable!("Should be handled elsewhere."),
+            Expression::AssignInput { .. } => unreachable!("Should be handled elsewhere."),
+            Expression::AssignOutput { .. } => unreachable!("Should be handled elsewhere."),
             Expression::Collect(values, position) => {
                 let mut simplified_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
                 let mut all_known = true;
-                for value in values { 
+                for value in values {
                     value_positions.push(value.clone_position());
                     let simplified_value = self.simplify_expression(value)?;
                     if let Content::Modified(..) = &simplified_value.content {
@@ -192,7 +192,8 @@ impl<'a> ScopeSimplifier<'a> {
                         for datum in data {
                             sub_arrays.push(match datum {
                                 KnownData::Array(sub_array) => sub_array,
-                                _ => panic!("TODO: nice error, data types incompatible."), })
+                                _ => panic!("TODO: nice error, data types incompatible."),
+                            })
                         }
                         let final_data = KnownData::Array(NVec::collect(sub_arrays));
                         SimplifiedExpression {
