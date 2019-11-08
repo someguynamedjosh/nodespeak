@@ -1,4 +1,4 @@
-use super::structure::{DataType, Expression, KnownData, Program, VariableId, ScopeId};
+use super::structure::{DataType, Expression, KnownData, Program, ScopeId, VariableId};
 use crate::problem::{CompileProblem, FilePosition};
 use std::collections::HashMap;
 

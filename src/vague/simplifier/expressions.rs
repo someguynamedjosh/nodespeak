@@ -1,7 +1,7 @@
 use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::vague::structure::{
-    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, VariableId
+    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, VariableId,
 };
 use std::borrow::Borrow;
 
@@ -9,7 +9,7 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_variable(
         &mut self,
         id: VariableId,
-        position: FilePosition
+        position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         if let Some(replacement) = self.replace(id) {
             let replacement = replacement.clone();
@@ -272,11 +272,28 @@ impl<'a> ScopeSimplifier<'a> {
 
         // Add replacements to insert the function arguments into the body.
         let input_parameters = self.program[old_function_body].borrow_inputs().clone();
+        if input_parameters.len() != inputs.len() {
+            return Result::Err(problems::wrong_number_of_inputs(
+                position.clone(),
+                function_data.get_header().clone(),
+                inputs.len(),
+                input_parameters.len(),
+            ));
+        }
         for (parameter, argument) in input_parameters.iter().zip(inputs.iter()) {
             self.add_replacement(*parameter, argument.clone());
         }
+
         let mut inline_output = None;
         let output_parameters = self.program[old_function_body].borrow_outputs().clone();
+        if output_parameters.len() != outputs.len() {
+            return Result::Err(problems::wrong_number_of_outputs(
+                position.clone(),
+                function_data.get_header().clone(),
+                outputs.len(),
+                output_parameters.len(),
+            ));
+        }
         for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
             match argument {
                 Expression::InlineReturn(position) => {
@@ -327,12 +344,15 @@ impl<'a> ScopeSimplifier<'a> {
         if !empty_body {
             self.program[self.current_scope].add_expression(Expression::FuncCall {
                 function: Box::new(Expression::Literal(
-                    KnownData::Function(FunctionData::new(new_function_body, function_data.get_header().clone())),
-                    function.clone_position()
+                    KnownData::Function(FunctionData::new(
+                        new_function_body,
+                        function_data.get_header().clone(),
+                    )),
+                    function.clone_position(),
                 )),
                 inputs: vec![],
                 outputs: vec![],
-                position: position.clone()
+                position: position.clone(),
             });
         }
 
@@ -341,20 +361,23 @@ impl<'a> ScopeSimplifier<'a> {
                 let value = self.program[id].borrow_temporary_value();
                 if let KnownData::Unknown = value {
                     SimplifiedExpression {
-                        content: Content::Modified(Expression::Variable(id, FilePosition::placeholder())),
-                        data_type: self.program[id].borrow_data_type().clone()
+                        content: Content::Modified(Expression::Variable(
+                            id,
+                            FilePosition::placeholder(),
+                        )),
+                        data_type: self.program[id].borrow_data_type().clone(),
                     }
                 } else {
                     SimplifiedExpression {
                         content: Content::Interpreted(value.clone()),
-                        data_type: self.program[id].borrow_data_type().clone()
+                        data_type: self.program[id].borrow_data_type().clone(),
                     }
                 }
             }
             None => SimplifiedExpression {
                 content: Content::Interpreted(KnownData::Void),
-                data_type: DataType::scalar(BaseType::Void)
-            }
+                data_type: DataType::scalar(BaseType::Void),
+            },
         })
     }
 }

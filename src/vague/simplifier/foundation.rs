@@ -1,4 +1,4 @@
-use super::{problems, Content, SimplifiedExpression, ScopeSimplifier, SimplifierTable};
+use super::{Content, ScopeSimplifier, SimplifiedExpression, SimplifierTable};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::util::NVec;
 use crate::vague::structure::{
@@ -235,32 +235,7 @@ impl<'a> ScopeSimplifier<'a> {
                 }
             }
 
-            Expression::Assert(value, position) => {
-                let simplified_value = self.simplify_expression(value)?;
-                match simplified_value.content {
-                    Content::Interpreted(value) => {
-                        if let KnownData::Bool(succeed) = value {
-                            if succeed {
-                                SimplifiedExpression {
-                                    content: Content::Interpreted(KnownData::Void),
-                                    data_type: DataType::scalar(BaseType::Void),
-                                }
-                            } else {
-                                panic!("TODO: nice error, assert guaranteed to fail.")
-                            }
-                        } else {
-                            panic!("TODO: nice error, argument to assert is not bool.")
-                        }
-                    }
-                    Content::Modified(expression) => SimplifiedExpression {
-                        content: Content::Modified(Expression::Assert(
-                            Box::new(expression),
-                            position.clone(),
-                        )),
-                        data_type: DataType::scalar(BaseType::Void),
-                    },
-                }
-            }
+            Expression::Assert(value, position) => self.simplify_assert_statement(value, position)?,
             Expression::Assign {
                 target,
                 value,

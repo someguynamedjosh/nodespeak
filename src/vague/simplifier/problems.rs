@@ -1,5 +1,5 @@
 use crate::problem::*;
-use crate::vague::structure::{DataType, KnownData};
+use crate::vague::structure::DataType;
 use ProblemType::Error;
 use ProblemType::Hint;
 
@@ -95,21 +95,6 @@ pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {
         Error,
         "Assert Guranteed To Fail",
     )])
-}
-
-pub fn illegal_inflation(source_pos: FilePosition, target_pos: FilePosition) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            source_pos,
-            Error,
-            "Illegal Inflation\nCannot inflate this value:",
-        ),
-        ProblemDescriptor::new(
-            target_pos,
-            Hint,
-            "The value cannot be inflated to fit this target:",
-        ),
-    ])
 }
 
 pub fn array_index_not_int(

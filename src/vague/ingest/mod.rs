@@ -72,13 +72,11 @@ fn lookup_symbol_with_error(
 fn convert_func_expr_input_list(
     program: &mut o::Program,
     scope: o::ScopeId,
-    func_var: o::VariableId,
     input: i::Node,
 ) -> Result<Vec<o::Expression>, CompileProblem> {
     let mut inputs = Vec::new();
-    for (index, child) in input.into_inner().enumerate() {
+    for child in input.into_inner() {
         debug_assert!(child.as_rule() == i::Rule::expr, "Required by grammar.");
-        let child_pos = FilePosition::from_pair(&child);
         inputs.push(convert_expression(program, scope, true, child)?);
     }
     Result::Ok(inputs)
@@ -87,11 +85,10 @@ fn convert_func_expr_input_list(
 fn convert_func_expr_output_list(
     program: &mut o::Program,
     scope: o::ScopeId,
-    func_var: o::VariableId,
     input: i::Node,
 ) -> Result<Vec<o::Expression>, CompileProblem> {
     let mut outputs = Vec::new();
-    for (index, child) in input.into_inner().enumerate() {
+    for child in input.into_inner() {
         let child_pos = FilePosition::from_pair(&child);
         let value = match child.as_rule() {
             i::Rule::assign_expr => convert_assign_expr(program, scope, child)?,
@@ -131,16 +128,32 @@ fn convert_func_expr(
     let input_list = input_iter.next().expect("Required by grammar.");
 
     let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
-    let inputs = convert_func_expr_input_list(program, scope, function_var, input_list)?;
+    let inputs = convert_func_expr_input_list(program, scope, input_list)?;
+    let output_list_pos;
     let outputs = if let Option::Some(output_list) = input_iter.next() {
+        output_list_pos = FilePosition::from_pair(&output_list);
         debug_assert!(output_list.as_rule() == i::Rule::func_expr_output_list);
-        convert_func_expr_output_list(program, scope, function_var, output_list)?
+        convert_func_expr_output_list(program, scope, output_list)?
     // TODO: if force_func_output is true, check that one of the outputs is inline.
     } else if force_func_output {
+        output_list_pos = input_pos.clone();
         vec![o::Expression::InlineReturn(input_pos.clone())]
     } else {
+        output_list_pos = input_pos.clone();
         vec![]
     };
+    if force_func_output {
+        let mut has_inline = false;
+        for output in outputs.iter() {
+            if let o::Expression::InlineReturn(..) = output {
+                has_inline = true;
+                break;
+            }
+        }
+        if !has_inline {
+            return Result::Err(problems::missing_inline_return(input_pos, output_list_pos));
+        }
+    }
     Result::Ok(o::Expression::FuncCall {
         function: Box::new(o::Expression::Variable(function_var, identifier_pos)),
         inputs,
