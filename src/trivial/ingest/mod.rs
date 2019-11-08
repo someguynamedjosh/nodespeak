@@ -245,12 +245,6 @@ impl<'a> Trivializer<'a> {
                 Option::Some(self.trivialize_binary_expression(expression, left, *operator, right)?)
             }
 
-            i::Expression::AssignInput { .. } => {
-                unreachable!("trivialize called on unsimplified code.")
-            }
-            i::Expression::AssignOutput { .. } => {
-                unreachable!("trivialize called on unsimplified code.")
-            }
             i::Expression::Collect(..) => unimplemented!(),
             i::Expression::CreationPoint(..) => {
                 unreachable!("trivialize called on unsimplified code.")
@@ -270,13 +264,14 @@ impl<'a> Trivializer<'a> {
 
             i::Expression::FuncCall {
                 function,
-                setup,
-                teardown,
+                inputs,
+                outputs,
                 ..
             } => {
                 let mut output_value = None;
 
-                for expr in setup {
+                // TODO: New input / output format.
+                for expr in inputs {
                     self.trivialize_expression(expr)?;
                 }
                 let scope = match function.borrow() {
@@ -290,7 +285,7 @@ impl<'a> Trivializer<'a> {
                     self.trivialize_expression(&expr)?;
                 }
 
-                for expr in teardown {
+                for expr in outputs {
                     self.trivialize_expression(expr)?;
                 }
 

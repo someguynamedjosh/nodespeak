@@ -161,8 +161,6 @@ impl<'a> ScopeSimplifier<'a> {
                 )?
             }
 
-            Expression::AssignInput { .. } => unreachable!("Should be handled elsewhere."),
-            Expression::AssignOutput { .. } => unreachable!("Should be handled elsewhere."),
             Expression::Collect(values, position) => {
                 let mut simplified_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
@@ -293,10 +291,10 @@ impl<'a> ScopeSimplifier<'a> {
 
             Expression::FuncCall {
                 function,
-                setup,
-                teardown,
+                inputs,
+                outputs,
                 position,
-            } => self.simplify_func_call(function, setup, teardown, position)?,
+            } => self.simplify_func_call(function, inputs, outputs, position)?,
         })
     }
 

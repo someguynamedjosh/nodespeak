@@ -318,8 +318,8 @@ impl<'a> ScopeSimplifier<'a> {
                         )),
                         function.clone_position(),
                     )),
-                    setup: runtime_setup,
-                    teardown: runtime_teardown,
+                    inputs: runtime_setup,
+                    outputs: runtime_teardown,
                     position: position.clone(),
                 }),
                 data_type: match inline_output {

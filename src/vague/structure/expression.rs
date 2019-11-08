@@ -96,16 +96,6 @@ pub enum Expression {
         FilePosition,
     ),
 
-    AssignInput {
-        index: usize,
-        value: Box<Expression>,
-        position: FilePosition,
-    },
-    AssignOutput {
-        index: usize,
-        value: Box<Expression>,
-        position: FilePosition,
-    },
     Collect(Vec<Expression>, FilePosition),
     CreationPoint(VariableId, FilePosition),
 
@@ -119,8 +109,8 @@ pub enum Expression {
 
     FuncCall {
         function: Box<Expression>,
-        setup: Vec<Expression>,
-        teardown: Vec<Expression>,
+        inputs: Vec<Expression>,
+        outputs: Vec<Expression>,
         position: FilePosition,
     },
 }
@@ -147,12 +137,6 @@ impl Debug for Expression {
                 write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
 
-            Expression::AssignInput { index, value, .. } => {
-                write!(formatter, "input {} becomes {:?}", index, value)
-            }
-            Expression::AssignOutput { index, value, .. } => {
-                write!(formatter, "output {} becomes {:?}", index, value)
-            }
             Expression::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
@@ -170,16 +154,16 @@ impl Debug for Expression {
 
             Expression::FuncCall {
                 function,
-                setup,
-                teardown,
+                inputs,
+                outputs,
                 ..
             } => {
                 write!(formatter, "{{ ")?;
-                for expr in setup {
+                for expr in inputs {
                     write!(formatter, "{:?} ", expr)?;
                 }
                 write!(formatter, "}} call {:?} {{ ", function)?;
-                for expr in teardown {
+                for expr in outputs {
                     write!(formatter, "{:?} ", expr)?;
                 }
                 write!(formatter, "}}")
@@ -197,8 +181,6 @@ impl Expression {
             | Expression::InlineReturn(position)
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
-            | Expression::AssignInput { position, .. }
-            | Expression::AssignOutput { position, .. }
             | Expression::Collect(_, position)
             | Expression::CreationPoint(_, position)
             | Expression::Assert(_, position)
@@ -241,8 +223,6 @@ impl Expression {
             Expression::InlineReturn(..) => true,
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
-            Expression::AssignInput { value, .. } => value.is_valid(),
-            Expression::AssignOutput { value, .. } => value.is_valid(),
             Expression::Collect(values, ..) => values
                 .iter()
                 .fold(true, |valid, value| valid && value.is_valid()),
@@ -263,14 +243,14 @@ impl Expression {
             Expression::Return(..) => true,
             Expression::FuncCall {
                 function,
-                setup,
-                teardown,
+                inputs,
+                outputs,
                 ..
             } => {
                 function.is_valid()
-                    && setup
+                    && inputs
                         .iter()
-                        .chain(teardown.iter())
+                        .chain(outputs.iter())
                         .fold(true, |valid, expr| valid && expr.is_valid())
             }
         }

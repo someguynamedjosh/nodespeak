@@ -75,17 +75,13 @@ fn convert_func_expr_input_list(
     func_var: o::VariableId,
     input: i::Node,
 ) -> Result<Vec<o::Expression>, CompileProblem> {
-    let mut setup = Vec::new();
+    let mut inputs = Vec::new();
     for (index, child) in input.into_inner().enumerate() {
         debug_assert!(child.as_rule() == i::Rule::expr, "Required by grammar.");
         let child_pos = FilePosition::from_pair(&child);
-        setup.push(o::Expression::AssignInput {
-            index,
-            value: Box::new(convert_expression(program, scope, true, child)?),
-            position: child_pos,
-        });
+        inputs.push(convert_expression(program, scope, true, child)?);
     }
-    Result::Ok(setup)
+    Result::Ok(inputs)
 }
 
 fn convert_func_expr_output_list(
@@ -94,7 +90,7 @@ fn convert_func_expr_output_list(
     func_var: o::VariableId,
     input: i::Node,
 ) -> Result<Vec<o::Expression>, CompileProblem> {
-    let mut setup = Vec::new();
+    let mut outputs = Vec::new();
     for (index, child) in input.into_inner().enumerate() {
         let child_pos = FilePosition::from_pair(&child);
         let value = match child.as_rule() {
@@ -115,13 +111,9 @@ fn convert_func_expr_output_list(
             i::Rule::inline_output => o::Expression::InlineReturn(child_pos.clone()),
             _ => unreachable!("Grammar specifies no other children."),
         };
-        setup.push(o::Expression::AssignOutput {
-            index,
-            value: Box::new(value),
-            position: child_pos,
-        });
+        outputs.push(value);
     }
-    Result::Ok(setup)
+    Result::Ok(outputs)
 }
 
 fn convert_func_expr(
@@ -139,24 +131,20 @@ fn convert_func_expr(
     let input_list = input_iter.next().expect("Required by grammar.");
 
     let function_var = lookup_symbol_with_error(program, scope, &function_identifier)?;
-    let mut setup = convert_func_expr_input_list(program, scope, function_var, input_list)?;
-    setup.extend(if let Option::Some(output_list) = input_iter.next() {
+    let inputs = convert_func_expr_input_list(program, scope, function_var, input_list)?;
+    let outputs = if let Option::Some(output_list) = input_iter.next() {
         debug_assert!(output_list.as_rule() == i::Rule::func_expr_output_list);
         convert_func_expr_output_list(program, scope, function_var, output_list)?
     // TODO: if force_func_output is true, check that one of the outputs is inline.
     } else if force_func_output {
-        vec![o::Expression::AssignOutput {
-            index: 0,
-            value: Box::new(o::Expression::InlineReturn(input_pos.clone())),
-            position: input_pos.clone(),
-        }]
+        vec![o::Expression::InlineReturn(input_pos.clone())]
     } else {
         vec![]
-    });
+    };
     Result::Ok(o::Expression::FuncCall {
         function: Box::new(o::Expression::Variable(function_var, identifier_pos)),
-        setup,
-        teardown: vec![],
+        inputs,
+        outputs,
         position: input_pos,
     })
 }

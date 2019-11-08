@@ -11,15 +11,13 @@ use std::time::Instant;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        eprintln!("Usage: waveguide [compile|interpret] [path to file]");
+        eprintln!("Usage: waveguide [compile|interpret|[phase]] [path to file]");
+        eprintln!("compile: compiles the specified file and outputs the result.");
+        eprintln!("interpret: interprets the specified file using the built-in simplifier.");
+        eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
+        eprintln!("    phases: parse, structure, simplify, trivialize");
         process::exit(64);
     }
-
-    if args[1] != "compile" && args[1] != "interpret" {
-        eprintln!("Invalid mode '{}', expected compile or interpret.", args[1]);
-        process::exit(64);
-    }
-    let interpret = args[1] == "interpret";
 
     let code = match fs::read_to_string(&args[2]) {
         Result::Ok(content) => content,
@@ -30,25 +28,61 @@ fn main() {
     };
     let source_set = waveguide::SourceSet::from_raw_string(&args[2], &code);
 
-    println!("\nCompiling source...");
+    println!("\nStarting...");
     let compile_start = Instant::now();
-    let mut program = match waveguide::compile(&source_set) {
-        Result::Ok(program) => program.program,
-        Result::Err(err) => {
-            eprintln!("{}", err);
-            process::exit(101);
+    match args[1].as_ref() {
+        "compile" => match waveguide::compile(&source_set) {
+            Result::Ok(program) => println!("{:?}", program.program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
+        "interpret" => unimplemented!(),
+        "parse" => match waveguide::parse(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
+        "structure" => match waveguide::structure(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
+        "simplify" => match waveguide::simplify(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
+        "trivialize" => match waveguide::trivialize(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
+        _ => {
+            eprintln!(
+                "Invalid mode '{}', expected compile, interpret, or a phase.",
+                args[1]
+            );
+            eprintln!("compile: compiles the specified file and outputs the result.");
+            eprintln!("interpret: interprets the specified file using the built-in simplifier.");
+            eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
+            eprintln!("    phases: parse, structure, simplify, trivialize");
+            process::exit(64);
         }
-    };
-
-    if interpret {
-        println!(
-            "Compilation completed sucessfully ({}ms.)\n",
-            compile_start.elapsed().as_millis()
-        );
-    } else {
-        println!("{:#?}", program);
-        return;
     }
+    println!(
+        "Task completed sucessfully ({}ms.)\n",
+        compile_start.elapsed().as_millis()
+    );
 
     /*
     let mut inputs = Vec::new();
