@@ -1,45 +1,56 @@
-use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, Content, SimplifiedExpression, ScopeSimplifier, SimplifierTable};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::util::NVec;
 use crate::vague::structure::{
     BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId,
 };
-use std::collections::HashMap;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn new(program: &'a mut Program) -> ScopeSimplifier<'a> {
         ScopeSimplifier {
             program,
-            conversion_table: HashMap::new(),
-            conversion_stack: Vec::new(),
+            table: SimplifierTable::new(),
+            stack: Vec::new(),
         }
     }
 
     // Pushes the current state of the conversion table onto the stack. The state
     // can be restored with pop_table().
     pub(super) fn push_table(&mut self) {
-        self.conversion_stack.push(self.conversion_table.clone());
+        self.stack.push(self.table.clone());
     }
 
     pub(super) fn pop_table(&mut self) {
-        self.conversion_table = self
-            .conversion_stack
+        self.table = self
+            .stack
             .pop()
             .expect("Encountered extra unexpected stack pop");
     }
 
     pub(super) fn add_conversion(&mut self, from: VariableId, to: VariableId) {
         assert!(
-            !self.conversion_table.contains_key(&from),
+            !self.table.conversions.contains_key(&from),
             "Cannot have multiple conversions for a single variable."
         );
-        self.conversion_table.insert(from, to);
+        self.table.conversions.insert(from, to);
     }
 
     pub(super) fn convert(&self, from: VariableId) -> VariableId {
         // Either the ID was remapped to something else, or the ID has remained
         // unchanged.
-        *self.conversion_table.get(&from).unwrap_or(&from)
+        *self.table.conversions.get(&from).unwrap_or(&from)
+    }
+
+    pub(super) fn add_replacement(&mut self, from: VariableId, to: Expression) {
+        assert!(
+            !self.table.conversions.contains_key(&from),
+            "Cannot have multiple replacements for a single variable."
+        );
+        self.table.replacements.insert(from, to);
+    }
+
+    pub(super) fn replace(&self, from: VariableId) -> Option<&Expression> {
+        self.table.replacements.get(&from)
     }
 
     pub(super) fn int_literal(value: i64, position: FilePosition) -> Expression {
@@ -78,16 +89,6 @@ impl<'a> ScopeSimplifier<'a> {
             self.add_conversion(old, new)
         }
 
-        for old_input in self.program[source].borrow_inputs().clone() {
-            let converted = self.convert(old_input);
-            self.program[copy].add_input(converted);
-        }
-
-        for old_output in self.program[source].borrow_outputs().clone() {
-            let converted = self.convert(old_output);
-            self.program[copy].add_output(converted);
-        }
-
         Result::Ok(copy)
     }
 
@@ -102,25 +103,7 @@ impl<'a> ScopeSimplifier<'a> {
                     .expect("Literals always have a known data type."),
                 content: Content::Interpreted(value.clone()),
             },
-            Expression::Variable(id, position) => {
-                let converted_id = self.convert(*id);
-                let temporary_value = self.program[converted_id].borrow_temporary_value();
-                match temporary_value {
-                    KnownData::Unknown => {
-                        let content =
-                            Content::Modified(Expression::Variable(converted_id, position.clone()));
-                        let data_type = self.program[converted_id].borrow_data_type().clone();
-                        SimplifiedExpression { content, data_type }
-                    }
-                    _ => {
-                        let content = Content::Interpreted(temporary_value.clone());
-                        let data_type = temporary_value
-                            .get_data_type()
-                            .expect("Already checked that data was not uknown.");
-                        SimplifiedExpression { content, data_type }
-                    }
-                }
-            }
+            Expression::Variable(id, position) => self.simplify_variable(*id, position.clone())?,
             Expression::Proxy { .. } => unimplemented!(),
             Expression::Access {
                 base,

@@ -1,11 +1,40 @@
 use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::vague::structure::{
-    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData,
+    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, VariableId
 };
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
+    pub(super) fn simplify_variable(
+        &mut self,
+        id: VariableId,
+        position: FilePosition
+    ) -> Result<SimplifiedExpression, CompileProblem> {
+        if let Some(replacement) = self.replace(id) {
+            let replacement = replacement.clone();
+            self.simplify_expression(&replacement)
+        } else {
+            let converted_id = self.convert(id);
+            let temporary_value = self.program[converted_id].borrow_temporary_value();
+            Result::Ok(match temporary_value {
+                KnownData::Unknown => {
+                    let content =
+                        Content::Modified(Expression::Variable(converted_id, position.clone()));
+                    let data_type = self.program[converted_id].borrow_data_type().clone();
+                    SimplifiedExpression { content, data_type }
+                }
+                _ => {
+                    let content = Content::Interpreted(temporary_value.clone());
+                    let data_type = temporary_value
+                        .get_data_type()
+                        .expect("Already checked that data was not uknown.");
+                    SimplifiedExpression { content, data_type }
+                }
+            })
+        }
+    }
+
     pub(super) fn simplify_access_expression(
         &mut self,
         simplified_base: SimplifiedExpression,
@@ -217,8 +246,8 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_func_call(
         &mut self,
         function: &Expression,
-        setup: &Vec<Expression>,
-        teardown: &Vec<Expression>,
+        inputs: &Vec<Expression>,
+        outputs: &Vec<Expression>,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         // We want to make a new table specifically for this function, so that any variable
@@ -239,30 +268,32 @@ impl<'a> ScopeSimplifier<'a> {
             KnownData::Function(data) => data,
             _ => return Result::Err(problems::not_function(function.clone_position())),
         };
-        // Make a copy of the function body.
         let old_function_body = function_data.get_body();
+
+        // Add replacements to insert the function arguments into the body.
+        let input_parameters = self.program[old_function_body].borrow_inputs().clone();
+        for (parameter, argument) in input_parameters.iter().zip(inputs.iter()) {
+            self.add_replacement(*parameter, argument.clone());
+        }
+        let mut inline_output = None;
+        let output_parameters = self.program[old_function_body].borrow_outputs().clone();
+        for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
+            match argument {
+                Expression::InlineReturn(position) => {
+                    let cloned_parameter = self.program[*parameter].clone();
+                    let id = self.program.adopt_variable(cloned_parameter);
+                    self.add_replacement(*parameter, Expression::Variable(id, position.clone()));
+                    inline_output = Some(id);
+                }
+                _ => self.add_replacement(*parameter, argument.clone()),
+            }
+        }
+
+        // Make a copy of the function body.
         let new_function_body = self.copy_scope(
             old_function_body,
             self.program[old_function_body].get_parent(),
         )?;
-        // Reset the temporary values of all the inputs and outputs of the new body.
-        // TODO: Not sure if this step is necessary.
-        let input_targets = self.program[new_function_body].borrow_inputs().clone();
-        let output_targets = self.program[new_function_body].borrow_outputs().clone();
-        for target in input_targets.iter().chain(output_targets.iter()) {
-            self.program[*target].reset_temporary_value();
-        }
-
-        // Try and do as much setup at compile time as possible.
-        let mut runtime_setup = Vec::new();
-        for expr in setup {
-            match self.simplify_expression(expr)?.content {
-                // Fully computed at compile time.
-                Content::Interpreted(..) => (),
-                // Still requires at least some computation during run time.
-                Content::Modified(new_expression) => runtime_setup.push(new_expression),
-            }
-        }
 
         let mut empty_body = true;
         // Now try and simplify the body as much as possible.
@@ -288,20 +319,24 @@ impl<'a> ScopeSimplifier<'a> {
             }
         }
 
-        // Now try and simplify as much of the teardown as possible. Keep track of whether or not
-        // there is an inline return statement and what value it contains.
-        let mut runtime_teardown = Vec::new();
-        let mut inline_output = None;
-        for expr in teardown {
-            if let Content::Modified(new_expr) = self.simplify_expression(expr)?.content {
-                runtime_teardown.push(new_expr);
-            }
-        }
-
         self.pop_table();
 
-        Result::Ok(if empty_body && runtime_teardown.len() == 0 {
-            match inline_output {
+        // TODO: handle fully resolved inline return value with non-empty body.
+        let inline_result = if let Some(id) = inline_output {
+            let value = self.program[id].borrow_temporary_value();
+            Some(SimplifiedExpression {
+                content: match value {
+                    KnownData::Unknown => Content::Modified(Expression::Variable(id, FilePosition::placeholder())),
+                    _ => Content::Interpreted(value.clone())
+                },
+                data_type: self.program[id].borrow_data_type().clone()
+            })
+        } else {
+            None
+        };
+
+        Result::Ok(if empty_body {
+            match inline_result {
                 Some(value) => value,
                 None => SimplifiedExpression {
                     content: Content::Interpreted(KnownData::Void),
@@ -318,11 +353,11 @@ impl<'a> ScopeSimplifier<'a> {
                         )),
                         function.clone_position(),
                     )),
-                    inputs: runtime_setup,
-                    outputs: runtime_teardown,
+                    inputs: vec![],
+                    outputs: vec![],
                     position: position.clone(),
                 }),
-                data_type: match inline_output {
+                data_type: match inline_result {
                     Some(simplified) => simplified.data_type,
                     None => DataType::scalar(BaseType::Void),
                 },

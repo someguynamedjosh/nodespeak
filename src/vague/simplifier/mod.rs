@@ -17,15 +17,30 @@ pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     Result::Ok(())
 }
 
-pub(self) struct ScopeSimplifier<'a> {
+#[derive(Clone, Debug)]
+struct SimplifierTable {
+    pub conversions: HashMap<VariableId, VariableId>,
+    pub replacements: HashMap<VariableId, Expression>,
+}
+
+impl SimplifierTable {
+    pub(self) fn new() -> SimplifierTable {
+        SimplifierTable {
+            conversions: HashMap::new(),
+            replacements: HashMap::new(),
+        }
+    }
+}
+
+pub(super) struct ScopeSimplifier<'a> {
     program: &'a mut Program,
-    conversion_table: HashMap<VariableId, VariableId>,
+    table: SimplifierTable,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having
     // multiple conversions. For example, type parameters can be simplified to
     // different values depending on the types used for the inputs and outputs
     // of the function.
-    conversion_stack: Vec<HashMap<VariableId, VariableId>>,
+    stack: Vec<SimplifierTable>,
 }
 
 pub(self) enum Content {
