@@ -1,4 +1,4 @@
-use super::structure::{DataType, Expression, KnownData, Program, VariableId};
+use super::structure::{DataType, Expression, KnownData, Program, VariableId, ScopeId};
 use crate::problem::{CompileProblem, FilePosition};
 use std::collections::HashMap;
 
@@ -34,6 +34,7 @@ impl SimplifierTable {
 
 pub(super) struct ScopeSimplifier<'a> {
     program: &'a mut Program,
+    current_scope: ScopeId,
     table: SimplifierTable,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having

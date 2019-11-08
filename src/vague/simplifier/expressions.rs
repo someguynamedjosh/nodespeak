@@ -301,6 +301,8 @@ impl<'a> ScopeSimplifier<'a> {
         // no return statements inside branches or loops.)
         // TODO: This also implicitly assumes that functions do not have side effects. Need to check
         // that a function does not cause any side effects.
+        let old_current_scope = self.current_scope;
+        self.current_scope = new_function_body;
         for expression in self.program[old_function_body].borrow_body().clone() {
             match self.simplify_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
@@ -318,49 +320,40 @@ impl<'a> ScopeSimplifier<'a> {
                 },
             }
         }
+        self.current_scope = old_current_scope;
 
         self.pop_table();
 
-        // TODO: handle fully resolved inline return value with non-empty body.
-        let inline_result = if let Some(id) = inline_output {
-            let value = self.program[id].borrow_temporary_value();
-            Some(SimplifiedExpression {
-                content: match value {
-                    KnownData::Unknown => Content::Modified(Expression::Variable(id, FilePosition::placeholder())),
-                    _ => Content::Interpreted(value.clone())
-                },
-                data_type: self.program[id].borrow_data_type().clone()
-            })
-        } else {
-            None
-        };
+        if !empty_body {
+            self.program[self.current_scope].add_expression(Expression::FuncCall {
+                function: Box::new(Expression::Literal(
+                    KnownData::Function(FunctionData::new(new_function_body, function_data.get_header().clone())),
+                    function.clone_position()
+                )),
+                inputs: vec![],
+                outputs: vec![],
+                position: position.clone()
+            });
+        }
 
-        Result::Ok(if empty_body {
-            match inline_result {
-                Some(value) => value,
-                None => SimplifiedExpression {
-                    content: Content::Interpreted(KnownData::Void),
-                    data_type: DataType::scalar(BaseType::Void),
-                },
+        Result::Ok(match inline_output {
+            Some(id) => {
+                let value = self.program[id].borrow_temporary_value();
+                if let KnownData::Unknown = value {
+                    SimplifiedExpression {
+                        content: Content::Modified(Expression::Variable(id, FilePosition::placeholder())),
+                        data_type: self.program[id].borrow_data_type().clone()
+                    }
+                } else {
+                    SimplifiedExpression {
+                        content: Content::Interpreted(value.clone()),
+                        data_type: self.program[id].borrow_data_type().clone()
+                    }
+                }
             }
-        } else {
-            SimplifiedExpression {
-                content: Content::Modified(Expression::FuncCall {
-                    function: Box::new(Expression::Literal(
-                        KnownData::Function(FunctionData::new(
-                            new_function_body,
-                            function_data.get_header().clone(),
-                        )),
-                        function.clone_position(),
-                    )),
-                    inputs: vec![],
-                    outputs: vec![],
-                    position: position.clone(),
-                }),
-                data_type: match inline_result {
-                    Some(simplified) => simplified.data_type,
-                    None => DataType::scalar(BaseType::Void),
-                },
+            None => SimplifiedExpression {
+                content: Content::Interpreted(KnownData::Void),
+                data_type: DataType::scalar(BaseType::Void)
             }
         })
     }

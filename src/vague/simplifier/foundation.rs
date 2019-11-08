@@ -7,8 +7,10 @@ use crate::vague::structure::{
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn new(program: &'a mut Program) -> ScopeSimplifier<'a> {
+        let entry_point = program.get_entry_point();
         ScopeSimplifier {
             program,
+            current_scope: entry_point,
             table: SimplifierTable::new(),
             stack: Vec::new(),
         }
@@ -282,7 +284,8 @@ impl<'a> ScopeSimplifier<'a> {
     }
 
     pub(super) fn simplify_scope(&mut self, source: ScopeId) -> Result<ScopeId, CompileProblem> {
-        let copied = self.copy_scope(source, self.program[source].get_parent())?;
+        let old_current_scope = self.current_scope;
+        self.current_scope = self.copy_scope(source, self.program[source].get_parent())?;
         let old_body = self.program[source].borrow_body().clone();
         for expression in old_body {
             let simplified = self.simplify_expression(&expression)?;
@@ -292,10 +295,12 @@ impl<'a> ScopeSimplifier<'a> {
                 Content::Modified(expression) => match expression {
                     // TODO: Warn for expressions that have outputs that are not stored.
                     Expression::Return(..) => break,
-                    _ => self.program[copied].add_expression(expression),
+                    _ => self.program[self.current_scope].add_expression(expression),
                 },
             }
         }
-        Result::Ok(copied)
+        let result = Result::Ok(self.current_scope);
+        self.current_scope = old_current_scope;
+        result
     }
 }
