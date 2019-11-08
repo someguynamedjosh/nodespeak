@@ -126,10 +126,15 @@ impl<'a> ScopeSimplifier<'a> {
         access_expression: &Expression,
     ) -> Result<(Expression, DataType), CompileProblem> {
         Result::Ok(match access_expression {
-            Expression::Variable(id, position) => (
-                Expression::Variable(self.convert(*id), position.clone()),
-                self.program[self.convert(*id)].borrow_data_type().clone(),
-            ),
+            Expression::Variable(id, position) => if let Some(new_expr) = self.replace(*id) {
+                let cloned = new_expr.clone();
+                self.simplify_assignment_access_expression(&cloned)?
+            } else {
+                (
+                    Expression::Variable(self.convert(*id), position.clone()),
+                    self.program[self.convert(*id)].borrow_data_type().clone(),
+                )
+            },
             Expression::Access {
                 base,
                 indexes,
