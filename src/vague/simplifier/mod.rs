@@ -11,8 +11,19 @@ pub(self) mod util;
 
 pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     let entry_point = program.get_entry_point();
+    let inputs = program[entry_point].borrow_inputs().clone();
+    let outputs = program[entry_point].borrow_outputs().clone();
     let mut simplifier = ScopeSimplifier::new(program);
     let new_scope = simplifier.simplify_scope(entry_point)?;
+    let inputs: Vec<_> = inputs.into_iter().map(|id| simplifier.convert(id)).collect();
+    let outputs: Vec<_> = outputs.into_iter().map(|id| simplifier.convert(id)).collect();
+    drop(simplifier);
+    for input in inputs {
+        program[new_scope].add_input(input);
+    }
+    for output in outputs {
+        program[new_scope].add_output(output);
+    }
     program.set_entry_point(new_scope);
     Result::Ok(())
 }

@@ -24,6 +24,8 @@ impl Debug for LabelId {
 pub struct Program {
     instructions: Vec<Instruction>,
     variables: Vec<Variable>,
+    inputs: Vec<VariableId>,
+    outputs: Vec<VariableId>,
     labels: usize,
 }
 
@@ -32,6 +34,14 @@ impl Debug for Program {
         writeln!(formatter, "variables:")?;
         for (index, variable) in self.variables.iter().enumerate() {
             writeln!(formatter, "  tv{}: {:?}", index, variable)?;
+        }
+        writeln!(formatter, "inputs:")?;
+        for variable in self.inputs.iter().enumerate() {
+            writeln!(formatter, "  {:?}", variable)?;
+        }
+        writeln!(formatter, "outputs:")?;
+        for variable in self.outputs.iter().enumerate() {
+            writeln!(formatter, "  {:?}", variable)?;
         }
         writeln!(formatter, "{} labels", self.labels)?;
         writeln!(formatter, "instructions:")?;
@@ -61,6 +71,8 @@ impl Program {
         Program {
             instructions: Vec::new(),
             variables: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             labels: 0,
         }
     }
@@ -85,6 +97,22 @@ impl Program {
 
     pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut Variable {
         &mut self.variables[id.0]
+    }
+
+    pub fn add_input(&mut self, input: VariableId) {
+        self.inputs.push(input);
+    }
+
+    pub fn add_output(&mut self, output: VariableId) {
+        self.outputs.push(output);
+    }
+
+    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
+        &self.inputs
+    }
+
+    pub fn borrow_outputs(&self) -> &Vec<VariableId> {
+        &self.outputs
     }
 
     pub fn create_label(&mut self) -> LabelId {

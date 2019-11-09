@@ -29,6 +29,16 @@ impl<'a> Trivializer<'a> {
 
     fn entry_point(&mut self) -> Result<(), CompileProblem> {
         let source_entry_point = self.source.get_entry_point();
+        let source_inputs = self.source[source_entry_point].borrow_inputs().clone();
+        for input in source_inputs {
+            let trivialized = self.trivialize_variable(input)?;
+            self.target.add_input(trivialized);
+        }
+        let source_outputs = self.source[source_entry_point].borrow_outputs().clone();
+        for output in source_outputs {
+            let trivialized = self.trivialize_variable(output)?;
+            self.target.add_output(trivialized);
+        }
         for expr in self.source[source_entry_point].borrow_body().clone() {
             self.trivialize_expression(&expr)?;
         }
