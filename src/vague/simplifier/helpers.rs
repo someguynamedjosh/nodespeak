@@ -1,8 +1,6 @@
 use super::{Content, ScopeSimplifier};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure::{
-    BaseType, DataType, Expression, KnownData, 
-};
+use crate::vague::structure::{BaseType, DataType, Expression, KnownData};
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {

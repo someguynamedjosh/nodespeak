@@ -235,7 +235,9 @@ impl<'a> ScopeSimplifier<'a> {
                 }
             }
 
-            Expression::Assert(value, position) => self.simplify_assert_statement(value, position)?,
+            Expression::Assert(value, position) => {
+                self.simplify_assert_statement(value, position)?
+            }
             Expression::Assign {
                 target,
                 value,

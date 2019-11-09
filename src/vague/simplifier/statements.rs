@@ -56,7 +56,7 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_assert_statement(
         &mut self,
         value: &Expression,
-        position: &FilePosition
+        position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let simplified_value = self.simplify_expression(value)?;
         Result::Ok(match simplified_value.content {

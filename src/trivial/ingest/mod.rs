@@ -270,9 +270,8 @@ impl<'a> Trivializer<'a> {
             } => {
                 let mut output_value = None;
 
-                // TODO: New input / output format.
-                for expr in inputs {
-                    self.trivialize_expression(expr)?;
+                if inputs.len() > 0 {
+                    panic!("TODO: nice error, trivialize called on unsimplified code.");
                 }
                 let scope = match function.borrow() {
                     i::Expression::Literal(data, ..) => match data {
@@ -285,8 +284,15 @@ impl<'a> Trivializer<'a> {
                     self.trivialize_expression(&expr)?;
                 }
 
-                for expr in outputs {
-                    self.trivialize_expression(expr)?;
+                if outputs.len() > 1 {
+                    panic!("TODO: nice error, trivialize called on unsimplified code.");
+                } else if outputs.len() == 1 {
+                    if let i::Expression::InlineReturn(..) = outputs[0] {
+                        let output_id = self.source[scope].borrow_outputs()[0];
+                        output_value = Some(o::Value::Variable(self.trivialize_variable(output_id)?));
+                    } else {
+                        panic!("TODO: nice error, trivialize called on unsimplified code.");
+                    }
                 }
 
                 output_value
