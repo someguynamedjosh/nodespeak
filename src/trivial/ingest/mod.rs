@@ -247,7 +247,19 @@ impl<'a> Trivializer<'a> {
                 Option::Some(o::Value::Variable(self.trivialize_variable(*id)?))
             }
             i::Expression::Proxy { .. } => unimplemented!(),
-            i::Expression::Access { .. } => unimplemented!(),
+            i::Expression::Access { base, indexes, .. } => {
+                // TODO: Check that indexes are integers.
+                let base = match base.borrow() {
+                    i::Expression::Variable(id, ..) => self.trivialize_variable(*id)?,
+                    i::Expression::Proxy { .. } => unimplemented!(),
+                    _ => panic!("TODO: nice error, invalid base for access."),
+                };
+                let mut new_indexes = Vec::new();
+                for index in indexes {
+                    new_indexes.push(self.trivialize_and_require_value(index, expression)?);
+                }
+                Option::Some(o::Value::Index(base, new_indexes))
+            }
             i::Expression::InlineReturn(..) => unreachable!("Should be handled elsewhere."),
 
             i::Expression::UnaryOperation(..) => unimplemented!(),
@@ -299,7 +311,8 @@ impl<'a> Trivializer<'a> {
                 } else if outputs.len() == 1 {
                     if let i::Expression::InlineReturn(..) = outputs[0] {
                         let output_id = self.source[scope].borrow_outputs()[0];
-                        output_value = Some(o::Value::Variable(self.trivialize_variable(output_id)?));
+                        output_value =
+                            Some(o::Value::Variable(self.trivialize_variable(output_id)?));
                     } else {
                         panic!("TODO: nice error, trivialize called on unsimplified code.");
                     }

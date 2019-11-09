@@ -1,5 +1,5 @@
 use crate::problem::*;
-use crate::vague::structure::{DataType, KnownData};
+use crate::vague::structure::KnownData;
 use ProblemType::Error;
 use ProblemType::Hint;
 

@@ -36,11 +36,11 @@ impl Debug for Program {
             writeln!(formatter, "  tv{}: {:?}", index, variable)?;
         }
         writeln!(formatter, "inputs:")?;
-        for variable in self.inputs.iter().enumerate() {
+        for variable in self.inputs.iter() {
             writeln!(formatter, "  {:?}", variable)?;
         }
         writeln!(formatter, "outputs:")?;
-        for variable in self.outputs.iter().enumerate() {
+        for variable in self.outputs.iter() {
             writeln!(formatter, "  {:?}", variable)?;
         }
         writeln!(formatter, "{} labels", self.labels)?;

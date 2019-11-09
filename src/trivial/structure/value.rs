@@ -41,7 +41,13 @@ impl Debug for Value {
         match self {
             Self::Literal(data) => write!(formatter, "{:?}", data),
             Self::Variable(var) => write!(formatter, "{:?}", var),
-            Self::Index(..) => unimplemented!(),
+            Self::Index(base, indexes) => {
+                write!(formatter, "{:?}", base)?;
+                for index in indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
+            }
         }
     }
 }

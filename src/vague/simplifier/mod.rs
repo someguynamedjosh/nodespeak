@@ -15,8 +15,14 @@ pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
     let outputs = program[entry_point].borrow_outputs().clone();
     let mut simplifier = ScopeSimplifier::new(program);
     let new_scope = simplifier.simplify_scope(entry_point)?;
-    let inputs: Vec<_> = inputs.into_iter().map(|id| simplifier.convert(id)).collect();
-    let outputs: Vec<_> = outputs.into_iter().map(|id| simplifier.convert(id)).collect();
+    let inputs: Vec<_> = inputs
+        .into_iter()
+        .map(|id| simplifier.convert(id))
+        .collect();
+    let outputs: Vec<_> = outputs
+        .into_iter()
+        .map(|id| simplifier.convert(id))
+        .collect();
     drop(simplifier);
     for input in inputs {
         program[new_scope].add_input(input);
