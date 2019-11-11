@@ -1,6 +1,6 @@
-use crate::problem::FilePosition;
+use crate::problem::{CompileProblem, FilePosition};
 use crate::util::NVec;
-use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program};
+use crate::vague::structure::{BaseType, BinaryOperator, DataType, Expression, KnownData, Program, ProxyMode};
 use std::convert::TryInto;
 
 enum IndexMethod {
@@ -256,25 +256,25 @@ pub(super) fn biggest_type(a: &DataType, b: &DataType, program: &Program) -> Res
             .iter()
             .map(|dim| program.borrow_value_of(dim).require_int())
             .collect();
-        let b_dims: Vec<_> = a
+        let b_dims: Vec<_> = b
             .borrow_dimensions()
             .iter()
             .map(|dim| program.borrow_value_of(dim).require_int())
             .collect();
         let mut final_dims = Vec::new();
         for index in 0..a_dims.len().max(b_dims.len()) {
+            // BCT rule 5
+            if index >= a_dims.len() {
+                final_dims.push(b_dims[index]);
+            } else if index >= b_dims.len() {
+                final_dims.push(a_dims[index]);
             // BCT rule 3
-            if a_dims[index] == b_dims[index] {
+            } else if a_dims[index] == b_dims[index] {
                 final_dims.push(a_dims[index]);
             // BCT rule 4
             } else if a_dims[index] == 1 {
                 final_dims.push(b_dims[index]);
             } else if b_dims[index] == 1 {
-                final_dims.push(a_dims[index]);
-            // BCT rule 5
-            } else if index >= a_dims.len() {
-                final_dims.push(b_dims[index]);
-            } else if index >= b_dims.len() {
                 final_dims.push(a_dims[index]);
             } else {
                 return Result::Err(());
@@ -291,4 +291,44 @@ pub(super) fn biggest_type(a: &DataType, b: &DataType, program: &Program) -> Res
     } else {
         Result::Err(())
     }
+}
+
+pub(super) fn inflate(
+    expr: Expression,
+    from: &DataType,
+    to: &DataType,
+    program: &Program,
+) -> Result<Expression, CompileProblem> {
+    if from.equivalent(to, program) {
+        return Result::Ok(expr);
+    }
+    // TODO: Nice error if array dimension not int.
+    let from_dims: Vec<_> = from
+        .borrow_dimensions()
+        .iter()
+        .map(|dim| program.borrow_value_of(dim).require_int())
+        .collect();
+    let to_dims: Vec<_> = to
+        .borrow_dimensions()
+        .iter()
+        .map(|dim| program.borrow_value_of(dim).require_int())
+        .collect();
+    let mut final_dims = Vec::new();
+    for index in 0..from_dims.len().max(to_dims.len()) {
+        if index >= to_dims.len() {
+            panic!("TODO: nice error, cannot inflate to smaller dimension array.");
+        } else if index >= from_dims.len() {
+            final_dims.push((to_dims[index], ProxyMode::Discard));
+        } else if to_dims[index] == from_dims[index] {
+            final_dims.push((to_dims[index], ProxyMode::Literal));
+        } else if from_dims[index] == 1 {
+            final_dims.push((to_dims[index], ProxyMode::Collapse));
+        } else {
+            panic!("TODO: nice error, invalid inflation.");
+        }
+    }
+    Result::Ok(Expression::Proxy {
+        base: Box::new(expr),
+        dimensions: final_dims,
+    })
 }

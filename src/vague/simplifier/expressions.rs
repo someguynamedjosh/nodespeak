@@ -1,4 +1,4 @@
-use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, util, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::vague::structure::{
     BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, VariableId,
@@ -203,6 +203,9 @@ impl<'a> ScopeSimplifier<'a> {
             }
         };
         // TODO: Generate proxies when necessary.
+        let dt1 = &simplified_operand_1.data_type;
+        let dt2 = &simplified_operand_2.data_type;
+        let rt = &result_type;
         let content = match simplified_operand_1.content {
             Content::Interpreted(dat1) => match simplified_operand_2.content {
                 // Both values were interpreted, so the value of the whole binary
@@ -213,9 +216,12 @@ impl<'a> ScopeSimplifier<'a> {
                 // LHS was interpreted, RHS could not be. Make LHS a literal and return
                 // the resulting expression.
                 Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
-                    Box::new(Expression::Literal(dat1, operand_1_position)),
+                    Box::new({
+                        let data = Expression::Literal(dat1, operand_1_position);
+                        util::inflate(data, dt1, rt, self.program)?
+                    }),
                     operator,
-                    Box::new(expr2),
+                    Box::new(util::inflate(expr2, dt2, rt, self.program)?),
                     position,
                 )),
             },
@@ -223,16 +229,19 @@ impl<'a> ScopeSimplifier<'a> {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
                 Content::Interpreted(dat2) => Content::Modified(Expression::BinaryOperation(
-                    Box::new(expr1),
+                    Box::new(util::inflate(expr1, dt1, rt, self.program)?),
                     operator,
-                    Box::new(Expression::Literal(dat2, operand_2_position)),
+                    Box::new({
+                        let data = Expression::Literal(dat2, operand_2_position);
+                        util::inflate(data, dt2, rt, self.program)?
+                    }),
                     position,
                 )),
                 // LHS and RHS couldn't be interpreted, only simplified.
                 Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
-                    Box::new(expr1),
+                    Box::new(util::inflate(expr1, dt1, rt, self.program)?),
                     operator,
-                    Box::new(expr2),
+                    Box::new(util::inflate(expr2, dt2, rt, self.program)?),
                     position,
                 )),
             },

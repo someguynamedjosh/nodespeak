@@ -3,6 +3,16 @@ use crate::vague::structure::{KnownData, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
+pub enum ProxyMode {
+    /// Use the original array's dimensions.
+    Literal,
+    /// Discard the index.
+    Discard,
+    /// No matter what, use index zero. 
+    Collapse,
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Negate,
     Not,
@@ -80,6 +90,7 @@ pub enum Expression {
     Variable(VariableId, FilePosition),
     Proxy {
         base: Box<Expression>,
+        dimensions: Vec<(i64, ProxyMode)>,
     },
     Access {
         base: Box<Expression>,
@@ -120,7 +131,17 @@ impl Debug for Expression {
         match self {
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
-            Expression::Proxy { .. } => unimplemented!(),
+            Expression::Proxy { base, dimensions } => {
+                write!(formatter, "(")?;
+                for (len, mode) in dimensions.iter() {
+                    match mode {
+                        ProxyMode::Literal => write!(formatter, "{{{}}}", len)?,
+                        ProxyMode::Collapse => write!(formatter, "{{{}>1}}", len)?,
+                        ProxyMode::Discard => write!(formatter, "{{{}x}}", len)?,
+                    }
+                }
+                write!(formatter, "{:?})", base)
+            }
             Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {

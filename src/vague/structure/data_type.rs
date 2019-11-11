@@ -163,6 +163,9 @@ impl DataType {
         if !self.base.equivalent(&other.base, program) {
             return false;
         }
+        if self.dimensions.len() != other.dimensions.len() {
+            return false;
+        }
         // Check if all the dimensions have known and identical values. Since we are checking
         // equivalence, not equality, we only check the sizes and not the types.
         for (dimension, other_dimension) in self.dimensions.iter().zip(other.dimensions.iter()) {
