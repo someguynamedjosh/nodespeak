@@ -1,6 +1,4 @@
-use crate::resolved::structure::{
-    DataType, Scope, Variable,
-};
+use crate::resolved::structure::{DataType, Scope, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 

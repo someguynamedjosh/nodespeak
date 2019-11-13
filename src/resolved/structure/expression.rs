@@ -1,16 +1,6 @@
 use crate::problem::FilePosition;
-use crate::resolved::structure::{KnownData, VariableId};
+use crate::resolved::structure::{ScopeId, Value};
 use std::fmt::{self, Debug, Formatter};
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ProxyMode {
-    /// Use the original array's dimensions.
-    Literal,
-    /// Discard the index.
-    Discard,
-    /// No matter what, use index zero.
-    Collapse,
-}
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
@@ -86,17 +76,7 @@ impl Debug for BinaryOperator {
 
 #[derive(Clone, PartialEq)]
 pub enum Expression {
-    Literal(KnownData, FilePosition),
-    Variable(VariableId, FilePosition),
-    Proxy {
-        base: Box<Expression>,
-        dimensions: Vec<(i64, ProxyMode)>,
-    },
-    Access {
-        base: Box<Expression>,
-        indexes: Vec<Expression>,
-        position: FilePosition,
-    },
+    Value(Value, FilePosition),
     InlineReturn(FilePosition),
 
     UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
@@ -106,7 +86,6 @@ pub enum Expression {
         Box<Expression>,
         FilePosition,
     ),
-
     Collect(Vec<Expression>, FilePosition),
 
     Assert(Box<Expression>, FilePosition),
@@ -118,7 +97,7 @@ pub enum Expression {
     Return(FilePosition),
 
     FuncCall {
-        function: Box<Expression>,
+        function: ScopeId,
         inputs: Vec<Expression>,
         outputs: Vec<Expression>,
         position: FilePosition,
@@ -128,26 +107,7 @@ pub enum Expression {
 impl Debug for Expression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
-            Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
-            Expression::Proxy { base, dimensions } => {
-                write!(formatter, "(")?;
-                for (len, mode) in dimensions.iter() {
-                    match mode {
-                        ProxyMode::Literal => write!(formatter, "{{{}}}", len)?,
-                        ProxyMode::Collapse => write!(formatter, "{{{}>1}}", len)?,
-                        ProxyMode::Discard => write!(formatter, "{{{}x}}", len)?,
-                    }
-                }
-                write!(formatter, "{:?})", base)
-            }
-            Expression::Access { base, indexes, .. } => {
-                write!(formatter, "{:?}", base)?;
-                for index in indexes.iter() {
-                    write!(formatter, "[{:?}]", index)?;
-                }
-                write!(formatter, "")
-            }
+            Expression::Value(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
 
             Expression::UnaryOperation(operator, value, ..) => {
@@ -156,7 +116,6 @@ impl Debug for Expression {
             Expression::BinaryOperation(v1, operator, v2, ..) => {
                 write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
             }
-
             Expression::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
@@ -194,9 +153,7 @@ impl Debug for Expression {
 impl Expression {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Expression::Literal(_, position)
-            | Expression::Variable(_, position)
-            | Expression::Access { position, .. }
+            Expression::Value(_, position)
             | Expression::InlineReturn(position)
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
@@ -205,7 +162,6 @@ impl Expression {
             | Expression::Assign { position, .. }
             | Expression::Return(position)
             | Expression::FuncCall { position, .. } => position.clone(),
-            Expression::Proxy { base, .. } => base.clone_position(),
         }
     }
 
@@ -221,23 +177,7 @@ impl Expression {
     /// on the other, it does not violate any of the above rules, so it is 'valid'.
     pub fn is_valid(&self) -> bool {
         match self {
-            Expression::Literal(..) => true,
-            Expression::Variable(..) => true,
-            Expression::Proxy { base, .. } => base.is_valid(),
-            Expression::Access { base, indexes, .. } => {
-                (match &**base {
-                    Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
-                    Expression::Proxy {
-                        base: proxy_base, ..
-                    } => match &**proxy_base {
-                        Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
-                        _ => false,
-                    },
-                    _ => false,
-                }) && indexes
-                    .iter()
-                    .fold(true, |valid, index| valid && index.is_valid())
-            }
+            Expression::Value(..) => true,
             Expression::InlineReturn(..) => true,
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
@@ -247,29 +187,17 @@ impl Expression {
             Expression::Assert(argument, ..) => argument.is_valid(),
             Expression::Assign { target, value, .. } => {
                 (match &**target {
-                    Expression::Variable(..) | Expression::Access { .. } => target.is_valid(),
-                    Expression::Proxy {
-                        base: proxy_base, ..
-                    } => match &**proxy_base {
-                        Expression::Variable(..) => target.is_valid(),
-                        _ => false,
-                    },
+                    Expression::Value(value, ..) => value.is_variable(),
                     _ => false,
                 }) && value.is_valid()
             }
             Expression::Return(..) => true,
             Expression::FuncCall {
-                function,
-                inputs,
-                outputs,
-                ..
-            } => {
-                function.is_valid()
-                    && inputs
-                        .iter()
-                        .chain(outputs.iter())
-                        .fold(true, |valid, expr| valid && expr.is_valid())
-            }
+                inputs, outputs, ..
+            } => inputs
+                .iter()
+                .chain(outputs.iter())
+                .fold(true, |valid, expr| valid && expr.is_valid()),
         }
     }
 }
