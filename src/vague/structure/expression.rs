@@ -8,7 +8,7 @@ pub enum ProxyMode {
     Literal,
     /// Discard the index.
     Discard,
-    /// No matter what, use index zero. 
+    /// No matter what, use index zero.
     Collapse,
 }
 

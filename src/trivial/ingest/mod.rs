@@ -106,6 +106,28 @@ impl<'a> Trivializer<'a> {
         })
     }
 
+    fn trivialize_proxy(
+        &mut self,
+        base: &i::Expression,
+        dimensions: &Vec<(i64, i::ProxyMode)>,
+    ) -> Result<o::Value, CompileProblem> {
+        let mut value = match base {
+            i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
+            _ => unimplemented!(),
+        };
+        for (size, mode) in dimensions {
+            value.proxy.push((
+                *size,
+                match mode {
+                    i::ProxyMode::Collapse => o::ProxyMode::Collapse,
+                    i::ProxyMode::Discard => o::ProxyMode::Discard,
+                    i::ProxyMode::Literal => o::ProxyMode::Literal,
+                },
+            ));
+        }
+        Result::Ok(value)
+    }
+
     fn trivialize_binary_expression(
         &mut self,
         expression: &i::Expression,
@@ -116,7 +138,7 @@ impl<'a> Trivializer<'a> {
         let a = self.trivialize_and_require_value(left, expression)?;
         let b = self.trivialize_and_require_value(right, expression)?;
         let typ = a.get_type(&self.target);
-        let x = o::Value::Variable(self.target.adopt_variable(o::Variable::new(typ)));
+        let x = o::Value::variable(self.target.adopt_variable(o::Variable::new(typ)));
         let x2 = x.clone();
         let toperator = match operator {
             i::BinaryOperator::Add => match typ {
@@ -241,12 +263,14 @@ impl<'a> Trivializer<'a> {
     ) -> Result<Option<o::Value>, CompileProblem> {
         Result::Ok(match expression {
             i::Expression::Literal(data, ..) => {
-                Option::Some(o::Value::Literal(Self::trivialize_known_data(data)?))
+                Option::Some(o::Value::literal(Self::trivialize_known_data(data)?))
             }
             i::Expression::Variable(id, ..) => {
-                Option::Some(o::Value::Variable(self.trivialize_variable(*id)?))
+                Option::Some(o::Value::variable(self.trivialize_variable(*id)?))
             }
-            i::Expression::Proxy { .. } => unimplemented!(),
+            i::Expression::Proxy { base, dimensions } => {
+                Option::Some(self.trivialize_proxy(base, dimensions)?)
+            }
             i::Expression::Access { base, indexes, .. } => {
                 // TODO: Check that indexes are integers.
                 let base = match base.borrow() {
@@ -258,7 +282,9 @@ impl<'a> Trivializer<'a> {
                 for index in indexes {
                     new_indexes.push(self.trivialize_and_require_value(index, expression)?);
                 }
-                Option::Some(o::Value::Index(base, new_indexes))
+                let mut value = o::Value::variable(base);
+                value.indexes = new_indexes;
+                Option::Some(value)
             }
             i::Expression::InlineReturn(..) => unreachable!("Should be handled elsewhere."),
 
@@ -312,7 +338,7 @@ impl<'a> Trivializer<'a> {
                     if let i::Expression::InlineReturn(..) = outputs[0] {
                         let output_id = self.source[scope].borrow_outputs()[0];
                         output_value =
-                            Some(o::Value::Variable(self.trivialize_variable(output_id)?));
+                            Some(o::Value::variable(self.trivialize_variable(output_id)?));
                     } else {
                         panic!("TODO: nice error, trivialize called on unsimplified code.");
                     }
