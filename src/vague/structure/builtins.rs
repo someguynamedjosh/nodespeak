@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{BaseType, Program, Variable, VariableId};
+use crate::vague::structure::{BaseType, Expression, Program, Variable, VariableId};
 
 #[readonly::make]
 #[derive(Debug)]
@@ -54,6 +54,27 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         "Void",
         Variable::data_type(FilePosition::placeholder(), BaseType::Void.to_scalar_type()),
     );
+
+    program[scope].add_expression(Expression::CreationPoint(
+        automatic_type,
+        FilePosition::placeholder(),
+    ));
+    program[scope].add_expression(Expression::CreationPoint(
+        bool_type,
+        FilePosition::placeholder(),
+    ));
+    program[scope].add_expression(Expression::CreationPoint(
+        int_type,
+        FilePosition::placeholder(),
+    ));
+    program[scope].add_expression(Expression::CreationPoint(
+        float_type,
+        FilePosition::placeholder(),
+    ));
+    program[scope].add_expression(Expression::CreationPoint(
+        void_type,
+        FilePosition::placeholder(),
+    ));
 
     let builtins = Builtins {
         automatic_type,

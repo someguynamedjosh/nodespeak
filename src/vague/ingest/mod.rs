@@ -751,9 +751,17 @@ fn convert_function_definition(
                 convert_function_signature(program, func_scope, child)?;
             }
             i::Rule::returnable_code_block => {
-                function.set_header(real_header_position);
+                function.set_header(real_header_position.clone());
                 // So that code inside the body can refer to the function.
-                program.adopt_and_define_symbol(scope, name, o::Variable::function_def(function));
+                let func_var = program.adopt_and_define_symbol(
+                    scope,
+                    name,
+                    o::Variable::function_def(function),
+                );
+                program[scope].add_expression(o::Expression::CreationPoint(
+                    func_var,
+                    real_header_position.clone(),
+                ));
 
                 let possible_output = convert_returnable_code_block(program, func_scope, child)?;
                 if let Option::Some(output) = possible_output {

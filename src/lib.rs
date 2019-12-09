@@ -7,9 +7,9 @@ use terminal_size;
 
 pub mod ast;
 pub mod problem;
-pub mod resolved;
+// pub mod resolved;
 pub mod runtime;
-pub mod trivial;
+// pub mod trivial;
 pub mod util;
 pub mod vague;
 
@@ -38,9 +38,9 @@ impl<'a> SourceSet<'a> {
     }
 }
 
-pub struct CompileResult {
-    pub program: trivial::structure::Program,
-}
+// pub struct CompileResult {
+//     pub program: trivial::structure::Program,
+// }
 
 fn parse_impl<'a>(
     sources: &SourceSet<'a>,
@@ -55,27 +55,27 @@ fn structure_impl(
     vague::ingest(&mut parsed)
 }
 
-fn simplify_impl(
-    sources: &SourceSet,
-) -> Result<vague::structure::Program, problem::CompileProblem> {
-    let mut program = structure_impl(sources)?;
-    vague::simplify(&mut program)?;
-    Result::Ok(program)
-}
+// fn simplify_impl(
+//     sources: &SourceSet,
+// ) -> Result<vague::structure::Program, problem::CompileProblem> {
+//     let mut program = structure_impl(sources)?;
+//     vague::simplify(&mut program)?;
+//     Result::Ok(program)
+// }
 
-fn trivialize_impl(
-    sources: &SourceSet,
-) -> Result<trivial::structure::Program, problem::CompileProblem> {
-    let simplified = simplify_impl(sources)?;
-    trivial::ingest(&simplified)
-}
+// fn trivialize_impl(
+//     sources: &SourceSet,
+// ) -> Result<trivial::structure::Program, problem::CompileProblem> {
+//     let simplified = simplify_impl(sources)?;
+//     trivial::ingest(&simplified)
+// }
 
-fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
-    let trivialized = trivialize_impl(sources)?;
-    Result::Ok(CompileResult {
-        program: trivialized,
-    })
-}
+// fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
+//     let trivialized = trivialize_impl(sources)?;
+//     Result::Ok(CompileResult {
+//         program: trivialized,
+//     })
+// }
 
 fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> String + 'a {
     move |err: problem::CompileProblem| -> String {
@@ -92,38 +92,38 @@ pub fn structure(sources: &SourceSet) -> Result<vague::structure::Program, Strin
     structure_impl(sources).map_err(error_map(sources))
 }
 
-pub fn simplify(sources: &SourceSet) -> Result<vague::structure::Program, String> {
-    simplify_impl(sources).map_err(error_map(sources))
-}
+// pub fn simplify(sources: &SourceSet) -> Result<vague::structure::Program, String> {
+//     simplify_impl(sources).map_err(error_map(sources))
+// }
 
-pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
-    trivialize_impl(sources).map_err(error_map(sources))
-}
+// pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
+//     trivialize_impl(sources).map_err(error_map(sources))
+// }
 
-pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
-    // TODO: Handle multiple sources.
-    compile_impl(sources).map_err(error_map(sources))
-}
+// pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
+//     // TODO: Handle multiple sources.
+//     compile_impl(sources).map_err(error_map(sources))
+// }
 
-pub fn interpret(
-    compiled_program: &mut vague::structure::Program,
-    inputs: Vec<vague::structure::KnownData>,
-    sources: &SourceSet,
-) -> Result<Vec<vague::structure::KnownData>, String> {
-    let entry_point = compiled_program.get_entry_point();
-    let input_targets = compiled_program[entry_point].borrow_inputs().clone();
-    for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
-        compiled_program[target].set_temporary_value(source);
-    }
-    vague::simplify(compiled_program).map_err(|err| {
-        let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
-        format!("Compilation failed.\n\n{}", err.format(width, sources))
-    })?;
-    let entry_point = compiled_program.get_entry_point();
-    let mut outputs = Vec::new();
-    let output_sources = compiled_program[entry_point].borrow_outputs().clone();
-    for source in output_sources.into_iter() {
-        outputs.push(compiled_program[source].borrow_temporary_value().clone());
-    }
-    Result::Ok(outputs)
-}
+// pub fn interpret(
+//     compiled_program: &mut vague::structure::Program,
+//     inputs: Vec<vague::structure::KnownData>,
+//     sources: &SourceSet,
+// ) -> Result<Vec<vague::structure::KnownData>, String> {
+//     let entry_point = compiled_program.get_entry_point();
+//     let input_targets = compiled_program[entry_point].borrow_inputs().clone();
+//     for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
+//         compiled_program[target].set_temporary_value(source);
+//     }
+//     vague::simplify(compiled_program).map_err(|err| {
+//         let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
+//         format!("Compilation failed.\n\n{}", err.format(width, sources))
+//     })?;
+//     let entry_point = compiled_program.get_entry_point();
+//     let mut outputs = Vec::new();
+//     let output_sources = compiled_program[entry_point].borrow_outputs().clone();
+//     for source in output_sources.into_iter() {
+//         outputs.push(compiled_program[source].borrow_temporary_value().clone());
+//     }
+//     Result::Ok(outputs)
+// }

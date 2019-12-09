@@ -1,6 +1,6 @@
 use super::KnownData;
 
-use crate::vague::structure::{Expression, Program, VariableId};
+use crate::vague::structure::{Expression, VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -26,7 +26,7 @@ impl BaseType {
         }
     }
 
-    pub fn equivalent(&self, other: &BaseType, program: &Program) -> bool {
+    pub fn equivalent(&self, other: &BaseType) -> bool {
         match self {
             // If it's a basic type, just check if it is equal to the other one.
             BaseType::Automatic
@@ -36,18 +36,9 @@ impl BaseType {
             | BaseType::Void
             | BaseType::DataType_
             | BaseType::Function_ => self == other,
-            // If it's a dynamic / template type, check the value contained in both targets are both
-            // known and identical.
-            BaseType::Dynamic(target) | BaseType::LoadTemplateParameter(target) => match other {
-                BaseType::Dynamic(other_target) | BaseType::LoadTemplateParameter(other_target) => {
-                    let value = program[*target].borrow_temporary_value();
-                    let other_value = program[*other_target].borrow_temporary_value();
-                    if let KnownData::Unknown = value {
-                        false
-                    } else {
-                        value == other_value
-                    }
-                }
+            // TODO?: better equivalency for this.
+            BaseType::Dynamic(..) | BaseType::LoadTemplateParameter(..) => match other {
+                BaseType::Dynamic(..) | BaseType::LoadTemplateParameter(..) => true,
                 _ => false,
             },
         }
@@ -158,24 +149,13 @@ impl DataType {
         self.base.is_automatic()
     }
 
-    pub fn equivalent(&self, other: &Self, program: &Program) -> bool {
+    pub fn equivalent(&self, other: &Self) -> bool {
         // Check if the base types are equivalent.
-        if !self.base.equivalent(&other.base, program) {
+        if !self.base.equivalent(&other.base) {
             return false;
         }
         if self.dimensions.len() != other.dimensions.len() {
             return false;
-        }
-        // Check if all the dimensions have known and identical values. Since we are checking
-        // equivalence, not equality, we only check the sizes and not the types.
-        for (dimension, other_dimension) in self.dimensions.iter().zip(other.dimensions.iter()) {
-            let dimension_value = program.borrow_value_of(&dimension);
-            let other_dimension_value = program.borrow_value_of(&other_dimension);
-            if let KnownData::Unknown = dimension_value {
-                return false;
-            } else if dimension_value != other_dimension_value {
-                return false;
-            }
         }
         true
     }

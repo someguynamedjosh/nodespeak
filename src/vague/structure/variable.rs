@@ -9,11 +9,6 @@ pub struct Variable {
 
     data_type: DataType,
     initial_value: KnownData,
-    permanent: bool,
-
-    temporary_value: KnownData,
-    // temporary_read: bool,
-    // multiple_temporary_values: bool,
 }
 
 impl Debug for Variable {
@@ -23,21 +18,18 @@ impl Debug for Variable {
     }
 }
 
+// TODO: Read-only variables.
 impl Variable {
     fn new_impl(
         definition: FilePosition,
         data_type: DataType,
         initial_value: Option<KnownData>,
-        permanent: bool,
     ) -> Variable {
         let initial_value = initial_value.unwrap_or_else(|| KnownData::Unknown);
         Variable {
             definition,
             initial_value: initial_value.clone(),
             data_type,
-            permanent,
-            temporary_value: initial_value, // temporary_read: false,
-                                            // multiple_temporary_values: false,
         }
     }
 
@@ -46,15 +38,15 @@ impl Variable {
         data_type: DataType,
         initial_value: Option<KnownData>,
     ) -> Variable {
-        Self::new_impl(definition, data_type, initial_value, false)
+        Self::new_impl(definition, data_type, initial_value)
     }
 
-    pub fn constant(definition: FilePosition, data_type: DataType, value: KnownData) -> Variable {
-        Self::new_impl(definition, data_type, Option::Some(value), true)
+    pub fn with_value(definition: FilePosition, data_type: DataType, value: KnownData) -> Variable {
+        Self::new_impl(definition, data_type, Option::Some(value))
     }
 
     pub fn function_def(function_data: FunctionData) -> Variable {
-        Self::constant(
+        Self::with_value(
             function_data.get_header().clone(),
             BaseType::Function_.to_scalar_type(),
             KnownData::Function(function_data),
@@ -62,7 +54,7 @@ impl Variable {
     }
 
     pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
-        Self::constant(
+        Self::with_value(
             definition,
             BaseType::DataType_.to_scalar_type(),
             KnownData::DataType(value),
@@ -74,30 +66,6 @@ impl Variable {
             definition,
             BaseType::Automatic.to_scalar_type(),
             Option::None,
-        )
-    }
-
-    pub fn bool_literal(definition: FilePosition, value: bool) -> Variable {
-        Variable::constant(
-            definition,
-            BaseType::Bool.to_scalar_type(),
-            KnownData::Bool(value),
-        )
-    }
-
-    pub fn int_literal(definition: FilePosition, value: i64) -> Variable {
-        Variable::constant(
-            definition,
-            BaseType::Int.to_scalar_type(),
-            KnownData::Int(value),
-        )
-    }
-
-    pub fn float_literal(definition: FilePosition, value: f64) -> Variable {
-        Variable::constant(
-            definition,
-            BaseType::Float.to_scalar_type(),
-            KnownData::Float(value),
         )
     }
 
@@ -131,29 +99,5 @@ impl Variable {
 
     pub fn borrow_initial_value(&self) -> &KnownData {
         &self.initial_value
-    }
-
-    pub fn mark_as_permanent(&mut self) {
-        self.permanent = true;
-    }
-
-    pub fn is_permanent(&self) -> bool {
-        self.permanent
-    }
-
-    pub fn set_temporary_value(&mut self, value: KnownData) {
-        self.temporary_value = value;
-    }
-
-    pub fn borrow_temporary_value(&self) -> &KnownData {
-        &self.temporary_value
-    }
-
-    pub fn borrow_temporary_value_mut(&mut self) -> &mut KnownData {
-        &mut self.temporary_value
-    }
-
-    pub fn reset_temporary_value(&mut self) {
-        self.temporary_value = self.initial_value.clone();
     }
 }
