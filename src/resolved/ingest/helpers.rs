@@ -15,7 +15,7 @@ impl<'a> ScopeSimplifier<'a> {
             }
             // TODO: Handle arrays of automatic types.
             Expression::Variable(id, ..) => {
-                self.program[*id].set_data_type(data_type.clone());
+                self.source[*id].set_data_type(data_type.clone());
             }
             _ => unreachable!("Should not simplify automatic types of anything else."),
         }

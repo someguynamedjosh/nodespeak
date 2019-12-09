@@ -1,12 +1,13 @@
 use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure::{BaseType, DataType, Expression, KnownData};
+use crate::vague::structure as i;
+use crate::resolved::structure as o;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_assign_statement(
         &mut self,
-        target: &Expression,
-        value: &Expression,
+        target: &i::Expression,
+        value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let simplified_target = self.simplify_assignment_access_expression(target)?;
@@ -29,25 +30,25 @@ impl<'a> ScopeSimplifier<'a> {
                 if let Result::Err(simplified_expresion) = result {
                     SimplifiedExpression {
                         content: Content::Modified(simplified_expresion),
-                        data_type: DataType::scalar(BaseType::Void),
+                        data_type: i::DataType::scalar(i::BaseType::Void),
                     }
                 } else {
                     SimplifiedExpression {
-                        content: Content::Interpreted(KnownData::Void),
-                        data_type: DataType::scalar(BaseType::Void),
+                        content: Content::Interpreted(i::KnownData::Void),
+                        data_type: i::DataType::scalar(i::BaseType::Void),
                     }
                 }
             }
             Content::Modified(simplified_value) => {
                 self.assign_unknown_to_expression(&simplified_target.0);
-                let content = Content::Modified(Expression::Assign {
+                let content = Content::Modified(o::Expression::Assign {
                     target: Box::new(simplified_target.0),
                     value: Box::new(simplified_value),
                     position: position.clone(),
                 });
                 SimplifiedExpression {
                     content,
-                    data_type: DataType::scalar(BaseType::Void),
+                    data_type: i::DataType::scalar(i::BaseType::Void),
                 }
             }
         })
@@ -55,17 +56,17 @@ impl<'a> ScopeSimplifier<'a> {
 
     pub(super) fn simplify_assert_statement(
         &mut self,
-        value: &Expression,
+        value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let simplified_value = self.simplify_expression(value)?;
         Result::Ok(match simplified_value.content {
             Content::Interpreted(value) => {
-                if let KnownData::Bool(succeed) = value {
+                if let i::KnownData::Bool(succeed) = value {
                     if succeed {
                         SimplifiedExpression {
-                            content: Content::Interpreted(KnownData::Void),
-                            data_type: DataType::scalar(BaseType::Void),
+                            content: Content::Interpreted(i::KnownData::Void),
+                            data_type: i::DataType::scalar(i::BaseType::Void),
                         }
                     } else {
                         return Result::Err(problems::guaranteed_assert(position.clone()));
@@ -75,11 +76,11 @@ impl<'a> ScopeSimplifier<'a> {
                 }
             }
             Content::Modified(expression) => SimplifiedExpression {
-                content: Content::Modified(Expression::Assert(
+                content: Content::Modified(o::Expression::Assert(
                     Box::new(expression),
                     position.clone(),
                 )),
-                data_type: DataType::scalar(BaseType::Void),
+                data_type: i::DataType::scalar(i::BaseType::Void),
             },
         })
     }

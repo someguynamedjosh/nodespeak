@@ -1,5 +1,6 @@
-use super::structure::{DataType, Expression, KnownData, Program, ScopeId, VariableId};
 use crate::problem::{CompileProblem, FilePosition};
+use crate::vague::structure as i;
+use crate::resolved::structure as o;
 use std::collections::HashMap;
 
 mod expressions;
@@ -9,7 +10,7 @@ pub(self) mod problems;
 mod statements;
 pub(self) mod util;
 
-pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
+pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
@@ -31,13 +32,13 @@ pub fn simplify(program: &mut Program) -> Result<(), CompileProblem> {
         program[new_scope].add_output(output);
     }
     program.set_entry_point(new_scope);
-    Result::Ok(())
+    Result::Ok(simplifier.target)
 }
 
 #[derive(Clone, Debug)]
 struct SimplifierTable {
-    pub conversions: HashMap<VariableId, VariableId>,
-    pub replacements: HashMap<VariableId, Expression>,
+    pub conversions: HashMap<i::VariableId, o::VariableId>,
+    pub replacements: HashMap<i::VariableId, o::Expression>,
 }
 
 impl SimplifierTable {
@@ -50,8 +51,9 @@ impl SimplifierTable {
 }
 
 pub(super) struct ScopeSimplifier<'a> {
-    program: &'a mut Program,
-    current_scope: ScopeId,
+    source: &'a mut i::Program,
+    target: o::Program,
+    current_scope: i::ScopeId,
     table: SimplifierTable,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having
@@ -59,25 +61,26 @@ pub(super) struct ScopeSimplifier<'a> {
     // different values depending on the types used for the inputs and outputs
     // of the function.
     stack: Vec<SimplifierTable>,
+    temp_values: HashMap<i::VariableId, i::KnownData>,
 }
 
 pub(self) enum Content {
     /// A simpler or simplified version of the expression was found.
-    Modified(Expression),
+    Modified(o::Expression),
     /// The entire value of the expression has a determinate value.
-    Interpreted(KnownData),
+    Interpreted(i::KnownData),
 }
 
 impl Content {
-    pub(self) fn into_expression(self, position: FilePosition) -> Expression {
+    pub(self) fn into_expression(self, position: FilePosition) -> o::Expression {
         match self {
             Content::Modified(expr) => expr,
-            Content::Interpreted(data) => Expression::Literal(data, position),
+            Content::Interpreted(data) => unimplemented!(),
         }
     }
 }
 
 pub(self) struct SimplifiedExpression {
     pub content: Content,
-    pub data_type: DataType,
+    pub data_type: i::DataType,
 }

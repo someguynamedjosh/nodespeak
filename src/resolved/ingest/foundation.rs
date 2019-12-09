@@ -1,15 +1,15 @@
 use super::{Content, ScopeSimplifier, SimplifiedExpression, SimplifierTable};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::util::NVec;
-use crate::vague::structure::{
-    BaseType, DataType, Expression, KnownData, Program, ScopeId, VariableId,
-};
+use crate::resolved::structure as t;
+use crate::vague::structure as s;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn new(program: &'a mut Program) -> ScopeSimplifier<'a> {
-        let entry_point = program.get_entry_point();
+    pub(super) fn new(source: &'a mut s::Program) -> ScopeSimplifier<'a> {
+        let entry_point = source.get_entry_point();
         ScopeSimplifier {
-            program,
+            source,
+            target: t::Program::new(),
             current_scope: entry_point,
             table: SimplifierTable::new(),
             stack: Vec::new(),
@@ -29,7 +29,7 @@ impl<'a> ScopeSimplifier<'a> {
             .expect("Encountered extra unexpected stack pop");
     }
 
-    pub(super) fn add_conversion(&mut self, from: VariableId, to: VariableId) {
+    pub(super) fn add_conversion(&mut self, from: s::VariableId, to: t::VariableId) {
         assert!(
             !self.table.conversions.contains_key(&from),
             "Cannot have multiple conversions for a single variable."
@@ -37,13 +37,13 @@ impl<'a> ScopeSimplifier<'a> {
         self.table.conversions.insert(from, to);
     }
 
-    pub(super) fn convert(&self, from: VariableId) -> VariableId {
+    pub(super) fn convert(&self, from: s::VariableId) -> t::VariableId {
         // Either the ID was remapped to something else, or the ID has remained
         // unchanged.
         *self.table.conversions.get(&from).unwrap_or(&from)
     }
 
-    pub(super) fn add_replacement(&mut self, from: VariableId, to: Expression) {
+    pub(super) fn add_replacement(&mut self, from: s::VariableId, to: t::Expression) {
         assert!(
             !self.table.conversions.contains_key(&from),
             "Cannot have multiple replacements for a single variable."
@@ -51,43 +51,43 @@ impl<'a> ScopeSimplifier<'a> {
         self.table.replacements.insert(from, to);
     }
 
-    pub(super) fn replace(&self, from: VariableId) -> Option<&Expression> {
+    pub(super) fn replace(&self, from: s::VariableId) -> Option<&t::Expression> {
         self.table.replacements.get(&from)
     }
 
-    pub(super) fn int_literal(value: i64, position: FilePosition) -> Expression {
-        Expression::Literal(KnownData::Int(value), position)
+    pub(super) fn int_literal(value: i64, position: FilePosition) -> t::Expression {
+        unimplemented!()
     }
 
     pub(super) fn copy_scope(
         &mut self,
-        source: ScopeId,
-        parent: Option<ScopeId>,
-    ) -> Result<ScopeId, CompileProblem> {
+        source: s::ScopeId,
+        parent: Option<t::ScopeId>,
+    ) -> Result<t::ScopeId, CompileProblem> {
         let copy = match parent {
-            Option::Some(parent_id) => self.program.create_child_scope(parent_id),
-            Option::None => self.program.create_scope(),
+            Option::Some(parent_id) => self.target.create_child_scope(parent_id),
+            Option::None => self.target.create_scope(),
         };
 
         // TODO: We probably don't need to preserve the variable names in the
         // simplified scope. Depends on how some meta features get implemented in
         // the future.
-        let symbol_table = self.program[source].borrow_symbols().clone();
+        let symbol_table = self.source[source].borrow_symbols().clone();
         for name_value_pair in symbol_table.iter() {
             let old = *name_value_pair.1;
-            let variable = self.program[old].clone();
+            let variable = self.source[old].clone();
             // TODO: we might not need to clone every variable.
             let new = self
-                .program
+                .target
                 .adopt_and_define_symbol(copy, name_value_pair.0, variable);
             self.add_conversion(old, new)
         }
 
-        let intermediate_list = self.program[source].borrow_intermediates().clone();
+        let intermediate_list = self.source[source].borrow_intermediates().clone();
         for old in intermediate_list.into_iter() {
-            let variable = self.program[old].clone();
+            let variable = self.source[old].clone();
             // TODO: we might not need to clone every variable.
-            let new = self.program.adopt_and_define_intermediate(copy, variable);
+            let new = self.target.adopt_and_define_intermediate(copy, variable);
             self.add_conversion(old, new)
         }
 

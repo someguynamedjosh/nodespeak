@@ -16,12 +16,12 @@ impl<'a> ScopeSimplifier<'a> {
             self.simplify_expression(&replacement)
         } else {
             let converted_id = self.convert(id);
-            let temporary_value = self.program[converted_id].borrow_temporary_value();
+            let temporary_value = self.source[converted_id].borrow_temporary_value();
             Result::Ok(match temporary_value {
                 KnownData::Unknown => {
                     let content =
                         Content::Modified(Expression::Variable(converted_id, position.clone()));
-                    let data_type = self.program[converted_id].borrow_data_type().clone();
+                    let data_type = self.source[converted_id].borrow_data_type().clone();
                     SimplifiedExpression { content, data_type }
                 }
                 _ => {
@@ -189,7 +189,7 @@ impl<'a> ScopeSimplifier<'a> {
         let result_type = match super::util::biggest_type(
             &simplified_operand_1.data_type,
             &simplified_operand_2.data_type,
-            self.program,
+            self.source,
         ) {
             Result::Ok(rtype) => rtype,
             Result::Err(..) => {
