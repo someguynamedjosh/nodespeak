@@ -1,9 +1,64 @@
 use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure as i;
 use crate::resolved::structure as o;
+use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
+    pub(super) fn simplify_creation_point(
+        &mut self,
+        old_var_id: i::VariableId,
+        position: &FilePosition
+    ) -> Result<SimplifiedExpression, CompileProblem> {
+        let old_data_type = self.source[old_var_id].borrow_data_type();
+        let old_base_type = old_data_type.borrow_base().clone();
+        let old_dimensions = old_data_type.borrow_dimensions().clone();
+        let mut new_dimensions = vec![];
+        for old_dimension in old_dimensions {
+            match self.simplify_expression(&old_dimension)?.content {
+                Content::Interpreted(data) => match data {
+                    i::KnownData::Int(value) => if value > 0 {
+                        new_dimensions.push(value as u64);
+                    } else {
+                        panic!("TODO: Nice error, nonpositive array size.");
+                    },
+                    _ => panic!("TODO: Nice error, array size must be int.")
+                }
+                Content::Modified(..) => panic!("TODO: Nice error, array size not resolved at runtime.")
+            }
+        }
+        match old_base_type {
+            i::BaseType::Automatic => unimplemented!("TODO: Automatic types."),
+            i::BaseType::Dynamic(..) => unimplemented!("TODO: Dynamic types."),
+            i::BaseType::LoadTemplateParameter(..) => unimplemented!("TODO: Template parameters."),
+            i::BaseType::Bool => {
+                let new_data_type = o::DataType::array(o::BaseType::Bool, new_dimensions);
+                let variable = o::Variable::new(position.clone(), new_data_type);
+                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
+                self.add_conversion(old_var_id, new_var_id);
+            }
+            i::BaseType::Int => {
+                let new_data_type = o::DataType::array(o::BaseType::Int, new_dimensions);
+                let variable = o::Variable::new(position.clone(), new_data_type);
+                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
+                self.add_conversion(old_var_id, new_var_id);
+            }
+            i::BaseType::Float => {
+                let new_data_type = o::DataType::array(o::BaseType::Float, new_dimensions);
+                let variable = o::Variable::new(position.clone(), new_data_type);
+                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
+                self.add_conversion(old_var_id, new_var_id);
+            }
+            i::BaseType::DataType_
+            | i::BaseType::Function_
+            | i::BaseType::Void => ()
+        }
+        
+        Result::Ok(SimplifiedExpression {
+            content: Content::Interpreted(i::KnownData::Void),
+            data_type: i::DataType::scalar(i::BaseType::Void),
+        })
+    }
+
     pub(super) fn simplify_assign_statement(
         &mut self,
         target: &i::Expression,

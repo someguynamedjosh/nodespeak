@@ -1,6 +1,6 @@
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure as i;
 use crate::resolved::structure as o;
+use crate::vague::structure as i;
 use std::collections::HashMap;
 
 mod expressions;
@@ -53,7 +53,7 @@ impl SimplifierTable {
 pub(super) struct ScopeSimplifier<'a> {
     source: &'a mut i::Program,
     target: o::Program,
-    current_scope: i::ScopeId,
+    current_scope: o::ScopeId,
     table: SimplifierTable,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having
