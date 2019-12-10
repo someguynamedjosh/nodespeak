@@ -1,61 +1,31 @@
-use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure as i;
 use crate::resolved::structure as o;
+use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_creation_point(
         &mut self,
         old_var_id: i::VariableId,
-        position: &FilePosition
+        position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let old_data_type = self.source[old_var_id].borrow_data_type();
-        let old_base_type = old_data_type.borrow_base().clone();
-        let old_dimensions = old_data_type.borrow_dimensions().clone();
-        let mut new_dimensions = vec![];
-        for old_dimension in old_dimensions {
-            match self.simplify_expression(&old_dimension)?.content {
-                Content::Interpreted(data) => match data {
-                    i::KnownData::Int(value) => if value > 0 {
-                        new_dimensions.push(value as u64);
-                    } else {
-                        panic!("TODO: Nice error, nonpositive array size.");
-                    },
-                    _ => panic!("TODO: Nice error, array size must be int.")
-                }
-                Content::Modified(..) => panic!("TODO: Nice error, array size not resolved at runtime.")
-            }
+        let old_data_type = self.source[old_var_id].borrow_data_type().clone();
+        let intermediate_data_type = self.input_to_intermediate_type(old_data_type)?;
+        if let Result::Ok(output_type) = intermediate_data_type.to_output_type() {
+            let new_var = o::Variable::new(position.clone(), output_type);
+            let var_id = self
+                .target
+                .adopt_and_define_intermediate(self.current_scope, new_var);
+            self.add_conversion(old_var_id, var_id);
         }
-        match old_base_type {
-            i::BaseType::Automatic => unimplemented!("TODO: Automatic types."),
-            i::BaseType::Dynamic(..) => unimplemented!("TODO: Dynamic types."),
-            i::BaseType::LoadTemplateParameter(..) => unimplemented!("TODO: Template parameters."),
-            i::BaseType::Bool => {
-                let new_data_type = o::DataType::array(o::BaseType::Bool, new_dimensions);
-                let variable = o::Variable::new(position.clone(), new_data_type);
-                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
-                self.add_conversion(old_var_id, new_var_id);
-            }
-            i::BaseType::Int => {
-                let new_data_type = o::DataType::array(o::BaseType::Int, new_dimensions);
-                let variable = o::Variable::new(position.clone(), new_data_type);
-                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
-                self.add_conversion(old_var_id, new_var_id);
-            }
-            i::BaseType::Float => {
-                let new_data_type = o::DataType::array(o::BaseType::Float, new_dimensions);
-                let variable = o::Variable::new(position.clone(), new_data_type);
-                let new_var_id = self.target.adopt_and_define_intermediate(self.current_scope, variable);
-                self.add_conversion(old_var_id, new_var_id);
-            }
-            i::BaseType::DataType_
-            | i::BaseType::Function_
-            | i::BaseType::Void => ()
-        }
-        
+        self.set_temporary_value(
+            old_var_id,
+            self.source[old_var_id].borrow_initial_value().clone(),
+        );
+
         Result::Ok(SimplifiedExpression {
             content: Content::Interpreted(i::KnownData::Void),
-            data_type: None,
+            data_type: DataType::new(BaseType::Void),
         })
     }
 

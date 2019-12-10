@@ -3,12 +3,15 @@ use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::collections::HashMap;
 
+mod data_type;
 mod expressions;
 mod foundation;
 mod helpers;
 pub(self) mod problems;
 mod statements;
 pub(self) mod util;
+
+pub(self) use data_type::*;
 
 pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
@@ -82,5 +85,5 @@ impl Content {
 
 pub(self) struct SimplifiedExpression {
     pub content: Content,
-    pub data_type: Option<o::DataType>,
+    pub data_type: DataType,
 }

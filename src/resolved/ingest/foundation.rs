@@ -61,7 +61,9 @@ impl<'a> ScopeSimplifier<'a> {
     }
 
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> &i::KnownData {
-        self.temp_values.get(&var).unwrap_or_else(|| &i::KnownData::Void)
+        self.temp_values
+            .get(&var)
+            .unwrap_or_else(|| &i::KnownData::Void)
     }
 
     pub(super) fn int_literal(value: i64, position: FilePosition) -> o::Expression {

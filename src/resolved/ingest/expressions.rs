@@ -1,7 +1,7 @@
-use super::{problems, util, Content, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, util, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure as i;
 use crate::resolved::structure as o;
+use crate::vague::structure as i;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -16,18 +16,23 @@ impl<'a> ScopeSimplifier<'a> {
             let temporary_value = self.borrow_temporary_value(id);
             Result::Ok(match temporary_value {
                 i::KnownData::Unknown => {
-                    let converted_id = self.convert(id).expect("TODO: nice error, variable not available at run time.");
-                    let value = o::Value::variable(*converted_id);
+                    let converted_id = *self
+                        .convert(id)
+                        .expect("TODO: nice error, variable not available at run time.");
+                    let value = o::Value::variable(converted_id);
                     let expression = o::Expression::Value(value, position.clone());
                     let content = Content::Modified(expression);
-                    let data_type = self.source[id].borrow_data_type().clone();
+                    let data_type = self.target[converted_id].borrow_data_type().clone();
+                    let data_type = DataType::from_output_type(&data_type);
                     SimplifiedExpression { content, data_type }
                 }
                 _ => {
                     let content = Content::Interpreted(temporary_value.clone());
-                    let data_type = temporary_value
-                        .get_data_type()
-                        .expect("Already checked that data was not uknown.");
+                    let data_type = self.input_to_intermediate_type(
+                        temporary_value
+                            .get_data_type()
+                            .expect("Already checked that data was not uknown."),
+                    )?;
                     SimplifiedExpression { content, data_type }
                 }
             })
@@ -180,7 +185,7 @@ impl<'a> ScopeSimplifier<'a> {
         &mut self,
         simplified_operand_1: SimplifiedExpression,
         operand_1_position: FilePosition,
-        operator: BinaryOperator,
+        operator: i::BinaryOperator,
         simplified_operand_2: SimplifiedExpression,
         operand_2_position: FilePosition,
         position: FilePosition,
