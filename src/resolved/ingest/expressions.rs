@@ -193,7 +193,6 @@ impl<'a> ScopeSimplifier<'a> {
         let result_type = match super::util::biggest_type(
             &simplified_operand_1.data_type,
             &simplified_operand_2.data_type,
-            self.source,
         ) {
             Result::Ok(rtype) => rtype,
             Result::Err(..) => {

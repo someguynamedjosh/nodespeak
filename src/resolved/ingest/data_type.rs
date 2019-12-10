@@ -12,6 +12,7 @@ pub enum BaseType {
     Function_,
     DataType_,
     Void,
+    Automatic,
 }
 
 impl BaseType {

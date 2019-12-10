@@ -1,8 +1,9 @@
+use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
+use crate::resolved::structure as o;
 use crate::util::NVec;
-use crate::vague::structure::{
-    BaseType, BinaryOperator, DataType, Expression, KnownData, Program, ProxyMode,
-};
+use crate::vague::structure as i;
+
 use std::convert::TryInto;
 
 enum IndexMethod {
@@ -15,12 +16,12 @@ enum IndexMethod {
 /// inputs for that expression. They cannot have different base types.
 /// TODO: Implement arrays, and arrays of different sizes.
 pub(super) fn compute_binary_operation(
-    a: &KnownData,
-    operator: BinaryOperator,
-    b: &KnownData,
-) -> KnownData {
-    if let KnownData::Array(array_a) = a {
-        if let KnownData::Array(array_b) = b {
+    a: &i::KnownData,
+    operator: i::BinaryOperator,
+    b: &i::KnownData,
+) -> i::KnownData {
+    if let i::KnownData::Array(array_a) = a {
+        if let i::KnownData::Array(array_b) = b {
             let a_dims = array_a.borrow_dimensions().clone();
             let b_dims = array_b.borrow_dimensions().clone();
             let order = a_dims.len().max(b_dims.len());
@@ -111,23 +112,23 @@ pub(super) fn compute_binary_operation(
                     }
                 }
             }
-            KnownData::Array(NVec::from_vec_and_dims(result_items, ab_dims))
+            i::KnownData::Array(NVec::from_vec_and_dims(result_items, ab_dims))
         } else {
             let dimensions = array_a.borrow_dimensions().clone();
             let mut items = Vec::with_capacity(array_a.borrow_all_items().len());
             for a_item in array_a.borrow_all_items() {
                 items.push(compute_binary_operation_impl(a_item, operator, b));
             }
-            KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
+            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
         }
     } else {
-        if let KnownData::Array(array_b) = b {
+        if let i::KnownData::Array(array_b) = b {
             let dimensions = array_b.borrow_dimensions().clone();
             let mut items = Vec::with_capacity(array_b.borrow_all_items().len());
             for b_item in array_b.borrow_all_items() {
                 items.push(compute_binary_operation_impl(a, operator, b_item));
             }
-            KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
+            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
         } else {
             compute_binary_operation_impl(a, operator, b)
         }
@@ -135,105 +136,105 @@ pub(super) fn compute_binary_operation(
 }
 
 fn compute_binary_operation_impl(
-    a: &KnownData,
-    operator: BinaryOperator,
-    b: &KnownData,
-) -> KnownData {
+    a: &i::KnownData,
+    operator: i::BinaryOperator,
+    b: &i::KnownData,
+) -> i::KnownData {
     match operator {
-        BinaryOperator::Add => match a {
-            KnownData::Bool(..) => unimplemented!(),
-            KnownData::Int(value) => KnownData::Int(value + b.require_int()),
-            KnownData::Float(value) => KnownData::Float(value + b.require_float()),
+        i::BinaryOperator::Add => match a {
+            i::KnownData::Bool(..) => unimplemented!(),
+            i::KnownData::Int(value) => i::KnownData::Int(value + b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Float(value + b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::Subtract => match a {
-            KnownData::Bool(..) => unimplemented!(),
-            KnownData::Int(value) => KnownData::Int(value - b.require_int()),
-            KnownData::Float(value) => KnownData::Float(value - b.require_float()),
+        i::BinaryOperator::Subtract => match a {
+            i::KnownData::Bool(..) => unimplemented!(),
+            i::KnownData::Int(value) => i::KnownData::Int(value - b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Float(value - b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::Multiply => match a {
-            KnownData::Bool(..) => unimplemented!(),
-            KnownData::Int(value) => KnownData::Int(value * b.require_int()),
-            KnownData::Float(value) => KnownData::Float(value * b.require_float()),
+        i::BinaryOperator::Multiply => match a {
+            i::KnownData::Bool(..) => unimplemented!(),
+            i::KnownData::Int(value) => i::KnownData::Int(value * b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Float(value * b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::Divide => match a {
-            KnownData::Float(value) => KnownData::Float(value / b.require_float()),
+        i::BinaryOperator::Divide => match a {
+            i::KnownData::Float(value) => i::KnownData::Float(value / b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::IntDiv => match a {
-            KnownData::Int(value) => KnownData::Int(value / b.require_int()),
+        i::BinaryOperator::IntDiv => match a {
+            i::KnownData::Int(value) => i::KnownData::Int(value / b.require_int()),
             _ => unreachable!(),
         },
-        BinaryOperator::Modulo => match a {
-            KnownData::Bool(..) => unimplemented!(),
-            KnownData::Int(value) => KnownData::Int(value % b.require_int()),
-            KnownData::Float(value) => KnownData::Float(value % b.require_float()),
+        i::BinaryOperator::Modulo => match a {
+            i::KnownData::Bool(..) => unimplemented!(),
+            i::KnownData::Int(value) => i::KnownData::Int(value % b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Float(value % b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::Power => match a {
-            KnownData::Bool(..) => unimplemented!(),
-            KnownData::Int(value) => {
-                KnownData::Int(i64::pow(*value, b.require_int().try_into().unwrap()))
+        i::BinaryOperator::Power => match a {
+            i::KnownData::Bool(..) => unimplemented!(),
+            i::KnownData::Int(value) => {
+                i::KnownData::Int(i64::pow(*value, b.require_int().try_into().unwrap()))
             }
-            KnownData::Float(value) => KnownData::Float(value.powf(b.require_float())),
+            i::KnownData::Float(value) => i::KnownData::Float(value.powf(b.require_float())),
             _ => unreachable!(),
         },
-        BinaryOperator::And => KnownData::Bool(a.require_bool() && b.require_bool()),
-        BinaryOperator::Or => KnownData::Bool(a.require_bool() || b.require_bool()),
-        BinaryOperator::Xor => KnownData::Bool(a.require_bool() != b.require_bool()),
-        BinaryOperator::BAnd => KnownData::Int(a.require_int() & b.require_int()),
-        BinaryOperator::BOr => KnownData::Int(a.require_int() | b.require_int()),
-        BinaryOperator::BXor => KnownData::Int(a.require_int() ^ b.require_int()),
-        BinaryOperator::Equal => match a {
-            KnownData::Bool(value) => KnownData::Bool(*value == b.require_bool()),
-            KnownData::Int(value) => KnownData::Bool(*value == b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value == b.require_float()),
-            KnownData::DataType(value) => KnownData::Bool(value == b.require_data_type()),
-            KnownData::Function(value) => KnownData::Bool(value == b.require_function()),
-            KnownData::Array(value) => KnownData::Bool(value == b.require_array()),
+        i::BinaryOperator::And => i::KnownData::Bool(a.require_bool() && b.require_bool()),
+        i::BinaryOperator::Or => i::KnownData::Bool(a.require_bool() || b.require_bool()),
+        i::BinaryOperator::Xor => i::KnownData::Bool(a.require_bool() != b.require_bool()),
+        i::BinaryOperator::BAnd => i::KnownData::Int(a.require_int() & b.require_int()),
+        i::BinaryOperator::BOr => i::KnownData::Int(a.require_int() | b.require_int()),
+        i::BinaryOperator::BXor => i::KnownData::Int(a.require_int() ^ b.require_int()),
+        i::BinaryOperator::Equal => match a {
+            i::KnownData::Bool(value) => i::KnownData::Bool(*value == b.require_bool()),
+            i::KnownData::Int(value) => i::KnownData::Bool(*value == b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value == b.require_float()),
+            i::KnownData::DataType(value) => i::KnownData::Bool(value == b.require_data_type()),
+            i::KnownData::Function(value) => i::KnownData::Bool(value == b.require_function()),
+            i::KnownData::Array(value) => i::KnownData::Bool(value == b.require_array()),
             _ => unreachable!(),
         },
-        BinaryOperator::NotEqual => match a {
-            KnownData::Bool(value) => KnownData::Bool(*value != b.require_bool()),
-            KnownData::Int(value) => KnownData::Bool(*value != b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value != b.require_float()),
-            KnownData::DataType(value) => KnownData::Bool(value != b.require_data_type()),
-            KnownData::Function(value) => KnownData::Bool(value != b.require_function()),
-            KnownData::Array(value) => KnownData::Bool(value != b.require_array()),
+        i::BinaryOperator::NotEqual => match a {
+            i::KnownData::Bool(value) => i::KnownData::Bool(*value != b.require_bool()),
+            i::KnownData::Int(value) => i::KnownData::Bool(*value != b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value != b.require_float()),
+            i::KnownData::DataType(value) => i::KnownData::Bool(value != b.require_data_type()),
+            i::KnownData::Function(value) => i::KnownData::Bool(value != b.require_function()),
+            i::KnownData::Array(value) => i::KnownData::Bool(value != b.require_array()),
             _ => unreachable!(),
         },
-        BinaryOperator::LessThan => match a {
-            KnownData::Int(value) => KnownData::Bool(*value < b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value < b.require_float()),
+        i::BinaryOperator::LessThan => match a {
+            i::KnownData::Int(value) => i::KnownData::Bool(*value < b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value < b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::GreaterThan => match a {
-            KnownData::Int(value) => KnownData::Bool(*value > b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value > b.require_float()),
+        i::BinaryOperator::GreaterThan => match a {
+            i::KnownData::Int(value) => i::KnownData::Bool(*value > b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value > b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::LessThanOrEqual => match a {
-            KnownData::Int(value) => KnownData::Bool(*value <= b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value <= b.require_float()),
+        i::BinaryOperator::LessThanOrEqual => match a {
+            i::KnownData::Int(value) => i::KnownData::Bool(*value <= b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value <= b.require_float()),
             _ => unreachable!(),
         },
-        BinaryOperator::GreaterThanOrEqual => match a {
-            KnownData::Int(value) => KnownData::Bool(*value >= b.require_int()),
-            KnownData::Float(value) => KnownData::Bool(*value >= b.require_float()),
+        i::BinaryOperator::GreaterThanOrEqual => match a {
+            i::KnownData::Int(value) => i::KnownData::Bool(*value >= b.require_int()),
+            i::KnownData::Float(value) => i::KnownData::Bool(*value >= b.require_float()),
             _ => unreachable!(),
         },
     }
 }
 
-fn biggest_scalar(a: &BaseType, b: &BaseType, program: &Program) -> Result<BaseType, ()> {
+fn biggest_scalar(a: &BaseType, b: &BaseType) -> Result<BaseType, ()> {
     // BCT rule 1
     if a == &BaseType::Automatic {
         Result::Ok(b.clone())
     } else if b == &BaseType::Automatic {
         Result::Ok(a.clone())
-    } else if a.equivalent(b, program) {
+    } else if a == b {
         Result::Ok(a.clone())
     } else {
         Result::Err(())
@@ -241,28 +242,19 @@ fn biggest_scalar(a: &BaseType, b: &BaseType, program: &Program) -> Result<BaseT
 }
 
 /// Returns Result::Err if there is no biggest type.
-pub(super) fn biggest_type(a: &DataType, b: &DataType, program: &Program) -> Result<DataType, ()> {
+pub(super) fn biggest_type(a: &DataType, b: &DataType) -> Result<DataType, ()> {
     // BCT rule 1
     if a.is_specific_scalar(&BaseType::Automatic) {
         Result::Ok(b.clone())
     } else if b.is_specific_scalar(&BaseType::Automatic) {
         Result::Ok(a.clone())
     // BCT rule 2
-    } else if a.equivalent(b, program) {
+    } else if a.equivalent(b) {
         Result::Ok(a.clone())
     // BCT rules 3 - 5
     } else if a.is_array() || b.is_array() {
-        // TODO: Nice error if array dimension not int.
-        let a_dims: Vec<_> = a
-            .borrow_dimensions()
-            .iter()
-            .map(|dim| program.borrow_value_of(dim).require_int())
-            .collect();
-        let b_dims: Vec<_> = b
-            .borrow_dimensions()
-            .iter()
-            .map(|dim| program.borrow_value_of(dim).require_int())
-            .collect();
+        let a_dims = a.borrow_dimensions().clone();
+        let b_dims = b.borrow_dimensions().clone();
         let mut final_dims = Vec::new();
         for index in 0..a_dims.len().max(b_dims.len()) {
             // BCT rule 5
@@ -282,14 +274,8 @@ pub(super) fn biggest_type(a: &DataType, b: &DataType, program: &Program) -> Res
                 return Result::Err(());
             }
         }
-        let base_type = biggest_scalar(a.borrow_base(), b.borrow_base(), program)?;
-        Result::Ok(DataType::array(
-            base_type,
-            final_dims
-                .into_iter()
-                .map(|dim| Expression::Literal(KnownData::Int(dim), FilePosition::placeholder()))
-                .collect(),
-        ))
+        let base_type = biggest_scalar(a.borrow_base(), b.borrow_base())?;
+        Result::Ok(DataType::array(base_type, final_dims))
     } else {
         Result::Err(())
     }
