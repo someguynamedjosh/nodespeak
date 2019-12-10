@@ -82,5 +82,5 @@ impl Content {
 
 pub(self) struct SimplifiedExpression {
     pub content: Content,
-    pub data_type: i::DataType,
+    pub data_type: Option<o::DataType>,
 }

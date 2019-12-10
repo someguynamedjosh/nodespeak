@@ -1,7 +1,7 @@
 use super::{problems, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::resolved::structure as o;
 use crate::vague::structure as i;
+use crate::resolved::structure as o;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_creation_point(
@@ -55,7 +55,7 @@ impl<'a> ScopeSimplifier<'a> {
         
         Result::Ok(SimplifiedExpression {
             content: Content::Interpreted(i::KnownData::Void),
-            data_type: i::DataType::scalar(i::BaseType::Void),
+            data_type: None,
         })
     }
 

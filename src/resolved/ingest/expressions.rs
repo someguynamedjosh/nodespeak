@@ -1,27 +1,26 @@
 use super::{problems, util, Content, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure::{
-    BaseType, BinaryOperator, DataType, Expression, FunctionData, KnownData, VariableId,
-};
+use crate::vague::structure as i;
+use crate::resolved::structure as o;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_variable(
         &mut self,
-        id: VariableId,
+        id: i::VariableId,
         position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         if let Some(replacement) = self.replace(id) {
-            let replacement = replacement.clone();
-            self.simplify_expression(&replacement)
+            unimplemented!();
         } else {
-            let converted_id = self.convert(id);
-            let temporary_value = self.source[converted_id].borrow_temporary_value();
+            let temporary_value = self.borrow_temporary_value(id);
             Result::Ok(match temporary_value {
-                KnownData::Unknown => {
-                    let content =
-                        Content::Modified(Expression::Variable(converted_id, position.clone()));
-                    let data_type = self.source[converted_id].borrow_data_type().clone();
+                i::KnownData::Unknown => {
+                    let converted_id = self.convert(id).expect("TODO: nice error, variable not available at run time.");
+                    let value = o::Value::variable(*converted_id);
+                    let expression = o::Expression::Value(value, position.clone());
+                    let content = Content::Modified(expression);
+                    let data_type = self.source[id].borrow_data_type().clone();
                     SimplifiedExpression { content, data_type }
                 }
                 _ => {
