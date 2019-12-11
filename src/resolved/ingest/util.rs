@@ -306,10 +306,11 @@ pub(super) fn inflate(
             panic!("TODO: nice error, invalid inflation.");
         }
     }
+    let pos = expr.clone_position();
     Result::Ok(o::Expression::Proxy {
         base: Box::new(expr),
         dimensions: final_dims,
-        position: expr.clone_position(),
+        position: pos,
     })
 }
 
@@ -320,7 +321,7 @@ pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, (
         i::KnownData::Float(value) => o::KnownData::Float(*value),
         i::KnownData::Array(old_data) => {
             let old_items = old_data.borrow_all_items();
-            let new_items = vec![];
+            let mut new_items = vec![];
             for old_item in old_items {
                 new_items.push(util::resolve_known_data(old_item)?);
             }
@@ -328,6 +329,10 @@ pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, (
             let new_data = NVec::from_vec_and_dims(new_items, dimensions);
             o::KnownData::Array(new_data)
         }
+        i::KnownData::DataType(..)
+        | i::KnownData::Function(..)
+        | i::KnownData::Unknown
+        | i::KnownData::Void => return Result::Err(()),
     })
 }
 

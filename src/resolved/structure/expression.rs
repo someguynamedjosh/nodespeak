@@ -240,6 +240,8 @@ impl Expression {
             Expression::Variable(..) => true,
             Expression::Literal(..) => true,
             Expression::InlineReturn(..) => true,
+            Expression::Proxy { .. } => true, // TODO: Actual implementation.
+            Expression::Access { .. } => true, // TODO: Actual implementation.
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
             Expression::Collect(values, ..) => values

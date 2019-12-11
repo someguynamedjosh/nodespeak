@@ -21,19 +21,18 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let new_entry_point = simplifier.simplify_scope(entry_point, None)?;
     let inputs: Vec<_> = inputs
         .into_iter()
-        .map(|id| simplifier.convert(id))
+        .map(|id| simplifier.convert(id).map(|e| e.clone()))
         .collect();
     let outputs: Vec<_> = outputs
         .into_iter()
-        .map(|id| simplifier.convert(id))
+        .map(|id| simplifier.convert(id).map(|e| e.clone()))
         .collect();
-    let result = simplifier.target;
-    drop(simplifier);
+    let mut result = simplifier.target;
 
     for input in inputs {
         if let Option::Some(expr) = input {
             if let o::Expression::Variable(var_id, ..) = expr {
-                result[new_entry_point].add_input(*var_id);
+                result[new_entry_point].add_input(var_id);
             } else {
                 unreachable!("TODO: see if this needs a compile error.");
             }
@@ -44,7 +43,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     for output in outputs {
         if let Option::Some(expr) = output {
             if let o::Expression::Variable(var_id, ..) = expr {
-                result[new_entry_point].add_output(*var_id);
+                result[new_entry_point].add_output(var_id);
             } else {
                 unreachable!("TODO: see if this needs a compile error.");
             }

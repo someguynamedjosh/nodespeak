@@ -26,11 +26,10 @@ impl<'a> ScopeSimplifier<'a> {
             }
             _ => {
                 let content = Content::Interpreted(temporary_value.clone());
-                let data_type = self.input_to_intermediate_type(
-                    temporary_value
-                        .get_data_type()
-                        .expect("Already checked that data was not uknown."),
-                )?;
+                let data_type = temporary_value
+                    .get_data_type()
+                    .expect("Already checked that data was not uknown.");
+                let data_type = self.input_to_intermediate_type(data_type)?;
                 SimplifiedExpression { content, data_type }
             }
         })
@@ -339,7 +338,7 @@ impl<'a> ScopeSimplifier<'a> {
         // Add conversions to insert the function outputs into the body.
         for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
             match argument {
-                i::Expression::InlineReturn(position) => {
+                i::Expression::InlineReturn(..) => {
                     inline_output = Some(*parameter);
                     let input_type = self.source[*parameter].borrow_data_type().clone();
                     let inter_type = self.input_to_intermediate_type(input_type);
@@ -358,8 +357,7 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                 }
                 _ => {
-                    let (resolved, data_type) =
-                        self.simplify_assignment_access_expression(argument)?;
+                    let (resolved, _) = self.simplify_assignment_access_expression(argument)?;
                     self.add_conversion(*parameter, resolved);
                 }
             }
@@ -412,9 +410,10 @@ impl<'a> ScopeSimplifier<'a> {
                 if let i::KnownData::Unknown = value {
                     if let Some(var_id) = runtime_inline_output {
                         let expr = o::Expression::Variable(var_id, FilePosition::placeholder());
+                        let data_type = DataType::from_output_type(&expr.get_type(&self.target));
                         SimplifiedExpression {
                             content: Content::Modified(expr),
-                            data_type: DataType::from_output_type(&expr.get_type(&self.target)),
+                            data_type,
                         }
                     } else {
                         unreachable!("TODO: Check if this error is handled elsewhere.");

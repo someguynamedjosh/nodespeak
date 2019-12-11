@@ -83,11 +83,11 @@ impl<T: Clone> NVec<T> {
 
     pub fn map<F, U>(&self, mutator: F) -> NVec<U>
     where
-        F: Fn(T) -> U,
+        F: Fn(&T) -> U,
         U: Clone,
     {
         let mut new_items = Vec::new();
-        for old_item in self.data {
+        for old_item in self.data.iter() {
             new_items.push(mutator(old_item));
         }
         NVec::from_vec_and_dims(new_items, self.dimensions.clone())

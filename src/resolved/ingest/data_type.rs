@@ -35,6 +35,10 @@ impl Debug for BaseType {
             BaseType::Bool => write!(formatter, "Bool"),
             BaseType::Int => write!(formatter, "Int"),
             BaseType::Float => write!(formatter, "Float"),
+            BaseType::Function_ => write!(formatter, "Function_"),
+            BaseType::DataType_ => write!(formatter, "DataType_"),
+            BaseType::Void => write!(formatter, "Void"),
+            BaseType::Automatic => write!(formatter, "Automatic"),
         }
     }
 }
@@ -147,7 +151,9 @@ impl DataType {
             BaseType::Bool => o::BaseType::Bool,
             BaseType::Int => o::BaseType::Int,
             BaseType::Float => o::BaseType::Float,
-            BaseType::DataType_ | BaseType::Function_ | BaseType::Void => return Result::Err(()),
+            BaseType::DataType_ | BaseType::Function_ | BaseType::Automatic | BaseType::Void => {
+                return Result::Err(())
+            }
         };
         Result::Ok(o::DataType::array(new_base, self.dimensions.clone()))
     }

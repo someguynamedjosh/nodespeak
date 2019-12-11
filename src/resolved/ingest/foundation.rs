@@ -11,10 +11,11 @@ use crate::vague::structure as i;
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn new(source: &'a mut i::Program) -> ScopeSimplifier<'a> {
         let target = o::Program::new();
+        let entry_point = target.get_entry_point();
         ScopeSimplifier {
             source,
             target,
-            current_scope: target.get_entry_point(),
+            current_scope: entry_point,
             table: SimplifierTable::new(),
             stack: Vec::new(),
             temp_values: HashMap::new(),
@@ -46,7 +47,7 @@ impl<'a> ScopeSimplifier<'a> {
         self.table.conversions.get(&from)
     }
 
-    pub(super) fn set_temporary_value(&self, var: i::VariableId, value: i::KnownData) {
+    pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: i::KnownData) {
         self.temp_values.insert(var, value);
     }
 
@@ -66,7 +67,7 @@ impl<'a> ScopeSimplifier<'a> {
     }
 
     pub(super) fn int_literal(value: i64, position: FilePosition) -> o::Expression {
-        unimplemented!()
+        o::Expression::Literal(o::KnownData::Int(value), position)
     }
 
     pub(super) fn copy_scope(
