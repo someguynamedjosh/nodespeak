@@ -285,39 +285,31 @@ pub(super) fn inflate(
     expr: o::Expression,
     from: &DataType,
     to: &DataType,
-    program: &Program,
-) -> Result<Expression, CompileProblem> {
-    if from.equivalent(to, program) {
+) -> Result<o::Expression, CompileProblem> {
+    if from.equivalent(to) {
         return Result::Ok(expr);
     }
     // TODO: Nice error if array dimension not int.
-    let from_dims: Vec<_> = from
-        .borrow_dimensions()
-        .iter()
-        .map(|dim| program.borrow_value_of(dim).require_int())
-        .collect();
-    let to_dims: Vec<_> = to
-        .borrow_dimensions()
-        .iter()
-        .map(|dim| program.borrow_value_of(dim).require_int())
-        .collect();
+    let from_dims = from.borrow_dimensions().clone();
+    let to_dims = to.borrow_dimensions().clone();
     let mut final_dims = Vec::new();
     for index in 0..from_dims.len().max(to_dims.len()) {
         if index >= to_dims.len() {
             panic!("TODO: nice error, cannot inflate to smaller dimension array.");
         } else if index >= from_dims.len() {
-            final_dims.push((to_dims[index], ProxyMode::Discard));
+            final_dims.push((o::ProxyMode::Discard, to_dims[index]));
         } else if to_dims[index] == from_dims[index] {
-            final_dims.push((to_dims[index], ProxyMode::Literal));
+            final_dims.push((o::ProxyMode::Literal, to_dims[index]));
         } else if from_dims[index] == 1 {
-            final_dims.push((to_dims[index], ProxyMode::Collapse));
+            final_dims.push((o::ProxyMode::Collapse, to_dims[index]));
         } else {
             panic!("TODO: nice error, invalid inflation.");
         }
     }
-    Result::Ok(Expression::Proxy {
+    Result::Ok(o::Expression::Proxy {
         base: Box::new(expr),
         dimensions: final_dims,
+        position: expr.clone_position(),
     })
 }
 

@@ -218,10 +218,10 @@ impl<'a> ScopeSimplifier<'a> {
                     Box::new({
                         let value = util::resolve_known_data(&dat1).expect("TODO: Nice error, data cannot be used at runtime.");
                         let data = o::Expression::Literal(value, operand_1_position);
-                        util::inflate(data, dt1, rt, self.program)?
+                        util::inflate(data, dt1, rt)?
                     }),
                     util::resolve_operator(operator),
-                    Box::new(util::inflate(expr2, dt2, rt, self.program)?),
+                    Box::new(util::inflate(expr2, dt2, rt)?),
                     position,
                 )),
             },
@@ -229,20 +229,20 @@ impl<'a> ScopeSimplifier<'a> {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
                 Content::Interpreted(dat2) => Content::Modified(o::Expression::BinaryOperation(
-                    Box::new(util::inflate(expr1, dt1, rt, self.program)?),
+                    Box::new(util::inflate(expr1, dt1, rt)?),
                     util::resolve_operator(operator),
                     Box::new({
                         let value = util::resolve_known_data(&dat2).expect("TODO: Nice error, data cannot be used at runtime.");
                         let data = o::Expression::Literal(value, operand_2_position);
-                        util::inflate(data, dt2, rt, self.program)?
+                        util::inflate(data, dt2, rt)?
                     }),
                     position,
                 )),
                 // LHS and RHS couldn't be interpreted, only simplified.
                 Content::Modified(expr2) => Content::Modified(o::Expression::BinaryOperation(
-                    Box::new(util::inflate(expr1, dt1, rt, self.program)?),
+                    Box::new(util::inflate(expr1, dt1, rt)?),
                     util::resolve_operator(operator),
-                    Box::new(util::inflate(expr2, dt2, rt, self.program)?),
+                    Box::new(util::inflate(expr2, dt2, rt)?),
                     position,
                 )),
             },
