@@ -326,6 +326,7 @@ impl<'a> ScopeSimplifier<'a> {
         }
 
         let mut inline_output = None;
+        let mut runtime_inline_output = None;
         let output_parameters = self.source[old_function_body].borrow_outputs().clone();
         if output_parameters.len() != outputs.len() {
             return Result::Err(problems::wrong_number_of_outputs(
@@ -340,6 +341,21 @@ impl<'a> ScopeSimplifier<'a> {
             match argument {
                 i::Expression::InlineReturn(position) => {
                     inline_output = Some(*parameter);
+                    let input_type = self.source[*parameter].borrow_data_type().clone();
+                    let inter_type = self.input_to_intermediate_type(input_type);
+                    let output_type = inter_type.map(|t| t.to_output_type());
+                    if let Result::Ok(Result::Ok(data_type)) = output_type {
+                        let pos = self.source[*parameter].get_definition().clone();
+                        let var = o::Variable::new(pos, data_type);
+                        let id = self
+                            .target
+                            .adopt_and_define_intermediate(self.current_scope, var);
+                        self.add_conversion(
+                            *parameter,
+                            o::Expression::Variable(id, FilePosition::placeholder()),
+                        );
+                        runtime_inline_output = Some(id);
+                    }
                 }
                 _ => {
                     let (resolved, data_type) =
@@ -394,12 +410,14 @@ impl<'a> ScopeSimplifier<'a> {
             Some(id) => {
                 let value = self.borrow_temporary_value(id);
                 if let i::KnownData::Unknown = value {
-                    SimplifiedExpression {
-                        content: Content::Modified(o::Expression::Variable(
-                            id,
-                            FilePosition::placeholder(),
-                        )),
-                        data_type: self.program[id].borrow_data_type().clone(),
+                    if let Some(var_id) = runtime_inline_output {
+                        let expr = o::Expression::Variable(var_id, FilePosition::placeholder());
+                        SimplifiedExpression {
+                            content: Content::Modified(expr),
+                            data_type: DataType::from_output_type(&expr.get_type(&self.target)),
+                        }
+                    } else {
+                        unreachable!("TODO: Check if this error is handled elsewhere.");
                     }
                 } else {
                     SimplifiedExpression {
