@@ -111,6 +111,13 @@ impl DataType {
         self.dimensions.len() == 0
     }
 
+    pub fn is_automatic(&self) -> bool {
+        match self.base {
+            BaseType::Automatic => true,
+            _ => false,
+        }
+    }
+
     pub fn is_specific_scalar(&self, base_type: &BaseType) -> bool {
         self.is_scalar() && &self.base == base_type
     }

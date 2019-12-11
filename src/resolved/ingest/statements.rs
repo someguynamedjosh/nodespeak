@@ -36,8 +36,8 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let simplified_target = self.simplify_assignment_access_expression(target)?;
         let simplified_value = self.simplify_expression(value)?;
+        let simplified_target = self.simplify_assignment_access_expression(target)?;
         if simplified_target.1.is_automatic() {
             self.simplify_automatic_type(&simplified_target.0, &simplified_value.data_type)?;
         } else if !simplified_value.data_type.equivalent(&simplified_target.1) {

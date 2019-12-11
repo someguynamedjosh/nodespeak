@@ -1,4 +1,4 @@
-use super::{Content, ScopeSimplifier};
+use super::{BaseType, Content, DataType, ScopeSimplifier};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -7,16 +7,21 @@ use std::borrow::Borrow;
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_automatic_type(
         &mut self,
-        target: &Expression,
+        target: &o::Expression,
         data_type: &DataType,
     ) -> Result<(), CompileProblem> {
         match target {
-            Expression::Access { base, indexes, .. } => {
+            // TODO: Handle proxies.
+            o::Expression::Access { base, indexes, .. } => {
                 self.simplify_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
             }
             // TODO: Handle arrays of automatic types.
-            Expression::Variable(id, ..) => {
-                self.source[*id].set_data_type(data_type.clone());
+            o::Expression::Variable(id, ..) => {
+                self.target[*id].set_data_type(
+                    data_type
+                        .to_output_type()
+                        .expect("TODO: Nice error, invalid type."),
+                );
             }
             _ => unreachable!("Should not simplify automatic types of anything else."),
         }
@@ -29,19 +34,18 @@ impl<'a> ScopeSimplifier<'a> {
     // expression to assign the value at run time will be returned instead.
     pub(super) fn assign_value_to_expression(
         &mut self,
-        target: &Expression,
-        value: KnownData,
+        target: &i::Expression,
+        value: i::KnownData,
         position: FilePosition,
-    ) -> Result<Result<(), Expression>, CompileProblem> {
+    ) -> Result<Result<(), o::Expression>, CompileProblem> {
         Result::Ok(match target {
-            Expression::Variable(id, ..) => {
-                let converted = self.convert(*id);
-                self.program[converted].set_temporary_value(value);
+            i::Expression::Variable(id, ..) => {
+                self.set_temporary_value(*id, value);
                 Result::Ok(())
             }
-            Expression::Access { base, indexes, .. } => {
+            i::Expression::Access { base, indexes, .. } => {
                 let (base_var_id, base_var_pos) = match base.borrow() {
-                    Expression::Variable(id, position) => (self.convert(*id), position.clone()),
+                    i::Expression::Variable(id, position) => (*id, position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
                 let mut all_indexes_known = true;
@@ -52,18 +56,23 @@ impl<'a> ScopeSimplifier<'a> {
                     let result = self.simplify_expression(index)?;
                     match result.content {
                         Content::Interpreted(value) => {
-                            if all_indexes_known {
-                                if let KnownData::Int(value) = value {
-                                    // TODO: Check that value is positive.
+                            if let i::KnownData::Int(value) = value {
+                                assert!(
+                                    value >= 0,
+                                    "TODO: nice error, index must be non-negative."
+                                );
+                                if all_indexes_known {
                                     known_indexes.push(value as usize);
-                                } else {
-                                    panic!("TODO: nice error, index must be int.");
                                 }
+                                // Also put a literal into simplified indexes in case we don't know
+                                // all the indexes and need to construct a runtime expression to set
+                                // the value.
+                                let data = o::KnownData::Int(value);
+                                let literal = o::Expression::Literal(data, index_position);
+                                simplified_indexes.push(literal);
+                            } else {
+                                panic!("TODO: nice error, index must be int.");
                             }
-                            // Also put a literal into simplified indexes in case we don't know all
-                            // the indexes and need to construct a runtime expression to set the
-                            // value.
-                            simplified_indexes.push(Expression::Literal(value, index_position));
                         }
                         Content::Modified(expression) => {
                             simplified_indexes.push(expression);
@@ -72,14 +81,19 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                 }
                 if all_indexes_known {
-                    self.program[base_var_id]
-                        .borrow_temporary_value_mut()
+                    // TODO: Check that value is correct type.
+                    // TODO: Handle setting array slices.
+                    self.borrow_temporary_value_mut(base_var_id)
                         .require_array_mut()
                         .set_item(&known_indexes, value);
                     Result::Ok(())
                 } else {
-                    Result::Err(Expression::Access {
-                        base: Box::new(Expression::Variable(base_var_id, base_var_pos)),
+                    Result::Err(o::Expression::Access {
+                        base: Box::new(
+                            self.convert(base_var_id)
+                                .expect("TODO: nice error, var not defined.")
+                                .clone(),
+                        ),
                         indexes: simplified_indexes,
                         position,
                     })
@@ -89,19 +103,18 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn assign_unknown_to_expression(&mut self, target: &Expression) {
+    pub(super) fn assign_unknown_to_expression(&mut self, target: &i::Expression) {
         match target {
-            Expression::Variable(id, ..) => {
-                let converted = self.convert(*id);
-                self.program[converted].set_temporary_value(KnownData::Unknown);
+            i::Expression::Variable(id, ..) => {
+                self.set_temporary_value(*id, i::KnownData::Unknown);
             }
-            Expression::Access { base, .. } => {
+            i::Expression::Access { base, .. } => {
                 // TODO: Something more efficient that takes into account any known indexes.
                 let (base_var_id, _base_var_pos) = match base.borrow() {
-                    Expression::Variable(id, position) => (self.convert(*id), position.clone()),
+                    i::Expression::Variable(id, position) => (id, position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
-                self.program[base_var_id].set_temporary_value(KnownData::Unknown);
+                self.set_temporary_value(*base_var_id, i::KnownData::Unknown);
             }
             _ => unreachable!("Cannot have anything else in an assignment expression."),
         }
@@ -111,21 +124,19 @@ impl<'a> ScopeSimplifier<'a> {
     // value instead of reads from it, there is no way to return an "interpreted" result.
     pub(super) fn simplify_assignment_access_expression(
         &mut self,
-        access_expression: &Expression,
+        access_expression: &i::Expression,
     ) -> Result<(o::Expression, DataType), CompileProblem> {
         Result::Ok(match access_expression {
-            Expression::Variable(id, position) => {
-                if let Some(new_expr) = self.replace(*id) {
+            i::Expression::Variable(id, position) => {
+                if let Some(new_expr) = self.convert(*id) {
                     let cloned = new_expr.clone();
-                    self.simplify_assignment_access_expression(&cloned)?
+                    let data_type = DataType::from_output_type(&cloned.get_type(&self.target));
+                    (cloned, data_type)
                 } else {
-                    (
-                        Expression::Variable(self.convert(*id), position.clone()),
-                        self.program[self.convert(*id)].borrow_data_type().clone(),
-                    )
+                    panic!("TODO: Nice error, variable not defined.")
                 }
             }
-            Expression::Access {
+            i::Expression::Access {
                 base,
                 indexes,
                 position,
@@ -136,20 +147,28 @@ impl<'a> ScopeSimplifier<'a> {
                     let index_position = index.clone_position();
                     let simplified_index = self.simplify_expression(index)?;
                     simplified_indexes.push(match simplified_index.content {
-                        Content::Interpreted(value) => Expression::Literal(value, index_position),
+                        Content::Interpreted(value) => {
+                            if let i::KnownData::Int(index) = value {
+                                assert!(index >= 0, "TODO: nice error, index must be nonnegative");
+                                let data = o::KnownData::Int(index);
+                                o::Expression::Literal(data, index_position)
+                            } else {
+                                panic!("TODO: nice error, array index must be integer.");
+                            }
+                        }
                         Content::Modified(expression) => expression,
                     });
                 }
                 let num_indexes = simplified_indexes.len();
-                let expr = Expression::Access {
+                let expr = o::Expression::Access {
                     base: Box::new(simplified_base.0),
                     indexes: simplified_indexes,
                     position: position.clone(),
                 };
                 (expr, simplified_base.1.clone_and_unwrap(num_indexes))
             }
-            Expression::InlineReturn(..) => (
-                access_expression.clone(),
+            i::Expression::InlineReturn(position) => (
+                o::Expression::InlineReturn(position.clone()),
                 DataType::scalar(BaseType::Automatic),
             ),
             _ => unreachable!("No other expression types found in assignment access expressions."),

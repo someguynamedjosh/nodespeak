@@ -56,6 +56,15 @@ impl<'a> ScopeSimplifier<'a> {
             .unwrap_or_else(|| &i::KnownData::Void)
     }
 
+    pub(super) fn borrow_temporary_value_mut(&mut self, var: i::VariableId) -> &mut i::KnownData {
+        if !self.temp_values.contains_key(&var) {
+            self.set_temporary_value(var, i::KnownData::Void);
+        }
+        self.temp_values
+            .get_mut(&var)
+            .expect("We already guaranteed a value would be present.")
+    }
+
     pub(super) fn int_literal(value: i64, position: FilePosition) -> o::Expression {
         unimplemented!()
     }
