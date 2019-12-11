@@ -81,6 +81,18 @@ impl<T: Clone> NVec<T> {
         }
     }
 
+    pub fn map<F, U>(&self, mutator: F) -> NVec<U>
+    where
+        F: Fn(T) -> U,
+        U: Clone,
+    {
+        let mut new_items = Vec::new();
+        for old_item in self.data {
+            new_items.push(mutator(old_item));
+        }
+        NVec::from_vec_and_dims(new_items, self.dimensions.clone())
+    }
+
     fn convert_to_raw_index(&self, coordinate: &Vec<usize>) -> usize {
         let mut index = 0;
         for (coord, multiplier) in coordinate.iter().zip(self.multipliers.iter()) {

@@ -1,4 +1,4 @@
-use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, util, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::util::NVec;
@@ -282,7 +282,7 @@ pub(super) fn biggest_type(a: &DataType, b: &DataType) -> Result<DataType, ()> {
 }
 
 pub(super) fn inflate(
-    expr: Expression,
+    expr: o::Expression,
     from: &DataType,
     to: &DataType,
     program: &Program,
@@ -319,4 +319,46 @@ pub(super) fn inflate(
         base: Box::new(expr),
         dimensions: final_dims,
     })
+}
+
+pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, ()> {
+    Result::Ok(match input {
+        i::KnownData::Bool(value) => o::KnownData::Bool(*value),
+        i::KnownData::Int(value) => o::KnownData::Int(*value),
+        i::KnownData::Float(value) => o::KnownData::Float(*value),
+        i::KnownData::Array(old_data) => {
+            let old_items = old_data.borrow_all_items();
+            let new_items = vec![];
+            for old_item in old_items {
+                new_items.push(util::resolve_known_data(old_item)?);
+            }
+            let dimensions = old_data.borrow_dimensions().clone();
+            let new_data = NVec::from_vec_and_dims(new_items, dimensions);
+            o::KnownData::Array(new_data)
+        }
+    })
+}
+
+pub(super) fn resolve_operator(operator: i::BinaryOperator) -> o::BinaryOperator {
+    match operator {
+        i::BinaryOperator::Add => o::BinaryOperator::Add,
+        i::BinaryOperator::And => o::BinaryOperator::And,
+        i::BinaryOperator::BAnd => o::BinaryOperator::BAnd,
+        i::BinaryOperator::BOr => o::BinaryOperator::BOr,
+        i::BinaryOperator::BXor => o::BinaryOperator::BXor,
+        i::BinaryOperator::Divide => o::BinaryOperator::Divide,
+        i::BinaryOperator::Equal => o::BinaryOperator::Equal,
+        i::BinaryOperator::GreaterThan => o::BinaryOperator::GreaterThan,
+        i::BinaryOperator::GreaterThanOrEqual => o::BinaryOperator::GreaterThanOrEqual,
+        i::BinaryOperator::IntDiv => o::BinaryOperator::IntDiv,
+        i::BinaryOperator::LessThan => o::BinaryOperator::LessThan,
+        i::BinaryOperator::LessThanOrEqual => o::BinaryOperator::LessThanOrEqual,
+        i::BinaryOperator::Modulo => o::BinaryOperator::Modulo,
+        i::BinaryOperator::Multiply => o::BinaryOperator::Multiply,
+        i::BinaryOperator::NotEqual => o::BinaryOperator::NotEqual,
+        i::BinaryOperator::Or => o::BinaryOperator::Or,
+        i::BinaryOperator::Power => o::BinaryOperator::Power,
+        i::BinaryOperator::Subtract => o::BinaryOperator::Subtract,
+        i::BinaryOperator::Xor => o::BinaryOperator::Xor,
+    }
 }

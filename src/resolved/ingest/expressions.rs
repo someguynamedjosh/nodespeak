@@ -19,8 +19,7 @@ impl<'a> ScopeSimplifier<'a> {
                     let converted_id = *self
                         .convert(id)
                         .expect("TODO: nice error, variable not available at run time.");
-                    let value = o::Value::variable(converted_id);
-                    let expression = o::Expression::Value(value, position.clone());
+                    let expression = o::Expression::Variable(converted_id, position.clone());
                     let content = Content::Modified(expression);
                     let data_type = self.target[converted_id].borrow_data_type().clone();
                     let data_type = DataType::from_output_type(&data_type);
@@ -218,12 +217,13 @@ impl<'a> ScopeSimplifier<'a> {
                 ),
                 // LHS was interpreted, RHS could not be. Make LHS a literal and return
                 // the resulting expression.
-                Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
+                Content::Modified(expr2) => Content::Modified(o::Expression::BinaryOperation(
                     Box::new({
-                        let data = Expression::Literal(dat1, operand_1_position);
+                        let value = util::resolve_known_data(&dat1).expect("TODO: Nice error, data cannot be used at runtime.");
+                        let data = o::Expression::Literal(value, operand_1_position);
                         util::inflate(data, dt1, rt, self.program)?
                     }),
-                    operator,
+                    util::resolve_operator(operator),
                     Box::new(util::inflate(expr2, dt2, rt, self.program)?),
                     position,
                 )),
@@ -231,19 +231,20 @@ impl<'a> ScopeSimplifier<'a> {
             Content::Modified(expr1) => match simplified_operand_2.content {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
-                Content::Interpreted(dat2) => Content::Modified(Expression::BinaryOperation(
+                Content::Interpreted(dat2) => Content::Modified(o::Expression::BinaryOperation(
                     Box::new(util::inflate(expr1, dt1, rt, self.program)?),
-                    operator,
+                    util::resolve_operator(operator),
                     Box::new({
-                        let data = Expression::Literal(dat2, operand_2_position);
+                        let value = util::resolve_known_data(&dat2).expect("TODO: Nice error, data cannot be used at runtime.");
+                        let data = o::Expression::Literal(value, operand_2_position);
                         util::inflate(data, dt2, rt, self.program)?
                     }),
                     position,
                 )),
                 // LHS and RHS couldn't be interpreted, only simplified.
-                Content::Modified(expr2) => Content::Modified(Expression::BinaryOperation(
+                Content::Modified(expr2) => Content::Modified(o::Expression::BinaryOperation(
                     Box::new(util::inflate(expr1, dt1, rt, self.program)?),
-                    operator,
+                    util::resolve_operator(operator),
                     Box::new(util::inflate(expr2, dt2, rt, self.program)?),
                     position,
                 )),
@@ -257,9 +258,9 @@ impl<'a> ScopeSimplifier<'a> {
 
     pub(super) fn simplify_func_call(
         &mut self,
-        function: &Expression,
-        inputs: &Vec<Expression>,
-        outputs: &Vec<Expression>,
+        function: &i::Expression,
+        inputs: &Vec<i::Expression>,
+        outputs: &Vec<i::Expression>,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         // We want to make a new table specifically for this function, so that any variable
@@ -277,13 +278,13 @@ impl<'a> ScopeSimplifier<'a> {
         };
         // Get the actual function data.
         let function_data = match simplified_function {
-            KnownData::Function(data) => data,
+            i::KnownData::Function(data) => data,
             _ => return Result::Err(problems::not_function(function.clone_position())),
         };
         let old_function_body = function_data.get_body();
 
         // Add replacements to insert the function arguments into the body.
-        let input_parameters = self.program[old_function_body].borrow_inputs().clone();
+        let input_parameters = self.source[old_function_body].borrow_inputs().clone();
         if input_parameters.len() != inputs.len() {
             return Result::Err(problems::wrong_number_of_inputs(
                 position.clone(),
@@ -297,7 +298,7 @@ impl<'a> ScopeSimplifier<'a> {
         }
 
         let mut inline_output = None;
-        let output_parameters = self.program[old_function_body].borrow_outputs().clone();
+        let output_parameters = self.source[old_function_body].borrow_outputs().clone();
         if output_parameters.len() != outputs.len() {
             return Result::Err(problems::wrong_number_of_outputs(
                 position.clone(),
@@ -308,10 +309,10 @@ impl<'a> ScopeSimplifier<'a> {
         }
         for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
             match argument {
-                Expression::InlineReturn(position) => {
-                    let cloned_parameter = self.program[*parameter].clone();
+                i::Expression::InlineReturn(position) => {
+                    let cloned_parameter = self.source[*parameter].clone();
                     let id = self.program.adopt_variable(cloned_parameter);
-                    self.add_replacement(*parameter, Expression::Variable(id, position.clone()));
+                    self.add_replacement(*parameter, o::Expression::Variable(id, position.clone()));
                     inline_output = Some(id);
                 }
                 _ => self.add_replacement(*parameter, argument.clone()),
@@ -341,7 +342,7 @@ impl<'a> ScopeSimplifier<'a> {
                 Content::Modified(new_expression) => match new_expression {
                     // If a return is unconditionally encountered, we can just skip the rest of the
                     // code in the scope.
-                    Expression::Return(..) => break,
+                    o::Expression::Return(..) => break,
                     _ => {
                         empty_body = false;
                         self.program[new_function_body].add_expression(new_expression);
@@ -354,8 +355,8 @@ impl<'a> ScopeSimplifier<'a> {
         self.pop_table();
 
         if !empty_body {
-            self.program[self.current_scope].add_expression(Expression::FuncCall {
-                function: Box::new(Expression::Literal(
+            self.program[self.current_scope].add_expression(o::Expression::FuncCall {
+                function: Box::new(o::Expression::Literal(
                     KnownData::Function(FunctionData::new(
                         new_function_body,
                         function_data.get_header().clone(),
@@ -373,7 +374,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let value = self.program[id].borrow_temporary_value();
                 if let KnownData::Unknown = value {
                     SimplifiedExpression {
-                        content: Content::Modified(Expression::Variable(
+                        content: Content::Modified(o::Expression::Variable(
                             id,
                             FilePosition::placeholder(),
                         )),

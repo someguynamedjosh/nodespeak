@@ -1,7 +1,7 @@
 use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure as i;
 use crate::resolved::structure as o;
+use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_creation_point(

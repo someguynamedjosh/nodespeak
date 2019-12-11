@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::resolved::structure::{ScopeId, Value};
+use crate::resolved::structure::{ScopeId, VariableId, KnownData};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -74,10 +74,31 @@ impl Debug for BinaryOperator {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum ProxyMode {
+    /// Use the original array's dimensions.
+    Literal,
+    /// Discard the index.
+    Discard,
+    /// No matter what, use index zero.
+    Collapse,
+}
+
 #[derive(Clone, PartialEq)]
 pub enum Expression {
-    Value(Value, FilePosition),
+    Variable(VariableId, FilePosition),
+    Literal(KnownData, FilePosition),
     InlineReturn(FilePosition),
+    Proxy {
+        base: Box<Expression>,
+        dimensions: Vec<(ProxyMode, u64)>,
+        position: FilePosition,
+    },
+    Access {
+        base: Box<Expression>,
+        indexes: Vec<Expression>,
+        position: FilePosition,
+    },
 
     UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
     BinaryOperation(
@@ -107,8 +128,11 @@ pub enum Expression {
 impl Debug for Expression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Value(value, ..) => write!(formatter, "{:?}", value),
+            Expression::Variable(var_id, ..) => write!(formatter, "{:?}", var_id),
+            Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
+            Expression::Proxy {..} => unimplemented!(),
+            Expression::Access {..} => unimplemented!(),
 
             Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -153,8 +177,11 @@ impl Debug for Expression {
 impl Expression {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Expression::Value(_, position)
+            Expression::Variable(_, position)
+            | Expression::Literal(_, position)
             | Expression::InlineReturn(position)
+            | Expression::Proxy { position, .. }
+            | Expression::Access { position, .. }
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
             | Expression::Collect(_, position)
@@ -176,8 +203,10 @@ impl Expression {
     /// expression. For example, if you have an add expression with a Float on one side and an Int
     /// on the other, it does not violate any of the above rules, so it is 'valid'.
     pub fn is_valid(&self) -> bool {
+        // TODO: Access and Proxy expressions.
         match self {
-            Expression::Value(..) => true,
+            Expression::Variable(..) => true,
+            Expression::Literal(..) => true,
             Expression::InlineReturn(..) => true,
             Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
             Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
@@ -187,7 +216,7 @@ impl Expression {
             Expression::Assert(argument, ..) => argument.is_valid(),
             Expression::Assign { target, value, .. } => {
                 (match &**target {
-                    Expression::Value(value, ..) => value.is_variable(),
+                    Expression::Variable(..) => true,
                     _ => false,
                 }) && value.is_valid()
             }

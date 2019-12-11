@@ -88,10 +88,6 @@ impl Debug for BinaryOperator {
 pub enum Expression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
-    Proxy {
-        base: Box<Expression>,
-        dimensions: Vec<(i64, ProxyMode)>,
-    },
     Access {
         base: Box<Expression>,
         indexes: Vec<Expression>,
@@ -131,17 +127,6 @@ impl Debug for Expression {
         match self {
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
-            Expression::Proxy { base, dimensions } => {
-                write!(formatter, "(")?;
-                for (len, mode) in dimensions.iter() {
-                    match mode {
-                        ProxyMode::Literal => write!(formatter, "{{{}}}", len)?,
-                        ProxyMode::Collapse => write!(formatter, "{{{}>1}}", len)?,
-                        ProxyMode::Discard => write!(formatter, "{{{}x}}", len)?,
-                    }
-                }
-                write!(formatter, "{:?})", base)
-            }
             Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
@@ -208,7 +193,6 @@ impl Expression {
             | Expression::Assign { position, .. }
             | Expression::Return(position)
             | Expression::FuncCall { position, .. } => position.clone(),
-            Expression::Proxy { base, .. } => base.clone_position(),
         }
     }
 
@@ -226,16 +210,9 @@ impl Expression {
         match self {
             Expression::Literal(value, ..) => value != &KnownData::Unknown,
             Expression::Variable(..) => true,
-            Expression::Proxy { base, .. } => base.is_valid(),
             Expression::Access { base, indexes, .. } => {
                 (match &**base {
                     Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
-                    Expression::Proxy {
-                        base: proxy_base, ..
-                    } => match &**proxy_base {
-                        Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
-                        _ => false,
-                    },
                     _ => false,
                 }) && indexes
                     .iter()
@@ -252,12 +229,6 @@ impl Expression {
             Expression::Assign { target, value, .. } => {
                 (match &**target {
                     Expression::Variable(..) | Expression::Access { .. } => target.is_valid(),
-                    Expression::Proxy {
-                        base: proxy_base, ..
-                    } => match &**proxy_base {
-                        Expression::Variable(..) => target.is_valid(),
-                        _ => false,
-                    },
                     _ => false,
                 }) && value.is_valid()
             }

@@ -1,5 +1,5 @@
+use super::DataType;
 use crate::problem::*;
-use crate::vague::structure::DataType;
 use ProblemType::Error;
 use ProblemType::Hint;
 
