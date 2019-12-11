@@ -17,6 +17,8 @@ impl<'a> ScopeSimplifier<'a> {
                     .convert(id)
                     .expect("TODO: nice error, variable not available at run time.")
                     .clone();
+                let data_type = converted_expression.get_type(&self.target);
+                let data_type = DataType::from_output_type(&data_type);
                 // TODO: Set correct file position.
                 let content = Content::Modified(converted_expression);
                 SimplifiedExpression { content, data_type }

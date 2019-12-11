@@ -1,5 +1,6 @@
 use crate::problem::FilePosition;
 use crate::resolved::structure::{ScopeId, VariableId, KnownData};
+use super::{DataType, Program};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -123,6 +124,37 @@ pub enum Expression {
         outputs: Vec<Expression>,
         position: FilePosition,
     },
+}
+
+impl Expression {
+    pub fn get_type(&self, program: &Program) -> DataType {
+        match self {
+            Expression::Variable(id, ..) => program[*id].borrow_data_type().clone(),
+            Expression::Literal(data, ..) => data.get_data_type(),
+            Expression::InlineReturn(..) => unimplemented!(),
+            Expression::Proxy {..} => unimplemented!(),
+            Expression::Access{..} => unimplemented!(),
+            // TODO: I think this will need some more checks.
+            Expression::UnaryOperation(_, value, ..) => value.get_type(program),
+            Expression::BinaryOperation(a, _, b, ..) => {
+                debug_assert!(a.get_type(program).equivalent(&b.get_type(program)));
+                a.get_type(program)
+            }
+            Expression::Collect(values, ..) => {
+                debug_assert!(values.len() > 0);
+                let mut element_type = values[0].get_type(program);
+                for element in values {
+                    debug_assert!(element.get_type(program).equivalent(&element_type));
+                }
+                element_type.wrap_with_dimension(values.len() as u64);
+                element_type
+            }
+            Expression::Assert(..) => unimplemented!(),
+            Expression::Assign{..} => unimplemented!(),
+            Expression::Return{..} => unimplemented!(),
+            Expression::FuncCall{..} => unimplemented!(),
+        }
+    }
 }
 
 impl Debug for Expression {
