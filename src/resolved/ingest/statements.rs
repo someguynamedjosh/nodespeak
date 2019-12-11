@@ -46,11 +46,8 @@ impl<'a> ScopeSimplifier<'a> {
         }
         Result::Ok(match simplified_value.content {
             Content::Interpreted(known_value) => {
-                let result = self.assign_value_to_expression(
-                    &target,
-                    known_value,
-                    position.clone(),
-                )?;
+                let result =
+                    self.assign_value_to_expression(&target, known_value, position.clone())?;
                 if let Result::Err(simplified_expresion) = result {
                     SimplifiedExpression {
                         content: Content::Modified(simplified_expresion),

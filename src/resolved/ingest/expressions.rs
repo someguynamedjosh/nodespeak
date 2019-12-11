@@ -1,6 +1,7 @@
-use super::{problems, util, Content, DataType, ScopeSimplifier, SimplifiedExpression};
+use super::{problems, util, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
+use crate::util::NVec;
 use crate::vague::structure as i;
 use std::borrow::Borrow;
 
@@ -49,7 +50,7 @@ impl<'a> ScopeSimplifier<'a> {
             // If the base of the access has a value known at compile time...
             Content::Interpreted(data) => {
                 let mut base_data = match data {
-                    KnownData::Array(data) => data,
+                    i::KnownData::Array(data) => data,
                     _ => panic!("TODO: nice error, cannot index non-array."),
                 };
                 let mut known_indexes = Vec::new();
@@ -65,7 +66,7 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                     match index.content {
                         // If we know the value of the index...
-                        Content::Interpreted(KnownData::Int(value)) => {
+                        Content::Interpreted(i::KnownData::Int(value)) => {
                             // If we still know all the indexes up until this point...
                             if known {
                                 base_position.include_other(&index_position);
@@ -77,7 +78,7 @@ impl<'a> ScopeSimplifier<'a> {
                             }
                         }
                         // If we know that the value isn't an int...
-                        Content::Interpreted(_non_int_value) => {
+                        Content::Interpreted(_) => {
                             unreachable!("Non-int value handled above.");
                         }
                         // Otherwise, we will have to find the value at run time.
@@ -124,15 +125,26 @@ impl<'a> ScopeSimplifier<'a> {
                 // data that we were able to collect at compile time.
                 if dynamic_indexes.len() == 0 {
                     SimplifiedExpression {
-                        content: Content::Interpreted(KnownData::Array(base_data)),
+                        content: Content::Interpreted(i::KnownData::Array(base_data)),
                         data_type: final_type,
                     }
                 // Otherwise, make an access expression using the leftover dynamic indexes.
                 } else {
+                    let mut resolved_items = vec![];
+                    for item in base_data.borrow_all_items() {
+                        resolved_items.push(
+                            util::resolve_known_data(item)
+                                .expect("TODO: nice error, cannot use data at run time."),
+                        );
+                    }
+                    let resolved_data = NVec::from_vec_and_dims(
+                        resolved_items,
+                        base_data.borrow_dimensions().clone(),
+                    );
                     SimplifiedExpression {
-                        content: Content::Modified(Expression::Access {
-                            base: Box::new(Expression::Literal(
-                                KnownData::Array(base_data),
+                        content: Content::Modified(o::Expression::Access {
+                            base: Box::new(o::Expression::Literal(
+                                o::KnownData::Array(resolved_data),
                                 base_position,
                             )),
                             indexes: dynamic_indexes,
@@ -156,7 +168,13 @@ impl<'a> ScopeSimplifier<'a> {
                     match index.content {
                         // If we know the value of the index, make a literal expression out of it.
                         Content::Interpreted(value) => {
-                            new_indexes.push(Expression::Literal(value, index_position));
+                            if let i::KnownData::Int(index) = value {
+                                assert!(index >= 0, "TODO: nice error, index must be nonnegative");
+                                let value = o::KnownData::Int(index);
+                                new_indexes.push(o::Expression::Literal(value, index_position));
+                            } else {
+                                panic!("TODO: nice error, cannot index with int.")
+                            }
                         }
                         // Otherwise, keep the simplified expression.
                         Content::Modified(expression) => {
@@ -166,7 +184,7 @@ impl<'a> ScopeSimplifier<'a> {
                 }
                 // Make an access expression using the new indexes.
                 SimplifiedExpression {
-                    content: Content::Modified(Expression::Access {
+                    content: Content::Modified(o::Expression::Access {
                         base: Box::new(new_base),
                         indexes: new_indexes,
                         position,
@@ -282,7 +300,6 @@ impl<'a> ScopeSimplifier<'a> {
         };
         let old_function_body = function_data.get_body();
 
-        // Add replacements to insert the function arguments into the body.
         let input_parameters = self.source[old_function_body].borrow_inputs().clone();
         if input_parameters.len() != inputs.len() {
             return Result::Err(problems::wrong_number_of_inputs(
@@ -292,8 +309,20 @@ impl<'a> ScopeSimplifier<'a> {
                 input_parameters.len(),
             ));
         }
+        // Add conversions to insert the function inputs into the body.
         for (parameter, argument) in input_parameters.iter().zip(inputs.iter()) {
-            self.add_replacement(*parameter, argument.clone());
+            if let i::Expression::Literal(data, ..) = argument {
+                // If we know the value of the argument, set it so that we can better simplify any
+                // expressions using its value.
+                self.set_temporary_value(*parameter, data.clone());
+            } else {
+                // Otherwise, resolve it and add a conversion.
+                // TODO: Some expressions would be more efficient to calculate once and store
+                // in a variable.
+                let resolved = self.simplify_expression(argument)?;
+                let expr = resolved.content.into_expression(argument.clone_position());
+                self.add_conversion(*parameter, expr);
+            }
         }
 
         let mut inline_output = None;
@@ -306,23 +335,22 @@ impl<'a> ScopeSimplifier<'a> {
                 output_parameters.len(),
             ));
         }
+        // Add conversions to insert the function outputs into the body.
         for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
             match argument {
                 i::Expression::InlineReturn(position) => {
-                    let cloned_parameter = self.source[*parameter].clone();
-                    let id = self.program.adopt_variable(cloned_parameter);
-                    self.add_replacement(*parameter, o::Expression::Variable(id, position.clone()));
-                    inline_output = Some(id);
+                    inline_output = Some(*parameter);
                 }
-                _ => self.add_replacement(*parameter, argument.clone()),
+                _ => {
+                    let (resolved, data_type) =
+                        self.simplify_assignment_access_expression(argument)?;
+                    self.add_conversion(*parameter, resolved);
+                }
             }
         }
 
         // Make a copy of the function body.
-        let new_function_body = self.copy_scope(
-            old_function_body,
-            self.program[old_function_body].get_parent(),
-        )?;
+        let new_function_body = self.copy_scope(old_function_body, Some(self.current_scope))?;
 
         let mut empty_body = true;
         // Now try and simplify the body as much as possible.
@@ -332,7 +360,7 @@ impl<'a> ScopeSimplifier<'a> {
         // that a function does not cause any side effects.
         let old_current_scope = self.current_scope;
         self.current_scope = new_function_body;
-        for expression in self.program[old_function_body].borrow_body().clone() {
+        for expression in self.source[old_function_body].borrow_body().clone() {
             match self.simplify_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
                 // Fully computed at compile time.
@@ -344,7 +372,7 @@ impl<'a> ScopeSimplifier<'a> {
                     o::Expression::Return(..) => break,
                     _ => {
                         empty_body = false;
-                        self.program[new_function_body].add_expression(new_expression);
+                        self.target[new_function_body].add_expression(new_expression);
                     }
                 },
             }
@@ -354,14 +382,8 @@ impl<'a> ScopeSimplifier<'a> {
         self.pop_table();
 
         if !empty_body {
-            self.program[self.current_scope].add_expression(o::Expression::FuncCall {
-                function: Box::new(o::Expression::Literal(
-                    KnownData::Function(FunctionData::new(
-                        new_function_body,
-                        function_data.get_header().clone(),
-                    )),
-                    function.clone_position(),
-                )),
+            self.target[self.current_scope].add_expression(o::Expression::FuncCall {
+                function: new_function_body,
                 inputs: vec![],
                 outputs: vec![],
                 position: position.clone(),
@@ -370,8 +392,8 @@ impl<'a> ScopeSimplifier<'a> {
 
         Result::Ok(match inline_output {
             Some(id) => {
-                let value = self.program[id].borrow_temporary_value();
-                if let KnownData::Unknown = value {
+                let value = self.borrow_temporary_value(id);
+                if let i::KnownData::Unknown = value {
                     SimplifiedExpression {
                         content: Content::Modified(o::Expression::Variable(
                             id,
@@ -382,12 +404,17 @@ impl<'a> ScopeSimplifier<'a> {
                 } else {
                     SimplifiedExpression {
                         content: Content::Interpreted(value.clone()),
-                        data_type: self.program[id].borrow_data_type().clone(),
+                        data_type: {
+                            let vague_type = value
+                                .get_data_type()
+                                .expect("Already checked data was not unknown.");
+                            self.input_to_intermediate_type(vague_type)?
+                        },
                     }
                 }
             }
             None => SimplifiedExpression {
-                content: Content::Interpreted(KnownData::Void),
+                content: Content::Interpreted(i::KnownData::Void),
                 data_type: DataType::scalar(BaseType::Void),
             },
         })
