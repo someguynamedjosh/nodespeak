@@ -18,7 +18,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
     let mut simplifier = ScopeSimplifier::new(program);
-    let new_scope = simplifier.simplify_scope(entry_point)?;
+    let new_entry_point = simplifier.simplify_scope(entry_point, None)?;
     let inputs: Vec<_> = inputs
         .into_iter()
         .map(|id| simplifier.convert(id))
@@ -27,15 +27,33 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
         .into_iter()
         .map(|id| simplifier.convert(id))
         .collect();
+    let result = simplifier.target;
     drop(simplifier);
+
     for input in inputs {
-        program[new_scope].add_input(input);
+        if let Option::Some(expr) = input {
+            if let o::Expression::Variable(var_id, ..) = expr {
+                result[new_entry_point].add_input(*var_id);
+            } else {
+                unreachable!("TODO: see if this needs a compile error.");
+            }
+        } else {
+            unreachable!("TODO: see if this needs a compile error.");
+        }
     }
     for output in outputs {
-        program[new_scope].add_output(output);
+        if let Option::Some(expr) = output {
+            if let o::Expression::Variable(var_id, ..) = expr {
+                result[new_entry_point].add_output(*var_id);
+            } else {
+                unreachable!("TODO: see if this needs a compile error.");
+            }
+        } else {
+            unreachable!("TODO: see if this needs a compile error.");
+        }
     }
-    program.set_entry_point(new_scope);
-    Result::Ok(simplifier.target)
+    result.set_entry_point(new_entry_point);
+    Result::Ok(result)
 }
 
 #[derive(Clone, Debug)]

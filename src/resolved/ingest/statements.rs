@@ -36,6 +36,7 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
+        // TODO: This method can probably be cleaner / more efficient.
         let simplified_value = self.simplify_expression(value)?;
         let simplified_target = self.simplify_assignment_access_expression(target)?;
         if simplified_target.1.is_automatic() {
@@ -46,7 +47,7 @@ impl<'a> ScopeSimplifier<'a> {
         Result::Ok(match simplified_value.content {
             Content::Interpreted(known_value) => {
                 let result = self.assign_value_to_expression(
-                    &simplified_target.0,
+                    &target,
                     known_value,
                     position.clone(),
                 )?;
@@ -63,7 +64,7 @@ impl<'a> ScopeSimplifier<'a> {
                 }
             }
             Content::Modified(simplified_value) => {
-                self.assign_unknown_to_expression(&simplified_target.0);
+                self.assign_unknown_to_expression(&target);
                 let content = Content::Modified(o::Expression::Assign {
                     target: Box::new(simplified_target.0),
                     value: Box::new(simplified_value),
