@@ -10,32 +10,27 @@ impl<'a> ScopeSimplifier<'a> {
         id: i::VariableId,
         position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        if let Some(replacement) = self.replace(id) {
-            unimplemented!();
-        } else {
-            let temporary_value = self.borrow_temporary_value(id);
-            Result::Ok(match temporary_value {
-                i::KnownData::Unknown => {
-                    let converted_id = *self
-                        .convert(id)
-                        .expect("TODO: nice error, variable not available at run time.");
-                    let expression = o::Expression::Variable(converted_id, position.clone());
-                    let content = Content::Modified(expression);
-                    let data_type = self.target[converted_id].borrow_data_type().clone();
-                    let data_type = DataType::from_output_type(&data_type);
-                    SimplifiedExpression { content, data_type }
-                }
-                _ => {
-                    let content = Content::Interpreted(temporary_value.clone());
-                    let data_type = self.input_to_intermediate_type(
-                        temporary_value
-                            .get_data_type()
-                            .expect("Already checked that data was not uknown."),
-                    )?;
-                    SimplifiedExpression { content, data_type }
-                }
-            })
-        }
+        let temporary_value = self.borrow_temporary_value(id);
+        Result::Ok(match temporary_value {
+            i::KnownData::Unknown => {
+                let converted_expression = self
+                    .convert(id)
+                    .expect("TODO: nice error, variable not available at run time.")
+                    .clone();
+                // TODO: Set correct file position.
+                let content = Content::Modified(converted_expression);
+                SimplifiedExpression { content, data_type }
+            }
+            _ => {
+                let content = Content::Interpreted(temporary_value.clone());
+                let data_type = self.input_to_intermediate_type(
+                    temporary_value
+                        .get_data_type()
+                        .expect("Already checked that data was not uknown."),
+                )?;
+                SimplifiedExpression { content, data_type }
+            }
+        })
     }
 
     pub(super) fn simplify_access_expression(

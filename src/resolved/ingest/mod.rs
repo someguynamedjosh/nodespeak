@@ -40,15 +40,13 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 
 #[derive(Clone, Debug)]
 struct SimplifierTable {
-    pub conversions: HashMap<i::VariableId, o::VariableId>,
-    pub replacements: HashMap<i::VariableId, o::Expression>,
+    pub conversions: HashMap<i::VariableId, o::Expression>,
 }
 
 impl SimplifierTable {
     pub(self) fn new() -> SimplifierTable {
         SimplifierTable {
             conversions: HashMap::new(),
-            replacements: HashMap::new(),
         }
     }
 }

@@ -32,7 +32,7 @@ impl<'a> ScopeSimplifier<'a> {
             .expect("Encountered extra unexpected stack pop");
     }
 
-    pub(super) fn add_conversion(&mut self, from: i::VariableId, to: o::VariableId) {
+    pub(super) fn add_conversion(&mut self, from: i::VariableId, to: o::Expression) {
         assert!(
             !self.table.conversions.contains_key(&from),
             "Cannot have multiple conversions for a single variable."
@@ -40,20 +40,8 @@ impl<'a> ScopeSimplifier<'a> {
         self.table.conversions.insert(from, to);
     }
 
-    pub(super) fn convert(&self, from: i::VariableId) -> Option<&o::VariableId> {
+    pub(super) fn convert(&self, from: i::VariableId) -> Option<&o::Expression> {
         self.table.conversions.get(&from)
-    }
-
-    pub(super) fn add_replacement(&mut self, from: i::VariableId, to: o::Expression) {
-        assert!(
-            !self.table.conversions.contains_key(&from),
-            "Cannot have multiple replacements for a single variable."
-        );
-        self.table.replacements.insert(from, to);
-    }
-
-    pub(super) fn replace(&self, from: i::VariableId) -> Option<&o::Expression> {
-        self.table.replacements.get(&from)
     }
 
     pub(super) fn set_temporary_value(&self, var: i::VariableId, value: i::KnownData) {
