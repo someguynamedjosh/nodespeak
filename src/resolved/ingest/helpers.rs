@@ -1,6 +1,7 @@
 use super::{Content, ScopeSimplifier};
 use crate::problem::{CompileProblem, FilePosition};
-use crate::vague::structure::{BaseType, DataType, Expression, KnownData};
+use crate::resolved::structure as o;
+use crate::vague::structure as i;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -111,7 +112,7 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_assignment_access_expression(
         &mut self,
         access_expression: &Expression,
-    ) -> Result<(Expression, DataType), CompileProblem> {
+    ) -> Result<(o::Expression, DataType), CompileProblem> {
         Result::Ok(match access_expression {
             Expression::Variable(id, position) => {
                 if let Some(new_expr) = self.replace(*id) {

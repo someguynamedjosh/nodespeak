@@ -16,7 +16,8 @@ impl<'a> ScopeSimplifier<'a> {
             let var_id = self
                 .target
                 .adopt_and_define_intermediate(self.current_scope, new_var);
-            self.add_conversion(old_var_id, var_id);
+            let expression = o::Expression::Variable(var_id, FilePosition::placeholder());
+            self.add_conversion(old_var_id, expression);
         }
         self.set_temporary_value(
             old_var_id,
@@ -39,10 +40,7 @@ impl<'a> ScopeSimplifier<'a> {
         let simplified_value = self.simplify_expression(value)?;
         if simplified_target.1.is_automatic() {
             self.simplify_automatic_type(&simplified_target.0, &simplified_value.data_type)?;
-        } else if !simplified_value
-            .data_type
-            .equivalent(&simplified_target.1, self.program)
-        {
+        } else if !simplified_value.data_type.equivalent(&simplified_target.1) {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
         Result::Ok(match simplified_value.content {
@@ -55,12 +53,12 @@ impl<'a> ScopeSimplifier<'a> {
                 if let Result::Err(simplified_expresion) = result {
                     SimplifiedExpression {
                         content: Content::Modified(simplified_expresion),
-                        data_type: i::DataType::scalar(i::BaseType::Void),
+                        data_type: DataType::scalar(BaseType::Void),
                     }
                 } else {
                     SimplifiedExpression {
                         content: Content::Interpreted(i::KnownData::Void),
-                        data_type: i::DataType::scalar(i::BaseType::Void),
+                        data_type: DataType::scalar(BaseType::Void),
                     }
                 }
             }
@@ -73,7 +71,7 @@ impl<'a> ScopeSimplifier<'a> {
                 });
                 SimplifiedExpression {
                     content,
-                    data_type: i::DataType::scalar(i::BaseType::Void),
+                    data_type: DataType::scalar(BaseType::Void),
                 }
             }
         })
@@ -91,7 +89,7 @@ impl<'a> ScopeSimplifier<'a> {
                     if succeed {
                         SimplifiedExpression {
                             content: Content::Interpreted(i::KnownData::Void),
-                            data_type: i::DataType::scalar(i::BaseType::Void),
+                            data_type: DataType::scalar(BaseType::Void),
                         }
                     } else {
                         return Result::Err(problems::guaranteed_assert(position.clone()));
@@ -105,7 +103,7 @@ impl<'a> ScopeSimplifier<'a> {
                     Box::new(expression),
                     position.clone(),
                 )),
-                data_type: i::DataType::scalar(i::BaseType::Void),
+                data_type: DataType::scalar(BaseType::Void),
             },
         })
     }
