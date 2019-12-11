@@ -216,7 +216,8 @@ impl<'a> ScopeSimplifier<'a> {
                 // the resulting expression.
                 Content::Modified(expr2) => Content::Modified(o::Expression::BinaryOperation(
                     Box::new({
-                        let value = util::resolve_known_data(&dat1).expect("TODO: Nice error, data cannot be used at runtime.");
+                        let value = util::resolve_known_data(&dat1)
+                            .expect("TODO: Nice error, data cannot be used at runtime.");
                         let data = o::Expression::Literal(value, operand_1_position);
                         util::inflate(data, dt1, rt)?
                     }),
@@ -232,7 +233,8 @@ impl<'a> ScopeSimplifier<'a> {
                     Box::new(util::inflate(expr1, dt1, rt)?),
                     util::resolve_operator(operator),
                     Box::new({
-                        let value = util::resolve_known_data(&dat2).expect("TODO: Nice error, data cannot be used at runtime.");
+                        let value = util::resolve_known_data(&dat2)
+                            .expect("TODO: Nice error, data cannot be used at runtime.");
                         let data = o::Expression::Literal(value, operand_2_position);
                         util::inflate(data, dt2, rt)?
                     }),

@@ -1,6 +1,6 @@
-use crate::problem::FilePosition;
-use crate::resolved::structure::{ScopeId, VariableId, KnownData};
 use super::{DataType, Program};
+use crate::problem::FilePosition;
+use crate::resolved::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -132,8 +132,8 @@ impl Expression {
             Expression::Variable(id, ..) => program[*id].borrow_data_type().clone(),
             Expression::Literal(data, ..) => data.get_data_type(),
             Expression::InlineReturn(..) => unimplemented!(),
-            Expression::Proxy {..} => unimplemented!(),
-            Expression::Access{..} => unimplemented!(),
+            Expression::Proxy { .. } => unimplemented!(),
+            Expression::Access { .. } => unimplemented!(),
             // TODO: I think this will need some more checks.
             Expression::UnaryOperation(_, value, ..) => value.get_type(program),
             Expression::BinaryOperation(a, _, b, ..) => {
@@ -150,9 +150,9 @@ impl Expression {
                 element_type
             }
             Expression::Assert(..) => unimplemented!(),
-            Expression::Assign{..} => unimplemented!(),
-            Expression::Return{..} => unimplemented!(),
-            Expression::FuncCall{..} => unimplemented!(),
+            Expression::Assign { .. } => unimplemented!(),
+            Expression::Return { .. } => unimplemented!(),
+            Expression::FuncCall { .. } => unimplemented!(),
         }
     }
 }
@@ -163,8 +163,8 @@ impl Debug for Expression {
             Expression::Variable(var_id, ..) => write!(formatter, "{:?}", var_id),
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
-            Expression::Proxy {..} => unimplemented!(),
-            Expression::Access {..} => unimplemented!(),
+            Expression::Proxy { .. } => unimplemented!(),
+            Expression::Access { .. } => unimplemented!(),
 
             Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)

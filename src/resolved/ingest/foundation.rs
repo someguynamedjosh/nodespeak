@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use super::{Content, ScopeSimplifier, SimplifiedExpression, SimplifierTable};
+use super::{
+    util, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression, SimplifierTable,
+};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::util::NVec;
@@ -8,11 +10,11 @@ use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
     pub(super) fn new(source: &'a mut i::Program) -> ScopeSimplifier<'a> {
-        let entry_point = source.get_entry_point();
+        let target = o::Program::new();
         ScopeSimplifier {
             source,
-            target: o::Program::new(),
-            current_scope: entry_point,
+            target,
+            current_scope: target.get_entry_point(),
             table: SimplifierTable::new(),
             stack: Vec::new(),
             temp_values: HashMap::new(),
@@ -79,15 +81,16 @@ impl<'a> ScopeSimplifier<'a> {
     ) -> Result<SimplifiedExpression, CompileProblem> {
         Result::Ok(match old_expression {
             i::Expression::Literal(value, ..) => SimplifiedExpression {
-                data_type: value
-                    .get_data_type()
-                    .expect("Literals always have a known data type."),
+                data_type: self.input_to_intermediate_type(
+                    value
+                        .get_data_type()
+                        .expect("Literals always have a known data type."),
+                )?,
                 content: Content::Interpreted(value.clone()),
             },
             i::Expression::Variable(id, position) => {
                 self.simplify_variable(*id, position.clone())?
             }
-            i::Expression::Proxy { .. } => unimplemented!(),
             i::Expression::Access {
                 base,
                 indexes,
@@ -161,18 +164,22 @@ impl<'a> ScopeSimplifier<'a> {
                         }
                         let final_data = i::KnownData::Array(NVec::collect(sub_arrays));
                         SimplifiedExpression {
-                            data_type: final_data
-                                .get_data_type()
-                                .expect("Data cannot be unknown, we just built it."),
+                            data_type: self.input_to_intermediate_type(
+                                final_data
+                                    .get_data_type()
+                                    .expect("Data cannot be unknown, we just built it."),
+                            )?,
                             content: Content::Interpreted(final_data),
                         }
                     } else {
                         // Each element is a scalar, so just make a new 1d array out of them.
                         let final_data = i::KnownData::Array(NVec::from_vec(data));
                         SimplifiedExpression {
-                            data_type: final_data
-                                .get_data_type()
-                                .expect("Data cannot be unknown, we just built it."),
+                            data_type: self.input_to_intermediate_type(
+                                final_data
+                                    .get_data_type()
+                                    .expect("Data cannot be unknown, we just built it."),
+                            )?,
                             content: Content::Interpreted(final_data),
                         }
                     }
@@ -188,33 +195,21 @@ impl<'a> ScopeSimplifier<'a> {
                         // TODO: Check that all the elements are the same type.
                         match value.content {
                             Content::Interpreted(value) => {
-                                items.push(i::Expression::Literal(value, value_position))
+                                let resolved =
+                                    util::resolve_known_data(&value).expect("TODO: nice error");
+                                items.push(o::Expression::Literal(resolved, value_position));
                             }
                             Content::Modified(expression) => items.push(expression),
                         }
                     }
                     SimplifiedExpression {
-                        content: Content::Modified(i::Expression::Collect(items, position.clone())),
+                        content: Content::Modified(o::Expression::Collect(items, position.clone())),
                         data_type,
                     }
                 }
             }
             i::Expression::CreationPoint(old_var_id, position) => {
-                self.simplify_creation_point(*old_var_id, position)?;
-                let new_var_id = self.convert(*old_var_id);
-                let data_type = self.target[new_var_id].borrow_data_type();
-                let mut new_sizes = Vec::with_capacity(data_type.borrow_dimensions().len());
-                for size in data_type.borrow_dimensions().clone() {
-                    let content = self.simplify_expression(&size)?.content;
-                    new_sizes.push(content.into_expression(size.clone_position()));
-                }
-                self.target[new_var_id]
-                    .borrow_data_type_mut()
-                    .set_dimensions(new_sizes);
-                SimplifiedExpression {
-                    content: Content::Interpreted(i::KnownData::Void),
-                    data_type: DataType::scalar(BaseType::Void),
-                }
+                self.simplify_creation_point(*old_var_id, position)?
             }
 
             i::Expression::Assert(value, position) => {
@@ -226,7 +221,7 @@ impl<'a> ScopeSimplifier<'a> {
                 position,
             } => self.simplify_assign_statement(target, value, position)?,
             i::Expression::Return(position) => {
-                let content = Content::Modified(i::Expression::Return(position.clone()));
+                let content = Content::Modified(o::Expression::Return(position.clone()));
                 SimplifiedExpression {
                     content,
                     data_type: DataType::scalar(BaseType::Void),
