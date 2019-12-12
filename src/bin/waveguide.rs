@@ -51,13 +51,13 @@ fn main() {
                 process::exit(101);
             }
         },
-        // "simplify" => match waveguide::simplify(&source_set) {
-        //     Result::Ok(program) => println!("{:?}", program),
-        //     Result::Err(err) => {
-        //         eprintln!("{}", err);
-        //         process::exit(101);
-        //     }
-        // },
+        "simplify" => match waveguide::simplify(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
         // "trivialize" => match waveguide::trivialize(&source_set) {
         //     Result::Ok(program) => println!("{:?}", program),
         //     Result::Err(err) => {

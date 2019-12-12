@@ -55,13 +55,12 @@ fn structure_impl(
     vague::ingest(&mut parsed)
 }
 
-// fn simplify_impl(
-//     sources: &SourceSet,
-// ) -> Result<vague::structure::Program, problem::CompileProblem> {
-//     let mut program = structure_impl(sources)?;
-//     vague::simplify(&mut program)?;
-//     Result::Ok(program)
-// }
+fn simplify_impl(
+    sources: &SourceSet,
+) -> Result<resolved::structure::Program, problem::CompileProblem> {
+    let mut program = structure_impl(sources)?;
+    resolved::ingest(&mut program)
+}
 
 // fn trivialize_impl(
 //     sources: &SourceSet,
@@ -92,9 +91,9 @@ pub fn structure(sources: &SourceSet) -> Result<vague::structure::Program, Strin
     structure_impl(sources).map_err(error_map(sources))
 }
 
-// pub fn simplify(sources: &SourceSet) -> Result<vague::structure::Program, String> {
-//     simplify_impl(sources).map_err(error_map(sources))
-// }
+pub fn simplify(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
+    simplify_impl(sources).map_err(error_map(sources))
+}
 
 // pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
 //     trivialize_impl(sources).map_err(error_map(sources))
