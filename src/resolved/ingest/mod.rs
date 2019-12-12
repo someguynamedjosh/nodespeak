@@ -82,6 +82,7 @@ pub(super) struct ScopeSimplifier<'a> {
     temp_values: HashMap<i::VariableId, i::KnownData>,
 }
 
+#[derive(Clone, Debug)]
 pub(self) enum Content {
     /// A simpler or simplified version of the expression was found.
     Modified(o::Expression),

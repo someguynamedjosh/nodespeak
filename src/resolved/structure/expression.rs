@@ -257,7 +257,7 @@ impl Expression {
             Expression::Assign { target, value, .. } => {
                 (match &**target {
                     Expression::Variable(..) => true,
-                    Expression::Access{..} => target.is_valid(),
+                    Expression::Access { .. } => target.is_valid(),
                     _ => false,
                 }) && value.is_valid()
             }

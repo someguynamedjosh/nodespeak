@@ -54,12 +54,12 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> &i::KnownData {
         self.temp_values
             .get(&var)
-            .unwrap_or_else(|| &i::KnownData::Void)
+            .unwrap_or_else(|| &i::KnownData::Unknown)
     }
 
     pub(super) fn borrow_temporary_value_mut(&mut self, var: i::VariableId) -> &mut i::KnownData {
         if !self.temp_values.contains_key(&var) {
-            self.set_temporary_value(var, i::KnownData::Void);
+            self.set_temporary_value(var, i::KnownData::Unknown);
         }
         self.temp_values
             .get_mut(&var)
