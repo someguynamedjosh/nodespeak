@@ -1,6 +1,7 @@
 use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
+use crate::util::NVec;
 use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -19,10 +20,17 @@ impl<'a> ScopeSimplifier<'a> {
             let expression = o::Expression::Variable(var_id, FilePosition::placeholder());
             self.add_conversion(old_var_id, expression);
         }
-        self.set_temporary_value(
-            old_var_id,
-            self.source[old_var_id].borrow_initial_value().clone(),
-        );
+        let mut starting_value = self.source[old_var_id].borrow_initial_value().clone();
+        if let i::KnownData::Unknown = starting_value {
+            if intermediate_data_type.borrow_dimensions().len() > 0 {
+                let dims = intermediate_data_type.borrow_dimensions();
+                starting_value = i::KnownData::Array(NVec::new(
+                    dims.iter().map(|i| *i as usize).collect(),
+                    i::KnownData::Unknown,
+                ));
+            }
+        }
+        self.set_temporary_value(old_var_id, starting_value);
 
         Result::Ok(SimplifiedExpression {
             content: Content::Interpreted(i::KnownData::Void),

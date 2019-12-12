@@ -164,7 +164,13 @@ impl Debug for Expression {
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
             Expression::Proxy { .. } => unimplemented!(),
-            Expression::Access { .. } => unimplemented!(),
+            Expression::Access { base, indexes, .. } => {
+                write!(formatter, "{:?}", base)?;
+                for index in indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
+            }
 
             Expression::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -251,6 +257,7 @@ impl Expression {
             Expression::Assign { target, value, .. } => {
                 (match &**target {
                     Expression::Variable(..) => true,
+                    Expression::Access{..} => target.is_valid(),
                     _ => false,
                 }) && value.is_valid()
             }
