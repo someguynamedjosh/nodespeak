@@ -88,9 +88,19 @@ impl KnownData {
     pub fn get_data_type(&self) -> Result<DataType, ()> {
         Result::Ok(match self {
             KnownData::Unknown => return Result::Err(()),
-            KnownData::Array(data) => DataType::array(
-                data.borrow_all_items()[0].get_base_type(),
-                data.borrow_dimensions()
+            KnownData::Array(data) => {
+                let mut base_type = None;
+                for element in data.borrow_all_items() {
+                    match element {
+                        KnownData::Unknown => (),
+                        KnownData::Array(..) => unreachable!(),
+                        _ => {
+                            base_type = Some(element.get_base_type());
+                            break;
+                        }
+                    }
+                }
+                let dimensions = data.borrow_dimensions()
                     .iter()
                     .map(|dim| {
                         Expression::Literal(
@@ -98,8 +108,16 @@ impl KnownData {
                             FilePosition::placeholder(),
                         )
                     })
-                    .collect(),
-            ),
+                    .collect();
+                if let Option::Some(base_type) = base_type {
+                    DataType::array(
+                        base_type,
+                        dimensions
+                    )
+                } else {
+                    return Result::Err(());
+                }
+            }
             _ => DataType::scalar(self.get_base_type()),
         })
     }

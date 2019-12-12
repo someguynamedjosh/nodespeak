@@ -12,8 +12,8 @@ impl<'a> ScopeSimplifier<'a> {
         position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let temporary_value = self.borrow_temporary_value(id);
-        Result::Ok(match temporary_value {
-            i::KnownData::Unknown => {
+        Result::Ok(match temporary_value.get_data_type() {
+            Result::Err(..) => {
                 let converted_expression = self
                     .convert(id)
                     .expect("TODO: nice error, variable not available at run time.")
@@ -24,11 +24,8 @@ impl<'a> ScopeSimplifier<'a> {
                 let content = Content::Modified(converted_expression);
                 SimplifiedExpression { content, data_type }
             }
-            _ => {
+            Result::Ok(data_type) => {
                 let content = Content::Interpreted(temporary_value.clone());
-                let data_type = temporary_value
-                    .get_data_type()
-                    .expect("Already checked that data was not uknown.");
                 let data_type = self.input_to_intermediate_type(data_type)?;
                 SimplifiedExpression { content, data_type }
             }

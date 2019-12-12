@@ -163,7 +163,17 @@ impl Debug for Expression {
             Expression::Variable(var_id, ..) => write!(formatter, "{:?}", var_id),
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
-            Expression::Proxy { .. } => unimplemented!(),
+            Expression::Proxy { base, dimensions, .. } => {
+                write!(formatter, "({:?}", base)?;
+                for dimension in dimensions {
+                    match dimension.0 {
+                        ProxyMode::Literal => write!(formatter, "[{0}>{0}]", dimension.1)?,
+                        ProxyMode::Collapse => write!(formatter, "[{0}>1]", dimension.1)?,
+                        ProxyMode::Discard => write!(formatter, "[{0}>X]", dimension.1)?,
+                    }
+                }
+                write!(formatter, ")")
+            }
             Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes {
