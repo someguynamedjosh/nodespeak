@@ -52,9 +52,7 @@ impl<'a> ScopeSimplifier<'a> {
             Result::Err(..) => panic!("TODO: Nice error."),
         };
         let simplified_target = self.simplify_assignment_access_expression(target, data_type)?;
-        if simplified_target.1.is_automatic() {
-            self.simplify_automatic_type(&simplified_target.0, &simplified_value.data_type)?;
-        } else if !simplified_value.data_type.equivalent(&simplified_target.1) {
+        if !simplified_value.data_type.equivalent(&simplified_target.1) {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
         Result::Ok(match simplified_value.content {

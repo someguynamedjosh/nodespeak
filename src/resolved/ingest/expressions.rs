@@ -319,8 +319,6 @@ impl<'a> ScopeSimplifier<'a> {
             }
         }
 
-        let mut inline_output = None;
-        let mut runtime_inline_output = None;
         let output_parameters = self.source[old_function_body].borrow_outputs().clone();
         if output_parameters.len() != outputs.len() {
             return Result::Err(problems::wrong_number_of_outputs(
@@ -329,40 +327,6 @@ impl<'a> ScopeSimplifier<'a> {
                 outputs.len(),
                 output_parameters.len(),
             ));
-        }
-        // Add conversions to insert the function outputs into the body.
-        for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
-            match argument {
-                i::Expression::InlineReturn(..) => {
-                    inline_output = Some(*parameter);
-                    let input_type = self.source[*parameter].borrow_data_type().clone();
-                    let inter_type = self.input_to_intermediate_type(input_type);
-                    let output_type = inter_type.map(|t| t.to_output_type());
-                    if let Result::Ok(Result::Ok(data_type)) = output_type {
-                        let pos = self.source[*parameter].get_definition().clone();
-                        let var = o::Variable::new(pos, data_type);
-                        let id = self
-                            .target
-                            .adopt_and_define_intermediate(self.current_scope, var);
-                        self.add_conversion(
-                            *parameter,
-                            o::Expression::Variable(id, FilePosition::placeholder()),
-                        );
-                        runtime_inline_output = Some(id);
-                    }
-                }
-                _ => {
-                    let data_type = self.source[*parameter].borrow_data_type().clone();
-                    let data_type = self.input_to_intermediate_type(data_type)?;
-                    let data_type = match data_type.to_output_type() {
-                        Result::Ok(result) => result,
-                        Result::Err(..) => panic!("TODO: Nice error."),
-                    };
-                    let (resolved, _) =
-                        self.simplify_assignment_access_expression(argument, data_type)?;
-                    self.add_conversion(*parameter, resolved);
-                }
-            }
         }
 
         // Make a copy of the function body.
@@ -391,6 +355,54 @@ impl<'a> ScopeSimplifier<'a> {
                         self.target[new_function_body].add_expression(new_expression);
                     }
                 },
+            }
+        }
+        // Copy values from the output parameters to their respective arguments.
+        let mut inline_output = None;
+        let mut runtime_inline_output = None;
+        for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
+            if let i::Expression::InlineReturn(..) = argument {
+                inline_output = Some(*parameter);
+                let input_type = self.source[*parameter].borrow_data_type().clone();
+                let inter_type = self.input_to_intermediate_type(input_type);
+                let output_type = inter_type.map(|t| t.to_output_type());
+                if let Result::Ok(Result::Ok(data_type)) = output_type {
+                    let pos = self.source[*parameter].get_definition().clone();
+                    let var = o::Variable::new(pos, data_type);
+                    let id = self
+                        .target
+                        .adopt_and_define_intermediate(self.current_scope, var);
+                    self.add_conversion(
+                        *parameter,
+                        o::Expression::Variable(id, FilePosition::placeholder()),
+                    );
+                    runtime_inline_output = Some(id);
+                }
+            } else {
+                let value = self.borrow_temporary_value(*parameter);
+                if let i::KnownData::Unknown = value {
+                    let data_type = self.source[*parameter].borrow_data_type().clone();
+                    let data_type = self.input_to_intermediate_type(data_type)?;
+                    let data_type = match data_type.to_output_type() {
+                        Result::Ok(result) => result,
+                        Result::Err(..) => panic!("TODO: Nice error."),
+                    };
+                    let (target, _) = self.simplify_assignment_access_expression(argument, data_type)?;
+                    let value = self.convert(*parameter).expect("TODO: Nice error.").clone();
+                    let expr = o::Expression::Assign {
+                        target: Box::new(target),
+                        value: Box::new(value),
+                        position: FilePosition::placeholder(),
+                    };
+                    self.target[new_function_body].add_expression(expr);
+                } else {
+                    let value = value.clone();
+                    let pos = FilePosition::placeholder();
+                    let result = self.assign_value_to_expression(argument, value, pos)?;
+                    if let Result::Err(expr) = result {
+                        self.target[new_function_body].add_expression(expr);
+                    } // else the assignment was a success.
+                }
             }
         }
         self.current_scope = old_current_scope;

@@ -667,8 +667,11 @@ fn add_function_outputs(
     input: i::Node,
 ) -> Result<(), CompileProblem> {
     for child in input.into_inner() {
+        let pos = FilePosition::from_pair(&child);
         let new_output = parse_named_function_parameter(program, func_scope, child)?;
         program[func_scope].add_output(new_output);
+        let expr = o::Expression::CreationPoint(new_output, pos);
+        program[func_scope].add_expression(expr);
     }
     Result::Ok(())
 }
