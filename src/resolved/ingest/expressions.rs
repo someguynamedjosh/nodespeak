@@ -381,6 +381,7 @@ impl<'a> ScopeSimplifier<'a> {
             } else {
                 let value = self.borrow_temporary_value(*parameter);
                 if let i::KnownData::Unknown = value {
+                    self.assign_unknown_to_expression(argument);
                     let data_type = self.source[*parameter].borrow_data_type().clone();
                     let data_type = self.input_to_intermediate_type(data_type)?;
                     let data_type = match data_type.to_output_type() {

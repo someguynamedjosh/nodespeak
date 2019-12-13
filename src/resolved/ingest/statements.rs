@@ -60,6 +60,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let result =
                     self.assign_value_to_expression(&target, known_value, position.clone())?;
                 if let Result::Err(simplified_expresion) = result {
+                    self.assign_unknown_to_expression(&target);
                     SimplifiedExpression {
                         content: Content::Modified(simplified_expresion),
                         data_type: DataType::scalar(BaseType::Void),

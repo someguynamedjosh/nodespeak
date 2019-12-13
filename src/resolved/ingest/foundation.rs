@@ -18,7 +18,6 @@ impl<'a> ScopeSimplifier<'a> {
             current_scope: entry_point,
             table: SimplifierTable::new(),
             stack: Vec::new(),
-            temp_values: HashMap::new(),
         }
     }
 
@@ -60,20 +59,20 @@ impl<'a> ScopeSimplifier<'a> {
     }
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: i::KnownData) {
-        self.temp_values.insert(var, value);
+        self.table.temp_values.insert(var, value);
     }
 
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> &i::KnownData {
-        self.temp_values
+        self.table.temp_values
             .get(&var)
             .unwrap_or_else(|| &i::KnownData::Unknown)
     }
 
     pub(super) fn borrow_temporary_value_mut(&mut self, var: i::VariableId) -> &mut i::KnownData {
-        if !self.temp_values.contains_key(&var) {
+        if !self.table.temp_values.contains_key(&var) {
             self.set_temporary_value(var, i::KnownData::Unknown);
         }
-        self.temp_values
+        self.table.temp_values
             .get_mut(&var)
             .expect("We already guaranteed a value would be present.")
     }

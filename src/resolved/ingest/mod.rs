@@ -59,6 +59,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 struct SimplifierTable {
     pub conversions: HashMap<i::VariableId, o::Expression>,
     pub unresolved_auto_vars: HashSet<i::VariableId>,
+    pub temp_values: HashMap<i::VariableId, i::KnownData>,
 }
 
 impl SimplifierTable {
@@ -66,6 +67,7 @@ impl SimplifierTable {
         SimplifierTable {
             conversions: HashMap::new(),
             unresolved_auto_vars: HashSet::new(),
+            temp_values: HashMap::new(),
         }
     }
 }
@@ -81,7 +83,6 @@ pub(super) struct ScopeSimplifier<'a> {
     // different values depending on the types used for the inputs and outputs
     // of the function.
     stack: Vec<SimplifierTable>,
-    temp_values: HashMap<i::VariableId, i::KnownData>,
 }
 
 #[derive(Clone, Debug)]
