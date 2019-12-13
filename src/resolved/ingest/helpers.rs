@@ -125,13 +125,25 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn simplify_assignment_access_expression(
         &mut self,
         access_expression: &i::Expression,
+        data_type: o::DataType,
     ) -> Result<(o::Expression, DataType), CompileProblem> {
+        // TODO: More complicated automatic types like [4]Auto or something.
         Result::Ok(match access_expression {
             i::Expression::Variable(id, position) => {
                 if let Some(new_expr) = self.convert(*id) {
                     let cloned = new_expr.clone();
                     let data_type = DataType::from_output_type(&cloned.get_type(&self.target));
                     (cloned, data_type)
+                } else if self.is_unresolved_auto_var(*id) {
+                    self.mark_auto_var_resolved(*id);
+                    let inter_type = DataType::from_output_type(&data_type);
+                    let var = o::Variable::new(FilePosition::placeholder(), data_type);
+                    let new_id = self
+                        .target
+                        .adopt_and_define_intermediate(self.current_scope, var);
+                    let expr = o::Expression::Variable(new_id, position.clone());
+                    self.add_conversion(*id, expr.clone());
+                    (expr, inter_type)
                 } else {
                     panic!("TODO: Nice error, variable not defined.")
                 }
@@ -141,7 +153,9 @@ impl<'a> ScopeSimplifier<'a> {
                 indexes,
                 position,
             } => {
-                let simplified_base = self.simplify_assignment_access_expression(base)?;
+                let element_type = data_type.clone_and_unwrap(indexes.len());
+                let simplified_base =
+                    self.simplify_assignment_access_expression(base, element_type)?;
                 let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();

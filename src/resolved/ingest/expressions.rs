@@ -307,17 +307,15 @@ impl<'a> ScopeSimplifier<'a> {
         }
         // Add conversions to insert the function inputs into the body.
         for (parameter, argument) in input_parameters.iter().zip(inputs.iter()) {
-            if let i::Expression::Literal(data, ..) = argument {
+            // TODO: Some expressions would be more efficient to calculate once and store
+            // in a variable.
+            let resolved = self.simplify_expression(argument)?;
+            match resolved.content {
                 // If we know the value of the argument, set it so that we can better simplify any
                 // expressions using its value.
-                self.set_temporary_value(*parameter, data.clone());
-            } else {
+                Content::Interpreted(value) => self.set_temporary_value(*parameter, value),
                 // Otherwise, resolve it and add a conversion.
-                // TODO: Some expressions would be more efficient to calculate once and store
-                // in a variable.
-                let resolved = self.simplify_expression(argument)?;
-                let expr = resolved.content.into_expression(argument.clone_position());
-                self.add_conversion(*parameter, expr);
+                Content::Modified(expr) => self.add_conversion(*parameter, expr),
             }
         }
 
@@ -354,7 +352,14 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                 }
                 _ => {
-                    let (resolved, _) = self.simplify_assignment_access_expression(argument)?;
+                    let data_type = self.source[*parameter].borrow_data_type().clone();
+                    let data_type = self.input_to_intermediate_type(data_type)?;
+                    let data_type = match data_type.to_output_type() {
+                        Result::Ok(result) => result,
+                        Result::Err(..) => panic!("TODO: Nice error."),
+                    };
+                    let (resolved, _) =
+                        self.simplify_assignment_access_expression(argument, data_type)?;
                     self.add_conversion(*parameter, resolved);
                 }
             }

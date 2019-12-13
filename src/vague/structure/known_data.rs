@@ -100,7 +100,8 @@ impl KnownData {
                         }
                     }
                 }
-                let dimensions = data.borrow_dimensions()
+                let dimensions = data
+                    .borrow_dimensions()
                     .iter()
                     .map(|dim| {
                         Expression::Literal(
@@ -110,10 +111,7 @@ impl KnownData {
                     })
                     .collect();
                 if let Option::Some(base_type) = base_type {
-                    DataType::array(
-                        base_type,
-                        dimensions
-                    )
+                    DataType::array(base_type, dimensions)
                 } else {
                     return Result::Err(());
                 }

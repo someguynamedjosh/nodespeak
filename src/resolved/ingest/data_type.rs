@@ -192,7 +192,7 @@ impl<'a> ScopeSimplifier<'a> {
             }
         }
         let base_type = match source.borrow_base() {
-            i::BaseType::Automatic => unimplemented!("TODO: Automatic types."),
+            i::BaseType::Automatic => BaseType::Automatic,
             i::BaseType::Dynamic(..) => unimplemented!("TODO: Dynamic types."),
             i::BaseType::LoadTemplateParameter(..) => unimplemented!("TODO: Template parameters."),
             i::BaseType::Bool => BaseType::Bool,

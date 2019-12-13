@@ -1,7 +1,7 @@
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 mod data_type;
 mod expressions;
@@ -58,12 +58,14 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 #[derive(Clone, Debug)]
 struct SimplifierTable {
     pub conversions: HashMap<i::VariableId, o::Expression>,
+    pub unresolved_auto_vars: HashSet<i::VariableId>,
 }
 
 impl SimplifierTable {
     pub(self) fn new() -> SimplifierTable {
         SimplifierTable {
             conversions: HashMap::new(),
+            unresolved_auto_vars: HashSet::new(),
         }
     }
 }

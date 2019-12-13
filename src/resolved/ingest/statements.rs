@@ -19,6 +19,8 @@ impl<'a> ScopeSimplifier<'a> {
                 .adopt_and_define_intermediate(self.current_scope, new_var);
             let expression = o::Expression::Variable(var_id, FilePosition::placeholder());
             self.add_conversion(old_var_id, expression);
+        } else if intermediate_data_type.is_automatic() {
+            self.add_unresolved_auto_var(old_var_id);
         }
         let mut starting_value = self.source[old_var_id].borrow_initial_value().clone();
         if let i::KnownData::Unknown = starting_value {
@@ -44,9 +46,12 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        // TODO: This method can probably be cleaner / more efficient.
         let simplified_value = self.simplify_expression(value)?;
-        let simplified_target = self.simplify_assignment_access_expression(target)?;
+        let data_type = match simplified_value.data_type.to_output_type() {
+            Result::Ok(result) => result,
+            Result::Err(..) => panic!("TODO: Nice error."),
+        };
+        let simplified_target = self.simplify_assignment_access_expression(target, data_type)?;
         if simplified_target.1.is_automatic() {
             self.simplify_automatic_type(&simplified_target.0, &simplified_value.data_type)?;
         } else if !simplified_value.data_type.equivalent(&simplified_target.1) {

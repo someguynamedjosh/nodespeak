@@ -47,6 +47,18 @@ impl<'a> ScopeSimplifier<'a> {
         self.table.conversions.get(&from)
     }
 
+    pub(super) fn add_unresolved_auto_var(&mut self, var: i::VariableId) {
+        self.table.unresolved_auto_vars.insert(var);
+    }
+
+    pub(super) fn is_unresolved_auto_var(&mut self, var: i::VariableId) -> bool {
+        self.table.unresolved_auto_vars.contains(&var)
+    }
+
+    pub(super) fn mark_auto_var_resolved(&mut self, var: i::VariableId) {
+        self.table.unresolved_auto_vars.remove(&var);
+    }
+
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: i::KnownData) {
         self.temp_values.insert(var, value);
     }

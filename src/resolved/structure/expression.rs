@@ -163,7 +163,9 @@ impl Debug for Expression {
             Expression::Variable(var_id, ..) => write!(formatter, "{:?}", var_id),
             Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
             Expression::InlineReturn(..) => write!(formatter, "inline return"),
-            Expression::Proxy { base, dimensions, .. } => {
+            Expression::Proxy {
+                base, dimensions, ..
+            } => {
                 write!(formatter, "({:?}", base)?;
                 for dimension in dimensions {
                     match dimension.0 {
