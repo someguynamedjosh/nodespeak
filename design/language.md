@@ -48,7 +48,7 @@ Variables can have children, which can be referred to through the dot operator:
 
 Elements of array variables can be referred to through standard bracket
 notation: `value1[0]`, `value2[7]`. Any expression can be used inside the
-brackets, as long as it simplifies to an int or a float. 
+brackets, as long as it resolves to an int or a float. 
 `value[helloworld] == value[4]` Floats will be rounded down. E.G. 
 `value[1.5] == value[1]`
 
@@ -153,7 +153,7 @@ better syntax, it would look like this:
 ```rust
 [5][4]T;
 ```
-It is easy to determine the actual data type this simplifies to just by swapping
+It is easy to determine the actual data type this resolves to just by swapping
 out T with what it represents:
 ```rust
 [5][4][3]Int;
@@ -184,7 +184,7 @@ unintuitive. This is why the backwards-looking syntax was selected.
 
 One final note on arrays is that there are no dynamically-sized arrays. All
 arrays must have a size defined at compile time. Because of waveguide's builtin
-compile-time simplification, any expression that can be simplifyd at compile time
+compile-time resolving, any expression that can be resolved at compile time
 can be used to specify the size of an array. This can be as simple as:
 ```rust
 [4]Int array;
@@ -449,7 +449,7 @@ original input.
 
 Consider `1 + 2.0`
 - The common type is `Int + Float`.
-- There is no BCT rule to simplify this, so a compile-time error is thrown.
+- There is no BCT rule to resolve this, so a compile-time error is thrown.
 
 Consider `[1, 2, 3] + [4, 5]`
 - The common type is `[3]Int + [2]Int`.
@@ -628,7 +628,7 @@ First the actual data type represented by T must be determined. BCT rules are
 used to determine this. The only types considered in the BCT calculation are
 the types of parameters marked with the question mark. In this case, only the
 type of the two inputs (both `Int`) are considered. According to BCT rules, `T` 
-simplifies to `Int`. The output type must then be `Int`. 
+resolves to `Int`. The output type must then be `Int`. 
 
 ### Using Template Types In The Body
 Using a question mark internally declares a new type, which you can use like any
@@ -659,7 +659,7 @@ we call our overly-complicated addition function like this:
 [256]Int buffer1, buffer2, output;
 overly_complicated_addition(buffer1, buffer2):(output);
 ```
-In this case, `T` simplifies to `[256]Int`, making our function body equivalent
+In this case, `T` resolves to `[256]Int`, making our function body equivalent
 to this:
 ```rust
 fn overly_complicated_addition([256]Int input1, [256]Int input2):[256]Int {
@@ -688,14 +688,14 @@ accepts_triplet([1, 2, 3]); # T == Int
 accepts_triplet([1., 2., 3.]); # T == Float
 accepts_triplet([[1], [2], [3]]); # T == [1]Int
 ```
-The size of the array can be specified using any expression that can be simplifyd
+The size of the array can be specified using any expression that can be resolved
 at compile time. The size can also be a template parameter itself:
 ```rust
 fn accepts_array([SIZE?]T? input) { ... }
 accepts_array([1, 2, 3]); # T == Int, SIZE == 3
 accepts_array([[1, 2, 3]]); # T == [3]Int, SIZE == 1
 ```
-You can even combine this with any expression that can be simplifyd at compile
+You can even combine this with any expression that can be resolved at compile
 time:
 ```rust
 fn accepts_array([SIZE?]T? input1, [fibbonacci(SIZE)]T? input2) { ... }

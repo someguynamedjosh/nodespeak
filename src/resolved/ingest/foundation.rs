@@ -121,16 +121,16 @@ impl<'a> ScopeSimplifier<'a> {
                 // TODO: Optimize accessing values in big arrays so that we don't have to clone
                 // the entire array to pick out one value.
                 let base_position = base.clone_position();
-                let simplified_base = self.resolve_expression(base)?;
-                let mut simplified_indexes = Vec::with_capacity(indexes.len());
+                let resolved_base = self.resolve_expression(base)?;
+                let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
-                    simplified_indexes
+                    resolved_indexes
                         .push((self.resolve_expression(index)?, index.clone_position()));
                 }
                 self.resolve_access_expression(
-                    simplified_base,
+                    resolved_base,
                     base_position,
-                    simplified_indexes,
+                    resolved_indexes,
                     position.clone(),
                 )?
             }
@@ -139,34 +139,34 @@ impl<'a> ScopeSimplifier<'a> {
             i::Expression::UnaryOperation(..) => unimplemented!(),
             i::Expression::BinaryOperation(operand_1, operator, operand_2, position) => {
                 let operand_1_position = operand_1.clone_position();
-                let simplified_operand_1 = self.resolve_expression(operand_1)?;
+                let resolved_operand_1 = self.resolve_expression(operand_1)?;
                 let operand_2_position = operand_2.clone_position();
-                let simplified_operand_2 = self.resolve_expression(operand_2)?;
+                let resolved_operand_2 = self.resolve_expression(operand_2)?;
                 self.resolve_binary_expression(
-                    simplified_operand_1,
+                    resolved_operand_1,
                     operand_1_position,
                     *operator,
-                    simplified_operand_2,
+                    resolved_operand_2,
                     operand_2_position,
                     position.clone(),
                 )?
             }
 
             i::Expression::Collect(values, position) => {
-                let mut simplified_values = Vec::with_capacity(values.len());
+                let mut resolved_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
                 let mut all_known = true;
                 for value in values {
                     value_positions.push(value.clone_position());
-                    let simplified_value = self.resolve_expression(value)?;
-                    if let Content::Modified(..) = &simplified_value.content {
+                    let resolved_value = self.resolve_expression(value)?;
+                    if let Content::Modified(..) = &resolved_value.content {
                         all_known = false;
                     }
-                    simplified_values.push(simplified_value);
+                    resolved_values.push(resolved_value);
                 }
                 if all_known {
-                    let mut data = Vec::with_capacity(simplified_values.len());
-                    for value in simplified_values {
+                    let mut data = Vec::with_capacity(resolved_values.len());
+                    for value in resolved_values {
                         data.push(match value.content {
                             Content::Interpreted(data) => data,
                             _ => unreachable!(
@@ -206,11 +206,11 @@ impl<'a> ScopeSimplifier<'a> {
                         }
                     }
                 } else {
-                    let mut items = Vec::with_capacity(simplified_values.len());
+                    let mut items = Vec::with_capacity(resolved_values.len());
                     // TODO: Error for zero-sized arrays.
-                    let data_type = simplified_values[0].data_type.clone();
+                    let data_type = resolved_values[0].data_type.clone();
                     // Standard treatment, fully interpreted values become literal expressions.
-                    for (value, value_position) in simplified_values
+                    for (value, value_position) in resolved_values
                         .into_iter()
                         .zip(value_positions.into_iter())
                     {
@@ -268,8 +268,8 @@ impl<'a> ScopeSimplifier<'a> {
         self.current_scope = self.copy_scope(source, parent)?;
         let old_body = self.source[source].borrow_body().clone();
         for expression in old_body {
-            let simplified = self.resolve_expression(&expression)?;
-            match simplified.content {
+            let resolved = self.resolve_expression(&expression)?;
+            match resolved.content {
                 // If it was successfully interpreted, we don't need to do anything.
                 Content::Interpreted(..) => (),
                 Content::Modified(expression) => match expression {

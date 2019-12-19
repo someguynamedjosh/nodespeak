@@ -17,17 +17,17 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
-    let mut simplifier = ScopeSimplifier::new(program);
-    let new_entry_point = simplifier.resolve_scope(entry_point, None)?;
+    let mut resolver = ScopeSimplifier::new(program);
+    let new_entry_point = resolver.resolve_scope(entry_point, None)?;
     let inputs: Vec<_> = inputs
         .into_iter()
-        .map(|id| simplifier.convert(id).map(|e| e.clone()))
+        .map(|id| resolver.convert(id).map(|e| e.clone()))
         .collect();
     let outputs: Vec<_> = outputs
         .into_iter()
-        .map(|id| simplifier.convert(id).map(|e| e.clone()))
+        .map(|id| resolver.convert(id).map(|e| e.clone()))
         .collect();
-    let mut result = simplifier.target;
+    let mut result = resolver.target;
 
     for input in inputs {
         if let Option::Some(expr) = input {
@@ -77,7 +77,7 @@ pub(super) struct ScopeSimplifier<'a> {
     table: SimplifierTable,
     // Even though VariableIds are global (so we don't have to worry about id
     // conflicts), we still have to worry about a single variable having
-    // multiple conversions. For example, type parameters can be simplified to
+    // multiple conversions. For example, type parameters can be resolved to
     // different values depending on the types used for the inputs and outputs
     // of the function.
     stack: Vec<SimplifierTable>,
@@ -86,7 +86,7 @@ pub(super) struct ScopeSimplifier<'a> {
 
 #[derive(Clone, Debug)]
 pub(self) enum Content {
-    /// A simpler or simplified version of the expression was found.
+    /// A simpler or resolved version of the expression was found.
     Modified(o::Expression),
     /// The entire value of the expression has a determinate value.
     Interpreted(i::KnownData),

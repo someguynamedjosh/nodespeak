@@ -11,7 +11,7 @@ fn ct_asserts() {
         let code = fs::read_to_string(file.path()).expect("Could not read from file.");
         let source_set =
             waveguide::SourceSet::from_raw_string(&format!("{:?}", file.path()), &code);
-        match waveguide::compile(&source_set) {
+        match waveguide::resolve(&source_set) {
             Result::Ok(_program) => (),
             Result::Err(err) => {
                 eprintln!("{}", err);

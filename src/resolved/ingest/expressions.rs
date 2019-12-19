@@ -34,15 +34,15 @@ impl<'a> ScopeSimplifier<'a> {
 
     pub(super) fn resolve_access_expression(
         &mut self,
-        simplified_base: SimplifiedExpression,
+        resolved_base: SimplifiedExpression,
         mut base_position: FilePosition,
-        simplified_indexes: Vec<(SimplifiedExpression, FilePosition)>,
+        resolved_indexes: Vec<(SimplifiedExpression, FilePosition)>,
         position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let final_type = simplified_base
+        let final_type = resolved_base
             .data_type
-            .clone_and_unwrap(simplified_indexes.len());
-        Result::Ok(match simplified_base.content {
+            .clone_and_unwrap(resolved_indexes.len());
+        Result::Ok(match resolved_base.content {
             // If the base of the access has a value known at compile time...
             Content::Interpreted(data) => {
                 let mut base_data = match data {
@@ -53,7 +53,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let mut dynamic_indexes = Vec::new();
                 let mut known = true;
                 // Figure out how much of the indexing we can do at compile time.
-                for (index, index_position) in simplified_indexes.into_iter() {
+                for (index, index_position) in resolved_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
                         panic!(
                             "TODO: nice error, data type of index must be Int not {:?}",
@@ -152,8 +152,8 @@ impl<'a> ScopeSimplifier<'a> {
             }
             // If the base of the access does not have a value known at compile time...
             Content::Modified(new_base) => {
-                let mut new_indexes = Vec::with_capacity(simplified_indexes.len());
-                for (index, index_position) in simplified_indexes.into_iter() {
+                let mut new_indexes = Vec::with_capacity(resolved_indexes.len());
+                for (index, index_position) in resolved_indexes.into_iter() {
                     if !index.data_type.is_specific_scalar(&BaseType::Int) {
                         return Result::Err(problems::array_index_not_int(
                             index_position,
@@ -172,7 +172,7 @@ impl<'a> ScopeSimplifier<'a> {
                                 panic!("TODO: nice error, cannot index with int.")
                             }
                         }
-                        // Otherwise, keep the simplified expression.
+                        // Otherwise, keep the resolved expression.
                         Content::Modified(expression) => {
                             new_indexes.push(expression);
                         }
@@ -193,34 +193,34 @@ impl<'a> ScopeSimplifier<'a> {
 
     pub(super) fn resolve_binary_expression(
         &mut self,
-        simplified_operand_1: SimplifiedExpression,
+        resolved_operand_1: SimplifiedExpression,
         operand_1_position: FilePosition,
         operator: i::BinaryOperator,
-        simplified_operand_2: SimplifiedExpression,
+        resolved_operand_2: SimplifiedExpression,
         operand_2_position: FilePosition,
         position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let result_type = match super::util::biggest_type(
-            &simplified_operand_1.data_type,
-            &simplified_operand_2.data_type,
+            &resolved_operand_1.data_type,
+            &resolved_operand_2.data_type,
         ) {
             Result::Ok(rtype) => rtype,
             Result::Err(..) => {
                 return Result::Err(problems::no_bct(
                     position,
                     operand_1_position,
-                    &simplified_operand_1.data_type,
+                    &resolved_operand_1.data_type,
                     operand_2_position,
-                    &simplified_operand_2.data_type,
+                    &resolved_operand_2.data_type,
                 ))
             }
         };
         // TODO: Generate proxies when necessary.
-        let dt1 = &simplified_operand_1.data_type;
-        let dt2 = &simplified_operand_2.data_type;
+        let dt1 = &resolved_operand_1.data_type;
+        let dt2 = &resolved_operand_2.data_type;
         let rt = &result_type;
-        let content = match simplified_operand_1.content {
-            Content::Interpreted(dat1) => match simplified_operand_2.content {
+        let content = match resolved_operand_1.content {
+            Content::Interpreted(dat1) => match resolved_operand_2.content {
                 // Both values were interpreted, so the value of the whole binary
                 // expression can be computed.
                 Content::Interpreted(dat2) => Content::Interpreted(
@@ -240,7 +240,7 @@ impl<'a> ScopeSimplifier<'a> {
                     position,
                 )),
             },
-            Content::Modified(expr1) => match simplified_operand_2.content {
+            Content::Modified(expr1) => match resolved_operand_2.content {
                 // RHS was interpreted, LHS could not be. Make RHS a literal and return
                 // the resulting expression.
                 Content::Interpreted(dat2) => Content::Modified(o::Expression::BinaryOperation(
@@ -254,7 +254,7 @@ impl<'a> ScopeSimplifier<'a> {
                     }),
                     position,
                 )),
-                // LHS and RHS couldn't be interpreted, only simplified.
+                // LHS and RHS couldn't be interpreted, only resolved.
                 Content::Modified(expr2) => Content::Modified(o::Expression::BinaryOperation(
                     Box::new(util::inflate(expr1, dt1, rt)?),
                     util::resolve_operator(operator),
@@ -280,7 +280,7 @@ impl<'a> ScopeSimplifier<'a> {
         // conversions we make won't be applied to other calls to the same funciton.
         self.push_table();
         // Make sure we can figure out what function is being called right now at compile time.
-        let simplified_function = match self.resolve_expression(function.borrow())?.content {
+        let resolved_function = match self.resolve_expression(function.borrow())?.content {
             Content::Interpreted(value) => value,
             Content::Modified(..) => {
                 return Result::Err(problems::vague_function(
@@ -290,7 +290,7 @@ impl<'a> ScopeSimplifier<'a> {
             }
         };
         // Get the actual function data.
-        let function_data = match simplified_function {
+        let function_data = match resolved_function {
             i::KnownData::Function(data) => data,
             _ => return Result::Err(problems::not_function(function.clone_position())),
         };
@@ -314,7 +314,7 @@ impl<'a> ScopeSimplifier<'a> {
             // in a variable.
             let resolved = self.resolve_expression(argument)?;
             match resolved.content {
-                // If we know the value of the argument, set it so that we can better simplify any
+                // If we know the value of the argument, set it so that we can better resolve any
                 // expressions using its value.
                 Content::Interpreted(value) => self.set_temporary_value(*parameter, value),
                 // Otherwise, resolve it and add a conversion.
@@ -341,7 +341,7 @@ impl<'a> ScopeSimplifier<'a> {
         let new_function_body = self.copy_scope(old_function_body, Some(self.current_scope))?;
 
         let mut empty_body = true;
-        // Now try and simplify the body as much as possible.
+        // Now try and resolve the body as much as possible.
         // TODO: This logic only works if the function has only determinate return statements! (I.E.
         // no return statements inside branches or loops.)
         // TODO: This also implicitly assumes that functions do not have side effects. Need to check

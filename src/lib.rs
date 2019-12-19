@@ -55,7 +55,7 @@ fn structure_impl(
     vague::ingest(&mut parsed)
 }
 
-fn simplify_impl(
+fn resolve_impl(
     sources: &SourceSet,
 ) -> Result<resolved::structure::Program, problem::CompileProblem> {
     let mut program = structure_impl(sources)?;
@@ -65,8 +65,8 @@ fn simplify_impl(
 // fn trivialize_impl(
 //     sources: &SourceSet,
 // ) -> Result<trivial::structure::Program, problem::CompileProblem> {
-//     let simplified = simplify_impl(sources)?;
-//     trivial::ingest(&simplified)
+//     let resolved = resolve_impl(sources)?;
+//     trivial::ingest(&resolved)
 // }
 
 // fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
@@ -91,8 +91,8 @@ pub fn structure(sources: &SourceSet) -> Result<vague::structure::Program, Strin
     structure_impl(sources).map_err(error_map(sources))
 }
 
-pub fn simplify(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
-    simplify_impl(sources).map_err(error_map(sources))
+pub fn resolve(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
+    resolve_impl(sources).map_err(error_map(sources))
 }
 
 // pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
@@ -114,7 +114,7 @@ pub fn simplify(sources: &SourceSet) -> Result<resolved::structure::Program, Str
 //     for (source, target) in inputs.into_iter().zip(input_targets.into_iter()) {
 //         compiled_program[target].set_temporary_value(source);
 //     }
-//     vague::simplify(compiled_program).map_err(|err| {
+//     vague::resolve(compiled_program).map_err(|err| {
 //         let width = terminal_size::terminal_size().map(|size| (size.0).0 as usize);
 //         format!("Compilation failed.\n\n{}", err.format(width, sources))
 //     })?;

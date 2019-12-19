@@ -23,7 +23,7 @@ impl<'a> ScopeSimplifier<'a> {
                         .expect("TODO: Nice error, invalid type."),
                 );
             }
-            _ => unreachable!("Should not simplify automatic types of anything else."),
+            _ => unreachable!("Should not resolve automatic types of anything else."),
         }
         Result::Ok(())
     }
@@ -50,7 +50,7 @@ impl<'a> ScopeSimplifier<'a> {
                 };
                 let mut all_indexes_known = true;
                 let mut known_indexes = Vec::new();
-                let mut simplified_indexes = Vec::with_capacity(indexes.len());
+                let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
                     let result = self.resolve_expression(index)?;
@@ -64,18 +64,18 @@ impl<'a> ScopeSimplifier<'a> {
                                 if all_indexes_known {
                                     known_indexes.push(value as usize);
                                 }
-                                // Also put a literal into simplified indexes in case we don't know
+                                // Also put a literal into resolved indexes in case we don't know
                                 // all the indexes and need to construct a runtime expression to set
                                 // the value.
                                 let data = o::KnownData::Int(value);
                                 let literal = o::Expression::Literal(data, index_position);
-                                simplified_indexes.push(literal);
+                                resolved_indexes.push(literal);
                             } else {
                                 panic!("TODO: nice error, index must be int.");
                             }
                         }
                         Content::Modified(expression) => {
-                            simplified_indexes.push(expression);
+                            resolved_indexes.push(expression);
                             all_indexes_known = false;
                         }
                     }
@@ -94,7 +94,7 @@ impl<'a> ScopeSimplifier<'a> {
                                 .expect("TODO: nice error, var not defined.")
                                 .clone(),
                         ),
-                        indexes: simplified_indexes,
+                        indexes: resolved_indexes,
                         position,
                     })
                 }
@@ -154,13 +154,13 @@ impl<'a> ScopeSimplifier<'a> {
                 position,
             } => {
                 let element_type = data_type.clone_and_unwrap(indexes.len());
-                let simplified_base =
+                let resolved_base =
                     self.resolve_assignment_access_expression(base, element_type)?;
-                let mut simplified_indexes = Vec::with_capacity(indexes.len());
+                let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
-                    let simplified_index = self.resolve_expression(index)?;
-                    simplified_indexes.push(match simplified_index.content {
+                    let resolved_index = self.resolve_expression(index)?;
+                    resolved_indexes.push(match resolved_index.content {
                         Content::Interpreted(value) => {
                             if let i::KnownData::Int(index) = value {
                                 assert!(index >= 0, "TODO: nice error, index must be nonnegative");
@@ -173,13 +173,13 @@ impl<'a> ScopeSimplifier<'a> {
                         Content::Modified(expression) => expression,
                     });
                 }
-                let num_indexes = simplified_indexes.len();
+                let num_indexes = resolved_indexes.len();
                 let expr = o::Expression::Access {
-                    base: Box::new(simplified_base.0),
-                    indexes: simplified_indexes,
+                    base: Box::new(resolved_base.0),
+                    indexes: resolved_indexes,
                     position: position.clone(),
                 };
-                (expr, simplified_base.1.clone_and_unwrap(num_indexes))
+                (expr, resolved_base.1.clone_and_unwrap(num_indexes))
             }
             i::Expression::InlineReturn(position) => (
                 o::Expression::InlineReturn(position.clone()),

@@ -46,23 +46,23 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let simplified_value = self.resolve_expression(value)?;
-        let data_type = match simplified_value.data_type.to_output_type() {
+        let resolved_value = self.resolve_expression(value)?;
+        let data_type = match resolved_value.data_type.to_output_type() {
             Result::Ok(result) => result,
             Result::Err(..) => panic!("TODO: Nice error."),
         };
-        let simplified_target = self.resolve_assignment_access_expression(target, data_type)?;
-        if !simplified_value.data_type.equivalent(&simplified_target.1) {
+        let resolved_target = self.resolve_assignment_access_expression(target, data_type)?;
+        if !resolved_value.data_type.equivalent(&resolved_target.1) {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
-        Result::Ok(match simplified_value.content {
+        Result::Ok(match resolved_value.content {
             Content::Interpreted(known_value) => {
                 let result =
                     self.assign_value_to_expression(&target, known_value, position.clone())?;
-                if let Result::Err(simplified_expresion) = result {
+                if let Result::Err(resolved_expresion) = result {
                     self.assign_unknown_to_expression(&target);
                     SimplifiedExpression {
-                        content: Content::Modified(simplified_expresion),
+                        content: Content::Modified(resolved_expresion),
                         data_type: DataType::scalar(BaseType::Void),
                     }
                 } else {
@@ -72,11 +72,11 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                 }
             }
-            Content::Modified(simplified_value) => {
+            Content::Modified(resolved_value) => {
                 self.assign_unknown_to_expression(&target);
                 let content = Content::Modified(o::Expression::Assign {
-                    target: Box::new(simplified_target.0),
-                    value: Box::new(simplified_value),
+                    target: Box::new(resolved_target.0),
+                    value: Box::new(resolved_value),
                     position: position.clone(),
                 });
                 SimplifiedExpression {
@@ -92,8 +92,8 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let simplified_value = self.resolve_expression(value)?;
-        Result::Ok(match simplified_value.content {
+        let resolved_value = self.resolve_expression(value)?;
+        Result::Ok(match resolved_value.content {
             Content::Interpreted(value) => {
                 if let i::KnownData::Bool(succeed) = value {
                     if succeed {

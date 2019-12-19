@@ -11,9 +11,9 @@ fn main() {
     if args.len() < 3 {
         eprintln!("Usage: waveguide [compile|interpret|[phase]] [path to file]");
         eprintln!("compile: compiles the specified file and outputs the result.");
-        eprintln!("interpret: interprets the specified file using the built-in simplifier.");
+        eprintln!("interpret: interprets the specified file using the built-in resolver.");
         eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
-        eprintln!("    phases: parse, structure, simplify, trivialize");
+        eprintln!("    phases: parse, structure, resolve, trivialize");
         process::exit(64);
     }
 
@@ -51,7 +51,7 @@ fn main() {
                 process::exit(101);
             }
         },
-        "simplify" => match waveguide::simplify(&source_set) {
+        "resolve" => match waveguide::resolve(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -71,9 +71,9 @@ fn main() {
                 args[1]
             );
             eprintln!("compile: compiles the specified file and outputs the result.");
-            eprintln!("interpret: interprets the specified file using the built-in simplifier.");
+            eprintln!("interpret: interprets the specified file using the built-in resolver.");
             eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
-            eprintln!("    phases: parse, structure, simplify, trivialize");
+            eprintln!("    phases: parse, structure, resolve, trivialize");
             process::exit(64);
         }
     }

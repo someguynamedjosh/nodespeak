@@ -50,7 +50,7 @@ impl<'a> Trivializer<'a> {
             i::KnownData::Int(value) => o::LiteralData::Int(*value),
             i::KnownData::Float(value) => o::LiteralData::Float(*value),
             i::KnownData::Bool(value) => o::LiteralData::Bool(*value),
-            _ => panic!("TODO: nice error, encountered ct-only data type after simplification."),
+            _ => panic!("TODO: nice error, encountered ct-only data type after resolving."),
         })
     }
 
@@ -295,7 +295,7 @@ impl<'a> Trivializer<'a> {
 
             i::Expression::Collect(..) => unimplemented!(),
             i::Expression::CreationPoint(..) => {
-                unreachable!("trivialize called on unsimplified code.")
+                unreachable!("trivialize called on unresolved code.")
             }
 
             i::Expression::Assert(value, ..) => {
@@ -319,7 +319,7 @@ impl<'a> Trivializer<'a> {
                 let mut output_value = None;
 
                 if inputs.len() > 0 {
-                    panic!("TODO: nice error, trivialize called on unsimplified code.");
+                    panic!("TODO: nice error, trivialize called on unresolved code.");
                 }
                 let scope = match function.borrow() {
                     i::Expression::Literal(data, ..) => match data {
@@ -333,14 +333,14 @@ impl<'a> Trivializer<'a> {
                 }
 
                 if outputs.len() > 1 {
-                    panic!("TODO: nice error, trivialize called on unsimplified code.");
+                    panic!("TODO: nice error, trivialize called on unresolved code.");
                 } else if outputs.len() == 1 {
                     if let i::Expression::InlineReturn(..) = outputs[0] {
                         let output_id = self.source[scope].borrow_outputs()[0];
                         output_value =
                             Some(o::Value::variable(self.trivialize_variable(output_id)?));
                     } else {
-                        panic!("TODO: nice error, trivialize called on unsimplified code.");
+                        panic!("TODO: nice error, trivialize called on unresolved code.");
                     }
                 }
 
