@@ -5,7 +5,7 @@ use crate::vague::structure as i;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn simplify_automatic_type(
+    pub(super) fn resolve_automatic_type(
         &mut self,
         target: &o::Expression,
         data_type: &DataType,
@@ -13,7 +13,7 @@ impl<'a> ScopeSimplifier<'a> {
         match target {
             // TODO: Handle proxies.
             o::Expression::Access { base, indexes, .. } => {
-                self.simplify_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
+                self.resolve_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
             }
             // TODO: Handle arrays of automatic types.
             o::Expression::Variable(id, ..) => {
@@ -53,7 +53,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
-                    let result = self.simplify_expression(index)?;
+                    let result = self.resolve_expression(index)?;
                     match result.content {
                         Content::Interpreted(value) => {
                             if let i::KnownData::Int(value) = value {
@@ -122,7 +122,7 @@ impl<'a> ScopeSimplifier<'a> {
 
     // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
     // value instead of reads from it, there is no way to return an "interpreted" result.
-    pub(super) fn simplify_assignment_access_expression(
+    pub(super) fn resolve_assignment_access_expression(
         &mut self,
         access_expression: &i::Expression,
         data_type: o::DataType,
@@ -155,11 +155,11 @@ impl<'a> ScopeSimplifier<'a> {
             } => {
                 let element_type = data_type.clone_and_unwrap(indexes.len());
                 let simplified_base =
-                    self.simplify_assignment_access_expression(base, element_type)?;
+                    self.resolve_assignment_access_expression(base, element_type)?;
                 let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
-                    let simplified_index = self.simplify_expression(index)?;
+                    let simplified_index = self.resolve_expression(index)?;
                     simplified_indexes.push(match simplified_index.content {
                         Content::Interpreted(value) => {
                             if let i::KnownData::Int(index) = value {

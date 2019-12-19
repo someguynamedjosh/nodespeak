@@ -100,6 +100,7 @@ fn convert_func_expr_output_list(
                 let data_type = convert_data_type(program, scope, data_type_pair)?;
                 let variable = o::Variable::variable(child_pos.clone(), data_type, None);
                 let id = program.adopt_variable(variable);
+                program[scope].add_expression(o::Expression::CreationPoint(id, child_pos.clone()));
                 program[scope].define_symbol(identifier_pair.as_str(), id);
 
                 o::Expression::Variable(id, child_pos.clone())

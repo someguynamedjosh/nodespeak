@@ -5,7 +5,7 @@ use crate::util::NVec;
 use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn simplify_creation_point(
+    pub(super) fn resolve_creation_point(
         &mut self,
         old_var_id: i::VariableId,
         position: &FilePosition,
@@ -40,18 +40,18 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn simplify_assign_statement(
+    pub(super) fn resolve_assign_statement(
         &mut self,
         target: &i::Expression,
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let simplified_value = self.simplify_expression(value)?;
+        let simplified_value = self.resolve_expression(value)?;
         let data_type = match simplified_value.data_type.to_output_type() {
             Result::Ok(result) => result,
             Result::Err(..) => panic!("TODO: Nice error."),
         };
-        let simplified_target = self.simplify_assignment_access_expression(target, data_type)?;
+        let simplified_target = self.resolve_assignment_access_expression(target, data_type)?;
         if !simplified_value.data_type.equivalent(&simplified_target.1) {
             panic!("TODO: nice error, mismatched data types in assignment.");
         }
@@ -87,12 +87,12 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn simplify_assert_statement(
+    pub(super) fn resolve_assert_statement(
         &mut self,
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
-        let simplified_value = self.simplify_expression(value)?;
+        let simplified_value = self.resolve_expression(value)?;
         Result::Ok(match simplified_value.content {
             Content::Interpreted(value) => {
                 if let i::KnownData::Bool(succeed) = value {

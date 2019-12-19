@@ -175,7 +175,7 @@ impl<'a> ScopeSimplifier<'a> {
     ) -> Result<DataType, CompileProblem> {
         let mut new_dimensions = vec![];
         for old_dimension in source.borrow_dimensions() {
-            match self.simplify_expression(&old_dimension)?.content {
+            match self.resolve_expression(&old_dimension)?.content {
                 Content::Interpreted(data) => match data {
                     i::KnownData::Int(value) => {
                         if value > 0 {

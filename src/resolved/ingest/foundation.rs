@@ -97,7 +97,7 @@ impl<'a> ScopeSimplifier<'a> {
         Result::Ok(copy)
     }
 
-    pub(super) fn simplify_expression(
+    pub(super) fn resolve_expression(
         &mut self,
         old_expression: &i::Expression,
     ) -> Result<SimplifiedExpression, CompileProblem> {
@@ -111,7 +111,7 @@ impl<'a> ScopeSimplifier<'a> {
                 content: Content::Interpreted(value.clone()),
             },
             i::Expression::Variable(id, position) => {
-                self.simplify_variable(*id, position.clone())?
+                self.resolve_variable(*id, position.clone())?
             }
             i::Expression::Access {
                 base,
@@ -121,13 +121,13 @@ impl<'a> ScopeSimplifier<'a> {
                 // TODO: Optimize accessing values in big arrays so that we don't have to clone
                 // the entire array to pick out one value.
                 let base_position = base.clone_position();
-                let simplified_base = self.simplify_expression(base)?;
+                let simplified_base = self.resolve_expression(base)?;
                 let mut simplified_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     simplified_indexes
-                        .push((self.simplify_expression(index)?, index.clone_position()));
+                        .push((self.resolve_expression(index)?, index.clone_position()));
                 }
-                self.simplify_access_expression(
+                self.resolve_access_expression(
                     simplified_base,
                     base_position,
                     simplified_indexes,
@@ -139,10 +139,10 @@ impl<'a> ScopeSimplifier<'a> {
             i::Expression::UnaryOperation(..) => unimplemented!(),
             i::Expression::BinaryOperation(operand_1, operator, operand_2, position) => {
                 let operand_1_position = operand_1.clone_position();
-                let simplified_operand_1 = self.simplify_expression(operand_1)?;
+                let simplified_operand_1 = self.resolve_expression(operand_1)?;
                 let operand_2_position = operand_2.clone_position();
-                let simplified_operand_2 = self.simplify_expression(operand_2)?;
-                self.simplify_binary_expression(
+                let simplified_operand_2 = self.resolve_expression(operand_2)?;
+                self.resolve_binary_expression(
                     simplified_operand_1,
                     operand_1_position,
                     *operator,
@@ -158,7 +158,7 @@ impl<'a> ScopeSimplifier<'a> {
                 let mut all_known = true;
                 for value in values {
                     value_positions.push(value.clone_position());
-                    let simplified_value = self.simplify_expression(value)?;
+                    let simplified_value = self.resolve_expression(value)?;
                     if let Content::Modified(..) = &simplified_value.content {
                         all_known = false;
                     }
@@ -231,17 +231,17 @@ impl<'a> ScopeSimplifier<'a> {
                 }
             }
             i::Expression::CreationPoint(old_var_id, position) => {
-                self.simplify_creation_point(*old_var_id, position)?
+                self.resolve_creation_point(*old_var_id, position)?
             }
 
             i::Expression::Assert(value, position) => {
-                self.simplify_assert_statement(value, position)?
+                self.resolve_assert_statement(value, position)?
             }
             i::Expression::Assign {
                 target,
                 value,
                 position,
-            } => self.simplify_assign_statement(target, value, position)?,
+            } => self.resolve_assign_statement(target, value, position)?,
             i::Expression::Return(position) => {
                 let content = Content::Modified(o::Expression::Return(position.clone()));
                 SimplifiedExpression {
@@ -255,11 +255,11 @@ impl<'a> ScopeSimplifier<'a> {
                 inputs,
                 outputs,
                 position,
-            } => self.simplify_func_call(function, inputs, outputs, position)?,
+            } => self.resolve_func_call(function, inputs, outputs, position)?,
         })
     }
 
-    pub(super) fn simplify_scope(
+    pub(super) fn resolve_scope(
         &mut self,
         source: i::ScopeId,
         parent: Option<o::ScopeId>,
@@ -268,7 +268,7 @@ impl<'a> ScopeSimplifier<'a> {
         self.current_scope = self.copy_scope(source, parent)?;
         let old_body = self.source[source].borrow_body().clone();
         for expression in old_body {
-            let simplified = self.simplify_expression(&expression)?;
+            let simplified = self.resolve_expression(&expression)?;
             match simplified.content {
                 // If it was successfully interpreted, we don't need to do anything.
                 Content::Interpreted(..) => (),

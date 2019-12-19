@@ -120,8 +120,6 @@ pub enum Expression {
 
     FuncCall {
         function: ScopeId,
-        inputs: Vec<Expression>,
-        outputs: Vec<Expression>,
         position: FilePosition,
     },
 }
@@ -204,22 +202,7 @@ impl Debug for Expression {
             }
             Expression::Return(..) => write!(formatter, "return;"),
 
-            Expression::FuncCall {
-                function,
-                inputs,
-                outputs,
-                ..
-            } => {
-                write!(formatter, "{{ ")?;
-                for expr in inputs {
-                    write!(formatter, "{:?} ", expr)?;
-                }
-                write!(formatter, "}} call {:?} {{ ", function)?;
-                for expr in outputs {
-                    write!(formatter, "{:?} ", expr)?;
-                }
-                write!(formatter, "}}")
-            }
+            Expression::FuncCall { function, .. } => write!(formatter, "call {:?} ", function),
         }
     }
 }
@@ -274,12 +257,7 @@ impl Expression {
                 }) && value.is_valid()
             }
             Expression::Return(..) => true,
-            Expression::FuncCall {
-                inputs, outputs, ..
-            } => inputs
-                .iter()
-                .chain(outputs.iter())
-                .fold(true, |valid, expr| valid && expr.is_valid()),
+            Expression::FuncCall { .. } => true,
         }
     }
 }

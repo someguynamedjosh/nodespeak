@@ -18,7 +18,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
     let mut simplifier = ScopeSimplifier::new(program);
-    let new_entry_point = simplifier.simplify_scope(entry_point, None)?;
+    let new_entry_point = simplifier.resolve_scope(entry_point, None)?;
     let inputs: Vec<_> = inputs
         .into_iter()
         .map(|id| simplifier.convert(id).map(|e| e.clone()))

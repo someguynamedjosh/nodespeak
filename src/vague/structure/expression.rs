@@ -164,15 +164,15 @@ impl Debug for Expression {
                 outputs,
                 ..
             } => {
-                write!(formatter, "{{ ")?;
+                write!(formatter, "call {:?}(", function)?;
                 for expr in inputs {
-                    write!(formatter, "{:?} ", expr)?;
+                    write!(formatter, "{:?},", expr)?;
                 }
-                write!(formatter, "}} call {:?} {{ ", function)?;
+                write!(formatter, "):(")?;
                 for expr in outputs {
-                    write!(formatter, "{:?} ", expr)?;
+                    write!(formatter, "{:?},", expr)?;
                 }
-                write!(formatter, "}}")
+                write!(formatter, ")")
             }
         }
     }

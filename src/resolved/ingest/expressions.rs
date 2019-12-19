@@ -6,7 +6,7 @@ use crate::vague::structure as i;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn simplify_variable(
+    pub(super) fn resolve_variable(
         &mut self,
         id: i::VariableId,
         position: FilePosition,
@@ -32,7 +32,7 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn simplify_access_expression(
+    pub(super) fn resolve_access_expression(
         &mut self,
         simplified_base: SimplifiedExpression,
         mut base_position: FilePosition,
@@ -191,7 +191,7 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn simplify_binary_expression(
+    pub(super) fn resolve_binary_expression(
         &mut self,
         simplified_operand_1: SimplifiedExpression,
         operand_1_position: FilePosition,
@@ -269,7 +269,7 @@ impl<'a> ScopeSimplifier<'a> {
         })
     }
 
-    pub(super) fn simplify_func_call(
+    pub(super) fn resolve_func_call(
         &mut self,
         function: &i::Expression,
         inputs: &Vec<i::Expression>,
@@ -280,7 +280,7 @@ impl<'a> ScopeSimplifier<'a> {
         // conversions we make won't be applied to other calls to the same funciton.
         self.push_table();
         // Make sure we can figure out what function is being called right now at compile time.
-        let simplified_function = match self.simplify_expression(function.borrow())?.content {
+        let simplified_function = match self.resolve_expression(function.borrow())?.content {
             Content::Interpreted(value) => value,
             Content::Modified(..) => {
                 return Result::Err(problems::vague_function(
@@ -312,7 +312,7 @@ impl<'a> ScopeSimplifier<'a> {
             self.set_temporary_value(*parameter, i::KnownData::Unknown);
             // TODO: Some expressions would be more efficient to calculate once and store
             // in a variable.
-            let resolved = self.simplify_expression(argument)?;
+            let resolved = self.resolve_expression(argument)?;
             match resolved.content {
                 // If we know the value of the argument, set it so that we can better simplify any
                 // expressions using its value.
@@ -349,7 +349,7 @@ impl<'a> ScopeSimplifier<'a> {
         let old_current_scope = self.current_scope;
         self.current_scope = new_function_body;
         for expression in self.source[old_function_body].borrow_body().clone() {
-            match self.simplify_expression(&expression)?.content {
+            match self.resolve_expression(&expression)?.content {
                 // TODO: Warn if an output is not being used.
                 // Fully computed at compile time.
                 Content::Interpreted(..) => (),
@@ -384,7 +384,8 @@ impl<'a> ScopeSimplifier<'a> {
                         Result::Ok(result) => result,
                         Result::Err(..) => panic!("TODO: Nice error."),
                     };
-                    let (target, _) = self.simplify_assignment_access_expression(argument, data_type)?;
+                    let (target, _) =
+                        self.resolve_assignment_access_expression(argument, data_type)?;
                     let value = self.convert(*parameter).expect("TODO: Nice error.").clone();
                     let expr = o::Expression::Assign {
                         target: Box::new(target),
@@ -409,13 +410,11 @@ impl<'a> ScopeSimplifier<'a> {
         if !empty_body {
             self.target[self.current_scope].add_expression(o::Expression::FuncCall {
                 function: new_function_body,
-                inputs: vec![],
-                outputs: vec![],
                 position: position.clone(),
             });
         }
 
-        // TODO: This will do weird things if the inline output is known at compile time but there 
+        // TODO: This will do weird things if the inline output is known at compile time but there
         // is still code that needs to be run at runtime.
         Result::Ok(match inline_output {
             Some(id) => {
