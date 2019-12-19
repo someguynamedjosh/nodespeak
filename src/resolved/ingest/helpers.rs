@@ -120,12 +120,21 @@ impl<'a> ScopeSimplifier<'a> {
         }
     }
 
-    // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
-    // value instead of reads from it, there is no way to return an "interpreted" result.
     pub(super) fn resolve_assignment_access_expression(
         &mut self,
         access_expression: &i::Expression,
         data_type: o::DataType,
+    ) -> Result<(o::Expression, DataType), CompileProblem> {
+        self.resolve_assignment_access_impl(access_expression, data_type, 0)
+    }
+
+    // Does not return an interpreted result, only a modified result. Since assignment *writes* to a
+    // value instead of reads from it, there is no way to return an "interpreted" result.
+    pub(super) fn resolve_assignment_access_impl(
+        &mut self,
+        access_expression: &i::Expression,
+        data_type: o::DataType,
+        num_indexes: usize,
     ) -> Result<(o::Expression, DataType), CompileProblem> {
         // TODO: More complicated automatic types like [4]Auto or something.
         Result::Ok(match access_expression {
@@ -135,6 +144,9 @@ impl<'a> ScopeSimplifier<'a> {
                     let data_type = DataType::from_output_type(&cloned.get_type(&self.target));
                     (cloned, data_type)
                 } else if self.is_unresolved_auto_var(*id) {
+                    if (num_indexes > 0) {
+                        panic!("TODO: Automatic array types.");
+                    }
                     self.mark_auto_var_resolved(*id);
                     let inter_type = DataType::from_output_type(&data_type);
                     let var = o::Variable::new(FilePosition::placeholder(), data_type);
@@ -153,9 +165,8 @@ impl<'a> ScopeSimplifier<'a> {
                 indexes,
                 position,
             } => {
-                let element_type = data_type.clone_and_unwrap(indexes.len());
                 let resolved_base =
-                    self.resolve_assignment_access_expression(base, element_type)?;
+                    self.resolve_assignment_access_impl(base, data_type, indexes.len())?;
                 let mut resolved_indexes = Vec::with_capacity(indexes.len());
                 for index in indexes {
                     let index_position = index.clone_position();
