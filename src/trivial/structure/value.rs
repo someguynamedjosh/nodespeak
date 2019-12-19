@@ -66,7 +66,7 @@ pub enum ProxyMode {
 #[derive(Clone)]
 pub struct Value {
     pub base: ValueBase,
-    pub proxy: Vec<(i64, ProxyMode)>,
+    pub proxy: Vec<(ProxyMode, u64)>,
     pub indexes: Vec<Value>,
 }
 
@@ -98,7 +98,7 @@ impl Debug for Value {
             write!(formatter, "{:?}", self.base)?;
         } else {
             write!(formatter, "(")?;
-            for (len, mode) in self.proxy.iter() {
+            for (mode, len) in self.proxy.iter() {
                 match mode {
                     ProxyMode::Literal => write!(formatter, "{{{}}}", len)?,
                     ProxyMode::Collapse => write!(formatter, "{{{}>1}}", len)?,

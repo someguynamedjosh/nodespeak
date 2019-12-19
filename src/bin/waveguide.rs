@@ -29,13 +29,13 @@ fn main() {
     println!("\nStarting...");
     let compile_start = Instant::now();
     match args[1].as_ref() {
-        // "compile" => match waveguide::compile(&source_set) {
-        //     Result::Ok(program) => println!("{:?}", program.program),
-        //     Result::Err(err) => {
-        //         eprintln!("{}", err);
-        //         process::exit(101);
-        //     }
-        // },
+        "compile" => match waveguide::compile(&source_set) {
+            Result::Ok(program) => println!("{:?}", program.program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
         "interpret" => unimplemented!(),
         "parse" => match waveguide::parse(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
@@ -58,13 +58,13 @@ fn main() {
                 process::exit(101);
             }
         },
-        // "trivialize" => match waveguide::trivialize(&source_set) {
-        //     Result::Ok(program) => println!("{:?}", program),
-        //     Result::Err(err) => {
-        //         eprintln!("{}", err);
-        //         process::exit(101);
-        //     }
-        // },
+        "trivialize" => match waveguide::trivialize(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
         _ => {
             eprintln!(
                 "Invalid mode '{}', expected compile, interpret, or a phase.",

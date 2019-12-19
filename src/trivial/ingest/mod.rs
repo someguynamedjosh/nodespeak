@@ -1,6 +1,6 @@
 use crate::problem::CompileProblem;
+use crate::resolved::structure as i;
 use crate::trivial::structure as o;
-use crate::vague::structure as i;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -62,30 +62,8 @@ impl<'a> Trivializer<'a> {
                 i::BaseType::Float => o::VariableType::F32,
                 i::BaseType::Int => o::VariableType::I32,
                 i::BaseType::Bool => unimplemented!(),
-                _ => unreachable!(),
             },
-            {
-                let mut results = Vec::new();
-                for dimension in data_type.borrow_dimensions().iter() {
-                    match dimension {
-                        i::Expression::Literal(value, position) => match value {
-                            i::KnownData::Int(value) => results.push(*value as u64),
-                            _ => {
-                                return Result::Err(problems::array_size_not_int(
-                                    position.clone(),
-                                    &value,
-                                ))
-                            }
-                        },
-                        _ => {
-                            return Result::Err(problems::vague_array_size(
-                                dimension.clone_position(),
-                            ))
-                        }
-                    }
-                }
-                results
-            },
+            data_type.borrow_dimensions().clone(),
         ))
     }
 
@@ -109,20 +87,20 @@ impl<'a> Trivializer<'a> {
     fn trivialize_proxy(
         &mut self,
         base: &i::Expression,
-        dimensions: &Vec<(i64, i::ProxyMode)>,
+        dimensions: &Vec<(i::ProxyMode, u64)>,
     ) -> Result<o::Value, CompileProblem> {
         let mut value = match base {
             i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
             _ => unimplemented!(),
         };
-        for (size, mode) in dimensions {
+        for (mode, size) in dimensions {
             value.proxy.push((
-                *size,
                 match mode {
                     i::ProxyMode::Collapse => o::ProxyMode::Collapse,
                     i::ProxyMode::Discard => o::ProxyMode::Discard,
                     i::ProxyMode::Literal => o::ProxyMode::Literal,
                 },
+                *size,
             ));
         }
         Result::Ok(value)
@@ -268,9 +246,9 @@ impl<'a> Trivializer<'a> {
             i::Expression::Variable(id, ..) => {
                 Option::Some(o::Value::variable(self.trivialize_variable(*id)?))
             }
-            i::Expression::Proxy { base, dimensions } => {
-                Option::Some(self.trivialize_proxy(base, dimensions)?)
-            }
+            i::Expression::Proxy {
+                base, dimensions, ..
+            } => Some(self.trivialize_proxy(base, dimensions)?),
             i::Expression::Access { base, indexes, .. } => {
                 // TODO: Check that indexes are integers.
                 let base = match base.borrow() {
@@ -294,9 +272,6 @@ impl<'a> Trivializer<'a> {
             }
 
             i::Expression::Collect(..) => unimplemented!(),
-            i::Expression::CreationPoint(..) => {
-                unreachable!("trivialize called on unresolved code.")
-            }
 
             i::Expression::Assert(value, ..) => {
                 let condition = self.trivialize_for_jump(value)?;
@@ -310,41 +285,11 @@ impl<'a> Trivializer<'a> {
             }
             i::Expression::Return(..) => unimplemented!(),
 
-            i::Expression::FuncCall {
-                function,
-                inputs,
-                outputs,
-                ..
-            } => {
-                let mut output_value = None;
-
-                if inputs.len() > 0 {
-                    panic!("TODO: nice error, trivialize called on unresolved code.");
-                }
-                let scope = match function.borrow() {
-                    i::Expression::Literal(data, ..) => match data {
-                        i::KnownData::Function(data) => data.get_body(),
-                        _ => panic!("TODO: nice error, target of func call must be function."),
-                    },
-                    _ => panic!("TODO: nice error, vague function."),
-                };
-                for expr in self.source[scope].borrow_body().clone() {
+            i::Expression::FuncCall { function, .. } => {
+                for expr in self.source[*function].borrow_body().clone() {
                     self.trivialize_expression(&expr)?;
                 }
-
-                if outputs.len() > 1 {
-                    panic!("TODO: nice error, trivialize called on unresolved code.");
-                } else if outputs.len() == 1 {
-                    if let i::Expression::InlineReturn(..) = outputs[0] {
-                        let output_id = self.source[scope].borrow_outputs()[0];
-                        output_value =
-                            Some(o::Value::variable(self.trivialize_variable(output_id)?));
-                    } else {
-                        panic!("TODO: nice error, trivialize called on unresolved code.");
-                    }
-                }
-
-                output_value
+                None
             }
         })
     }

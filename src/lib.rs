@@ -9,7 +9,7 @@ pub mod ast;
 pub mod problem;
 pub mod resolved;
 pub mod runtime;
-// pub mod trivial;
+pub mod trivial;
 pub mod util;
 pub mod vague;
 
@@ -38,9 +38,9 @@ impl<'a> SourceSet<'a> {
     }
 }
 
-// pub struct CompileResult {
-//     pub program: trivial::structure::Program,
-// }
+pub struct CompileResult {
+    pub program: trivial::structure::Program,
+}
 
 fn parse_impl<'a>(
     sources: &SourceSet<'a>,
@@ -62,19 +62,19 @@ fn resolve_impl(
     resolved::ingest(&mut program)
 }
 
-// fn trivialize_impl(
-//     sources: &SourceSet,
-// ) -> Result<trivial::structure::Program, problem::CompileProblem> {
-//     let resolved = resolve_impl(sources)?;
-//     trivial::ingest(&resolved)
-// }
+fn trivialize_impl(
+    sources: &SourceSet,
+) -> Result<trivial::structure::Program, problem::CompileProblem> {
+    let resolved = resolve_impl(sources)?;
+    trivial::ingest(&resolved)
+}
 
-// fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
-//     let trivialized = trivialize_impl(sources)?;
-//     Result::Ok(CompileResult {
-//         program: trivialized,
-//     })
-// }
+fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
+    let trivialized = trivialize_impl(sources)?;
+    Result::Ok(CompileResult {
+        program: trivialized,
+    })
+}
 
 fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> String + 'a {
     move |err: problem::CompileProblem| -> String {
@@ -95,14 +95,14 @@ pub fn resolve(sources: &SourceSet) -> Result<resolved::structure::Program, Stri
     resolve_impl(sources).map_err(error_map(sources))
 }
 
-// pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
-//     trivialize_impl(sources).map_err(error_map(sources))
-// }
+pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
+    trivialize_impl(sources).map_err(error_map(sources))
+}
 
-// pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
-//     // TODO: Handle multiple sources.
-//     compile_impl(sources).map_err(error_map(sources))
-// }
+pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
+    // TODO: Handle multiple sources.
+    compile_impl(sources).map_err(error_map(sources))
+}
 
 // pub fn interpret(
 //     compiled_program: &mut vague::structure::Program,
