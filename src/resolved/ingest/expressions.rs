@@ -307,6 +307,9 @@ impl<'a> ScopeSimplifier<'a> {
         }
         // Add conversions to insert the function inputs into the body.
         for (parameter, argument) in input_parameters.iter().zip(inputs.iter()) {
+            // We have to reset all the input parameter values in case they were set by an earlier
+            // call to this function.
+            self.set_temporary_value(*parameter, i::KnownData::Unknown);
             // TODO: Some expressions would be more efficient to calculate once and store
             // in a variable.
             let resolved = self.simplify_expression(argument)?;
@@ -327,6 +330,11 @@ impl<'a> ScopeSimplifier<'a> {
                 outputs.len(),
                 output_parameters.len(),
             ));
+        }
+        // Reset the temporary values of all outputs (because they might have values from old calls
+        // to the same function.)
+        for parameter in output_parameters.iter() {
+            self.set_temporary_value(*parameter, i::KnownData::Unknown);
         }
 
         // Make a copy of the function body.
