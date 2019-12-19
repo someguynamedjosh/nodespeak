@@ -5,29 +5,6 @@ use crate::vague::structure as i;
 use std::borrow::Borrow;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn resolve_automatic_type(
-        &mut self,
-        target: &o::Expression,
-        data_type: &DataType,
-    ) -> Result<(), CompileProblem> {
-        match target {
-            // TODO: Handle proxies.
-            o::Expression::Access { base, indexes, .. } => {
-                self.resolve_automatic_type(base, &data_type.clone_and_unwrap(indexes.len()))?;
-            }
-            // TODO: Handle arrays of automatic types.
-            o::Expression::Variable(id, ..) => {
-                self.target[*id].set_data_type(
-                    data_type
-                        .to_output_type()
-                        .expect("TODO: Nice error, invalid type."),
-                );
-            }
-            _ => unreachable!("Should not resolve automatic types of anything else."),
-        }
-        Result::Ok(())
-    }
-
     // Tries to assign known data to an access expression. The access expression must be
     // either a variable or an access expression. Indexes in the access expression can be
     // any kind of expression. If the value cannot be assigned at compile time, a modified
@@ -44,7 +21,7 @@ impl<'a> ScopeSimplifier<'a> {
                 Result::Ok(())
             }
             i::Expression::Access { base, indexes, .. } => {
-                let (base_var_id, base_var_pos) = match base.borrow() {
+                let (base_var_id, _) = match base.borrow() {
                     i::Expression::Variable(id, position) => (*id, position.clone()),
                     _ => unreachable!("Nothing else can be the base of an access."),
                 };
@@ -144,7 +121,7 @@ impl<'a> ScopeSimplifier<'a> {
                     let data_type = DataType::from_output_type(&cloned.get_type(&self.target));
                     (cloned, data_type)
                 } else if self.is_unresolved_auto_var(*id) {
-                    if (num_indexes > 0) {
+                    if num_indexes > 0 {
                         panic!("TODO: Automatic array types.");
                     }
                     self.mark_auto_var_resolved(*id);

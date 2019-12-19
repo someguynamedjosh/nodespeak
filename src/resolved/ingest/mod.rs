@@ -1,4 +1,4 @@
-use crate::problem::{CompileProblem, FilePosition};
+use crate::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::collections::{HashMap, HashSet};
@@ -90,15 +90,6 @@ pub(self) enum Content {
     Modified(o::Expression),
     /// The entire value of the expression has a determinate value.
     Interpreted(i::KnownData),
-}
-
-impl Content {
-    pub(self) fn into_expression(self, position: FilePosition) -> o::Expression {
-        match self {
-            Content::Modified(expr) => expr,
-            Content::Interpreted(data) => unimplemented!(),
-        }
-    }
 }
 
 pub(self) struct SimplifiedExpression {

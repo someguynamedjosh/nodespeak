@@ -9,7 +9,7 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn resolve_variable(
         &mut self,
         id: i::VariableId,
-        position: FilePosition,
+        _position: FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
         let temporary_value = self.borrow_temporary_value(id);
         Result::Ok(match temporary_value.get_data_type() {

@@ -84,7 +84,7 @@ impl<'a> ScopeSimplifier<'a> {
 
     pub(super) fn copy_scope(
         &mut self,
-        source: i::ScopeId,
+        _source: i::ScopeId,
         parent: Option<o::ScopeId>,
     ) -> Result<o::ScopeId, CompileProblem> {
         let copy = match parent {
@@ -210,9 +210,8 @@ impl<'a> ScopeSimplifier<'a> {
                     // TODO: Error for zero-sized arrays.
                     let data_type = resolved_values[0].data_type.clone();
                     // Standard treatment, fully interpreted values become literal expressions.
-                    for (value, value_position) in resolved_values
-                        .into_iter()
-                        .zip(value_positions.into_iter())
+                    for (value, value_position) in
+                        resolved_values.into_iter().zip(value_positions.into_iter())
                     {
                         // TODO: Check that all the elements are the same type.
                         match value.content {

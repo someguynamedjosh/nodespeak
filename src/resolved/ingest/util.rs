@@ -1,5 +1,5 @@
-use super::{problems, util, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
-use crate::problem::{CompileProblem, FilePosition};
+use super::{util, BaseType, DataType};
+use crate::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::util::NVec;
 use crate::vague::structure as i;
