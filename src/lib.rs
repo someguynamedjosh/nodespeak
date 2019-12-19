@@ -6,9 +6,9 @@ extern crate pest_derive;
 use terminal_size;
 
 pub mod ast;
+pub mod native;
 pub mod problem;
 pub mod resolved;
-pub mod runtime;
 pub mod trivial;
 pub mod util;
 pub mod vague;

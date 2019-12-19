@@ -110,28 +110,28 @@ impl StorageBlock {
     }
 }
 
-pub struct RuntimeProgram {
+pub struct Program {
     code: CodeBlock,
     storage: StorageBlock,
 }
 
-impl RuntimeProgram {
-    pub fn new(code_size: usize, storage_size: usize) -> RuntimeProgram {
-        RuntimeProgram {
+impl Program {
+    pub(super) fn new(code_size: usize, storage_size: usize) -> Program {
+        Program {
             code: CodeBlock::new(code_size),
             storage: StorageBlock::new(storage_size),
         }
     }
 
-    pub unsafe fn execute(&self) -> i64 {
+    pub(super) unsafe fn execute(&self) -> i64 {
         self.code.execute()
     }
 
-    pub fn write_u8_to_code(&mut self, index: usize, value: u8) {
+    pub(super) fn write_u8_to_code(&mut self, index: usize, value: u8) {
         self.code[index] = value;
     }
 
-    pub fn write_iter_to_code<'a>(
+    pub(super) fn write_iter_to_code<'a>(
         &mut self,
         mut index: usize,
         values: impl Iterator<Item = &'a u8>,
@@ -142,15 +142,15 @@ impl RuntimeProgram {
         }
     }
 
-    pub fn write_u64_to_code(&mut self, index: usize, value: u64) {
+    pub(super) fn write_u64_to_code(&mut self, index: usize, value: u64) {
         self.write_iter_to_code(index, value.to_le_bytes().into_iter());
     }
 
-    pub fn write_u8_to_storage(&mut self, index: usize, value: u8) {
+    pub(super) fn write_u8_to_storage(&mut self, index: usize, value: u8) {
         self.storage[index] = value;
     }
 
-    pub fn write_iter_to_storage<'a>(
+    pub(super) fn write_iter_to_storage<'a>(
         &mut self,
         mut index: usize,
         values: impl Iterator<Item = &'a u8>,
@@ -161,11 +161,11 @@ impl RuntimeProgram {
         }
     }
 
-    pub fn write_u64_to_storage(&mut self, index: usize, value: u64) {
+    pub(super) fn write_u64_to_storage(&mut self, index: usize, value: u64) {
         self.write_iter_to_storage(index, value.to_le_bytes().into_iter());
     }
 
-    pub fn get_storage_address(&mut self, index: usize) -> usize {
+    pub(super) fn get_storage_address(&mut self, index: usize) -> usize {
         self.storage.get_address() + index
     }
 }
@@ -173,8 +173,8 @@ impl RuntimeProgram {
 mod test {
     #[test]
     fn simple_return_function() {
-        use super::RuntimeProgram;
-        let mut program = RuntimeProgram::new(11, 8);
+        use super::Program;
+        let mut program = Program::new(11, 8);
 
         // Function that returns the first 8 bytes of the storage block.
         program.write_iter_to_code(
