@@ -363,20 +363,8 @@ impl<'a> ScopeSimplifier<'a> {
         for (parameter, argument) in output_parameters.iter().zip(outputs.iter()) {
             if let i::Expression::InlineReturn(..) = argument {
                 inline_output = Some(*parameter);
-                let input_type = self.source[*parameter].borrow_data_type().clone();
-                let inter_type = self.input_to_intermediate_type(input_type);
-                let output_type = inter_type.map(|t| t.to_output_type());
-                if let Result::Ok(Result::Ok(data_type)) = output_type {
-                    let pos = self.source[*parameter].get_definition().clone();
-                    let var = o::Variable::new(pos, data_type);
-                    let id = self
-                        .target
-                        .adopt_and_define_intermediate(self.current_scope, var);
-                    self.add_conversion(
-                        *parameter,
-                        o::Expression::Variable(id, FilePosition::placeholder()),
-                    );
-                    runtime_inline_output = Some(id);
+                if let Some(resolved) = self.convert(*parameter) {
+                    runtime_inline_output = Some(resolved.clone());
                 }
             } else {
                 let value = self.borrow_temporary_value(*parameter);
@@ -419,12 +407,13 @@ impl<'a> ScopeSimplifier<'a> {
             });
         }
 
+        // TODO: This will do weird things if the inline output is known at compile time but there 
+        // is still code that needs to be run at runtime.
         Result::Ok(match inline_output {
             Some(id) => {
                 let value = self.borrow_temporary_value(id);
                 if let i::KnownData::Unknown = value {
-                    if let Some(var_id) = runtime_inline_output {
-                        let expr = o::Expression::Variable(var_id, FilePosition::placeholder());
+                    if let Some(expr) = runtime_inline_output {
                         let data_type = DataType::from_output_type(&expr.get_type(&self.target));
                         SimplifiedExpression {
                             content: Content::Modified(expr),

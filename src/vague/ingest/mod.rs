@@ -691,9 +691,11 @@ fn add_function_output(
             _ => unreachable!(),
         }
     }
-    let variable = o::Variable::variable(input_pos, data_type.unwrap(), None);
+    let variable = o::Variable::variable(input_pos.clone(), data_type.unwrap(), None);
     let new_output = program.adopt_and_define_symbol(func_scope, "!return_value", variable);
     program[func_scope].add_output(new_output);
+    let expr = o::Expression::CreationPoint(new_output, input_pos);
+    program[func_scope].add_expression(expr);
     Result::Ok(())
 }
 
