@@ -10,7 +10,6 @@ pub enum Condition {
     GreaterThanOrEqual,
     Equal,
     NotEqual,
-    Unconditional,
 }
 
 pub enum BinaryOperator {
@@ -56,6 +55,9 @@ pub enum Instruction {
     Label(LabelId),
     Jump {
         label: LabelId,
+    },
+    ConditionalJump {
+        label: LabelId,
         condition: Condition,
     },
 
@@ -95,8 +97,11 @@ impl Debug for Instruction {
 
             Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),
             Instruction::Label(id) => write!(formatter, "labl {:?}", id),
-            Instruction::Jump { label, condition } => {
-                write!(formatter, "jump {:?} if {:?}", label, condition)
+            Instruction::Jump { label } => {
+                write!(formatter, "jump to {:?}", label)
+            }
+            Instruction::ConditionalJump { label, condition } => {
+                write!(formatter, "jump to {:?} if {:?}", label, condition)
             }
 
             Instruction::Assert(value) => write!(formatter, "asrt {:?}", value),
