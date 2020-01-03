@@ -1,4 +1,4 @@
-use super::{Program, VariableId};
+use super::{VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 

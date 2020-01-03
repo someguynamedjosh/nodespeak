@@ -11,12 +11,12 @@ impl Debug for VariableId {
     }
 }
 
-pub struct Program<Instruction> {
+pub struct GenericProgram<Instruction> {
     variables: Vec<Variable>,
     instructions: Vec<Instruction>,
 }
 
-impl<Instruction> Index<VariableId> for Program<Instruction> {
+impl<Instruction> Index<VariableId> for GenericProgram<Instruction> {
     type Output = Variable;
 
     fn index(&self, variable: VariableId) -> &Self::Output {
@@ -24,15 +24,15 @@ impl<Instruction> Index<VariableId> for Program<Instruction> {
     }
 }
 
-impl<Instruction> IndexMut<VariableId> for Program<Instruction> {
+impl<Instruction> IndexMut<VariableId> for GenericProgram<Instruction> {
     fn index_mut(&mut self, variable: VariableId) -> &mut Self::Output {
         &mut self.variables[variable.0]
     }
 }
 
-impl<Instruction> Program<Instruction> {
-    pub fn new() -> Program<Instruction> {
-        Program {
+impl<Instruction> GenericProgram<Instruction> {
+    pub fn new() -> GenericProgram<Instruction> {
+        GenericProgram {
             variables: Vec::new(),
             instructions: Vec::new(),
         }

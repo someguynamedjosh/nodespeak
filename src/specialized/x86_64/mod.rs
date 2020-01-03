@@ -1,3 +1,2 @@
-mod instructions;
-
-pub use instructions::*;
+pub mod ingest;
+pub mod structure;
