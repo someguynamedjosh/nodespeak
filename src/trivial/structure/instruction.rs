@@ -97,9 +97,7 @@ impl Debug for Instruction {
 
             Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),
             Instruction::Label(id) => write!(formatter, "labl {:?}", id),
-            Instruction::Jump { label } => {
-                write!(formatter, "jump to {:?}", label)
-            }
+            Instruction::Jump { label } => write!(formatter, "jump to {:?}", label),
             Instruction::ConditionalJump { label, condition } => {
                 write!(formatter, "jump to {:?} if {:?}", label, condition)
             }
