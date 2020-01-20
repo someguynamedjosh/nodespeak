@@ -52,3 +52,17 @@ impl<Instruction> GenericProgram<Instruction> {
         &self.instructions
     }
 }
+
+impl<Instruction: Debug> Debug for GenericProgram<Instruction> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "instructions:\n")?;
+        for instruction in &self.instructions {
+            write!(formatter, "{:?}\n", instruction)?;
+        }
+        write!(formatter, "variables:\n")?;
+        for (index, variable) in self.variables.iter().enumerate() {
+            write!(formatter, "{:?}: {:?}\n", VariableId(index), variable)?;
+        }
+        write!(formatter, "")
+    }
+}

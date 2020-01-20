@@ -70,6 +70,13 @@ fn trivialize_impl(
     trivial::ingest(&resolved)
 }
 
+fn specialize_impl(
+    sources: &SourceSet,
+) -> Result<specialized::structure::Program, problem::CompileProblem> {
+    let trivialized = trivialize_impl(sources)?;
+    Result::Ok(specialized::ingest(&trivialized))
+}
+
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
     let trivialized = trivialize_impl(sources)?;
     Result::Ok(CompileResult {
@@ -98,6 +105,10 @@ pub fn resolve(sources: &SourceSet) -> Result<resolved::structure::Program, Stri
 
 pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
     trivialize_impl(sources).map_err(error_map(sources))
+}
+
+pub fn specialize(sources: &SourceSet) -> Result<specialized::structure::Program, String> {
+    specialize_impl(sources).map_err(error_map(sources))
 }
 
 pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {

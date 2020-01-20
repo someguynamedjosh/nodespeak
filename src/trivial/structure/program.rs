@@ -3,7 +3,7 @@ use crate::trivial::structure::{Instruction, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct VariableId(usize);
 
 impl Debug for VariableId {

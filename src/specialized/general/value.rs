@@ -24,6 +24,7 @@ pub enum Value {
     Literal(LiteralData),
     VariableAccess {
         variable: VariableId,
+        // Variable for offset and u64 to multiply it by.
         indexes: Vec<(VariableId, u64)>,
         offset: u64,
         length: u64,
@@ -45,9 +46,9 @@ impl Debug for Value {
                     write!(formatter, "{:?}*{:?} + ", index.1, index.0)?;
                 }
                 if *offset > 0 || indexes.len() > 0 {
-                    write!(formatter, "{:?}", offset)?;
+                    write!(formatter, "{:?} ", offset)?;
                 }
-                write!(formatter, ", x{:?}]", length)
+                write!(formatter, "len={:?}]", length)
             }
         }
     }

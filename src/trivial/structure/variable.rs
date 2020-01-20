@@ -84,7 +84,10 @@ impl Variable {
     }
 
     pub fn get_physical_size(&self) -> u64 {
-        let mut size = 1;
+        let mut size = match self.variable_type {
+            VariableType::F32 | VariableType::I32 => 4,
+            VariableType::B8 => 1
+        };
         for dim in self.dimensions.iter() {
             size *= *dim;
         }

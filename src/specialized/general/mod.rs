@@ -9,5 +9,5 @@ pub use value::*;
 pub use variable::*;
 
 pub mod universal {
-    pub use super::{Value, Variable, VariableId, VariableType};
+    pub use super::{LiteralData, Value, Variable, VariableId, VariableType};
 }
