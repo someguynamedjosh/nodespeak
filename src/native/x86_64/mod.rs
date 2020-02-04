@@ -1,9 +1,9 @@
 mod ingest;
-mod storage;
-pub use storage::Program;
+mod structure;
+pub use structure::Program;
 
 use crate::native::traits;
-use crate::trivial::structure as i;
+use crate::specialized::structure as i;
 
 impl traits::Program for Program {
     fn new(input: &i::Program) -> Program {
@@ -11,6 +11,6 @@ impl traits::Program for Program {
     }
 
     unsafe fn execute(&self) -> i64 {
-        storage::Program::execute(self)
+        Program::execute(self)
     }
 }

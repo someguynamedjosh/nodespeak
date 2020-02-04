@@ -72,6 +72,13 @@ fn main() {
                 process::exit(101);
             }
         },
+        "assemble" => match waveguide::assemble(&source_set) {
+            Result::Ok(program) => println!("{:?}", program),
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
         _ => {
             eprintln!(
                 "Invalid mode '{}', expected compile, interpret, or a phase.",
@@ -80,7 +87,7 @@ fn main() {
             eprintln!("compile: compiles the specified file and outputs the result.");
             eprintln!("interpret: interprets the specified file using the built-in resolver.");
             eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
-            eprintln!("    phases: parse, structure, resolve, trivialize, specialize");
+            eprintln!("    phases: parse, structure, resolve, trivialize, specialize, assemble");
             process::exit(64);
         }
     }

@@ -1,4 +1,4 @@
-use crate::trivial::structure as i;
+use crate::specialized::structure as i;
 
 pub trait Program {
     fn new(input: &i::Program) -> Self;

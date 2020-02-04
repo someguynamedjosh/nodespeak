@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Index, IndexMut};
 
@@ -113,6 +114,21 @@ impl StorageBlock {
 pub struct Program {
     code: CodeBlock,
     storage: StorageBlock,
+}
+
+impl Debug for Program {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        writeln!(formatter, "{} code bytes:", self.code.size)?;
+        for byte_index in 0..self.code.size {
+            if byte_index % 8 == 7 {
+                writeln!(formatter, "{:02X}", self.code[byte_index])?;
+            } else {
+                write!(formatter, "{:02X} ", self.code[byte_index])?;
+            }
+        }
+        writeln!(formatter, "{} storage bytes:", self.storage.size)?;
+        write!(formatter, "")
+    }
 }
 
 impl Program {

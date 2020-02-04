@@ -14,6 +14,8 @@ pub mod trivial;
 pub mod util;
 pub mod vague;
 
+use native::traits::Program;
+
 pub struct SourceSet<'a> {
     sources: Vec<(String, &'a str)>,
 }
@@ -77,6 +79,13 @@ fn specialize_impl(
     Result::Ok(specialized::ingest(&trivialized))
 }
 
+fn assemble_impl(
+    sources: &SourceSet,
+) -> Result<native::Program, problem::CompileProblem> {
+    let specialized = specialize_impl(sources)?;
+    Result::Ok(native::Program::new(&specialized))
+}
+
 fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
     let trivialized = trivialize_impl(sources)?;
     Result::Ok(CompileResult {
@@ -109,6 +118,10 @@ pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, St
 
 pub fn specialize(sources: &SourceSet) -> Result<specialized::structure::Program, String> {
     specialize_impl(sources).map_err(error_map(sources))
+}
+
+pub fn assemble(sources: &SourceSet) -> Result<native::Program, String> {
+    assemble_impl(sources).map_err(error_map(sources))
 }
 
 pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
