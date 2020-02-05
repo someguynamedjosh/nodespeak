@@ -24,6 +24,7 @@ impl<'a> Specializer<'a> {
         for instruction in instructions {
             self.specialize_instruction(instruction);
         }
+        self.target.complete_liveness_analysis();
     }
 
     fn specialize_binary_operator(operator: &i::BinaryOperator) -> o::BinaryOperator {

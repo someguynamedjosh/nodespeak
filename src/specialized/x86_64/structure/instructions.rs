@@ -127,3 +127,22 @@ impl Debug for Instruction {
         }
     }
 }
+
+impl crate::specialized::general::Instruction for Instruction {
+    fn reads_from(&self) -> Vec<&Value> {
+        match self {
+            Self::Move { from, .. } => vec![from],
+            Self::BinaryOperation { a, b, .. } => vec![a, b],
+            Self::Compare { a, b } => vec![a, b],
+            Self::Assert(..) => vec![],
+        }
+    }
+
+    fn writes_to(&self) -> Vec<&Value> {
+        match self {
+            Self::Move { to, .. } => vec![to],
+            Self::BinaryOperation { x, .. } => vec![x],
+            Self::Compare { .. } | Self::Assert(..) => vec![],
+        }
+    }
+}
