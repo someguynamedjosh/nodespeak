@@ -118,15 +118,25 @@ pub struct Program {
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        writeln!(formatter, "{} code bytes:", self.code.size)?;
+        write!(formatter, "{} code bytes:", self.code.size)?;
         for byte_index in 0..self.code.size {
-            if byte_index % 8 == 7 {
-                writeln!(formatter, "{:02X}", self.code[byte_index])?;
+            if byte_index % 8 == 0 {
+                write!(formatter, "\n{:02X}", self.code[byte_index])?;
             } else {
-                write!(formatter, "{:02X} ", self.code[byte_index])?;
+                write!(formatter, " {:02X}", self.code[byte_index])?;
             }
         }
-        writeln!(formatter, "{} storage bytes:", self.storage.size)?;
+
+        writeln!(formatter, "");
+        write!(formatter, "{} storage bytes:", self.storage.size)?;
+        for byte_index in 0..self.storage.size {
+            if byte_index % 8 == 0 {
+                write!(formatter, "\n{:02X}", self.storage[byte_index])?;
+            } else {
+                write!(formatter, " {:02X}", self.storage[byte_index])?;
+            }
+        }
+
         write!(formatter, "")
     }
 }
