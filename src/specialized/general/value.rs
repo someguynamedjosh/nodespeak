@@ -1,4 +1,4 @@
-use super::{VariableId};
+use super::VariableId;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -7,6 +7,23 @@ pub enum LiteralData {
     Int(i64),
     Float(f64),
     Bool(bool),
+}
+
+impl LiteralData {
+    pub fn binary_data(&self) -> u32 {
+        match self {
+            Self::Bool(data) => {
+                if *data {
+                    1
+                } else {
+                    0
+                }
+            }
+            // TODO: Check for signed values.
+            Self::Int(data) => *data as i32 as u32,
+            Self::Float(data) => f32::to_bits(*data as f32),
+        }
+    }
 }
 
 impl Debug for LiteralData {
