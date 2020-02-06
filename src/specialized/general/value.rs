@@ -2,7 +2,7 @@ use super::{VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum LiteralData {
     Int(i64),
     Float(f64),
@@ -19,7 +19,7 @@ impl Debug for LiteralData {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     Literal(LiteralData),
     VariableAccess {

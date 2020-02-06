@@ -127,7 +127,7 @@ impl Debug for Program {
             }
         }
 
-        writeln!(formatter, "");
+        writeln!(formatter, "")?;
         write!(formatter, "{} storage bytes:", self.storage.size)?;
         for byte_index in 0..self.storage.size {
             if byte_index % 8 == 0 {

@@ -17,10 +17,10 @@ pub trait Instruction {
 }
 
 pub struct WrappedInstruction<IType> {
-    instruction: IType,
-    kills: Vec<VariableId>, // Which variables are no longer needed after this instruction.
-    births: Vec<VariableId>, // Which variables come alive after this instruction.
-                            // Births happen after kills.
+    pub instruction: IType,
+    pub kills: Vec<VariableId>,  // Which variables are no longer needed after this instruction.
+    pub births: Vec<VariableId>, // Which variables come alive after this instruction.
+                                 // Births happen after kills.
 }
 
 enum VariableStatus {
