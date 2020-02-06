@@ -12,6 +12,26 @@ pub enum Condition {
     NotEqual,
 }
 
+impl Condition {
+    // What value to put in a condition field to match this condition.
+    pub fn code(&self) -> u8 {
+        match self {
+            Self::LessThan => 0b1100,
+            Self::GreaterThan => 0b1111,
+            Self::LessThanOrEqual => 0b1110,
+            Self::GreaterThanOrEqual => 0b1101,
+            Self::Equal => 0b0100,
+            Self::NotEqual => 0b0101,
+        }
+    }
+
+    // What value to put in a condition field to match the opposite of this condition.
+    pub fn negative_code(&self) -> u8 {
+        // Flip the last bit.
+        self.code() ^ 0b0001
+    }
+}
+
 pub enum ParallelWidth {
     W128,
     W256,

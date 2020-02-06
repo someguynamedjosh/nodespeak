@@ -101,6 +101,8 @@ impl<'a> Assembler<'a> {
         for instruction in self.source.borrow_instructions().iter() {
             self.assemble_instruction(instruction)
         }
+        // Return a value of 0 to indicate success.
+        self.mov_imm32_to_register(Register::A, 0); 
         self.ret();
         self.finalize()
     }
@@ -128,7 +130,7 @@ impl<'a> Assembler<'a> {
         self.write_byte(0b10000101 | register.index_u8() << 3);
     }
 
-    fn write_disp32(&mut self, value: u32) {
+    fn write_32(&mut self, value: u32) {
         // Everything in x86 goes from lowest order to highest order.
         self.write_byte(((value >> 0) % 0x100) as u8);
         self.write_byte(((value >> 8) % 0x100) as u8);
@@ -136,23 +138,21 @@ impl<'a> Assembler<'a> {
         self.write_byte(((value >> 24) % 0x100) as u8);
     }
 
-    fn write_imm32(&mut self, value: u32) {
-        self.write_byte(((value >> 0) % 0x100) as u8);
-        self.write_byte(((value >> 8) % 0x100) as u8);
-        self.write_byte(((value >> 16) % 0x100) as u8);
-        self.write_byte(((value >> 24) % 0x100) as u8);
+    fn jmp_cond_disp8(&mut self, condition_code: u8, displacement: u8) {
+        self.write_byte(0x70 | condition_code & 0x0F);
+        self.write_byte(displacement);
     }
 
     fn mov_var32_to_register(&mut self, register: Register, variable: i::VariableId) {
         self.write_byte(0x8b);
         self.write_modrm_reg_disp32(register);
         let var_address = self.get_variable_address(variable) as u32;
-        self.write_disp32(var_address);
+        self.write_32(var_address);
     }
 
     fn mov_imm32_to_register(&mut self, register: Register, imm32: u32) {
         self.write_byte(0xb8 + register.index_u8());
-        self.write_imm32(imm32);
+        self.write_32(imm32);
     }
 
     fn mov_imm8_to_register(&mut self, register: Register, imm8: u8) {
@@ -310,15 +310,15 @@ impl<'a> Assembler<'a> {
         // Order of operations:
         // load_values    - ensures that the values required for the operation are loaded into
         //                  registers.
-        // kill_variables - if a variable will die after this instruction, we don't need to worry 
-        //                  about keeping it around. Marks registers containing variables sentenced 
+        // kill_variables - if a variable will die after this instruction, we don't need to worry
+        //                  about keeping it around. Marks registers containing variables sentenced
         //                  to death as Temporary.
-        // prep_reg_for_w - call this for all registers that will be modified. If it 
-        //                  contains a non-temporary value, ensures that that value will live past 
+        // prep_reg_for_w - call this for all registers that will be modified. If it
+        //                  contains a non-temporary value, ensures that that value will live past
         //                  the operation.
         // Call whatever functions necessary to create the byte code for the operation.
         // disc_temp_regs - changes registers marked as temporary to be marked as empty.
-        // cmt_val_in_reg - call this for every register written to. Indicates what value the 
+        // cmt_val_in_reg - call this for every register written to. Indicates what value the
         //                  register represents.
         match &instruction.instruction {
             i::Instruction::Move { from, to } => {
@@ -334,14 +334,7 @@ impl<'a> Assembler<'a> {
             }
             i::Instruction::BinaryOperation { op, a, b, x } => {
                 // TODO: Optimize.
-                let mut registers = self.load_values(&[a, b]);
-                // If b is the same value as x, rearrange order of operations so that they occupy
-                // the same register.
-                if b == x {
-                    let temp = registers[0];
-                    registers[0] = registers[1];
-                    registers[1] = temp;
-                }
+                let registers = self.load_values(&[a, b]);
                 self.kill_variables(&instruction.kills);
                 self.prepare_register_for_writing(registers[1]);
                 match op {
@@ -354,6 +347,22 @@ impl<'a> Assembler<'a> {
                 self.discard_temporary_registers();
                 // reg1 should be overwritten.
                 self.commit_value_in_register(x, registers[1]);
+            }
+            i::Instruction::Compare { a, b } => {
+                let registers = self.load_values(&[a, b]);
+                self.kill_variables(&instruction.kills);
+                self.write_byte(0x39); // Compare two registers.
+                self.write_modrm_two_register(registers[0], registers[1]);
+                self.discard_temporary_registers();
+            }
+            i::Instruction::Assert(condition) => {
+                self.kill_variables(&instruction.kills);
+                // Skip over the following pieces of code if the condition was true.
+                self.jmp_cond_disp8(condition.code(), 6);
+                // Return a value of 1 to indicate failure.
+                self.mov_imm32_to_register(Register::A, 1); // 5 bytes
+                self.ret(); // 1 byte
+                self.discard_temporary_registers();
             }
             _ => unimplemented!(),
         }
