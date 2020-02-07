@@ -21,6 +21,14 @@ struct Specializer<'a> {
 impl<'a> Specializer<'a> {
     fn entry_point(&mut self) {
         let instructions = self.source.borrow_instructions().clone();
+        for input in self.source.borrow_inputs() {
+            let specialized = self.specialize_variable(*input);
+            self.target.add_input(specialized);
+        }
+        for output in self.source.borrow_outputs() {
+            let specialized = self.specialize_variable(*output);
+            self.target.add_output(specialized);
+        }
         for instruction in instructions {
             self.specialize_instruction(instruction);
         }

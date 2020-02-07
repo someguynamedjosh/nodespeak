@@ -33,6 +33,8 @@ pub struct GenericProgram<IType: Instruction> {
     variables: Vec<Variable>,
     var_statuses: Vec<VariableStatus>,
     instructions: Vec<WrappedInstruction<IType>>,
+    inputs: Vec<VariableId>,
+    outputs: Vec<VariableId>,
 }
 
 impl<IType: Instruction> Index<VariableId> for GenericProgram<IType> {
@@ -55,6 +57,8 @@ impl<IType: Instruction> GenericProgram<IType> {
             variables: Vec::new(),
             var_statuses: Vec::new(),
             instructions: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
 
@@ -63,6 +67,22 @@ impl<IType: Instruction> GenericProgram<IType> {
         self.variables.push(variable);
         self.var_statuses.push(VariableStatus::Unused);
         id
+    }
+
+    pub fn add_input(&mut self, input: VariableId) {
+        self.inputs.push(input);
+    }
+
+    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
+        &self.inputs
+    }
+
+    pub fn add_output(&mut self, output: VariableId) {
+        self.outputs.push(output);
+    }
+
+    pub fn borrow_outputs(&self) -> &Vec<VariableId> {
+        &self.outputs
     }
 
     pub fn add_instruction(&mut self, instruction: IType) {
@@ -110,6 +130,11 @@ impl<IType: Instruction> GenericProgram<IType> {
     // TODO: Possibly create a program builder so that this logic can be seperated from the actual
     // program?
     pub fn complete_liveness_analysis(&mut self) {
+        // All the outputs should still be readable by the end of the program. Set all their
+        // statuses to Unused so that the next loop doesn't mark them as killed.
+        for output in self.outputs.iter() {
+            self.var_statuses[output.0] = VariableStatus::Unused;
+        }
         for (index, status) in self.var_statuses.iter().enumerate() {
             if let VariableStatus::Read(old_index) = status {
                 self.instructions[*old_index].kills.push(VariableId(index));
@@ -124,6 +149,14 @@ impl<IType: Instruction> GenericProgram<IType> {
 
 impl<IType: Instruction + Debug> Debug for GenericProgram<IType> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "inputs:\n")?;
+        for input in &self.inputs {
+            write!(formatter, "  {:?}\n", input)?;
+        }
+        write!(formatter, "outputs:\n")?;
+        for output in &self.outputs {
+            write!(formatter, "  {:?}\n", output)?;
+        }
         write!(formatter, "instructions:\n")?;
         for instruction in &self.instructions {
             write!(formatter, "{:?}\n", instruction.instruction)?;

@@ -98,8 +98,28 @@ impl<'a> Assembler<'a> {
     }
 
     fn entry_point(&mut self) -> o::Program {
+        for input in self.source.borrow_inputs() {
+            let address = self.get_variable_address(*input);
+            // TODO: Store a list of inputs.
+        }
+        for output in self.source.borrow_outputs() {
+            let address = self.get_variable_address(*output);
+            // TODO: Store a list of outputs.
+        }
         for instruction in self.source.borrow_instructions().iter() {
             self.assemble_instruction(instruction)
+        }
+        // Make sure all outputs are stored to memory.
+        for output in self.source.borrow_outputs() {
+            let mut ops = vec![];
+            for (register_index, contents) in self.register_contents.iter().enumerate() {
+                if contents == &RegisterContent::Variable(*output) {
+                    ops.push((Register::from_index(register_index), *output));
+                }
+            }
+            for (register, var) in ops {
+                self.mov_register_to_var32(register, var);
+            }
         }
         // Return a value of 0 to indicate success.
         self.mov_imm32_to_register(Register::A, 0); 
@@ -153,6 +173,13 @@ impl<'a> Assembler<'a> {
     fn mov_imm32_to_register(&mut self, register: Register, imm32: u32) {
         self.write_byte(0xb8 + register.index_u8());
         self.write_32(imm32);
+    }
+
+    fn mov_register_to_var32(&mut self, register: Register, variable: i::VariableId) {
+        self.write_byte(0x89);
+        self.write_modrm_reg_disp32(register);
+        let var_address = self.get_variable_address(variable) as u32;
+        self.write_32(var_address);
     }
 
     fn mov_imm8_to_register(&mut self, register: Register, imm8: u8) {
@@ -364,7 +391,6 @@ impl<'a> Assembler<'a> {
                 self.ret(); // 1 byte
                 self.discard_temporary_registers();
             }
-            _ => unimplemented!(),
         }
     }
 }
