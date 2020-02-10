@@ -103,14 +103,36 @@ impl<'a> Assembler<'a> {
         }
     }
 
+    // Returns the address in the code block where the storage block's address is stored.
+    fn write_prologue(&mut self) -> usize {
+        // Push callee-saved registers to stack.
+        self.write_bytes(&[0x53, 0x55, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57]);
+        // mov rbp imm64, the imm64 will eventually be overwritten with the storage block address.
+        self.write_byte(0x48);
+        self.write_byte(0xbd);
+        let storage_address_index = self.target.len();
+        self.write_64(0);
+        self.storage_size += 8; // Allocate space to store rsp.
+        // mov [rbp] rsp so that we can restore the address of the stack after the function returns.
+        self.write_bytes(&[0x48, 0x89, 0x65, 0x00]);
+        // call disp32 to the actual body of the function.
+        self.write_byte(0xe8); 
+        self.write_32(15); // Amount to jump.
+
+        // Cleanup phase, 15 bytes.
+        // mov rsp [rbp] to restore address of stack.
+        self.write_bytes(&[0x48, 0x8b, 0x65, 0x00]);
+        // Pop callee-saved registers.
+        self.write_bytes(&[0x41, 0x5f, 0x41, 0x5e, 0x41, 0x5d, 0x41, 0x5c, 0x5d, 0x5b]);
+        // Return
+        self.ret();
+
+        storage_address_index
+    }
+
     fn entry_point(&mut self) -> o::Program {
-        // This will eventually be modified to load the start address of the storage block into
-        // a register. Equivalent to `mov rbp imm64`
-        self.target.push(0x48);
-        self.target.push(0xbd);
-        for _ in 0..8 {
-            self.target.push(0);
-        }
+        let storage_address_index = self.write_prologue();
+
         for input in self.source.borrow_inputs().clone() {
             let vtype = self.source[input].get_type();
             let address = self.get_variable_address(input);
@@ -139,10 +161,7 @@ impl<'a> Assembler<'a> {
         // Return a value of 0 to indicate success.
         self.mov_imm32_to_register(Register::A, 0);
         self.ret();
-        self.finalize()
-    }
 
-    fn finalize(&mut self) -> o::Program {
         let mut program = o::Program::new(
             self.target.len(),
             self.storage_size,
@@ -155,7 +174,7 @@ impl<'a> Assembler<'a> {
         let storage_address = program.get_storage_address() as u64;
         let addr_bytes = storage_address.to_le_bytes();
         for (index, byte) in addr_bytes.iter().enumerate() {
-            self.target[index + 2] = *byte;
+            self.target[index + storage_address_index] = *byte;
         }
         unsafe {
             // This is safe because we have allocated enough bytes in the storage block to fit
@@ -170,6 +189,10 @@ impl<'a> Assembler<'a> {
         self.target.push(byte);
     }
 
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        self.target.extend(bytes);
+    }
+
     // arg1: first register, arg2: second register.
     fn write_modrm_two_register(&mut self, first: Register, second: Register) {
         // 0b11 indicates two registers.
@@ -180,6 +203,18 @@ impl<'a> Assembler<'a> {
     fn write_modrm_reg_disp32(&mut self, register: Register) {
         // 0b10 with 0b101 as the last part indicates 32-bit displacement from EBP (StorageAddress)
         self.write_byte(0b10000101 | register.index_u8() << 3);
+    }
+
+    fn write_64(&mut self, value: u64) {
+        // Everything in x86 goes from lowest order to highest order.
+        self.write_byte(((value >> 0) % 0x100) as u8);
+        self.write_byte(((value >> 8) % 0x100) as u8);
+        self.write_byte(((value >> 16) % 0x100) as u8);
+        self.write_byte(((value >> 24) % 0x100) as u8);
+        self.write_byte(((value >> 32) % 0x100) as u8);
+        self.write_byte(((value >> 40) % 0x100) as u8);
+        self.write_byte(((value >> 48) % 0x100) as u8);
+        self.write_byte(((value >> 56) % 0x100) as u8);
     }
 
     fn write_32(&mut self, value: u32) {
