@@ -444,17 +444,26 @@ impl<'a> Assembler<'a> {
                 // TODO: Optimize.
                 let registers = self.load_values(&[a, b]);
                 self.kill_variables(&instruction.kills);
-                self.prepare_register_for_writing(registers[1]);
+                self.prepare_register_for_writing(registers[0]);
                 match op {
                     i::BinaryOperator::AddI => {
-                        self.write_byte(0x01);
+                        self.write_byte(0x01); // Add to second operand.
+                        self.write_modrm_two_register(registers[1], registers[0]);
+                    }
+                    i::BinaryOperator::SubI => {
+                        self.write_byte(0x29); // Subtract from second operand.
+                        self.write_modrm_two_register(registers[1], registers[0]);
+                    }
+                    i::BinaryOperator::MulI => {
+                        self.write_bytes(&[0x0f, 0xaf]); // Multiply into first operand.
                         self.write_modrm_two_register(registers[0], registers[1]);
                     }
+                    // TODO: Divide, modulo.
                     _ => unimplemented!("{:?}", op),
                 }
                 self.discard_temporary_registers();
-                // reg1 should be overwritten.
-                self.commit_value_in_register(x, registers[1]);
+                // reg0 should be overwritten.
+                self.commit_value_in_register(x, registers[0]);
             }
             i::Instruction::Compare { a, b } => {
                 let registers = self.load_values(&[a, b]);
