@@ -4,6 +4,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::native::traits;
 use crate::specialized::structure as i;
+use crate::trivial::structure::VariableType;
 
 const PAGE_SIZE: usize = 4096;
 
@@ -117,12 +118,15 @@ impl StorageBlock {
 pub struct Program {
     code: CodeBlock,
     storage: StorageBlock,
-    input_addresses: Vec<usize>,
-    output_addresses: Vec<usize>,
+    // Data type and address.
+    inputs: Vec<(VariableType, usize)>,
+    outputs: Vec<(VariableType, usize)>,
 }
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        writeln!(formatter, "{} inputs: {:?}", self.inputs.len(), self.inputs)?;
+        writeln!(formatter, "{} outputs: {:?}", self.outputs.len(), self.outputs)?;
         write!(formatter, "{} code bytes:", self.code.size)?;
         for byte_index in 0..self.code.size {
             if byte_index % 8 == 0 {
@@ -150,14 +154,39 @@ impl Program {
     pub(super) fn new(
         code_size: usize,
         storage_size: usize,
-        input_addresses: Vec<usize>,
-        output_addresses: Vec<usize>,
+        inputs: Vec<(VariableType, usize)>,
+        outputs: Vec<(VariableType, usize)>,
     ) -> Program {
+        // Ensure that there is enough space to fit all the inputs and outputs.
+        for input in &inputs {
+            debug_assert!(
+                storage_size - input.1 >= input.0.get_physical_size(),
+                concat!(
+                    "There is not enough space to hold an input. (Address {}, length {}, ",
+                    "storage size {}.)"
+                ),
+                input.1,
+                input.0.get_physical_size(),
+                storage_size
+            );
+        }
+        for output in &outputs {
+            debug_assert!(
+                storage_size - output.1 >= output.0.get_physical_size(),
+                concat!(
+                    "There is not enough space to hold an output. (Address {}, length {}, ",
+                    "storage size {}.)"
+                ),
+                output.1,
+                output.0.get_physical_size(),
+                storage_size
+            );
+        }
         Program {
             code: CodeBlock::new(code_size),
             storage: StorageBlock::new(storage_size),
-            input_addresses,
-            output_addresses,
+            inputs,
+            outputs,
         }
     }
 
@@ -174,6 +203,10 @@ impl Program {
             self.code[index] = *value;
             index += 1;
         }
+    }
+
+    pub(super) fn get_storage_address(&self) -> usize {
+        self.storage.get_address()
     }
 
     unsafe fn write_iter_to_storage<'a>(
@@ -197,17 +230,21 @@ impl traits::Program for Program {
         Program::execute(self)
     }
 
-    // TODO: Type checking.
-    unsafe fn set_input_i32(&mut self, index: usize, value: i32) {
-        assert!(index < self.input_addresses.len());
-        let address = self.input_addresses[index];
-        self.write_iter_to_storage(address, value.to_le_bytes().iter());
+    fn set_input_i32(&mut self, index: usize, value: i32) {
+        assert!(index < self.inputs.len());
+        assert!(self.inputs[index].0 == VariableType::I32);
+        let address = self.inputs[index].1;
+        // Safe based on the assumption that the creator of the program allocated enough space
+        // to hold the variable.
+        unsafe {
+            self.write_iter_to_storage(address, value.to_le_bytes().iter());
+        }
     }
 
-    // TODO: Type checking.
-    unsafe fn read_output_i32(&self, index: usize) -> i32 {
-        assert!(index < self.output_addresses.len());
-        let address = self.output_addresses[index];
+    fn read_output_i32(&self, index: usize) -> i32 {
+        assert!(index < self.outputs.len());
+        assert!(self.outputs[index].0 == VariableType::I32);
+        let address = self.outputs[index].1;
         let bytes = [
             self.storage[address + 0],
             self.storage[address + 1],
@@ -215,5 +252,13 @@ impl traits::Program for Program {
             self.storage[address + 3],
         ];
         i32::from_le_bytes(bytes)
+    }
+
+    fn list_inputs(&self) -> Vec<VariableType> {
+        self.inputs.iter().map(|var| var.0).collect()
+    }
+
+    fn list_outputs(&self) -> Vec<VariableType> {
+        self.outputs.iter().map(|var| var.0).collect()
     }
 }

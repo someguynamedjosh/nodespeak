@@ -3,8 +3,12 @@ extern crate waveguide;
 
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::process;
 use std::time::Instant;
+use text_io::*;
+
+use waveguide::native::traits::Program;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -77,6 +81,33 @@ fn main() {
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
+            }
+        },
+        "execute" => {
+            let mut program = match waveguide::assemble(&source_set) {
+                Result::Ok(program) => program,
+                Result::Err(err) => {
+                    eprintln!("{}", err);
+                    process::exit(101);
+                }
+            };
+            for input_index in 0..program.list_inputs().len() {
+                print!("Enter input > ");
+                io::stdout().flush().unwrap();
+                let line: String = read!("{}\n");
+                program.set_input_i32(input_index, line.parse().unwrap());
+            }
+            println!("Executing program...");
+            let result = unsafe {
+                program.execute()
+            };
+            if result == 1 {
+                println!("Assert failed inside program.");
+                process::exit(1);
+            }
+            println!("Program completed successfully!");
+            for output_index in 0..program.list_outputs().len() {
+                println!("Output {}: {}", output_index, program.read_output_i32(output_index));
             }
         },
         _ => {

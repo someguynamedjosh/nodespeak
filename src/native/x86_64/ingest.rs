@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::structure as o;
 use crate::specialized::structure as i;
+use crate::trivial::structure::VariableType;
 
 pub fn ingest(program: &i::Program) -> o::Program {
     let mut assembler = Assembler::new(program);
@@ -78,8 +79,9 @@ enum RegisterContent {
 struct Assembler<'a> {
     source: &'a i::Program,
     target: Vec<u8>,
-    input_addresses: Vec<usize>,
-    output_addresses: Vec<usize>,
+    // Data type and address.
+    inputs: Vec<(VariableType, usize)>,
+    outputs: Vec<(VariableType, usize)>,
     // What variable is stored in each register.
     register_contents: [RegisterContent; 8],
     // How much space should be allocated for variable storage.
@@ -93,8 +95,8 @@ impl<'a> Assembler<'a> {
         Assembler {
             source,
             target: Vec::new(),
-            input_addresses: Vec::new(),
-            output_addresses: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             register_contents: [RegisterContent::Empty; 8],
             storage_size: 0,
             storage_locations: HashMap::new(),
@@ -102,13 +104,22 @@ impl<'a> Assembler<'a> {
     }
 
     fn entry_point(&mut self) -> o::Program {
-        for input in self.source.borrow_inputs() {
-            let address = self.get_variable_address(*input);
-            self.input_addresses.push(address);
+        // This will eventually be modified to load the start address of the storage block into
+        // a register. Equivalent to `mov rbp imm64`
+        self.target.push(0x48);
+        self.target.push(0xbd);
+        for _ in 0..8 {
+            self.target.push(0);
         }
-        for output in self.source.borrow_outputs() {
-            let address = self.get_variable_address(*output);
-            self.output_addresses.push(address);
+        for input in self.source.borrow_inputs().clone() {
+            let vtype = self.source[input].get_type();
+            let address = self.get_variable_address(input);
+            self.inputs.push((vtype, address));
+        }
+        for output in self.source.borrow_outputs().clone() {
+            let vtype = self.source[output].get_type();
+            let address = self.get_variable_address(output);
+            self.outputs.push((vtype, address));
         }
         for instruction in self.source.borrow_instructions().iter() {
             self.assemble_instruction(instruction)
@@ -135,9 +146,17 @@ impl<'a> Assembler<'a> {
         let mut program = o::Program::new(
             self.target.len(),
             self.storage_size,
-            self.input_addresses.clone(),
-            self.output_addresses.clone(),
+            self.inputs.clone(),
+            self.outputs.clone(),
         );
+        // Write the address of the storage block into the code so that all the memory operations
+        // load and store from the correct spot.
+        // TODO: Check that we are on a 64 bit system.
+        let storage_address = program.get_storage_address() as u64;
+        let addr_bytes = storage_address.to_le_bytes();
+        for (index, byte) in addr_bytes.iter().enumerate() {
+            self.target[index + 2] = *byte;
+        }
         unsafe {
             // This is safe because we have allocated enough bytes in the storage block to fit
             // the entire contents of self.target.

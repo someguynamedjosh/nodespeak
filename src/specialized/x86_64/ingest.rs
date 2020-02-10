@@ -120,7 +120,7 @@ impl<'a> Specializer<'a> {
                         variable: id,
                         indexes: vec![],
                         offset: 0,
-                        length,
+                        length: length as u64,
                     }
                 }
             }

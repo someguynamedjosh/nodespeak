@@ -7,6 +7,15 @@ pub enum VariableType {
     B8,
 }
 
+impl VariableType {
+    pub fn get_physical_size(&self) -> usize {
+        match self {
+            VariableType::F32 | VariableType::I32 => 4,
+            VariableType::B8 => 1,
+        }
+    }
+}
+
 impl Debug for VariableType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(
@@ -83,13 +92,10 @@ impl Variable {
         &self.dimensions
     }
 
-    pub fn get_physical_size(&self) -> u64 {
-        let mut size = match self.variable_type {
-            VariableType::F32 | VariableType::I32 => 4,
-            VariableType::B8 => 1
-        };
+    pub fn get_physical_size(&self) -> usize {
+        let mut size = self.variable_type.get_physical_size();
         for dim in self.dimensions.iter() {
-            size *= *dim;
+            size *= *dim as usize;
         }
         size
     }
