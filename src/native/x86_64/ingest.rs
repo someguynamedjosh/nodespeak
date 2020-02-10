@@ -78,6 +78,8 @@ enum RegisterContent {
 struct Assembler<'a> {
     source: &'a i::Program,
     target: Vec<u8>,
+    input_addresses: Vec<usize>,
+    output_addresses: Vec<usize>,
     // What variable is stored in each register.
     register_contents: [RegisterContent; 8],
     // How much space should be allocated for variable storage.
@@ -91,6 +93,8 @@ impl<'a> Assembler<'a> {
         Assembler {
             source,
             target: Vec::new(),
+            input_addresses: Vec::new(),
+            output_addresses: Vec::new(),
             register_contents: [RegisterContent::Empty; 8],
             storage_size: 0,
             storage_locations: HashMap::new(),
@@ -100,11 +104,11 @@ impl<'a> Assembler<'a> {
     fn entry_point(&mut self) -> o::Program {
         for input in self.source.borrow_inputs() {
             let address = self.get_variable_address(*input);
-            // TODO: Store a list of inputs.
+            self.input_addresses.push(address);
         }
         for output in self.source.borrow_outputs() {
             let address = self.get_variable_address(*output);
-            // TODO: Store a list of outputs.
+            self.output_addresses.push(address);
         }
         for instruction in self.source.borrow_instructions().iter() {
             self.assemble_instruction(instruction)
@@ -122,14 +126,23 @@ impl<'a> Assembler<'a> {
             }
         }
         // Return a value of 0 to indicate success.
-        self.mov_imm32_to_register(Register::A, 0); 
+        self.mov_imm32_to_register(Register::A, 0);
         self.ret();
         self.finalize()
     }
 
     fn finalize(&mut self) -> o::Program {
-        let mut program = o::Program::new(self.target.len(), self.storage_size);
-        program.write_iter_to_code(0, self.target.iter());
+        let mut program = o::Program::new(
+            self.target.len(),
+            self.storage_size,
+            self.input_addresses.clone(),
+            self.output_addresses.clone(),
+        );
+        unsafe {
+            // This is safe because we have allocated enough bytes in the storage block to fit
+            // the entire contents of self.target.
+            program.write_iter_to_code(0, self.target.iter());
+        }
         program
     }
 

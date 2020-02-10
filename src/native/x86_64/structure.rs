@@ -2,6 +2,9 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Index, IndexMut};
 
+use crate::native::traits;
+use crate::specialized::structure as i;
+
 const PAGE_SIZE: usize = 4096;
 
 struct CodeBlock {
@@ -114,6 +117,8 @@ impl StorageBlock {
 pub struct Program {
     code: CodeBlock,
     storage: StorageBlock,
+    input_addresses: Vec<usize>,
+    output_addresses: Vec<usize>,
 }
 
 impl Debug for Program {
@@ -142,10 +147,17 @@ impl Debug for Program {
 }
 
 impl Program {
-    pub(super) fn new(code_size: usize, storage_size: usize) -> Program {
+    pub(super) fn new(
+        code_size: usize,
+        storage_size: usize,
+        input_addresses: Vec<usize>,
+        output_addresses: Vec<usize>,
+    ) -> Program {
         Program {
             code: CodeBlock::new(code_size),
             storage: StorageBlock::new(storage_size),
+            input_addresses,
+            output_addresses,
         }
     }
 
@@ -153,11 +165,7 @@ impl Program {
         self.code.execute()
     }
 
-    pub(super) fn write_u8_to_code(&mut self, index: usize, value: u8) {
-        self.code[index] = value;
-    }
-
-    pub(super) fn write_iter_to_code<'a>(
+    pub(super) unsafe fn write_iter_to_code<'a>(
         &mut self,
         mut index: usize,
         values: impl Iterator<Item = &'a u8>,
@@ -168,15 +176,7 @@ impl Program {
         }
     }
 
-    pub(super) fn write_u64_to_code(&mut self, index: usize, value: u64) {
-        self.write_iter_to_code(index, value.to_le_bytes().into_iter());
-    }
-
-    pub(super) fn write_u8_to_storage(&mut self, index: usize, value: u8) {
-        self.storage[index] = value;
-    }
-
-    pub(super) fn write_iter_to_storage<'a>(
+    unsafe fn write_iter_to_storage<'a>(
         &mut self,
         mut index: usize,
         values: impl Iterator<Item = &'a u8>,
@@ -186,39 +186,34 @@ impl Program {
             index += 1;
         }
     }
-
-    pub(super) fn write_u64_to_storage(&mut self, index: usize, value: u64) {
-        self.write_iter_to_storage(index, value.to_le_bytes().into_iter());
-    }
-
-    pub(super) fn get_storage_address(&mut self, index: usize) -> usize {
-        self.storage.get_address() + index
-    }
 }
 
-mod test {
-    #[test]
-    fn simple_return_function() {
-        use super::Program;
-        let mut program = Program::new(11, 8);
+impl traits::Program for Program {
+    fn new(input: &i::Program) -> Program {
+        super::ingest::ingest(input)
+    }
 
-        // Function that returns the first 8 bytes of the storage block.
-        program.write_iter_to_code(
-            0,
-            [
-                0x48, 0xA1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov
-                0xC3, // rtn
-            ]
-            .into_iter(),
-        );
-        // Set the address for the mov instruction to the start of the storage block.
-        let address = program.get_storage_address(0) as u64;
-        program.write_u64_to_code(2, address);
-        // Put some data in the storage block.
-        program.write_u64_to_storage(0, 0x0011223344556677);
+    unsafe fn execute(&self) -> i64 {
+        Program::execute(self)
+    }
 
-        unsafe {
-            assert!(program.execute() == 0x0011223344556677);
-        }
+    // TODO: Type checking.
+    unsafe fn set_input_i32(&mut self, index: usize, value: i32) {
+        assert!(index < self.input_addresses.len());
+        let address = self.input_addresses[index];
+        self.write_iter_to_storage(address, value.to_le_bytes().iter());
+    }
+
+    // TODO: Type checking.
+    unsafe fn read_output_i32(&self, index: usize) -> i32 {
+        assert!(index < self.output_addresses.len());
+        let address = self.output_addresses[index];
+        let bytes = [
+            self.storage[address + 0],
+            self.storage[address + 1],
+            self.storage[address + 2],
+            self.storage[address + 3],
+        ];
+        i32::from_le_bytes(bytes)
     }
 }
