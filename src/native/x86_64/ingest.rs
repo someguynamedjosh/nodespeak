@@ -450,16 +450,16 @@ impl<'a> Assembler<'a> {
                 // later.
                 self.kill_variables(&instruction.kills);
                 self.prepare_register_for_writing(reg_from);
-                self.commit_value_in_register(to, reg_from);
                 self.discard_temporary_registers();
+                self.commit_value_in_register(to, reg_from);
             }
             i::Instruction::BinaryOperation { op, a, b, x } => {
                 // TODO: Optimize.
-                self.kill_variables(&instruction.kills);
                 match op {
                     i::BinaryOperator::AddI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
                         self.prepare_register_for_writing(reg_a);
                         self.write_byte(0x01); // Add to second operand.
                         self.write_modrm_two_register(reg_b, reg_a);
@@ -469,6 +469,7 @@ impl<'a> Assembler<'a> {
                     i::BinaryOperator::SubI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
                         self.prepare_register_for_writing(reg_a);
                         self.write_byte(0x29); // Subtract from second operand.
                         self.write_modrm_two_register(reg_b, reg_a);
@@ -478,6 +479,7 @@ impl<'a> Assembler<'a> {
                     i::BinaryOperator::MulI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
                         self.prepare_register_for_writing(reg_a);
                         self.write_bytes(&[0x0f, 0xaf]); // Multiply into first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
@@ -491,6 +493,7 @@ impl<'a> Assembler<'a> {
                         let reg_a = self.load_value_into_register(a, Register::A);
                         self.load_zero_into_register(Register::D);
                         let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
                         self.prepare_register_for_writing(reg_a);
                         // Divide by second operand, first operand is ignored.
                         self.write_bytes(&[0xF7]);
@@ -504,6 +507,7 @@ impl<'a> Assembler<'a> {
                         self.load_value_into_register(a, Register::A);
                         let reg_remainder = self.load_zero_into_register(Register::D);
                         let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
                         self.prepare_register_for_writing(reg_remainder);
                         // Divide by second operand, first operand is ignored.
                         self.write_bytes(&[0xF7]);
