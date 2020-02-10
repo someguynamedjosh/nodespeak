@@ -115,13 +115,15 @@ impl<'a> Assembler<'a> {
         self.storage_size += 8; // Allocate space to store rsp.
         // mov [rbp] rsp so that we can restore the address of the stack after the function returns.
         self.write_bytes(&[0x48, 0x89, 0x65, 0x00]);
+        // sub qword ptr [rpb] 0x08 because the following call instruction will push an 8-byte value
+        // to the stack.
+        self.write_bytes(&[0x48, 0x83, 0x6d, 0x00, 0x08]);
         // call disp32 to the actual body of the function.
         self.write_byte(0xe8); 
-        self.write_32(15); // Amount to jump.
+        self.write_32(11); // Amount to jump.
 
-        // Cleanup phase, 15 bytes.
-        // mov rsp [rbp] to restore address of stack.
-        self.write_bytes(&[0x48, 0x8b, 0x65, 0x00]);
+        // Cleanup phase, 11 bytes.
+        // rsp will already be restored because it needs to be restored before ret will work.
         // Pop callee-saved registers.
         self.write_bytes(&[0x41, 0x5f, 0x41, 0x5e, 0x41, 0x5d, 0x41, 0x5c, 0x5d, 0x5b]);
         // Return
@@ -160,7 +162,7 @@ impl<'a> Assembler<'a> {
         }
         // Return a value of 0 to indicate success.
         self.mov_imm32_to_register(Register::A, 0);
-        self.ret();
+        self.restore_rsp_and_return();
 
         let mut program = o::Program::new(
             self.target.len(),
@@ -259,8 +261,20 @@ impl<'a> Assembler<'a> {
         self.write_modrm_two_register(from, to);
     }
 
+    // Restores the stack pointer to the value saved before the start of the function. This must be
+    // called before using the return instruction.
+    fn restore_rsp(&mut self) {
+        // mov rsp [rbp]
+        self.write_bytes(&[0x48, 0x8b, 0x65, 0x00]);
+    }
+
     fn ret(&mut self) {
         self.write_byte(0xc3);
+    }
+
+    fn restore_rsp_and_return(&mut self) {
+        self.restore_rsp();
+        self.ret();
     }
 
     // Returns the address of the specified variable relative to the start of
@@ -452,10 +466,10 @@ impl<'a> Assembler<'a> {
             i::Instruction::Assert(condition) => {
                 self.kill_variables(&instruction.kills);
                 // Skip over the following pieces of code if the condition was true.
-                self.jmp_cond_disp8(condition.code(), 6);
+                self.jmp_cond_disp8(condition.code(), 10);
                 // Return a value of 1 to indicate failure.
                 self.mov_imm32_to_register(Register::A, 1); // 5 bytes
-                self.ret(); // 1 byte
+                self.restore_rsp_and_return(); // 5 bytes
                 self.discard_temporary_registers();
             }
         }
