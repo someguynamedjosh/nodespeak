@@ -28,7 +28,6 @@ pub enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
-    IntDiv,
     Modulo,
     Power,
 
@@ -54,7 +53,6 @@ impl Debug for BinaryOperator {
             BinaryOperator::Subtract => write!(formatter, "-"),
             BinaryOperator::Multiply => write!(formatter, "*"),
             BinaryOperator::Divide => write!(formatter, "/"),
-            BinaryOperator::IntDiv => write!(formatter, "//"),
             BinaryOperator::Modulo => write!(formatter, "%"),
             BinaryOperator::Power => write!(formatter, "**"),
 

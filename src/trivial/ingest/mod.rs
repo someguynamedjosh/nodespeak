@@ -136,11 +136,6 @@ impl<'a> Trivializer<'a> {
             },
             i::BinaryOperator::Divide => match typ {
                 o::VariableType::F32 => o::BinaryOperator::DivF,
-                o::VariableType::I32 => unimplemented!(),
-                o::VariableType::B8 => unimplemented!(),
-            },
-            i::BinaryOperator::IntDiv => match typ {
-                o::VariableType::F32 => unimplemented!(),
                 o::VariableType::I32 => o::BinaryOperator::DivI,
                 o::VariableType::B8 => unimplemented!(),
             },

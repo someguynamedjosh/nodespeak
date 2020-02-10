@@ -161,9 +161,6 @@ fn compute_binary_operation_impl(
         },
         i::BinaryOperator::Divide => match a {
             i::KnownData::Float(value) => i::KnownData::Float(value / b.require_float()),
-            _ => unreachable!(),
-        },
-        i::BinaryOperator::IntDiv => match a {
             i::KnownData::Int(value) => i::KnownData::Int(value / b.require_int()),
             _ => unreachable!(),
         },
@@ -347,7 +344,6 @@ pub(super) fn resolve_operator(operator: i::BinaryOperator) -> o::BinaryOperator
         i::BinaryOperator::Equal => o::BinaryOperator::Equal,
         i::BinaryOperator::GreaterThan => o::BinaryOperator::GreaterThan,
         i::BinaryOperator::GreaterThanOrEqual => o::BinaryOperator::GreaterThanOrEqual,
-        i::BinaryOperator::IntDiv => o::BinaryOperator::IntDiv,
         i::BinaryOperator::LessThan => o::BinaryOperator::LessThan,
         i::BinaryOperator::LessThanOrEqual => o::BinaryOperator::LessThanOrEqual,
         i::BinaryOperator::Modulo => o::BinaryOperator::Modulo,

@@ -346,11 +346,6 @@ const DIVIDE: Operator = Operator {
     precedence: 18,
     left_assoc: true,
 };
-const INT_DIV: Operator = Operator {
-    id: 05,
-    precedence: 18,
-    left_assoc: true,
-};
 const MODULO: Operator = Operator {
     id: 06,
     precedence: 18,
@@ -438,8 +433,6 @@ fn op_str_to_operator(op_str: &str) -> Operator {
         MULTIPLY
     } else if op_str == "/" {
         DIVIDE
-    } else if op_str == "//" {
-        INT_DIV
     } else if op_str == "%" {
         MODULO
     } else if op_str == "<=" {
@@ -487,8 +480,6 @@ fn apply_operator(
         o::BinaryOperator::Multiply
     } else if operator.id == DIVIDE.id {
         o::BinaryOperator::Divide
-    } else if operator.id == INT_DIV.id {
-        o::BinaryOperator::IntDiv
     } else if operator.id == MODULO.id {
         o::BinaryOperator::Modulo
     } else if operator.id == POWER.id {
