@@ -97,15 +97,18 @@ impl Debug for Value {
         if self.proxy.len() == 0 {
             write!(formatter, "{:?}", self.base)?;
         } else {
-            write!(formatter, "(")?;
-            for (mode, len) in self.proxy.iter() {
+            write!(formatter, "{{")?;
+            for (index, (mode, len)) in self.proxy.iter().enumerate() {
                 match mode {
-                    ProxyMode::Literal => write!(formatter, "{{{}}}", len)?,
-                    ProxyMode::Collapse => write!(formatter, "{{{}>1}}", len)?,
-                    ProxyMode::Discard => write!(formatter, "{{{}x}}", len)?,
+                    ProxyMode::Literal => write!(formatter, "{}", len)?,
+                    ProxyMode::Collapse => write!(formatter, "{}>1", len)?,
+                    ProxyMode::Discard => write!(formatter, "{}>X", len)?,
+                }
+                if index < self.proxy.len() - 1 {
+                    write!(formatter, ", ")?;
                 }
             }
-            write!(formatter, "{:?})", self.base)?;
+            write!(formatter, "}}{:?}", self.base)?;
         }
         for index in self.indexes.iter() {
             write!(formatter, "[{:?}]", index)?;

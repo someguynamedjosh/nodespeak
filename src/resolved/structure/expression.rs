@@ -162,15 +162,18 @@ impl Debug for Expression {
             Expression::Proxy {
                 base, dimensions, ..
             } => {
-                write!(formatter, "({:?}", base)?;
-                for dimension in dimensions {
+                write!(formatter, "{{")?;
+                for (index, dimension) in dimensions.iter().enumerate() {
                     match dimension.0 {
-                        ProxyMode::Literal => write!(formatter, "[{0}>{0}]", dimension.1)?,
-                        ProxyMode::Collapse => write!(formatter, "[{0}>1]", dimension.1)?,
-                        ProxyMode::Discard => write!(formatter, "[{0}>X]", dimension.1)?,
+                        ProxyMode::Literal => write!(formatter, "{0}", dimension.1)?,
+                        ProxyMode::Collapse => write!(formatter, "{0}>1", dimension.1)?,
+                        ProxyMode::Discard => write!(formatter, "{0}>X", dimension.1)?,
+                    }
+                    if index < dimensions.len() - 1 {
+                        write!(formatter, ", ")?;
                     }
                 }
-                write!(formatter, ")")
+                write!(formatter, "}}{:?}", base)
             }
             Expression::Access { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
