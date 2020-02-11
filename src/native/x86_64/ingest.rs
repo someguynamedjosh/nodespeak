@@ -450,17 +450,14 @@ impl<'a> Assembler<'a> {
         None
     }
 
-    /// Returns Some(register) if an integer register is found which is not locked and has
-    /// empty contents, or None if none could be found.
-    fn meta_find_unused_int_register(&mut self) -> Option<Register> {
-        self.meta_find_unused_register_from_list(&INT_REGISTERS)
-    }
-
-
-    /// Returns Some(register) if a float register is found which is not locked and has
-    /// empty contents, or None if none could be found.
-    fn meta_find_unused_float_register(&mut self) -> Option<Register> {
-        self.meta_find_unused_register_from_list(&FLOAT_REGISTERS)
+    /// Returns Some(register) if a register is found in the list which is not locked
+    fn meta_find_unlocked_register_from_list(&self, list: &[Register]) -> Option<Register> {
+        for register in list {
+            if !self.register_locked[*register as usize] {
+                return Some(*register);
+            }
+        }
+        None
     }
 
     /// Marks the specified register as locked. This will cause other helper functions to avoid
@@ -506,17 +503,46 @@ impl<'a> Assembler<'a> {
         }
     }
 
+    /// Spills the register to memory. Can be called on a locked register.
+    /// Write: code to copy the register's value back to memory, if applicable.
+    /// Meta: marks the register as empty.
+    fn spill_locked_register(&mut self, register: Register) {
+        if let RegisterContent::Variable(variable) = self.register_contents[register as usize] {
+            self.write_mov_register_to_var32(register, variable);
+        }
+        self.register_contents[register as usize] = RegisterContent::Empty;
+    }
+
+    /// Spills the register to memory. Do not call on a locked register (protected by debug assert.)
+    /// Write: code to copy the register's value back to memory, if applicable.
+    /// Meta: marks the register as empty.
+    fn spill_register(&mut self, register: Register) {
+        debug_assert!(!self.register_locked[register as usize]);
+        self.spill_locked_register(register);
+    }
+
     /// Ensures that the provided register can be written to without erasing data needed for later.
-    /// This should only be used before a single instruction will read from and then write to a 
+    /// This should only be used before a single instruction will read from and then write to a
     /// locked register.
+    /// Write: code to copy the register if its value is needed later in the code.
+    /// Meta: marks the register as empty.
     fn prepare_locked_register(&mut self, register: Register) {
         match self.register_contents[register as usize] {
             RegisterContent::Variable(id) => {
-                let data_type = self.source[id].get_type();
-                let write_into = self.prepare_any_register_for(data_type);
-                self.write_mov_reg32_to_reg32(register, write_into);
-                self.register_contents[write_into as usize] = RegisterContent::Variable(id);
-                self.register_contents[register as usize] = RegisterContent::Empty
+                let register_list: &[_] = match self.source[id].get_type() {
+                    VariableType::I32 => &INT_REGISTERS,
+                    VariableType::F32 => &FLOAT_REGISTERS,
+                    VariableType::B8 => unimplemented!(),
+                };
+                // We can transfer the value to another register for easy access later.
+                if let Some(target) = self.meta_find_unused_register_from_list(register_list) {
+                    self.write_mov_reg32_to_reg32(register, target);
+                    self.register_contents[target as usize] = RegisterContent::Variable(id);
+                    self.register_contents[register as usize] = RegisterContent::Empty
+                } else {
+                    // There are no other available registers, so we need to spill it instead.
+                    self.spill_locked_register(register);
+                }
             }
             RegisterContent::Temporary => {
                 self.register_contents[register as usize] = RegisterContent::Empty
@@ -536,26 +562,30 @@ impl<'a> Assembler<'a> {
     }
 
     /// Finds a register capable of storing the provided data type, and ensures that it can be
-    /// written to without overwriting any data that the program needs for later. The register is 
+    /// written to without overwriting any data that the program needs for later. The register is
     /// marked as being empty.
     /// Meta: searches for any unused registers that can hold the specified data type.
     /// Write: potentially writes instructions to spill a register if no unused register is found.
     fn prepare_any_register_for(&mut self, data_type: VariableType) -> Register {
         // TODO: Register spilling.
         if data_type == VariableType::I32 {
-            let unused_register = self.meta_find_unused_int_register();
-            if let Some(register) = unused_register {
-                register
-            } else {
-                unimplemented!("TODO: Register spilling.")
+            if let Some(register) = self.meta_find_unused_register_from_list(&INT_REGISTERS) {
+                return register;
             }
+            if let Some(register) = self.meta_find_unlocked_register_from_list(&INT_REGISTERS) {
+                self.spill_register(register);
+                return register;
+            }
+            unreachable!("All int registers are locked, this should never happen.");
         } else if data_type == VariableType::F32 {
-            let unused_register = self.meta_find_unused_float_register();
-            if let Some(register) = unused_register {
-                register
-            } else {
-                unimplemented!("TODO: Register spilling.")
+            if let Some(register) = self.meta_find_unused_register_from_list(&FLOAT_REGISTERS) {
+                return register;
             }
+            if let Some(register) = self.meta_find_unlocked_register_from_list(&FLOAT_REGISTERS) {
+                self.spill_register(register);
+                return register;
+            }
+            unreachable!("All float registers are locked, this should never happen.");
         } else {
             unimplemented!()
         }
