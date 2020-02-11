@@ -241,6 +241,17 @@ impl traits::Program for Program {
         }
     }
 
+    fn set_input_f32(&mut self, index: usize, value: f32) {
+        assert!(index < self.inputs.len());
+        assert!(self.inputs[index].0 == VariableType::F32);
+        let address = self.inputs[index].1;
+        // Safe based on the assumption that the creator of the program allocated enough space
+        // to hold the variable.
+        unsafe {
+            self.write_iter_to_storage(address, value.to_le_bytes().iter());
+        }
+    }
+
     fn read_output_i32(&self, index: usize) -> i32 {
         assert!(index < self.outputs.len());
         assert!(self.outputs[index].0 == VariableType::I32);
@@ -252,6 +263,19 @@ impl traits::Program for Program {
             self.storage[address + 3],
         ];
         i32::from_le_bytes(bytes)
+    }
+
+    fn read_output_f32(&self, index: usize) -> f32 {
+        assert!(index < self.outputs.len());
+        assert!(self.outputs[index].0 == VariableType::F32);
+        let address = self.outputs[index].1;
+        let bytes = [
+            self.storage[address + 0],
+            self.storage[address + 1],
+            self.storage[address + 2],
+            self.storage[address + 3],
+        ];
+        f32::from_le_bytes(bytes)
     }
 
     fn list_inputs(&self) -> Vec<VariableType> {

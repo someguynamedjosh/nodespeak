@@ -91,25 +91,41 @@ fn main() {
                     process::exit(101);
                 }
             };
-            for input_index in 0..program.list_inputs().len() {
+            for (input_index, input_type) in program.list_inputs().clone().iter().enumerate() {
                 print!("Enter input > ");
                 io::stdout().flush().unwrap();
                 let line: String = read!("{}\n");
-                program.set_input_i32(input_index, line.parse().unwrap());
+                use waveguide::specialized::structure::VariableType;
+                match input_type {
+                    VariableType::I32 => program.set_input_i32(input_index, line.parse().unwrap()),
+                    VariableType::F32 => program.set_input_f32(input_index, line.parse().unwrap()),
+                    _ => unimplemented!(),
+                }
             }
             println!("Executing program...");
-            let result = unsafe {
-                program.execute()
-            };
+            let result = unsafe { program.execute() };
             if result == 1 {
                 println!("Assert failed inside program.");
                 process::exit(1);
             }
             println!("Program completed successfully!");
-            for output_index in 0..program.list_outputs().len() {
-                println!("Output {}: {}", output_index, program.read_output_i32(output_index));
+            for (output_index, output_type) in program.list_outputs().clone().iter().enumerate() {
+                use waveguide::specialized::structure::VariableType;
+                match output_type {
+                    VariableType::I32 => println!(
+                        "Output {}: {}",
+                        output_index,
+                        program.read_output_i32(output_index)
+                    ),
+                    VariableType::F32 => println!(
+                        "Output {}: {}",
+                        output_index,
+                        program.read_output_f32(output_index)
+                    ),
+                    _ => unimplemented!(),
+                }
             }
-        },
+        }
         _ => {
             eprintln!(
                 "Invalid mode '{}', expected compile, interpret, or a phase.",

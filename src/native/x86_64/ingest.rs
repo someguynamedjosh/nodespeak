@@ -11,6 +11,22 @@ pub fn ingest(program: &i::Program) -> o::Program {
     assembler.entry_point()
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum RegisterNamespace {
+    Primary,
+    XMM,
+}
+
+impl RegisterNamespace {
+    fn is_compatible_with(&self, data_type: VariableType) -> bool {
+        match data_type {
+            VariableType::I32 => *self == Self::Primary,
+            VariableType::F32 => *self == Self::XMM,
+            VariableType::B8 => *self == Self::Primary,
+        }
+    }
+}
+
 #[derive(Clone, Copy, TryFromPrimitive)]
 #[repr(usize)]
 enum Register {
@@ -22,9 +38,17 @@ enum Register {
     StorageAddress,
     SI,
     DI,
+    XMM0,
+    XMM1,
+    XMM2,
+    XMM3,
+    XMM4,
+    XMM5,
+    XMM6,
+    XMM7,
 }
 
-const NUM_REGISTERS: usize = 8;
+const NUM_REGISTERS: usize = 16;
 
 impl Register {
     // What value to use to indicate this register in an opcode.
@@ -38,21 +62,93 @@ impl Register {
             Self::StorageAddress => 5,
             Self::SI => 6,
             Self::DI => 7,
+            Self::XMM0 => 0,
+            Self::XMM1 => 1,
+            Self::XMM2 => 2,
+            Self::XMM3 => 3,
+            Self::XMM4 => 4,
+            Self::XMM5 => 5,
+            Self::XMM6 => 6,
+            Self::XMM7 => 7,
         }
+    }
+
+    // Returns the 'namespace' of the register. The idea is that registers in different namespaces
+    // use different sets of instructions to manipulate them.
+    fn get_namespace(&self) -> RegisterNamespace {
+        match self {
+            Self::A
+            | Self::C
+            | Self::D
+            | Self::B
+            | Self::SP
+            | Self::StorageAddress
+            | Self::SI
+            | Self::DI => RegisterNamespace::Primary,
+            Self::XMM0
+            | Self::XMM1
+            | Self::XMM2
+            | Self::XMM3
+            | Self::XMM4
+            | Self::XMM5
+            | Self::XMM6
+            | Self::XMM7 => RegisterNamespace::XMM,
+        }
+    }
+
+    fn is_primary(&self) -> bool {
+        self.get_namespace() == RegisterNamespace::Primary
+    }
+
+    fn is_xmm(&self) -> bool {
+        self.get_namespace() == RegisterNamespace::XMM
+    }
+
+    fn is_compatible_with(&self, data_type: VariableType) -> bool {
+        self.get_namespace().is_compatible_with(data_type)
     }
 }
 
-// Don't write variables to StorageAddress, it stores the start of our storage block.
-const VARIABLE_REGISTERS: [Register; 7] = [
+// Don't write variables to StorageAddress, it stores the start of our storage block. Also, A and
+// D have special meanings for some instructions, so they should be given low priority.
+const INT_REGISTERS: [Register; 7] = [
     Register::C,
     Register::B,
     Register::SP,
     Register::SI,
     Register::DI,
-    // These have special meaning to some opcodes, they should be the last places we try to assign
-    // variables to.
     Register::A,
     Register::D,
+];
+
+const FLOAT_REGISTERS: [Register; 8] = [
+    Register::XMM0,
+    Register::XMM1,
+    Register::XMM2,
+    Register::XMM3,
+    Register::XMM4,
+    Register::XMM5,
+    Register::XMM6,
+    Register::XMM7,
+];
+
+// A list of all registers that can potentially contain the value of a variable.
+const ALL_VARIABLE_REGISTERS: [Register; 15] = [
+    Register::C,
+    Register::B,
+    Register::SP,
+    Register::SI,
+    Register::DI,
+    Register::A,
+    Register::D,
+    Register::XMM0,
+    Register::XMM1,
+    Register::XMM2,
+    Register::XMM3,
+    Register::XMM4,
+    Register::XMM5,
+    Register::XMM6,
+    Register::XMM7,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -219,31 +315,53 @@ impl<'a> Assembler<'a> {
     }
 
     fn write_mov_var32_to_register(&mut self, register: Register, variable: i::VariableId) {
-        self.write_byte(0x8b);
+        debug_assert!(register.is_compatible_with(self.source[variable].get_type()));
+        match register.get_namespace() {
+            RegisterNamespace::Primary => self.write_byte(0x8b),
+            // Load value from memory into xmm register.
+            RegisterNamespace::XMM => self.write_bytes(&[0xf3, 0x0f, 0x10]),
+        }
         self.write_modrm_reg_disp32(register);
         let var_address = self.get_variable_address(variable) as u32;
         self.write_32(var_address);
     }
 
     fn write_mov_imm32_to_register(&mut self, register: Register, imm32: u32) {
-        self.write_byte(0xb8 + register.opcode_index_u8());
-        self.write_32(imm32);
+        match register.get_namespace() {
+            RegisterNamespace::Primary => {
+                self.write_byte(0xb8 + register.opcode_index_u8());
+                self.write_32(imm32);
+            }
+            RegisterNamespace::XMM => {
+                // There is no way to load immediates to XMM. Instead, add a constant in to the
+                // storage block and load that.
+                // TODO: Allow writing constants to storage.
+                unimplemented!();
+                // Write memory contents to xmm register.
+                self.write_bytes(&[0xf3, 0x0f, 0x10]);
+            }
+        }
     }
 
     fn write_mov_register_to_var32(&mut self, register: Register, variable: i::VariableId) {
-        self.write_byte(0x89);
+        debug_assert!(register.is_compatible_with(self.source[variable].get_type()));
+        match register.get_namespace() {
+            RegisterNamespace::Primary => self.write_byte(0x89),
+            // Write first operand (xmm reg) to second operand (memory)
+            RegisterNamespace::XMM => self.write_bytes(&[0xf3, 0x0f, 0x11]),
+        }
         self.write_modrm_reg_disp32(register);
         let var_address = self.get_variable_address(variable) as u32;
         self.write_32(var_address);
     }
 
-    fn write_mov_imm8_to_register(&mut self, register: Register, imm8: u8) {
-        self.write_byte(0xb0 + register.opcode_index_u8());
-        self.write_byte(imm8);
-    }
-
     fn write_mov_reg32_to_reg32(&mut self, from: Register, to: Register) {
-        self.write_byte(0x89);
+        debug_assert!(from.get_namespace() == to.get_namespace());
+        match from.get_namespace() {
+            RegisterNamespace::Primary => self.write_byte(0x89),
+            // Write first operand (xmm reg) to second operand (xmm reg)
+            RegisterNamespace::XMM => self.write_bytes(&[0xf3, 0x0f, 0x11]),
+        }
         self.write_modrm_two_register(from, to);
     }
 
@@ -278,8 +396,12 @@ impl<'a> Assembler<'a> {
         }
     }
 
-    fn find_register_with(&self, contents: RegisterContent) -> Option<Register> {
-        for register in &VARIABLE_REGISTERS {
+    fn find_register_from_list_with(
+        &self,
+        list: &[Register],
+        contents: RegisterContent,
+    ) -> Option<Register> {
+        for register in list {
             if self.register_contents[*register as usize] == contents {
                 return Some(*register);
             }
@@ -287,8 +409,47 @@ impl<'a> Assembler<'a> {
         None
     }
 
-    fn find_empty_register(&mut self) -> Option<Register> {
-        self.find_register_with(RegisterContent::Empty)
+    fn find_register_with(&self, contents: RegisterContent) -> Option<Register> {
+        self.find_register_from_list_with(&ALL_VARIABLE_REGISTERS, contents)
+    }
+
+    fn find_int_register_with(&self, contents: RegisterContent) -> Option<Register> {
+        self.find_register_from_list_with(&INT_REGISTERS, contents)
+    }
+
+    fn find_float_register_with(&self, contents: RegisterContent) -> Option<Register> {
+        self.find_register_from_list_with(&FLOAT_REGISTERS, contents)
+    }
+
+    fn find_empty_int_register(&mut self) -> Option<Register> {
+        self.find_int_register_with(RegisterContent::Empty)
+    }
+
+    fn find_empty_float_register(&mut self) -> Option<Register> {
+        self.find_float_register_with(RegisterContent::Empty)
+    }
+
+    // Finds a register capable of storing the provided data type, and ensures that it can be
+    // written to without overwriting any data that the program needs for later.
+    fn prepare_any_register_to_receive(&mut self, data_type: VariableType) -> Register {
+        // TODO: Register spilling.
+        if data_type == VariableType::I32 {
+            let empty_register = self.find_empty_int_register();
+            if let Some(register) = empty_register {
+                register
+            } else {
+                unimplemented!("TODO: Register spilling.")
+            }
+        } else if data_type == VariableType::F32 {
+            let empty_register = self.find_empty_float_register();
+            if let Some(register) = empty_register {
+                register
+            } else {
+                unimplemented!("TODO: Register spilling.")
+            }
+        } else {
+            unimplemented!()
+        }
     }
 
     fn load_value_into_any(&mut self, value: &i::Value) -> Register {
@@ -300,24 +461,22 @@ impl<'a> Assembler<'a> {
                     register
                 } else {
                     // TODO: Register spilling.
-                    // TODO: Type checking stuff and arrays and all sorts of complicated tings.
-                    let empty_register = self
-                        .find_empty_register()
-                        .expect("TODO: Register spilling.");
-                    self.register_contents[empty_register as usize] =
+                    // TODO: arrays and all sorts of complicated tings.
+                    let data_type = self.source[*variable].get_type();
+                    let write_into = self.prepare_any_register_to_receive(data_type);
+                    self.write_mov_var32_to_register(write_into, *variable);
+                    self.register_contents[write_into as usize] =
                         RegisterContent::Variable(*variable);
-                    self.write_mov_var32_to_register(empty_register, *variable);
-                    empty_register
+                    write_into
                 }
             }
             i::Value::Literal(data) => {
+                let data_type = data.get_type();
                 let binary_data = data.binary_data();
-                let empty_register = self
-                    .find_empty_register()
-                    .expect("TODO: Register spilling.");
-                self.register_contents[empty_register as usize] = RegisterContent::Temporary;
-                self.write_mov_imm32_to_register(empty_register, binary_data);
-                empty_register
+                let write_into = self.prepare_any_register_to_receive(data_type);
+                self.write_mov_imm32_to_register(write_into, binary_data);
+                self.register_contents[write_into as usize] = RegisterContent::Temporary;
+                write_into
             }
         }
     }
@@ -327,7 +486,7 @@ impl<'a> Assembler<'a> {
         match value {
             i::Value::VariableAccess { variable, .. } => {
                 if let Some(already_in) =
-                    self.find_register_with(RegisterContent::Variable(*variable))
+                    self.find_int_register_with(RegisterContent::Variable(*variable))
                 {
                     self.write_mov_reg32_to_reg32(already_in, register);
                 } else {
@@ -357,7 +516,8 @@ impl<'a> Assembler<'a> {
     // values get copied into it before cleanup_temporaries is called.
     fn kill_variables(&mut self, kills: &[i::VariableId]) {
         for kill in kills {
-            for index in 0..8 {
+            for register in &ALL_VARIABLE_REGISTERS {
+                let index = *register as usize;
                 if let RegisterContent::Variable(var_id) = self.register_contents[index] {
                     if &var_id == kill {
                         self.register_contents[index] = RegisterContent::Temporary;
@@ -372,7 +532,7 @@ impl<'a> Assembler<'a> {
     // always be called after ensuring that no future operations will require the temporary values
     // contained in the registers.
     fn discard_temporary_registers(&mut self) {
-        for register in &VARIABLE_REGISTERS {
+        for register in &ALL_VARIABLE_REGISTERS {
             if self.register_contents[*register as usize] == RegisterContent::Temporary {
                 self.register_contents[*register as usize] = RegisterContent::Empty;
             }
@@ -384,14 +544,12 @@ impl<'a> Assembler<'a> {
     // you still need a temporary after the write operation, you must perform a check to make sure
     // you aren't overwriting it yourself.
     fn prepare_register_for_writing(&mut self, register: Register) {
-        // TODO: Register spilling.
         match self.register_contents[register as usize] {
             RegisterContent::Variable(id) => {
-                let empty_register = self
-                    .find_empty_register()
-                    .expect("TODO: Register spilling.");
-                self.write_mov_reg32_to_reg32(register, empty_register);
-                self.register_contents[empty_register as usize] = RegisterContent::Variable(id);
+                let data_type = self.source[id].get_type();
+                let write_into = self.prepare_any_register_to_receive(data_type);
+                self.write_mov_reg32_to_reg32(register, write_into);
+                self.register_contents[write_into as usize] = RegisterContent::Variable(id);
             }
             RegisterContent::Temporary => {
                 self.register_contents[register as usize] = RegisterContent::Empty
@@ -416,9 +574,10 @@ impl<'a> Assembler<'a> {
     fn commit_value_in_register(&mut self, value: &i::Value, register: Register) {
         // TODO: Complicated array stuff.
         if let i::Value::VariableAccess { variable, .. } = value {
+            debug_assert!(register.is_compatible_with(self.source[*variable].get_type()));
             let new_content = RegisterContent::Variable(*variable);
             // If any other register claims to contain this value, it's invalid now.
-            for register in &VARIABLE_REGISTERS {
+            for register in &ALL_VARIABLE_REGISTERS {
                 if self.register_contents[*register as usize] == new_content {
                     self.register_contents[*register as usize] = RegisterContent::Empty;
                 }
@@ -514,6 +673,76 @@ impl<'a> Assembler<'a> {
                         self.write_byte(0b11111000 | reg_b.opcode_index_u8());
                         self.discard_temporary_registers();
                         self.commit_value_in_register(x, reg_remainder);
+                    }
+                    i::BinaryOperator::AddF => {
+                        let reg_a = self.load_value_into_any(a);
+                        let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
+                        self.prepare_register_for_writing(reg_a);
+                        self.write_bytes(&[0xf3, 0x0f, 0x58]); // Addss to first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        self.discard_temporary_registers();
+                        self.commit_value_in_register(x, reg_a);
+                    }
+                    i::BinaryOperator::SubF => {
+                        let reg_a = self.load_value_into_any(a);
+                        let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
+                        self.prepare_register_for_writing(reg_a);
+                        self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        self.discard_temporary_registers();
+                        self.commit_value_in_register(x, reg_a);
+                    }
+                    i::BinaryOperator::MulF => {
+                        let reg_a = self.load_value_into_any(a);
+                        let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
+                        self.prepare_register_for_writing(reg_a);
+                        self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss the first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        self.discard_temporary_registers();
+                        self.commit_value_in_register(x, reg_a);
+                    }
+                    i::BinaryOperator::DivF => {
+                        let reg_a = self.load_value_into_any(a);
+                        let reg_b = self.load_value_into_any(b);
+                        self.kill_variables(&instruction.kills);
+                        self.prepare_register_for_writing(reg_a);
+                        self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        self.discard_temporary_registers();
+                        self.commit_value_in_register(x, reg_a);
+                    }
+                    i::BinaryOperator::ModF => {
+                        // There is no xmm modulo instruction, so we have to do a messy chain of
+                        // instructions instead.
+                        let reg_a = self.load_value_into_any(a);
+                        let reg_b = self.load_value_into_any(b);
+                        // We need to save the value of a for later.
+                        let reg_a2 = self.prepare_any_register_to_receive(VariableType::F32);
+                        self.write_mov_reg32_to_reg32(reg_a, reg_a2);
+
+                        self.kill_variables(&instruction.kills);
+                        self.prepare_register_for_writing(reg_a);
+                        self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        // reg_a = a / b, reg_b = b, reg_a2 = a
+                        // Convert 4xf32 from second operand to 4xi32 in first operand.
+                        // Truncate ss in second operand to ss in first operand.
+                        self.write_bytes(&[0x66, 0x0f, 0x3a, 0x0a]);
+                        self.write_modrm_two_register(reg_a, reg_a);
+                        self.write_byte(0b0011); // Specify rounding mode should be trucation.
+                        // reg_a = trunc(a / b), reg_b = b, reg_a2 = a
+                        self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss first operand.
+                        self.write_modrm_two_register(reg_a, reg_b);
+                        // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a
+                        self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
+                        self.write_modrm_two_register(reg_a2, reg_a);
+                        // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a % b
+
+                        self.discard_temporary_registers();
+                        self.commit_value_in_register(x, reg_a2);
                     }
                     _ => unimplemented!("{:?}", op),
                 }
