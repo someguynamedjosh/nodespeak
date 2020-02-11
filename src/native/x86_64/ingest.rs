@@ -153,8 +153,13 @@ const ALL_VARIABLE_REGISTERS: [Register; 15] = [
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum RegisterContent {
+    /// Indicates the register contains nothing of importance.
     Empty,
+    /// Indicates the register contains a value that will no longer be needed once the register is
+    /// unlocked.
     Temporary,
+    /// Indicates the register contains the specified variable and that it will still be needed some
+    /// time in the future after the retister is unlocked.
     Variable(i::VariableId),
 }
 
@@ -164,11 +169,14 @@ struct Assembler<'a> {
     // Data type and address.
     inputs: Vec<(VariableType, usize)>,
     outputs: Vec<(VariableType, usize)>,
-    // What variable is stored in each register.
+    /// What variable is stored in each register.
     register_contents: [RegisterContent; NUM_REGISTERS],
-    // How much space should be allocated for variable storage.
+    /// Whether each register is locked. If a register is locked, its contents should not be
+    /// spilled / overwritten until it is unlocked.
+    register_locked: [bool; NUM_REGISTERS],
+    /// How much space should be allocated for variable storage.
     storage_size: usize,
-    // The position each variable occupies in storage.
+    /// The position each variable occupies in storage.
     storage_locations: HashMap<i::VariableId, usize>,
 }
 
@@ -180,6 +188,7 @@ impl<'a> Assembler<'a> {
             inputs: Vec::new(),
             outputs: Vec::new(),
             register_contents: [RegisterContent::Empty; NUM_REGISTERS],
+            register_locked: [false; NUM_REGISTERS],
             storage_size: 0,
             storage_locations: HashMap::new(),
         }
@@ -267,6 +276,21 @@ impl<'a> Assembler<'a> {
         }
         program
     }
+
+    // Functions beginning with write_ add machine code to the output. Functions beginning with
+    // meta_ store or retrieve some piece of metadata about what the current state of the program
+    // is. These functions add no overhead to the actual end result, they just act as helpers to
+    // ensure that the program will work as intended once assembled. Functions that begin with
+    // neither of these things perform a mix of these two functions as explained on a per-function
+    // basis, or alternatively serve some entirely unrelated purpose.
+    // Different things meta / hybrid functions can do to registers:
+    // Lock:    a locked register will not be spilled or overwritten by other helper functions.
+    // Unlock:  unlocks a register. If the register contained a temporary value, then unlocking
+    //          labels the register as being empty.
+    // Prepare: ensures that a register can be written to without stomping on data that will
+    //          be used later in the program.
+    // Write:   Prepares and locks a register while adding assembly code to transfer a value
+    //          into it.
 
     #[inline]
     fn write_byte(&mut self, byte: u8) {
@@ -381,8 +405,8 @@ impl<'a> Assembler<'a> {
         self.write_ret();
     }
 
-    // Returns the address of the specified variable relative to the start of
-    // the storage block.
+    /// Returns the address of the specified variable relative to the start of
+    /// the storage block.
     fn get_variable_address(&mut self, variable: i::VariableId) -> usize {
         if let Some(address) = self.storage_locations.get(&variable) {
             *address
@@ -396,7 +420,7 @@ impl<'a> Assembler<'a> {
         }
     }
 
-    fn find_register_from_list_with(
+    fn meta_find_register_from_list_containing(
         &self,
         list: &[Register],
         contents: RegisterContent,
@@ -409,40 +433,125 @@ impl<'a> Assembler<'a> {
         None
     }
 
-    fn find_register_with(&self, contents: RegisterContent) -> Option<Register> {
-        self.find_register_from_list_with(&ALL_VARIABLE_REGISTERS, contents)
+    fn meta_find_register_containing(&self, contents: RegisterContent) -> Option<Register> {
+        self.meta_find_register_from_list_containing(&ALL_VARIABLE_REGISTERS, contents)
     }
 
-    fn find_int_register_with(&self, contents: RegisterContent) -> Option<Register> {
-        self.find_register_from_list_with(&INT_REGISTERS, contents)
+    /// Returns Some(register) if a register is found in the list which is not locked and has
+    /// empty contents, or None if none could be found.
+    fn meta_find_unused_register_from_list(&self, list: &[Register]) -> Option<Register> {
+        for register in list {
+            if self.register_contents[*register as usize] == RegisterContent::Empty
+                && !self.register_locked[*register as usize]
+            {
+                return Some(*register);
+            }
+        }
+        None
     }
 
-    fn find_float_register_with(&self, contents: RegisterContent) -> Option<Register> {
-        self.find_register_from_list_with(&FLOAT_REGISTERS, contents)
+    /// Returns Some(register) if an integer register is found which is not locked and has
+    /// empty contents, or None if none could be found.
+    fn meta_find_unused_int_register(&mut self) -> Option<Register> {
+        self.meta_find_unused_register_from_list(&INT_REGISTERS)
     }
 
-    fn find_empty_int_register(&mut self) -> Option<Register> {
-        self.find_int_register_with(RegisterContent::Empty)
+
+    /// Returns Some(register) if a float register is found which is not locked and has
+    /// empty contents, or None if none could be found.
+    fn meta_find_unused_float_register(&mut self) -> Option<Register> {
+        self.meta_find_unused_register_from_list(&FLOAT_REGISTERS)
     }
 
-    fn find_empty_float_register(&mut self) -> Option<Register> {
-        self.find_float_register_with(RegisterContent::Empty)
+    /// Marks the specified register as locked. This will cause other helper functions to avoid
+    /// overwriting or spilling the register until it is unlocked. Safe to call on an already
+    /// locked register.
+    fn meta_lock_register(&mut self, register: Register) {
+        self.register_locked[register as usize] = true;
     }
 
-    // Finds a register capable of storing the provided data type, and ensures that it can be
-    // written to without overwriting any data that the program needs for later.
-    fn prepare_any_register_to_receive(&mut self, data_type: VariableType) -> Register {
+    /// Marks the specified register as unlocked. If the register contained a temporary value,
+    /// marks the register as being empty. Should only be called on locked registers (protected by
+    /// debug assert.)
+    fn meta_unlock_register(&mut self, register: Register) {
+        debug_assert!(self.register_locked[register as usize]);
+        self.register_locked[register as usize] = false;
+        if self.register_contents[register as usize] == RegisterContent::Temporary {
+            self.register_contents[register as usize] = RegisterContent::Empty;
+        }
+    }
+
+    /// Unlocks all currently locked registers. (See meta_unlock_register.)
+    fn meta_unlock_registers(&mut self) {
+        for register in &ALL_VARIABLE_REGISTERS {
+            if self.register_locked[*register as usize] {
+                self.meta_unlock_register(*register);
+            }
+        }
+    }
+
+    /// Finds the registers where each sentenced variable lives and marks it as temporary. This
+    /// ensures that the register can be re-used once the register is unlocked.
+    fn meta_kill_variables(&mut self, kills: &[i::VariableId]) {
+        for kill in kills {
+            for register in &ALL_VARIABLE_REGISTERS {
+                let index = *register as usize;
+                if let RegisterContent::Variable(var_id) = self.register_contents[index] {
+                    if &var_id == kill {
+                        self.register_contents[index] = RegisterContent::Temporary;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Ensures that the provided register can be written to without erasing data needed for later.
+    /// This should only be used before a single instruction will read from and then write to a 
+    /// locked register.
+    fn prepare_locked_register(&mut self, register: Register) {
+        match self.register_contents[register as usize] {
+            RegisterContent::Variable(id) => {
+                let data_type = self.source[id].get_type();
+                let write_into = self.prepare_any_register_for(data_type);
+                self.write_mov_reg32_to_reg32(register, write_into);
+                self.register_contents[write_into as usize] = RegisterContent::Variable(id);
+                self.register_contents[register as usize] = RegisterContent::Empty
+            }
+            RegisterContent::Temporary => {
+                self.register_contents[register as usize] = RegisterContent::Empty
+            }
+            RegisterContent::Empty => (),
+        }
+    }
+
+    /// Ensures that the provided register can be written to without erasing data needed for later.
+    /// Similar to prepare_locked_register, but will panic if called on a locked register.
+    fn prepare_register(&mut self, register: Register) {
+        debug_assert!(
+            !self.register_locked[register as usize],
+            "Cannot write to a locked register."
+        );
+        self.prepare_locked_register(register);
+    }
+
+    /// Finds a register capable of storing the provided data type, and ensures that it can be
+    /// written to without overwriting any data that the program needs for later. The register is 
+    /// marked as being empty.
+    /// Meta: searches for any unused registers that can hold the specified data type.
+    /// Write: potentially writes instructions to spill a register if no unused register is found.
+    fn prepare_any_register_for(&mut self, data_type: VariableType) -> Register {
         // TODO: Register spilling.
         if data_type == VariableType::I32 {
-            let empty_register = self.find_empty_int_register();
-            if let Some(register) = empty_register {
+            let unused_register = self.meta_find_unused_int_register();
+            if let Some(register) = unused_register {
                 register
             } else {
                 unimplemented!("TODO: Register spilling.")
             }
         } else if data_type == VariableType::F32 {
-            let empty_register = self.find_empty_float_register();
-            if let Some(register) = empty_register {
+            let unused_register = self.meta_find_unused_float_register();
+            if let Some(register) = unused_register {
                 register
             } else {
                 unimplemented!("TODO: Register spilling.")
@@ -452,41 +561,57 @@ impl<'a> Assembler<'a> {
         }
     }
 
+    /// Loads the specified value into a compatible register.
+    /// Write: instructions to load the provided value into a compatible register. Potentially
+    /// adds code to spill a register so that the value can be loaded.
+    /// Meta: marks the provided register as containing the provided value. If the value was a
+    /// literal, the register is marked as containing a temporary value. The register is also locked
+    /// in either case such that its contents cannot be spilled until it is unlocked again.
     fn load_value_into_any(&mut self, value: &i::Value) -> Register {
         match value {
             i::Value::VariableAccess { variable, .. } => {
                 if let Some(register) =
-                    self.find_register_with(RegisterContent::Variable(*variable))
+                    self.meta_find_register_containing(RegisterContent::Variable(*variable))
                 {
+                    self.meta_lock_register(register);
                     register
                 } else {
                     // TODO: Register spilling.
                     // TODO: arrays and all sorts of complicated tings.
                     let data_type = self.source[*variable].get_type();
-                    let write_into = self.prepare_any_register_to_receive(data_type);
+                    let write_into = self.prepare_any_register_for(data_type);
                     self.write_mov_var32_to_register(write_into, *variable);
                     self.register_contents[write_into as usize] =
                         RegisterContent::Variable(*variable);
+                    self.meta_lock_register(write_into);
                     write_into
                 }
             }
             i::Value::Literal(data) => {
                 let data_type = data.get_type();
                 let binary_data = data.binary_data();
-                let write_into = self.prepare_any_register_to_receive(data_type);
+                let write_into = self.prepare_any_register_for(data_type);
                 self.write_mov_imm32_to_register(write_into, binary_data);
                 self.register_contents[write_into as usize] = RegisterContent::Temporary;
+                self.meta_lock_register(write_into);
                 write_into
             }
         }
     }
 
+    /// Loads the specified value into the specified register. This should not be called on a locked
+    /// register (protected by debug assert.)
+    /// Write: instructions to load the provided value into the provided register. Potentially
+    /// adds code to spill the register so that the value can be loaded.
+    /// Meta: marks the provided register as containing the provided value. If the value was a
+    /// literal, the register is marked as containing a temporary value. The register is also marked
+    /// as locked in either case such that its contents cannot be spilled until it's unlocked again.
     fn load_value_into_register(&mut self, value: &i::Value, register: Register) -> Register {
-        self.prepare_register_for_writing_safe(register);
+        self.prepare_register(register);
         match value {
             i::Value::VariableAccess { variable, .. } => {
                 if let Some(already_in) =
-                    self.find_int_register_with(RegisterContent::Variable(*variable))
+                    self.meta_find_register_containing(RegisterContent::Variable(*variable))
                 {
                     self.write_mov_reg32_to_reg32(already_in, register);
                 } else {
@@ -503,74 +628,25 @@ impl<'a> Assembler<'a> {
         register
     }
 
+    /// Sets the value of the register to zero. This should not be called on a locked register
+    /// (protected by debug assert.)
+    /// Meta: prepares and locks the specified register. Marks the register as containing a
+    /// temporary value.
+    /// Write: code to xor a register with itself.
     fn load_zero_into_register(&mut self, register: Register) -> Register {
-        self.prepare_register_for_writing_safe(register);
+        // TODO: zero xmm register.
+        debug_assert!(register.get_namespace() == RegisterNamespace::Primary);
+        self.prepare_register(register);
         // Xor the register with itself.
         self.write_byte(0x33);
         self.write_modrm_two_register(register, register);
+        self.register_contents[register as usize] = RegisterContent::Temporary;
+        self.meta_lock_register(register);
         register
     }
 
-    // Finds the registers where each sentenced variable lives and marks it as temporary. This
-    // allows it to be a destination when using prepare_register_for_writing but ensures that no
-    // values get copied into it before cleanup_temporaries is called.
-    fn kill_variables(&mut self, kills: &[i::VariableId]) {
-        for kill in kills {
-            for register in &ALL_VARIABLE_REGISTERS {
-                let index = *register as usize;
-                if let RegisterContent::Variable(var_id) = self.register_contents[index] {
-                    if &var_id == kill {
-                        self.register_contents[index] = RegisterContent::Temporary;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // Marks that registers currently holding temporary values can be used again. This should
-    // always be called after ensuring that no future operations will require the temporary values
-    // contained in the registers.
-    fn discard_temporary_registers(&mut self) {
-        for register in &ALL_VARIABLE_REGISTERS {
-            if self.register_contents[*register as usize] == RegisterContent::Temporary {
-                self.register_contents[*register as usize] = RegisterContent::Empty;
-            }
-        }
-    }
-
-    // Ensures that the provided register can be written to without erasing data needed for later.
-    // Note that if the provided register contains a temporary, writing to it will destroy it. If
-    // you still need a temporary after the write operation, you must perform a check to make sure
-    // you aren't overwriting it yourself.
-    fn prepare_register_for_writing(&mut self, register: Register) {
-        match self.register_contents[register as usize] {
-            RegisterContent::Variable(id) => {
-                let data_type = self.source[id].get_type();
-                let write_into = self.prepare_any_register_to_receive(data_type);
-                self.write_mov_reg32_to_reg32(register, write_into);
-                self.register_contents[write_into as usize] = RegisterContent::Variable(id);
-            }
-            RegisterContent::Temporary => {
-                self.register_contents[register as usize] = RegisterContent::Empty
-            }
-            RegisterContent::Empty => (),
-        }
-    }
-
-    // Like above, but causes an error if attempting to write to a register containing a temporary.
-    // Use this it you cannot guarantee that temporary values will not be needed later.
-    fn prepare_register_for_writing_safe(&mut self, register: Register) {
-        match self.register_contents[register as usize] {
-            RegisterContent::Temporary => {
-                panic!("Cannot guarantee that this temporary value will not be needed later.")
-            }
-            _ => self.prepare_register_for_writing(register),
-        }
-    }
-
-    // If value is a simple variable, just labels the register as containing that variable.
-    // (TODO: If value is an array access, then write to that element.)
+    /// If value is a simple variable, just labels the register as containing that variable.
+    /// (TODO: If value is an array access, then write to that element.)
     fn commit_value_in_register(&mut self, value: &i::Value, register: Register) {
         // TODO: Complicated array stuff.
         if let i::Value::VariableAccess { variable, .. } = value {
@@ -587,19 +663,15 @@ impl<'a> Assembler<'a> {
     }
 
     fn assemble_instruction(&mut self, instruction: &i::AnnotatedInstruction) {
-        // Order of operations:
-        // load_values    - ensures that the values required for the operation are loaded into
-        //                  registers.
-        // kill_variables - if a variable will die after this instruction, we don't need to worry
-        //                  about keeping it around. Marks registers containing variables sentenced
-        //                  to death as Temporary.
-        // prep_reg_for_w - call this for all registers that will be modified. If it
-        //                  contains a non-temporary value, ensures that that value will live past
-        //                  the operation.
-        // Call whatever functions necessary to create the byte code for the operation.
-        // disc_temp_regs - changes registers marked as temporary to be marked as empty.
-        // cmt_val_in_reg - call this for every register written to. Indicates what value the
-        //                  register represents.
+        // General template:
+        // load_* functions such as load_value_into_any.
+        // meta_kill_variables to mark any sentenced variables as temporary to this instruction.
+        // prepare_locked_register for any registers that will be overwritten by the instruction.
+        // write_* to write the machine code to execute the instruction.
+        // meta_unlock_registers so that they can be used/overwritten/spilled by future instructions
+        //     and so that registers containing temporary values can be reused.
+        // commit_value_in_register to ensure that we are properly keeping track of the contents
+        //     of any modified registers.
         match &instruction.instruction {
             i::Instruction::Move { from, to } => {
                 // TODO: This is only simple right now because we aren't handling arrays.
@@ -607,9 +679,9 @@ impl<'a> Assembler<'a> {
                 // We aren't actually writing to it, just giving it a new label. But then it might
                 // be changed, so if from didn't get killed, we need to make sure it is saved for
                 // later.
-                self.kill_variables(&instruction.kills);
-                self.prepare_register_for_writing(reg_from);
-                self.discard_temporary_registers();
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_from);
+                self.meta_unlock_registers();
                 self.commit_value_in_register(to, reg_from);
             }
             i::Instruction::BinaryOperation { op, a, b, x } => {
@@ -618,31 +690,31 @@ impl<'a> Assembler<'a> {
                     i::BinaryOperator::AddI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_byte(0x01); // Add to second operand.
                         self.write_modrm_two_register(reg_b, reg_a);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::SubI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_byte(0x29); // Subtract from second operand.
                         self.write_modrm_two_register(reg_b, reg_a);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::MulI => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0x0f, 0xaf]); // Multiply into first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::DivI => {
@@ -652,12 +724,12 @@ impl<'a> Assembler<'a> {
                         let reg_a = self.load_value_into_register(a, Register::A);
                         self.load_zero_into_register(Register::D);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         // Divide by second operand, first operand is ignored.
                         self.write_bytes(&[0xF7]);
                         self.write_byte(0b11111000 | reg_b.opcode_index_u8());
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::ModI => {
@@ -666,52 +738,52 @@ impl<'a> Assembler<'a> {
                         self.load_value_into_register(a, Register::A);
                         let reg_remainder = self.load_zero_into_register(Register::D);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_remainder);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_remainder);
                         // Divide by second operand, first operand is ignored.
                         self.write_bytes(&[0xF7]);
                         self.write_byte(0b11111000 | reg_b.opcode_index_u8());
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_remainder);
                     }
                     i::BinaryOperator::AddF => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0xf3, 0x0f, 0x58]); // Addss to first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::SubF => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::MulF => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss the first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::DivF => {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a);
                     }
                     i::BinaryOperator::ModF => {
@@ -720,11 +792,11 @@ impl<'a> Assembler<'a> {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
                         // We need to save the value of a for later.
-                        let reg_a2 = self.prepare_any_register_to_receive(VariableType::F32);
+                        let reg_a2 = self.prepare_any_register_for(VariableType::F32);
                         self.write_mov_reg32_to_reg32(reg_a, reg_a2);
 
-                        self.kill_variables(&instruction.kills);
-                        self.prepare_register_for_writing(reg_a);
+                        self.meta_kill_variables(&instruction.kills);
+                        self.prepare_locked_register(reg_a);
                         self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
                         // reg_a = a / b, reg_b = b, reg_a2 = a
@@ -733,7 +805,7 @@ impl<'a> Assembler<'a> {
                         self.write_bytes(&[0x66, 0x0f, 0x3a, 0x0a]);
                         self.write_modrm_two_register(reg_a, reg_a);
                         self.write_byte(0b0011); // Specify rounding mode should be trucation.
-                        // reg_a = trunc(a / b), reg_b = b, reg_a2 = a
+                                                 // reg_a = trunc(a / b), reg_b = b, reg_a2 = a
                         self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss first operand.
                         self.write_modrm_two_register(reg_a, reg_b);
                         // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a
@@ -741,7 +813,7 @@ impl<'a> Assembler<'a> {
                         self.write_modrm_two_register(reg_a2, reg_a);
                         // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a % b
 
-                        self.discard_temporary_registers();
+                        self.meta_unlock_registers();
                         self.commit_value_in_register(x, reg_a2);
                     }
                     _ => unimplemented!("{:?}", op),
@@ -750,19 +822,19 @@ impl<'a> Assembler<'a> {
             i::Instruction::Compare { a, b } => {
                 let reg_a = self.load_value_into_any(a);
                 let reg_b = self.load_value_into_any(b);
-                self.kill_variables(&instruction.kills);
+                self.meta_kill_variables(&instruction.kills);
                 self.write_byte(0x39); // Compare two registers.
                 self.write_modrm_two_register(reg_a, reg_b);
-                self.discard_temporary_registers();
+                self.meta_unlock_registers();
             }
             i::Instruction::Assert(condition) => {
-                self.kill_variables(&instruction.kills);
+                self.meta_kill_variables(&instruction.kills);
                 // Skip over the following pieces of code if the condition was true.
                 self.write_jmp_cond_disp8(condition.code(), 10);
                 // Return a value of 1 to indicate failure.
                 self.write_mov_imm32_to_register(Register::A, 1); // 5 bytes
                 self.write_restore_rsp_and_return(); // 5 bytes
-                self.discard_temporary_registers();
+                self.meta_unlock_registers();
             }
         }
     }
