@@ -1,3 +1,6 @@
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+line_comment = _{ "//" ~ (!"\n" ~ ANY)* ~ (EOI | "\n") }
+COMMENT = _{ block_comment | line_comment }
 WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
 
 dec_int = @{ (ASCII_DIGIT | "_")+ }

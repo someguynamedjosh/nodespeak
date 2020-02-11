@@ -18,6 +18,7 @@ pub mod structure {
     pub fn rule_name(rule: &Rule) -> &'static str {
         match rule {
             Rule::WHITESPACE => "whitespace",
+            Rule::COMMENT | Rule::block_comment | Rule::line_comment => "comment",
             Rule::EOI => "end of file",
 
             Rule::dec_int => "integer literal",
