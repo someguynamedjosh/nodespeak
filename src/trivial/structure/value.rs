@@ -1,4 +1,5 @@
-use super::{Program, VariableId, VariableType};
+use crate::shared::NativeType;
+use super::{Program, VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -20,11 +21,11 @@ impl Debug for LiteralData {
 }
 
 impl LiteralData {
-    pub fn get_type(&self) -> VariableType {
+    pub fn get_type(&self) -> NativeType {
         match self {
-            Self::Int(..) => VariableType::I32,
-            Self::Float(..) => VariableType::F32,
-            Self::Bool(..) => VariableType::B8,
+            Self::Int(..) => NativeType::int_scalar(),
+            Self::Float(..) => NativeType::float_scalar(),
+            Self::Bool(..) => NativeType::bool_scalar(),
         }
     }
 }
@@ -45,10 +46,10 @@ impl Debug for ValueBase {
 }
 
 impl ValueBase {
-    pub fn get_type(&self, program: &Program) -> VariableType {
+    pub fn get_type(&self, program: &Program) -> NativeType {
         match self {
             Self::Literal(data) => data.get_type(),
-            Self::Variable(var) => program[*var].get_type(),
+            Self::Variable(var) => program[*var].borrow_type().clone(),
         }
     }
 }
@@ -87,7 +88,7 @@ impl Value {
         Self::new(ValueBase::Literal(data))
     }
 
-    pub fn get_type(&self, program: &Program) -> VariableType {
+    pub fn get_type(&self, program: &Program) -> NativeType {
         self.base.get_type(program)
     }
 }

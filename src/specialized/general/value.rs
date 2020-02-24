@@ -1,4 +1,4 @@
-use super::{VariableType, VariableId};
+use super::{NativeType, VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -10,11 +10,11 @@ pub enum LiteralData {
 }
 
 impl LiteralData {
-    pub fn get_type(&self) -> VariableType {
+    pub fn get_type(&self) -> NativeType {
         match self {
-            Self::Int(..) => VariableType::I32,
-            Self::Float(..) => VariableType::F32,
-            Self::Bool(..) => VariableType::B8,
+            Self::Int(..) => NativeType::int_scalar(),
+            Self::Float(..) => NativeType::float_scalar(),
+            Self::Bool(..) => NativeType::bool_scalar(),
         }
     }
 

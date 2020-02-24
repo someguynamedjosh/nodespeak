@@ -1,4 +1,5 @@
-pub use crate::trivial::structure::{Variable, VariableType};
+pub use crate::trivial::structure::Variable;
+pub use crate::shared::{NativeType, NativeBaseType};
 
 mod program;
 mod value;
@@ -9,5 +10,5 @@ pub use value::*;
 pub use variable::*;
 
 pub mod universal {
-    pub use super::{LiteralData, Value, Variable, VariableId, VariableType};
+    pub use super::{LiteralData, Value, Variable, VariableId, NativeType, NativeBaseType};
 }

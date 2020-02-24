@@ -1,5 +1,6 @@
 use crate::problem::CompileProblem;
 use crate::resolved::structure as i;
+use crate::shared as s;
 use crate::trivial::structure as o;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -56,15 +57,14 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_data_type(
         data_type: &i::DataType,
-    ) -> Result<(o::VariableType, Vec<u64>), CompileProblem> {
-        Result::Ok((
-            match data_type.borrow_base() {
-                i::BaseType::Float => o::VariableType::F32,
-                i::BaseType::Int => o::VariableType::I32,
-                i::BaseType::Bool => unimplemented!(),
-            },
-            data_type.borrow_dimensions().clone(),
-        ))
+    ) -> Result<s::NativeType, CompileProblem> {
+        let base_type = match data_type.borrow_base() {
+            i::BaseType::Float => s::NativeBaseType::F32,
+            i::BaseType::Int => s::NativeBaseType::I32,
+            i::BaseType::Bool => s::NativeBaseType::B8,
+        };
+        let dimensions = data_type.borrow_dimensions().iter().map(|x| *x as usize).collect();
+        Result::Ok(s::NativeType::array(base_type, dimensions))
     }
 
     fn trivialize_variable(
@@ -75,8 +75,8 @@ impl<'a> Trivializer<'a> {
             Some(trivialized) => *trivialized,
             None => {
                 let data_type = self.source[variable].borrow_data_type();
-                let (var_type, dims) = Self::trivialize_data_type(data_type)?;
-                let trivial_variable = o::Variable::new_array(var_type, dims);
+                let typ = Self::trivialize_data_type(data_type)?;
+                let trivial_variable = o::Variable::new(typ);
                 let id = self.target.adopt_variable(trivial_variable);
                 self.variable_map.insert(variable, id);
                 id
@@ -116,33 +116,34 @@ impl<'a> Trivializer<'a> {
         let a = self.trivialize_and_require_value(left, expression)?;
         let b = self.trivialize_and_require_value(right, expression)?;
         let typ = a.get_type(&self.target);
+        let base = typ.get_base();
         let x = o::Value::variable(self.target.adopt_variable(o::Variable::new(typ)));
         let x2 = x.clone();
         let toperator = match operator {
-            i::BinaryOperator::Add => match typ {
-                o::VariableType::F32 => o::BinaryOperator::AddF,
-                o::VariableType::I32 => o::BinaryOperator::AddI,
-                o::VariableType::B8 => unimplemented!(),
+            i::BinaryOperator::Add => match base {
+                s::NativeBaseType::F32 => o::BinaryOperator::AddF,
+                s::NativeBaseType::I32 => o::BinaryOperator::AddI,
+                s::NativeBaseType::B8 => unimplemented!(),
             },
-            i::BinaryOperator::Subtract => match typ {
-                o::VariableType::F32 => o::BinaryOperator::SubF,
-                o::VariableType::I32 => o::BinaryOperator::SubI,
-                o::VariableType::B8 => unimplemented!(),
+            i::BinaryOperator::Subtract => match base {
+                s::NativeBaseType::F32 => o::BinaryOperator::SubF,
+                s::NativeBaseType::I32 => o::BinaryOperator::SubI,
+                s::NativeBaseType::B8 => unimplemented!(),
             },
-            i::BinaryOperator::Multiply => match typ {
-                o::VariableType::F32 => o::BinaryOperator::MulF,
-                o::VariableType::I32 => o::BinaryOperator::MulI,
-                o::VariableType::B8 => unimplemented!(),
+            i::BinaryOperator::Multiply => match base {
+                s::NativeBaseType::F32 => o::BinaryOperator::MulF,
+                s::NativeBaseType::I32 => o::BinaryOperator::MulI,
+                s::NativeBaseType::B8 => unimplemented!(),
             },
-            i::BinaryOperator::Divide => match typ {
-                o::VariableType::F32 => o::BinaryOperator::DivF,
-                o::VariableType::I32 => o::BinaryOperator::DivI,
-                o::VariableType::B8 => unimplemented!(),
+            i::BinaryOperator::Divide => match base {
+                s::NativeBaseType::F32 => o::BinaryOperator::DivF,
+                s::NativeBaseType::I32 => o::BinaryOperator::DivI,
+                s::NativeBaseType::B8 => unimplemented!(),
             },
-            i::BinaryOperator::Modulo => match typ {
-                o::VariableType::F32 => o::BinaryOperator::ModF,
-                o::VariableType::I32 => o::BinaryOperator::ModI,
-                o::VariableType::B8 => unimplemented!(),
+            i::BinaryOperator::Modulo => match base {
+                s::NativeBaseType::F32 => o::BinaryOperator::ModF,
+                s::NativeBaseType::I32 => o::BinaryOperator::ModI,
+                s::NativeBaseType::B8 => unimplemented!(),
             },
             i::BinaryOperator::Power => unimplemented!(),
 

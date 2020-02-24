@@ -1,102 +1,33 @@
 use std::fmt::{self, Debug, Formatter};
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum VariableType {
-    F32,
-    I32,
-    B8,
-}
-
-impl VariableType {
-    pub fn get_physical_size(&self) -> usize {
-        match self {
-            VariableType::F32 | VariableType::I32 => 4,
-            VariableType::B8 => 1,
-        }
-    }
-}
-
-impl Debug for VariableType {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "{}",
-            match self {
-                Self::F32 => "f32",
-                Self::I32 => "i32",
-                Self::B8 => "b8",
-            }
-        )
-    }
-}
+use crate::shared::NativeType;
 
 #[derive(Clone)]
 pub struct Variable {
-    variable_type: VariableType,
-    dimensions: Vec<u64>,
+    typ: NativeType,
 }
 
 impl Debug for Variable {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        for dim in self.dimensions.iter() {
-            write!(formatter, "[{}]", dim)?;
-        }
-        write!(formatter, "{:?}", self.variable_type)
+        write!(formatter, "{:?}", self.typ)
     }
 }
 
 impl Variable {
-    pub fn new(typ: VariableType) -> Variable {
+    pub fn new(typ: NativeType) -> Variable {
         Variable {
-            variable_type: typ,
-            dimensions: vec![],
+            typ,
         }
     }
 
-    pub fn f32() -> Variable {
-        Self::new(VariableType::F32)
+    pub fn borrow_type(&self) -> &NativeType {
+        &self.typ
     }
 
-    pub fn i32() -> Variable {
-        Self::new(VariableType::I32)
-    }
-
-    pub fn new_array(typ: VariableType, dimensions: Vec<u64>) -> Variable {
-        Variable {
-            variable_type: typ,
-            dimensions,
-        }
-    }
-
-    pub fn f32_array(dimensions: Vec<u64>) -> Variable {
-        Self::new_array(VariableType::F32, dimensions)
-    }
-
-    pub fn i32_array(dimensions: Vec<u64>) -> Variable {
-        Self::new_array(VariableType::I32, dimensions)
-    }
-
-    pub fn get_type(&self) -> VariableType {
-        self.variable_type
-    }
-
-    pub fn is_f32(&self) -> bool {
-        self.variable_type == VariableType::F32
-    }
-
-    pub fn is_i32(&self) -> bool {
-        self.variable_type == VariableType::I32
-    }
-
-    pub fn borrow_dimensions(&self) -> &Vec<u64> {
-        &self.dimensions
+    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+        self.typ.borrow_dimensions()
     }
 
     pub fn get_physical_size(&self) -> usize {
-        let mut size = self.variable_type.get_physical_size();
-        for dim in self.dimensions.iter() {
-            size *= *dim as usize;
-        }
-        size
+        self.typ.get_physical_size()
     }
 }

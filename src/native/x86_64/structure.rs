@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::native::traits;
 use crate::specialized::structure as i;
-use crate::trivial::structure::VariableType;
+pub use crate::shared::{NativeType, NativeBaseType};
 
 const PAGE_SIZE: usize = 4096;
 
@@ -119,8 +119,8 @@ pub struct Program {
     code: CodeBlock,
     storage: StorageBlock,
     // Data type and address.
-    inputs: Vec<(VariableType, usize)>,
-    outputs: Vec<(VariableType, usize)>,
+    inputs: Vec<(NativeType, usize)>,
+    outputs: Vec<(NativeType, usize)>,
 }
 
 impl Debug for Program {
@@ -154,8 +154,8 @@ impl Program {
     pub(super) fn new(
         code_size: usize,
         storage_size: usize,
-        inputs: Vec<(VariableType, usize)>,
-        outputs: Vec<(VariableType, usize)>,
+        inputs: Vec<(NativeType, usize)>,
+        outputs: Vec<(NativeType, usize)>,
     ) -> Program {
         // Ensure that there is enough space to fit all the inputs and outputs.
         for input in &inputs {
@@ -232,7 +232,7 @@ impl traits::Program for Program {
 
     fn set_input_i32(&mut self, index: usize, value: i32) {
         assert!(index < self.inputs.len());
-        assert!(self.inputs[index].0 == VariableType::I32);
+        assert!(self.inputs[index].0 == NativeType::int_scalar());
         let address = self.inputs[index].1;
         // Safe based on the assumption that the creator of the program allocated enough space
         // to hold the variable.
@@ -243,7 +243,7 @@ impl traits::Program for Program {
 
     fn set_input_f32(&mut self, index: usize, value: f32) {
         assert!(index < self.inputs.len());
-        assert!(self.inputs[index].0 == VariableType::F32);
+        assert!(self.inputs[index].0 == NativeType::float_scalar());
         let address = self.inputs[index].1;
         // Safe based on the assumption that the creator of the program allocated enough space
         // to hold the variable.
@@ -254,7 +254,7 @@ impl traits::Program for Program {
 
     fn read_output_i32(&self, index: usize) -> i32 {
         assert!(index < self.outputs.len());
-        assert!(self.outputs[index].0 == VariableType::I32);
+        assert!(self.outputs[index].0 == NativeType::int_scalar());
         let address = self.outputs[index].1;
         let bytes = [
             self.storage[address + 0],
@@ -267,7 +267,7 @@ impl traits::Program for Program {
 
     fn read_output_f32(&self, index: usize) -> f32 {
         assert!(index < self.outputs.len());
-        assert!(self.outputs[index].0 == VariableType::F32);
+        assert!(self.outputs[index].0 == NativeType::float_scalar());
         let address = self.outputs[index].1;
         let bytes = [
             self.storage[address + 0],
@@ -278,11 +278,11 @@ impl traits::Program for Program {
         f32::from_le_bytes(bytes)
     }
 
-    fn list_inputs(&self) -> Vec<VariableType> {
-        self.inputs.iter().map(|var| var.0).collect()
+    fn list_inputs(&self) -> Vec<NativeType> {
+        self.inputs.iter().map(|var| var.0.clone()).collect()
     }
 
-    fn list_outputs(&self) -> Vec<VariableType> {
-        self.outputs.iter().map(|var| var.0).collect()
+    fn list_outputs(&self) -> Vec<NativeType> {
+        self.outputs.iter().map(|var| var.0.clone()).collect()
     }
 }

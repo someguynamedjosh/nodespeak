@@ -95,11 +95,14 @@ fn main() {
                 print!("Enter input > ");
                 io::stdout().flush().unwrap();
                 let line: String = read!("{}\n");
-                use waveguide::specialized::structure::VariableType;
-                match input_type {
-                    VariableType::I32 => program.set_input_i32(input_index, line.parse().unwrap()),
-                    VariableType::F32 => program.set_input_f32(input_index, line.parse().unwrap()),
-                    _ => unimplemented!(),
+                if input_type.is_int() {
+                    drop(input_type);
+                    drop(input_index);
+                    program.set_input_i32(input_index, line.parse().unwrap());
+                } else if input_type.is_float() {
+                    program.set_input_f32(input_index, line.parse().unwrap());
+                } else {
+                    unimplemented!()
                 }
             }
             println!("Executing program...");
@@ -110,19 +113,20 @@ fn main() {
             }
             println!("Program completed successfully!");
             for (output_index, output_type) in program.list_outputs().clone().iter().enumerate() {
-                use waveguide::specialized::structure::VariableType;
-                match output_type {
-                    VariableType::I32 => println!(
+                if output_type.is_int() {
+                    println!(
                         "Output {}: {}",
                         output_index,
                         program.read_output_i32(output_index)
-                    ),
-                    VariableType::F32 => println!(
+                    );
+                } else if output_type.is_float() {
+                    println!(
                         "Output {}: {}",
                         output_index,
                         program.read_output_f32(output_index)
-                    ),
-                    _ => unimplemented!(),
+                    );
+                } else {
+                    unimplemented!()
                 }
             }
         }

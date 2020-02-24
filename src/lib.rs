@@ -9,6 +9,7 @@ pub mod ast;
 pub mod native;
 pub mod problem;
 pub mod resolved;
+pub mod shared;
 pub mod specialized;
 pub mod trivial;
 pub mod util;

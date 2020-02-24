@@ -1,5 +1,5 @@
 use crate::specialized::structure as i;
-use crate::trivial::structure::VariableType;
+use crate::shared::NativeType;
 
 pub trait Program {
     fn new(input: &i::Program) -> Self;
@@ -10,6 +10,6 @@ pub trait Program {
     fn read_output_i32(&self, index: usize) -> i32;
     fn read_output_f32(&self, index: usize) -> f32;
     // fn read_output_bool(&self, index: usize) -> bool;
-    fn list_inputs(&self) -> Vec<VariableType>;
-    fn list_outputs(&self) -> Vec<VariableType>;
+    fn list_inputs(&self) -> Vec<NativeType>;
+    fn list_outputs(&self) -> Vec<NativeType>;
 }
