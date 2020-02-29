@@ -76,7 +76,7 @@ impl<'a> Trivializer<'a> {
             None => {
                 let data_type = self.source[variable].borrow_data_type();
                 let typ = Self::trivialize_data_type(data_type)?;
-                let trivial_variable = o::Variable::new(typ);
+                let trivial_variable = s::NativeVar::new(typ);
                 let id = self.target.adopt_variable(trivial_variable);
                 self.variable_map.insert(variable, id);
                 id
@@ -117,7 +117,7 @@ impl<'a> Trivializer<'a> {
         let b = self.trivialize_and_require_value(right, expression)?;
         let typ = a.get_type(&self.target);
         let base = typ.get_base();
-        let x = o::Value::variable(self.target.adopt_variable(o::Variable::new(typ)));
+        let x = o::Value::variable(self.target.adopt_variable(s::NativeVar::new(typ)));
         let x2 = x.clone();
         let toperator = match operator {
             i::BinaryOperator::Add => match base {

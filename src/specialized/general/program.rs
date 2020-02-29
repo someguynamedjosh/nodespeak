@@ -1,4 +1,4 @@
-use super::{Value, Variable};
+use super::{Value, NativeVar};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -30,7 +30,7 @@ enum VariableStatus {
 }
 
 pub struct GenericProgram<IType: Instruction> {
-    variables: Vec<Variable>,
+    variables: Vec<NativeVar>,
     var_statuses: Vec<VariableStatus>,
     instructions: Vec<WrappedInstruction<IType>>,
     inputs: Vec<VariableId>,
@@ -38,7 +38,7 @@ pub struct GenericProgram<IType: Instruction> {
 }
 
 impl<IType: Instruction> Index<VariableId> for GenericProgram<IType> {
-    type Output = Variable;
+    type Output = NativeVar;
 
     fn index(&self, variable: VariableId) -> &Self::Output {
         &self.variables[variable.0]
@@ -62,7 +62,7 @@ impl<IType: Instruction> GenericProgram<IType> {
         }
     }
 
-    pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
+    pub fn adopt_variable(&mut self, variable: NativeVar) -> VariableId {
         let id = VariableId(self.variables.len());
         self.variables.push(variable);
         self.var_statuses.push(VariableStatus::Unused);

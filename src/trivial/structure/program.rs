@@ -1,4 +1,5 @@
-use crate::trivial::structure::{Instruction, Variable};
+use crate::trivial::structure::{Instruction};
+use crate::shared::{NativeVar};
 
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
@@ -23,7 +24,7 @@ impl Debug for LabelId {
 
 pub struct Program {
     instructions: Vec<Instruction>,
-    variables: Vec<Variable>,
+    variables: Vec<NativeVar>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     labels: usize,
@@ -53,7 +54,7 @@ impl Debug for Program {
 }
 
 impl Index<VariableId> for Program {
-    type Output = Variable;
+    type Output = NativeVar;
 
     fn index(&self, variable: VariableId) -> &Self::Output {
         &self.variables[variable.0]
@@ -85,17 +86,17 @@ impl Program {
         &self.instructions
     }
 
-    pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
+    pub fn adopt_variable(&mut self, variable: NativeVar) -> VariableId {
         let id = VariableId(self.variables.len());
         self.variables.push(variable);
         id
     }
 
-    pub fn borrow_variable(&self, id: VariableId) -> &Variable {
+    pub fn borrow_variable(&self, id: VariableId) -> &NativeVar {
         &self.variables[id.0]
     }
 
-    pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut Variable {
+    pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut NativeVar {
         &mut self.variables[id.0]
     }
 

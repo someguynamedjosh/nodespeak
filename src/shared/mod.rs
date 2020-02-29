@@ -1,3 +1,3 @@
-mod native_type;
+mod native_var;
 
-pub use native_type::*;
+pub use native_var::*;

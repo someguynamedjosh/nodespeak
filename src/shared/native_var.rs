@@ -98,3 +98,34 @@ impl NativeType {
         size
     }
 }
+
+#[derive(Clone)]
+pub struct NativeVar {
+    typ: NativeType,
+}
+
+impl Debug for NativeVar {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "{:?}", self.typ)
+    }
+}
+
+impl NativeVar {
+    pub fn new(typ: NativeType) -> NativeVar {
+        NativeVar {
+            typ,
+        }
+    }
+
+    pub fn borrow_type(&self) -> &NativeType {
+        &self.typ
+    }
+
+    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+        self.typ.borrow_dimensions()
+    }
+
+    pub fn get_physical_size(&self) -> usize {
+        self.typ.get_physical_size()
+    }
+}
