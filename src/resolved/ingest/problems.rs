@@ -119,6 +119,45 @@ pub fn array_index_not_int(
     ])
 }
 
+pub fn array_size_not_positive(size: FilePosition, value: i64) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        size,
+        Error,
+        &format!(
+            concat!(
+                "Non-Positive Array Size\nThe highlighted expression resolves to {}, which is not ",
+                "greater than zero."
+            ),
+            value
+        ),
+    )])
+}
+
+pub fn array_size_not_int(
+    size: FilePosition,
+    size_type: &crate::vague::structure::DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        size,
+        Error,
+        &format!(
+            "Array Size Not Int\nExpected an integer, got a {:?}:",
+            size_type
+        ),
+    )])
+}
+
+pub fn array_size_not_resolved(size: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        size,
+        Error,
+        concat!(
+            "Dynamic Array Size\nArray sizes must be specified at compile time. The following ",
+            "expression can only be evaluated at runtime:"
+        ),
+    )])
+}
+
 pub fn no_bct(
     expression: FilePosition,
     op1: FilePosition,
@@ -144,6 +183,35 @@ pub fn no_bct(
             op2,
             Hint,
             &format!("But the second operand has data type {:?}:", op2_type),
+        ),
+    ])
+}
+
+pub fn mismatched_assign(
+    expression: FilePosition,
+    lhs: FilePosition,
+    lhs_type: &DataType,
+    rhs: FilePosition,
+    rhs_type: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            expression,
+            Error,
+            concat!(
+                "Mismatched Datatype In Assignment\nCannot figure out how to assign the ",
+                "right hand side of this statement to the left hand side:"
+            ),
+        ),
+        ProblemDescriptor::new(
+            rhs,
+            Hint,
+            &format!("The right hand side has data type {:?}:", rhs_type),
+        ),
+        ProblemDescriptor::new(
+            lhs,
+            Hint,
+            &format!("But the left hand side has data type {:?}:", lhs_type),
         ),
     ])
 }

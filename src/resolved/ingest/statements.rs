@@ -46,14 +46,22 @@ impl<'a> ScopeSimplifier<'a> {
         value: &i::Expression,
         position: &FilePosition,
     ) -> Result<SimplifiedExpression, CompileProblem> {
+        let value_pos = value.clone_position();
         let resolved_value = self.resolve_expression(value)?;
         let data_type = match resolved_value.data_type.to_output_type() {
             Result::Ok(result) => result,
             Result::Err(..) => panic!("TODO: Nice error."),
         };
+        let target_pos = target.clone_position();
         let resolved_target = self.resolve_assignment_access_expression(target, data_type)?;
         if !resolved_value.data_type.equivalent(&resolved_target.1) {
-            panic!("TODO: nice error, mismatched data types in assignment.");
+            return Err(problems::mismatched_assign(
+                position.clone(),
+                target_pos,
+                &resolved_target.1,
+                value_pos,
+                &resolved_value.data_type
+            ));
         }
         Result::Ok(match resolved_value.content {
             Content::Interpreted(known_value) => {

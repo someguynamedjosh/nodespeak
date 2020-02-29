@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 
-use super::{CompileProblem, Content, ScopeSimplifier};
+use super::{problems, CompileProblem, Content, ScopeSimplifier};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 
@@ -181,13 +181,23 @@ impl<'a> ScopeSimplifier<'a> {
                         if value > 0 {
                             new_dimensions.push(value as u64);
                         } else {
-                            panic!("TODO: Nice error, nonpositive array size.");
+                            return Err(problems::array_size_not_positive(
+                                old_dimension.clone_position(),
+                                value,
+                            ));
                         }
                     }
-                    _ => panic!("TODO: Nice error, array size must be int."),
+                    _ => {
+                        return Err(problems::array_size_not_int(
+                            old_dimension.clone_position(),
+                            &data.get_data_type().unwrap(),
+                        ));
+                    }
                 },
                 Content::Modified(..) => {
-                    panic!("TODO: Nice error, array size not resolved at runtime.")
+                    return Err(problems::array_size_not_resolved(
+                        old_dimension.clone_position(),
+                    ));
                 }
             }
         }
