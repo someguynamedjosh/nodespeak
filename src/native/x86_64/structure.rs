@@ -3,8 +3,8 @@ use std::mem;
 use std::ops::{Index, IndexMut};
 
 use crate::native::traits;
+pub use crate::shared::{NativeBaseType, NativeType};
 use crate::specialized::structure as i;
-pub use crate::shared::{NativeType, NativeBaseType};
 
 const PAGE_SIZE: usize = 4096;
 
@@ -126,7 +126,12 @@ pub struct Program {
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         writeln!(formatter, "{} inputs: {:?}", self.inputs.len(), self.inputs)?;
-        writeln!(formatter, "{} outputs: {:?}", self.outputs.len(), self.outputs)?;
+        writeln!(
+            formatter,
+            "{} outputs: {:?}",
+            self.outputs.len(),
+            self.outputs
+        )?;
         write!(formatter, "{} code bytes:", self.code.size)?;
         for byte_index in 0..self.code.size {
             if byte_index % 8 == 0 {

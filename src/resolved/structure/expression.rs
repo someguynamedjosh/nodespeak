@@ -1,6 +1,7 @@
 use super::{DataType, Program};
 use crate::problem::FilePosition;
 use crate::resolved::structure::{KnownData, ScopeId, VariableId};
+use crate::shared::ProxyMode;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -71,16 +72,6 @@ impl Debug for BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => write!(formatter, ">="),
         }
     }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ProxyMode {
-    /// Use the original array's dimensions.
-    Literal,
-    /// Discard the index.
-    Discard,
-    /// No matter what, use index zero.
-    Collapse,
 }
 
 #[derive(Clone, PartialEq)]
@@ -165,9 +156,9 @@ impl Debug for Expression {
                 write!(formatter, "{{")?;
                 for (index, dimension) in dimensions.iter().enumerate() {
                     match dimension.0 {
-                        ProxyMode::Literal => write!(formatter, "{0}", dimension.1)?,
-                        ProxyMode::Collapse => write!(formatter, "{0}>1", dimension.1)?,
+                        ProxyMode::Keep => write!(formatter, "{0}", dimension.1)?,
                         ProxyMode::Discard => write!(formatter, "{0}>X", dimension.1)?,
+                        ProxyMode::Collapse => write!(formatter, "{0}>1", dimension.1)?,
                     }
                     if index < dimensions.len() - 1 {
                         write!(formatter, ", ")?;

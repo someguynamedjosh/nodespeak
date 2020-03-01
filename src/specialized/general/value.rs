@@ -1,4 +1,4 @@
-use super::{NativeType, VariableId};
+use super::{GenericProgram, Instruction, NativeType, ProxyMode, VariableId};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -45,15 +45,78 @@ impl Debug for LiteralData {
 }
 
 #[derive(Clone, PartialEq)]
+pub enum Index {
+    Constant(u64),
+    Variable { base: VariableId, multiplier: u64 },
+}
+
+#[derive(Clone, PartialEq)]
 pub enum Value {
     Literal(LiteralData),
     VariableAccess {
         variable: VariableId,
+        proxy: Vec<ProxyMode>,
         // Variable for offset and u64 to multiply it by.
-        indexes: Vec<(VariableId, u64)>,
-        offset: u64,
-        length: u64,
+        indexes: Vec<Index>,
     },
+}
+
+impl Value {
+    pub fn get_type<I: Instruction>(&self, program: &GenericProgram<I>) -> NativeType {
+        match self {
+            Self::Literal(data) => data.get_type(),
+            Self::VariableAccess {
+                variable, indexes, ..
+            } => {
+                let base_type = program[*variable].borrow_type();
+                base_type.clone_and_unwrap(indexes.len())
+            }
+        }
+    }
+
+    pub fn borrow_proxy(&self) -> Option<&Vec<ProxyMode>> {
+        match self {
+            Self::Literal(..) => None,
+            Self::VariableAccess { proxy, .. } => Some(&proxy),
+        }
+    }
+
+    pub fn access_element(&self, indices: &[u64]) -> Value {
+        match self {
+            Self::Literal(..) => unimplemented!(),
+            Self::VariableAccess {
+                variable,
+                proxy,
+                indexes: self_indices,
+            } => {
+                if proxy.len() == 0 {
+                    let mut new_indices = self_indices.clone();
+                    for index in indices.iter() {
+                        new_indices.push(Index::Constant(*index));
+                    }
+                    return Self::VariableAccess {
+                        variable: *variable,
+                        proxy: Vec::new(),
+                        indexes: new_indices,
+                    };
+                }
+                assert!(indices.len() <= proxy.len());
+                let mut new_indices = self_indices.clone();
+                for (index, proxy) in indices.iter().zip(proxy.iter()) {
+                    match proxy {
+                        ProxyMode::Keep => new_indices.push(Index::Constant(*index)),
+                        ProxyMode::Discard => (),
+                        ProxyMode::Collapse => new_indices.push(Index::Constant(0)),
+                    }
+                }
+                Self::VariableAccess {
+                    variable: *variable,
+                    proxy: Vec::from(&proxy[indices.len()..]),
+                    indexes: new_indices,
+                }
+            }
+        }
+    }
 }
 
 impl Debug for Value {
@@ -62,18 +125,27 @@ impl Debug for Value {
             Self::Literal(data) => write!(formatter, "{:?}", data),
             Self::VariableAccess {
                 variable,
+                proxy,
                 indexes,
-                offset,
-                length,
             } => {
-                write!(formatter, "{:?}[", variable)?;
-                for index in indexes {
-                    write!(formatter, "{:?}*{:?} + ", index.1, index.0)?;
+                write!(formatter, "{:?}", variable)?;
+                for (index, value) in indexes.iter().enumerate() {
+                    match value {
+                        Index::Constant(constant) => write!(formatter, "[{}", constant)?,
+                        Index::Variable { base, multiplier } => {
+                            write!(formatter, "[{:?}*{:?}", base, multiplier)?
+                        }
+                    }
+                    if index < proxy.len() {
+                        match proxy[index] {
+                            ProxyMode::Keep => (),
+                            ProxyMode::Discard => write!(formatter, ">X")?,
+                            ProxyMode::Collapse => write!(formatter, ">1")?,
+                        }
+                    }
+                    write!(formatter, "]")?
                 }
-                if *offset > 0 || indexes.len() > 0 {
-                    write!(formatter, "{:?} ", offset)?;
-                }
-                write!(formatter, "len={:?}]", length)
+                write!(formatter, "")
             }
         }
     }

@@ -1,5 +1,5 @@
-use crate::trivial::structure::{Instruction};
-use crate::shared::{NativeVar};
+use crate::shared::NativeVar;
+use crate::trivial::structure::Instruction;
 
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};

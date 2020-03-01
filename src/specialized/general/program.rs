@@ -1,4 +1,4 @@
-use super::{Value, NativeVar};
+use super::{NativeVar, Value};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -18,9 +18,9 @@ pub trait Instruction {
 
 pub struct WrappedInstruction<IType> {
     pub instruction: IType,
-    pub kills: Vec<VariableId>,  // Which variables are no longer needed after this instruction.
+    pub kills: Vec<VariableId>, // Which variables are no longer needed after this instruction.
     pub births: Vec<VariableId>, // Which variables come alive after this instruction.
-                                 // Births happen after kills.
+                                // Births happen after kills.
 }
 
 enum VariableStatus {

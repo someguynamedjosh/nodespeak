@@ -1,5 +1,5 @@
-use crate::shared::NativeType;
 use super::{Program, VariableId};
+use crate::shared::{NativeType, ProxyMode};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -54,16 +54,6 @@ impl ValueBase {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum ProxyMode {
-    /// Use the original array's dimensions.
-    Literal,
-    /// Discard the index.
-    Discard,
-    /// No matter what, use index zero.
-    Collapse,
-}
-
 #[derive(Clone)]
 pub struct Value {
     pub base: ValueBase,
@@ -101,9 +91,9 @@ impl Debug for Value {
             write!(formatter, "{{")?;
             for (index, (mode, len)) in self.proxy.iter().enumerate() {
                 match mode {
-                    ProxyMode::Literal => write!(formatter, "{}", len)?,
-                    ProxyMode::Collapse => write!(formatter, "{}>1", len)?,
+                    ProxyMode::Keep => write!(formatter, "{}", len)?,
                     ProxyMode::Discard => write!(formatter, "{}>X", len)?,
+                    ProxyMode::Collapse => write!(formatter, "{}>1", len)?,
                 }
                 if index < self.proxy.len() - 1 {
                     write!(formatter, ", ")?;

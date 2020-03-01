@@ -32,6 +32,7 @@ impl Condition {
     }
 }
 
+#[derive(Clone)]
 pub enum ParallelWidth {
     W128,
     W256,
@@ -48,6 +49,7 @@ impl Debug for ParallelWidth {
     }
 }
 
+#[derive(Clone)]
 pub enum BinaryOperator {
     AddI,
     SubI,

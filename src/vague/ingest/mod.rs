@@ -1027,14 +1027,15 @@ fn convert_return_statement(
                         outputs.len(),
                     ));
                 }
-                let value = convert_expression(program, scope, true, child).map_err(|mut err| {
-                    problems::hint_encountered_while_parsing(
-                        "a return statement",
-                        statement_position.clone(),
-                        &mut err,
-                    );
-                    err
-                })?;
+                let value =
+                    convert_expression(program, scope, true, child).map_err(|mut err| {
+                        problems::hint_encountered_while_parsing(
+                            "a return statement",
+                            statement_position.clone(),
+                            &mut err,
+                        );
+                        err
+                    })?;
                 program[scope].add_expression(o::Expression::Assign {
                     target: Box::new(o::Expression::Variable(
                         outputs[index],

@@ -55,15 +55,17 @@ impl<'a> Trivializer<'a> {
         })
     }
 
-    fn trivialize_data_type(
-        data_type: &i::DataType,
-    ) -> Result<s::NativeType, CompileProblem> {
+    fn trivialize_data_type(data_type: &i::DataType) -> Result<s::NativeType, CompileProblem> {
         let base_type = match data_type.borrow_base() {
             i::BaseType::Float => s::NativeBaseType::F32,
             i::BaseType::Int => s::NativeBaseType::I32,
             i::BaseType::Bool => s::NativeBaseType::B8,
         };
-        let dimensions = data_type.borrow_dimensions().iter().map(|x| *x as usize).collect();
+        let dimensions = data_type
+            .borrow_dimensions()
+            .iter()
+            .map(|x| *x as usize)
+            .collect();
         Result::Ok(s::NativeType::array(base_type, dimensions))
     }
 
@@ -87,21 +89,14 @@ impl<'a> Trivializer<'a> {
     fn trivialize_proxy(
         &mut self,
         base: &i::Expression,
-        dimensions: &Vec<(i::ProxyMode, u64)>,
+        dimensions: &Vec<(s::ProxyMode, u64)>,
     ) -> Result<o::Value, CompileProblem> {
         let mut value = match base {
             i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
             _ => unimplemented!(),
         };
         for (mode, size) in dimensions {
-            value.proxy.push((
-                match mode {
-                    i::ProxyMode::Collapse => o::ProxyMode::Collapse,
-                    i::ProxyMode::Discard => o::ProxyMode::Discard,
-                    i::ProxyMode::Literal => o::ProxyMode::Literal,
-                },
-                *size,
-            ));
+            value.proxy.push((mode.clone(), *size));
         }
         Result::Ok(value)
     }

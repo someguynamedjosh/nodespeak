@@ -80,9 +80,7 @@ fn specialize_impl(
     Result::Ok(specialized::ingest(&trivialized))
 }
 
-fn assemble_impl(
-    sources: &SourceSet,
-) -> Result<native::Program, problem::CompileProblem> {
+fn assemble_impl(sources: &SourceSet) -> Result<native::Program, problem::CompileProblem> {
     let specialized = specialize_impl(sources)?;
     Result::Ok(native::Program::new(&specialized))
 }

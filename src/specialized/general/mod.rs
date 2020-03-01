@@ -1,5 +1,4 @@
-pub use crate::shared::NativeVar;
-pub use crate::shared::{NativeType, NativeBaseType};
+pub use crate::shared::{NativeBaseType, NativeType, NativeVar, ProxyMode};
 
 mod program;
 mod value;
@@ -8,5 +7,7 @@ pub use program::*;
 pub use value::*;
 
 pub mod universal {
-    pub use super::{LiteralData, Value, NativeVar, VariableId, NativeType, NativeBaseType};
+    pub use super::{
+        Index, LiteralData, NativeBaseType, NativeType, NativeVar, ProxyMode, Value, VariableId,
+    };
 }

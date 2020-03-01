@@ -60,7 +60,7 @@ impl<'a> ScopeSimplifier<'a> {
                 target_pos,
                 &resolved_target.1,
                 value_pos,
-                &resolved_value.data_type
+                &resolved_value.data_type,
             ));
         }
         Result::Ok(match resolved_value.content {

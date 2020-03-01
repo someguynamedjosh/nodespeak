@@ -1,6 +1,7 @@
 use super::{util, BaseType, DataType};
 use crate::problem::CompileProblem;
 use crate::resolved::structure as o;
+use crate::shared as s;
 use crate::util::NVec;
 use crate::vague::structure as i;
 
@@ -283,9 +284,6 @@ pub(super) fn inflate(
     from: &DataType,
     to: &DataType,
 ) -> Result<o::Expression, CompileProblem> {
-    if from.equivalent(to) {
-        return Result::Ok(expr);
-    }
     // TODO: Nice error if array dimension not int.
     let from_dims = from.borrow_dimensions().clone();
     let to_dims = to.borrow_dimensions().clone();
@@ -294,11 +292,11 @@ pub(super) fn inflate(
         if index >= to_dims.len() {
             panic!("TODO: nice error, cannot inflate to smaller dimension array.");
         } else if index >= from_dims.len() {
-            final_dims.push((o::ProxyMode::Discard, to_dims[index]));
+            final_dims.push((s::ProxyMode::Discard, to_dims[index]));
         } else if to_dims[index] == from_dims[index] {
-            final_dims.push((o::ProxyMode::Literal, to_dims[index]));
+            final_dims.push((s::ProxyMode::Keep, to_dims[index]));
         } else if from_dims[index] == 1 {
-            final_dims.push((o::ProxyMode::Collapse, to_dims[index]));
+            final_dims.push((s::ProxyMode::Collapse, to_dims[index]));
         } else {
             panic!("TODO: nice error, invalid inflation.");
         }

@@ -1,5 +1,5 @@
-use crate::specialized::structure as i;
 use crate::shared::NativeType;
+use crate::specialized::structure as i;
 
 pub trait Program {
     fn new(input: &i::Program) -> Self;

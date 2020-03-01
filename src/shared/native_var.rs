@@ -97,6 +97,15 @@ impl NativeType {
         }
         size
     }
+
+    // [2][3]Int being unwrapped once results in [3]Int
+    // [4][2][3]Int being unwrapped twice results in [3]Int
+    pub fn clone_and_unwrap(&self, num_dimensions: usize) -> Self {
+        Self {
+            base: self.base.clone(),
+            dimensions: Vec::from(&self.dimensions[num_dimensions..]),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -112,9 +121,7 @@ impl Debug for NativeVar {
 
 impl NativeVar {
     pub fn new(typ: NativeType) -> NativeVar {
-        NativeVar {
-            typ,
-        }
+        NativeVar { typ }
     }
 
     pub fn borrow_type(&self) -> &NativeType {

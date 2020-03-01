@@ -1,5 +1,6 @@
 use crate::specialized::x86_64::structure as o;
 use crate::trivial::structure as i;
+use crate::util;
 use std::collections::HashMap;
 
 pub fn ingest(input: &i::Program) -> o::Program {
@@ -78,8 +79,23 @@ impl<'a> Specializer<'a> {
                 let b = self.specialize_value(b);
                 let x = self.specialize_value(x);
                 let op = Self::specialize_binary_operator(op);
-                self.target
-                    .add_instruction(o::Instruction::BinaryOperation { op, a, b, x });
+                let operation_size = x.get_type(&self.target).borrow_dimensions().clone();
+                let operation_size: Vec<_> = operation_size.iter().map(|e| *e as u64).collect();
+                if operation_size.len() > 0 {
+                    for indexes in util::nd_index_iter(operation_size) {
+                        println!("{:?}", indexes);
+                        self.target
+                            .add_instruction(o::Instruction::BinaryOperation {
+                                op: op.clone(),
+                                a: a.access_element(&indexes),
+                                b: b.access_element(&indexes),
+                                x: x.access_element(&indexes),
+                            });
+                    }
+                } else {
+                    self.target
+                        .add_instruction(o::Instruction::BinaryOperation { op, a, b, x });
+                }
             }
             i::Instruction::Compare { a, b } => {
                 let a = self.specialize_value(a);
@@ -114,13 +130,11 @@ impl<'a> Specializer<'a> {
                 if value.indexes.len() > 0 {
                     unimplemented!()
                 } else {
-                    let length = self.source[*var].get_physical_size();
                     let id = self.specialize_variable(*var);
                     o::Value::VariableAccess {
                         variable: id,
+                        proxy: vec![],
                         indexes: vec![],
-                        offset: 0,
-                        length: length as u64,
                     }
                 }
             }
