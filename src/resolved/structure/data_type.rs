@@ -1,3 +1,4 @@
+use crate::shared::ProxyMode;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]
@@ -34,7 +35,7 @@ impl Debug for BaseType {
 #[derive(Clone, PartialEq)]
 pub struct DataType {
     base: BaseType,
-    dimensions: Vec<u64>,
+    dimensions: Vec<(u64, ProxyMode)>,
 }
 
 impl DataType {
@@ -50,18 +51,27 @@ impl DataType {
     }
 
     pub fn array(base: BaseType, dimensions: Vec<u64>) -> DataType {
+        let dimensions = dimensions
+            .iter()
+            .map(|dim| (*dim, ProxyMode::Keep))
+            .collect();
+        DataType { base, dimensions }
+    }
+
+    pub fn proxy(base: BaseType, dimensions: Vec<(u64, ProxyMode)>) -> DataType {
         DataType { base, dimensions }
     }
 
     // E.G. if dimension is 5, [2]Int becomes [5][2]Int.
     pub fn wrap_with_dimension(&mut self, dimension: u64) {
-        self.dimensions.insert(0, dimension);
+        self.dimensions.insert(0, (dimension, ProxyMode::Keep));
     }
 
     // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
     pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<u64>) {
-        dimensions.append(&mut self.dimensions);
-        self.dimensions = dimensions;
+        for dim in dimensions {
+            self.dimensions.push((dim, ProxyMode::Keep));
+        }
     }
 
     // [2][3]Int being unwrapped once results in [3]Int
@@ -74,11 +84,11 @@ impl DataType {
         }
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<u64> {
+    pub fn borrow_dimensions(&self) -> &Vec<(u64, ProxyMode)> {
         &self.dimensions
     }
 
-    pub fn set_dimensions(&mut self, new_dimensions: Vec<u64>) {
+    pub fn set_dimensions(&mut self, new_dimensions: Vec<(u64, ProxyMode)>) {
         assert!(new_dimensions.len() == self.dimensions.len());
         for (index, dimension) in new_dimensions.into_iter().enumerate() {
             self.dimensions[index] = dimension;
@@ -110,7 +120,7 @@ impl DataType {
             return false;
         }
         for (dimension, other_dimension) in self.dimensions.iter().zip(other.dimensions.iter()) {
-            if dimension != other_dimension {
+            if dimension.0 != other_dimension.0 {
                 return false;
             }
         }
@@ -121,7 +131,8 @@ impl DataType {
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         for dimension in self.dimensions.iter() {
-            write!(formatter, "[{}]", dimension)?;
+            // TODO: Proper format for proxy modes.
+            write!(formatter, "[{}]", dimension.0)?;
         }
         write!(formatter, "{:?}", self.base)
     }

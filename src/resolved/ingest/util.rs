@@ -292,11 +292,11 @@ pub(super) fn inflate(
         if index >= to_dims.len() {
             panic!("TODO: nice error, cannot inflate to smaller dimension array.");
         } else if index >= from_dims.len() {
-            final_dims.push((s::ProxyMode::Discard, to_dims[index]));
+            final_dims.push((to_dims[index], s::ProxyMode::Discard));
         } else if to_dims[index] == from_dims[index] {
-            final_dims.push((s::ProxyMode::Keep, to_dims[index]));
+            final_dims.push((to_dims[index], s::ProxyMode::Keep));
         } else if from_dims[index] == 1 {
-            final_dims.push((s::ProxyMode::Collapse, to_dims[index]));
+            final_dims.push((to_dims[index], s::ProxyMode::Collapse));
         } else {
             panic!("TODO: nice error, invalid inflation.");
         }
@@ -305,7 +305,6 @@ pub(super) fn inflate(
     Result::Ok(o::Expression::Proxy {
         base: Box::new(expr),
         dimensions: final_dims,
-        position: pos,
     })
 }
 

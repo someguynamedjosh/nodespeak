@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use crate::shared::ProxyMode;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum NativeBaseType {
@@ -33,20 +34,21 @@ impl Debug for NativeBaseType {
 #[derive(Clone, PartialEq)]
 pub struct NativeType {
     base: NativeBaseType,
-    dimensions: Vec<usize>,
+    dimensions: Vec<(u64, ProxyMode)>,
 }
 
 impl Debug for NativeType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         for dim in self.dimensions.iter() {
-            write!(formatter, "[{}]", dim)?;
+            // TODO: output proxy mode.
+            write!(formatter, "[{}]", dim.0)?;
         }
         write!(formatter, "{:?}", self.base)
     }
 }
 
 impl NativeType {
-    pub fn array(base: NativeBaseType, dimensions: Vec<usize>) -> NativeType {
+    pub fn array(base: NativeBaseType, dimensions: Vec<(u64, ProxyMode)>) -> NativeType {
         NativeType { base, dimensions }
     }
 
@@ -70,7 +72,7 @@ impl NativeType {
         self.base
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+    pub fn borrow_dimensions(&self) -> &Vec<(u64, ProxyMode)> {
         &self.dimensions
     }
 
@@ -90,10 +92,10 @@ impl NativeType {
         self.dimensions.len() > 0
     }
 
-    pub fn get_physical_size(&self) -> usize {
-        let mut size = self.base.get_physical_size();
+    pub fn get_physical_size(&self) -> u64 {
+        let mut size = self.base.get_physical_size() as u64;
         for dim in &self.dimensions {
-            size *= *dim;
+            size *= dim.0;
         }
         size
     }
@@ -128,11 +130,11 @@ impl NativeVar {
         &self.typ
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<usize> {
+    pub fn borrow_dimensions(&self) -> &Vec<(u64, ProxyMode)> {
         self.typ.borrow_dimensions()
     }
 
-    pub fn get_physical_size(&self) -> usize {
+    pub fn get_physical_size(&self) -> u64 {
         self.typ.get_physical_size()
     }
 }

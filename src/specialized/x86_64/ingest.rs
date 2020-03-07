@@ -80,9 +80,9 @@ impl<'a> Specializer<'a> {
                 let x = self.specialize_value(x);
                 let op = Self::specialize_binary_operator(op);
                 let operation_size = x.get_type(&self.target).borrow_dimensions().clone();
-                let operation_size: Vec<_> = operation_size.iter().map(|e| *e as u64).collect();
                 if operation_size.len() > 0 {
-                    for indexes in util::nd_index_iter(operation_size) {
+                    let operation_dims = operation_size.iter().map(|(size, _)| *size).collect();
+                    for indexes in util::nd_index_iter(operation_dims) {
                         println!("{:?}", indexes);
                         self.target
                             .add_instruction(o::Instruction::BinaryOperation {
@@ -133,7 +133,7 @@ impl<'a> Specializer<'a> {
                     let id = self.specialize_variable(*var);
                     o::Value::VariableAccess {
                         variable: id,
-                        proxy: vec![],
+                        proxy: value.borrow_proxy().iter().map(|(mode, _)| *mode).collect(),
                         indexes: vec![],
                     }
                 }

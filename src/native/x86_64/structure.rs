@@ -165,7 +165,7 @@ impl Program {
         // Ensure that there is enough space to fit all the inputs and outputs.
         for input in &inputs {
             debug_assert!(
-                storage_size - input.1 >= input.0.get_physical_size(),
+                storage_size - input.1 >= input.0.get_physical_size() as usize,
                 concat!(
                     "There is not enough space to hold an input. (Address {}, length {}, ",
                     "storage size {}.)"
@@ -177,7 +177,7 @@ impl Program {
         }
         for output in &outputs {
             debug_assert!(
-                storage_size - output.1 >= output.0.get_physical_size(),
+                storage_size - output.1 >= output.0.get_physical_size() as usize,
                 concat!(
                     "There is not enough space to hold an output. (Address {}, length {}, ",
                     "storage size {}.)"

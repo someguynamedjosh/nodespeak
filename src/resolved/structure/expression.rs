@@ -81,8 +81,7 @@ pub enum Expression {
     InlineReturn(FilePosition),
     Proxy {
         base: Box<Expression>,
-        dimensions: Vec<(ProxyMode, u64)>,
-        position: FilePosition,
+        dimensions: Vec<(u64, ProxyMode)>,
     },
     Access {
         base: Box<Expression>,
@@ -114,14 +113,32 @@ pub enum Expression {
 }
 
 impl Expression {
+    // TODO: Validation function.
     pub fn get_type(&self, program: &Program) -> DataType {
         match self {
             Expression::Variable(id, ..) => program[*id].borrow_data_type().clone(),
             Expression::Literal(data, ..) => data.get_data_type(),
             Expression::InlineReturn(..) => unimplemented!(),
-            Expression::Proxy { .. } => unimplemented!(),
+            Expression::Proxy { base, dimensions } => {
+                let base_type = base.get_type(program);
+                let base_dimensions = base_type.borrow_dimensions();
+                let mut new_dimensions = Vec::new();
+                let mut current_base_dimension = 0;
+                for (new_size, proxy_mode) in dimensions {
+                    match proxy_mode {
+                        ProxyMode::Keep => {
+                            debug_assert!(new_size == &base_dimensions[current_base_dimension].0);
+                            new_dimensions.push(base_dimensions[current_base_dimension].clone());
+                            current_base_dimension += 1;
+                        }
+                        ProxyMode::Collapse | ProxyMode::Discard => {
+                            new_dimensions.push((*new_size, *proxy_mode));
+                        }
+                    }
+                }
+                DataType::proxy(base_type.borrow_base().clone(), new_dimensions)
+            }
             Expression::Access { .. } => unimplemented!(),
-            // TODO: I think this will need some more checks.
             Expression::UnaryOperation(_, value, ..) => value.get_type(program),
             Expression::BinaryOperation(a, _, b, ..) => {
                 debug_assert!(a.get_type(program).equivalent(&b.get_type(program)));
@@ -155,11 +172,7 @@ impl Debug for Expression {
             } => {
                 write!(formatter, "{{")?;
                 for (index, dimension) in dimensions.iter().enumerate() {
-                    match dimension.0 {
-                        ProxyMode::Keep => write!(formatter, "{0}", dimension.1)?,
-                        ProxyMode::Discard => write!(formatter, "{0}>X", dimension.1)?,
-                        ProxyMode::Collapse => write!(formatter, "{0}>1", dimension.1)?,
-                    }
+                    println!("{:?}", dimension);
                     if index < dimensions.len() - 1 {
                         write!(formatter, ", ")?;
                     }
@@ -205,7 +218,6 @@ impl Expression {
             Expression::Variable(_, position)
             | Expression::Literal(_, position)
             | Expression::InlineReturn(position)
-            | Expression::Proxy { position, .. }
             | Expression::Access { position, .. }
             | Expression::UnaryOperation(_, _, position)
             | Expression::BinaryOperation(_, _, _, position)
@@ -214,6 +226,7 @@ impl Expression {
             | Expression::Assign { position, .. }
             | Expression::Return(position)
             | Expression::FuncCall { position, .. } => position.clone(),
+            Expression::Proxy { base, .. } => base.clone_position(),
         }
     }
 

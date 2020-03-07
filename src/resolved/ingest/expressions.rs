@@ -384,9 +384,12 @@ impl<'a> ScopeSimplifier<'a> {
                         Result::Ok(result) => result,
                         Result::Err(..) => panic!("TODO: Nice error."),
                     };
-                    let (target, _) =
+                    let (target, target_type) =
                         self.resolve_assignment_access_expression(argument, data_type)?;
+                    let value_type = self.source[*parameter].borrow_data_type().clone();
+                    let value_type = self.input_to_intermediate_type(value_type)?;
                     let value = self.convert(*parameter).expect("TODO: Nice error.").clone();
+                    let value = util::inflate(value, &value_type, &target_type)?;
                     let expr = o::Expression::Assign {
                         target: Box::new(target),
                         value: Box::new(value),

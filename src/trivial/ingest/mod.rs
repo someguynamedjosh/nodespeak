@@ -61,11 +61,7 @@ impl<'a> Trivializer<'a> {
             i::BaseType::Int => s::NativeBaseType::I32,
             i::BaseType::Bool => s::NativeBaseType::B8,
         };
-        let dimensions = data_type
-            .borrow_dimensions()
-            .iter()
-            .map(|x| *x as usize)
-            .collect();
+        let dimensions = data_type.borrow_dimensions().clone();
         Result::Ok(s::NativeType::array(base_type, dimensions))
     }
 
@@ -89,13 +85,13 @@ impl<'a> Trivializer<'a> {
     fn trivialize_proxy(
         &mut self,
         base: &i::Expression,
-        dimensions: &Vec<(s::ProxyMode, u64)>,
+        dimensions: &Vec<(u64, s::ProxyMode)>,
     ) -> Result<o::Value, CompileProblem> {
         let mut value = match base {
             i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
             _ => unimplemented!(),
         };
-        for (mode, size) in dimensions {
+        for (size, mode) in dimensions {
             value.proxy.push((mode.clone(), *size));
         }
         Result::Ok(value)
@@ -110,7 +106,13 @@ impl<'a> Trivializer<'a> {
     ) -> Result<o::Value, CompileProblem> {
         let a = self.trivialize_and_require_value(left, expression)?;
         let b = self.trivialize_and_require_value(right, expression)?;
-        let typ = a.get_type(&self.target);
+        let base_type = a.get_type(&self.target).get_base();
+        let dimensions = a
+            .borrow_proxy()
+            .iter()
+            .map(|(_, size)| (*size, s::ProxyMode::Keep))
+            .collect();
+        let typ = s::NativeType::array(base_type, dimensions);
         let base = typ.get_base();
         let x = o::Value::variable(self.target.adopt_variable(s::NativeVar::new(typ)));
         let x2 = x.clone();

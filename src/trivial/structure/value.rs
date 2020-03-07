@@ -81,6 +81,10 @@ impl Value {
     pub fn get_type(&self, program: &Program) -> NativeType {
         self.base.get_type(program)
     }
+
+    pub fn borrow_proxy(&self) -> &Vec<(ProxyMode, u64)> {
+        &self.proxy
+    }
 }
 
 impl Debug for Value {

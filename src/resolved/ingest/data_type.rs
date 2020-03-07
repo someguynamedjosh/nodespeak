@@ -72,7 +72,10 @@ impl DataType {
                 o::BaseType::Float => BaseType::Float,
                 o::BaseType::Int => BaseType::Int,
             },
-            from.borrow_dimensions().clone(),
+            from.borrow_dimensions()
+                .iter()
+                .map(|(size, _)| *size)
+                .collect(),
         )
     }
 

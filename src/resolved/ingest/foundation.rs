@@ -223,10 +223,7 @@ impl<'a> ScopeSimplifier<'a> {
                             Content::Modified(expression) => items.push(expression),
                         }
                     }
-                    SimplifiedExpression {
-                        content: Content::Modified(o::Expression::Collect(items, position.clone())),
-                        data_type,
-                    }
+                    unimplemented!("TODO: Proxy stuff.")
                 }
             }
             i::Expression::CreationPoint(old_var_id, position) => {
