@@ -6,7 +6,7 @@ use std::fmt::{self, Debug, Formatter};
 #[derive(Clone, PartialEq)]
 pub enum Index {
     Constant(usize),
-    Variable { base: VariableId, multiplier: usize },
+    Variable(VariableId),
 }
 
 #[derive(Clone, PartialEq)]
@@ -15,7 +15,6 @@ pub enum Value {
     VariableAccess {
         variable: VariableId,
         proxy: Vec<ProxyMode>,
-        // Variable for offset and usize to multiply it by.
         indexes: Vec<Index>,
     },
 }
@@ -107,8 +106,8 @@ impl Debug for Value {
                 for (index, value) in indexes.iter().enumerate() {
                     match value {
                         Index::Constant(constant) => write!(formatter, "[{}", constant)?,
-                        Index::Variable { base, multiplier } => {
-                            write!(formatter, "[{:?}*{:?}", base, multiplier)?
+                        Index::Variable(var) => {
+                            write!(formatter, "[{:?}", var)?
                         }
                     }
                     if index < proxy.len() {

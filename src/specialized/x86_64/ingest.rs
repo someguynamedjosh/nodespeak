@@ -1,5 +1,6 @@
 use crate::specialized::x86_64::structure as o;
 use crate::trivial::structure as i;
+use crate::shared as s;
 use crate::util;
 use std::collections::HashMap;
 
@@ -121,15 +122,27 @@ impl<'a> Specializer<'a> {
                 }
             }
             i::ValueBase::Variable(var) => {
-                if value.indexes.len() > 0 {
-                    unimplemented!()
-                } else {
-                    let id = self.specialize_variable(*var);
-                    o::Value::VariableAccess {
-                        variable: id,
-                        proxy: value.borrow_proxy().iter().map(|(mode, _)| *mode).collect(),
-                        indexes: vec![],
+                let id = self.specialize_variable(*var);
+                let mut indexes = Vec::new();
+                for index in &value.indexes {
+                    match index {
+                        i::ValueBase::Literal(data) => {
+                            if let s::NativeData::Int(index) = data {
+                                indexes.push(o::Index::Constant(*index as usize));
+                            } else {
+                                unreachable!("Encountered non-int array index.");
+                            }
+                        }
+                        i::ValueBase::Variable(var) => {
+                            let id = self.specialize_variable(*var);
+                            indexes.push(o::Index::Variable(id));
+                        }
                     }
+                }
+                o::Value::VariableAccess {
+                    variable: id,
+                    proxy: value.borrow_proxy().iter().map(|(mode, _)| *mode).collect(),
+                    indexes,
                 }
             }
         }

@@ -31,7 +31,7 @@ impl ValueBase {
 pub struct Value {
     pub base: ValueBase,
     pub proxy: Vec<(ProxyMode, usize)>,
-    pub indexes: Vec<Value>,
+    pub indexes: Vec<ValueBase>,
 }
 
 impl Value {

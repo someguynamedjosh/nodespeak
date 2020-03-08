@@ -100,17 +100,25 @@ impl<'a> Trivializer<'a> {
             i::Expression::Literal(data, ..) => {
                 let int_dimensions = dimensions.iter().map(|(length, ..)| *length).collect();
                 let new_data = match data {
-                    i::KnownData::Array(nvec) => util::NVec::build_ok(int_dimensions, |index| {
-                        let real_index = s::apply_proxy_to_index(&dimensions[..], &index[..]);
-                        let item = nvec.borrow_item(&real_index);
-                        Self::trivialize_known_data(item)
-                    })?,
-                    _ => util::NVec::new(
-                        int_dimensions.iter().map(|e| *e as usize).collect(),
-                        Self::trivialize_known_data(data)?,
-                    ),
+                    i::KnownData::Array(nvec) => {
+                        s::NativeData::Array(util::NVec::build_ok(int_dimensions, |index| {
+                            let real_index = s::apply_proxy_to_index(&dimensions[..], &index[..]);
+                            let item = nvec.borrow_item(&real_index);
+                            Self::trivialize_known_data(item)
+                        })?)
+                    }
+                    _ => {
+                        if int_dimensions.len() == 0 {
+                            Self::trivialize_known_data(data)?
+                        } else {
+                            s::NativeData::Array(util::NVec::new(
+                                int_dimensions.iter().map(|e| *e as usize).collect(),
+                                Self::trivialize_known_data(data)?,
+                            ))
+                        }
+                    }
                 };
-                o::Value::literal(s::NativeData::Array(new_data))
+                o::Value::literal(new_data)
             }
             _ => {
                 // TODO: Figure out what to do with the part_of argument.
@@ -277,7 +285,13 @@ impl<'a> Trivializer<'a> {
                 };
                 let mut new_indexes = Vec::new();
                 for index in indexes {
-                    new_indexes.push(self.trivialize_and_require_value(index, expression)?);
+                    let index_value = self.trivialize_and_require_value(index, expression)?;
+                    if index_value.borrow_proxy().len() == 0 && index_value.indexes.len() == 0 {
+                        // TODO: Check that index is integer.
+                        new_indexes.push(index_value.base);
+                    } else {
+                        unimplemented!("Encountered indexed value inside index expression.");
+                    }
                 }
                 let mut value = o::Value::variable(base);
                 value.indexes = new_indexes;
