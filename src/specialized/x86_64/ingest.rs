@@ -83,7 +83,6 @@ impl<'a> Specializer<'a> {
                 if operation_size.len() > 0 {
                     let operation_dims = operation_size.iter().map(|(size, _)| *size).collect();
                     for indexes in util::nd_index_iter(operation_dims) {
-                        println!("{:?}", indexes);
                         self.target
                             .add_instruction(o::Instruction::BinaryOperation {
                                 op: op.clone(),

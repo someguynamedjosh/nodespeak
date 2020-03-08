@@ -172,7 +172,6 @@ impl Debug for Expression {
             } => {
                 write!(formatter, "{{")?;
                 for (index, dimension) in dimensions.iter().enumerate() {
-                    println!("{:?}", dimension);
                     if index < dimensions.len() - 1 {
                         write!(formatter, ", ")?;
                     }

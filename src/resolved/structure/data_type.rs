@@ -77,7 +77,6 @@ impl DataType {
     // [2][3]Int being unwrapped once results in [3]Int
     // [4][2][3]Int being unwrapped twice results in [3]Int
     pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
-        println!("{:?} {:?}", self, self.dimensions);
         DataType {
             base: self.base.clone(),
             dimensions: (&self.dimensions[num_unwraps..]).into(),

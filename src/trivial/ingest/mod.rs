@@ -89,8 +89,14 @@ impl<'a> Trivializer<'a> {
         dimensions: &Vec<(usize, s::ProxyMode)>,
     ) -> Result<o::Value, CompileProblem> {
         // TODO: Check that the proxy is actually valid.
-        let mut value = match base {
-            i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
+        Ok(match base {
+            i::Expression::Variable(id, ..) => {
+                let mut base = o::Value::variable(self.trivialize_variable(*id)?);
+                for (size, mode) in dimensions {
+                    base.proxy.push((mode.clone(), *size));
+                }
+                base
+            }
             i::Expression::Literal(data, ..) => {
                 let int_dimensions = dimensions.iter().map(|(length, ..)| *length).collect();
                 let new_data = match data {
@@ -106,12 +112,15 @@ impl<'a> Trivializer<'a> {
                 };
                 o::Value::literal(s::NativeData::Array(new_data))
             }
-            _ => unimplemented!(),
-        };
-        for (size, mode) in dimensions {
-            value.proxy.push((mode.clone(), *size));
-        }
-        Result::Ok(value)
+            _ => {
+                // TODO: Figure out what to do with the part_of argument.
+                let mut base = self.trivialize_and_require_value(base, base)?;
+                for (size, mode) in dimensions {
+                    base.proxy.push((mode.clone(), *size));
+                }
+                base
+            }
+        })
     }
 
     fn trivialize_binary_expression(
