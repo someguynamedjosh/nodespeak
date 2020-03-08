@@ -363,7 +363,6 @@ impl<'a> Assembler<'a> {
                 // TODO: Allow writing constants to storage.
                 unimplemented!();
                 // Write memory contents to xmm register.
-                self.write_bytes(&[0xf3, 0x0f, 0x10]);
             }
         }
     }

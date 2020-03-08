@@ -59,7 +59,7 @@ impl CodeBlock {
     }
 
     unsafe fn execute(&self) -> i64 {
-        let function_pointer: (fn() -> i64) = mem::transmute(self.contents);
+        let function_pointer: fn() -> i64 = mem::transmute(self.contents);
         function_pointer()
     }
 }

@@ -301,7 +301,6 @@ pub(super) fn inflate(
             panic!("TODO: nice error, invalid inflation.");
         }
     }
-    let pos = expr.clone_position();
     Result::Ok(o::Expression::Proxy {
         base: Box::new(expr),
         dimensions: final_dims,

@@ -17,7 +17,7 @@ impl Debug for NativeData {
             Self::Int(value) => write!(formatter, "{}i32", value),
             Self::Float(value) => write!(formatter, "{}f32", value),
             Self::Bool(value) => write!(formatter, "{}b8", if *value { "true" } else { "false" }),
-            Self::Array(nvec) => write!(formatter, "array"),
+            Self::Array(..) => write!(formatter, "array"),
         }
     }
 }

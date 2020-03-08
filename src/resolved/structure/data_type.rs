@@ -68,7 +68,7 @@ impl DataType {
     }
 
     // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
-    pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<usize>) {
+    pub fn wrap_with_dimensions(&mut self, dimensions: Vec<usize>) {
         for dim in dimensions {
             self.dimensions.push((dim, ProxyMode::Keep));
         }

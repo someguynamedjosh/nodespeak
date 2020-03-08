@@ -152,7 +152,7 @@ impl<'a> ScopeSimplifier<'a> {
                 )?
             }
 
-            i::Expression::Collect(values, position) => {
+            i::Expression::Collect(values, ..) => {
                 let mut resolved_values = Vec::with_capacity(values.len());
                 let mut value_positions = Vec::with_capacity(values.len());
                 let mut all_known = true;
