@@ -1,12 +1,12 @@
 pub struct NdIndexIter {
     // Dimensions are stored in reverse to make calculations easier.
-    dimensions: Vec<u64>,
-    next_index: u64,
-    total: u64,
+    dimensions: Vec<usize>,
+    next_index: usize,
+    total: usize,
 }
 
 impl Iterator for NdIndexIter {
-    type Item = Vec<u64>;
+    type Item = Vec<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_index == self.total {
@@ -25,7 +25,7 @@ impl Iterator for NdIndexIter {
     }
 }
 
-pub fn nd_index_iter(mut dimensions: Vec<u64>) -> NdIndexIter {
+pub fn nd_index_iter(mut dimensions: Vec<usize>) -> NdIndexIter {
     dimensions.reverse();
     let mut total = 1;
     for dimension in &dimensions {

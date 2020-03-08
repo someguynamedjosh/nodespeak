@@ -8,6 +8,6 @@ pub use value::*;
 
 pub mod universal {
     pub use super::{
-        Index, LiteralData, NativeBaseType, NativeType, NativeVar, ProxyMode, Value, VariableId,
+        Index, NativeBaseType, NativeType, NativeVar, ProxyMode, Value, VariableId,
     };
 }

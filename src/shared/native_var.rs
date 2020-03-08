@@ -34,7 +34,7 @@ impl Debug for NativeBaseType {
 #[derive(Clone, PartialEq)]
 pub struct NativeType {
     base: NativeBaseType,
-    dimensions: Vec<(u64, ProxyMode)>,
+    dimensions: Vec<(usize, ProxyMode)>,
 }
 
 impl Debug for NativeType {
@@ -48,7 +48,7 @@ impl Debug for NativeType {
 }
 
 impl NativeType {
-    pub fn array(base: NativeBaseType, dimensions: Vec<(u64, ProxyMode)>) -> NativeType {
+    pub fn array(base: NativeBaseType, dimensions: Vec<(usize, ProxyMode)>) -> NativeType {
         NativeType { base, dimensions }
     }
 
@@ -72,7 +72,7 @@ impl NativeType {
         self.base
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<(u64, ProxyMode)> {
+    pub fn borrow_dimensions(&self) -> &Vec<(usize, ProxyMode)> {
         &self.dimensions
     }
 
@@ -92,8 +92,8 @@ impl NativeType {
         self.dimensions.len() > 0
     }
 
-    pub fn get_physical_size(&self) -> u64 {
-        let mut size = self.base.get_physical_size() as u64;
+    pub fn get_physical_size(&self) -> usize {
+        let mut size = self.base.get_physical_size() as usize;
         for dim in &self.dimensions {
             size *= dim.0;
         }
@@ -105,7 +105,7 @@ impl NativeType {
     pub fn clone_and_unwrap(&self, num_dimensions: usize) -> Self {
         Self {
             base: self.base.clone(),
-            dimensions: Vec::from(&self.dimensions[num_dimensions..]),
+            dimensions: (&self.dimensions[num_dimensions..]).into(),
         }
     }
 }
@@ -130,11 +130,11 @@ impl NativeVar {
         &self.typ
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<(u64, ProxyMode)> {
+    pub fn borrow_dimensions(&self) -> &Vec<(usize, ProxyMode)> {
         self.typ.borrow_dimensions()
     }
 
-    pub fn get_physical_size(&self) -> u64 {
+    pub fn get_physical_size(&self) -> usize {
         self.typ.get_physical_size()
     }
 }

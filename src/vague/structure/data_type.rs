@@ -114,7 +114,7 @@ impl DataType {
     pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
         DataType {
             base: self.base.clone(),
-            dimensions: Vec::from(&self.dimensions[num_unwraps..]),
+            dimensions: (&self.dimensions[num_unwraps..]).into(),
         }
     }
 

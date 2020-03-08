@@ -135,7 +135,7 @@ impl<'a> ScopeSimplifier<'a> {
                     }
                     let resolved_data = NVec::from_vec_and_dims(
                         resolved_items,
-                        base_data.borrow_dimensions().clone(),
+                        base_data.borrow_dimensions().into(),
                     );
                     SimplifiedExpression {
                         content: Content::Modified(o::Expression::Access {

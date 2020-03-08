@@ -24,7 +24,7 @@ impl BaseType {
         DataType::scalar(self)
     }
 
-    pub fn to_array_type(self, sizes: Vec<u64>) -> DataType {
+    pub fn to_array_type(self, sizes: Vec<usize>) -> DataType {
         DataType::array(self, sizes)
     }
 }
@@ -46,7 +46,7 @@ impl Debug for BaseType {
 #[derive(Clone, PartialEq)]
 pub struct DataType {
     base: BaseType,
-    dimensions: Vec<u64>,
+    dimensions: Vec<usize>,
 }
 
 impl DataType {
@@ -61,7 +61,7 @@ impl DataType {
         Self::scalar(base)
     }
 
-    pub fn array(base: BaseType, dimensions: Vec<u64>) -> DataType {
+    pub fn array(base: BaseType, dimensions: Vec<usize>) -> DataType {
         DataType { base, dimensions }
     }
 
@@ -80,12 +80,12 @@ impl DataType {
     }
 
     // E.G. if dimension is 5, [2]Int becomes [5][2]Int.
-    pub fn wrap_with_dimension(&mut self, dimension: u64) {
+    pub fn wrap_with_dimension(&mut self, dimension: usize) {
         self.dimensions.insert(0, dimension);
     }
 
     // E.G. if dimensions is 5, 4, 3, then [2][2]Int becomes [5][4][3][2][2]Int.
-    pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<u64>) {
+    pub fn wrap_with_dimensions(&mut self, mut dimensions: Vec<usize>) {
         dimensions.append(&mut self.dimensions);
         self.dimensions = dimensions;
     }
@@ -95,15 +95,15 @@ impl DataType {
     pub fn clone_and_unwrap(&self, num_unwraps: usize) -> DataType {
         DataType {
             base: self.base.clone(),
-            dimensions: Vec::from(&self.dimensions[num_unwraps..]),
+            dimensions: (&self.dimensions[num_unwraps..]).into(),
         }
     }
 
-    pub fn borrow_dimensions(&self) -> &Vec<u64> {
+    pub fn borrow_dimensions(&self) -> &[usize] {
         &self.dimensions
     }
 
-    pub fn set_dimensions(&mut self, new_dimensions: Vec<u64>) {
+    pub fn set_dimensions(&mut self, new_dimensions: Vec<usize>) {
         assert!(new_dimensions.len() == self.dimensions.len());
         for (index, dimension) in new_dimensions.into_iter().enumerate() {
             self.dimensions[index] = dimension;
@@ -182,7 +182,7 @@ impl<'a> ScopeSimplifier<'a> {
                 Content::Interpreted(data) => match data {
                     i::KnownData::Int(value) => {
                         if value > 0 {
-                            new_dimensions.push(value as u64);
+                            new_dimensions.push(value as usize);
                         } else {
                             return Err(problems::array_size_not_positive(
                                 old_dimension.clone_position(),

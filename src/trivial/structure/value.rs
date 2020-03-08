@@ -1,38 +1,11 @@
 use super::{Program, VariableId};
-use crate::shared::{NativeType, ProxyMode};
+use crate::shared::{NativeData, NativeType, ProxyMode};
 
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone)]
-pub enum LiteralData {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-}
-
-impl Debug for LiteralData {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Int(value) => write!(formatter, "{}i32", value),
-            Self::Float(value) => write!(formatter, "{}f32", value),
-            Self::Bool(value) => write!(formatter, "{}b8", if *value { "true" } else { "false" }),
-        }
-    }
-}
-
-impl LiteralData {
-    pub fn get_type(&self) -> NativeType {
-        match self {
-            Self::Int(..) => NativeType::int_scalar(),
-            Self::Float(..) => NativeType::float_scalar(),
-            Self::Bool(..) => NativeType::bool_scalar(),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub enum ValueBase {
-    Literal(LiteralData),
+    Literal(NativeData),
     Variable(VariableId),
 }
 
@@ -57,7 +30,7 @@ impl ValueBase {
 #[derive(Clone)]
 pub struct Value {
     pub base: ValueBase,
-    pub proxy: Vec<(ProxyMode, u64)>,
+    pub proxy: Vec<(ProxyMode, usize)>,
     pub indexes: Vec<Value>,
 }
 
@@ -74,7 +47,7 @@ impl Value {
         Self::new(ValueBase::Variable(variable))
     }
 
-    pub fn literal(data: LiteralData) -> Value {
+    pub fn literal(data: NativeData) -> Value {
         Self::new(ValueBase::Literal(data))
     }
 
@@ -82,7 +55,7 @@ impl Value {
         self.base.get_type(program)
     }
 
-    pub fn borrow_proxy(&self) -> &Vec<(ProxyMode, u64)> {
+    pub fn borrow_proxy(&self) -> &Vec<(ProxyMode, usize)> {
         &self.proxy
     }
 }

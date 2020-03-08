@@ -2,6 +2,7 @@ use crate::problem::CompileProblem;
 use crate::resolved::structure as i;
 use crate::shared as s;
 use crate::trivial::structure as o;
+use crate::util;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -46,11 +47,11 @@ impl<'a> Trivializer<'a> {
         Result::Ok(())
     }
 
-    fn trivialize_known_data(data: &i::KnownData) -> Result<o::LiteralData, CompileProblem> {
+    fn trivialize_known_data(data: &i::KnownData) -> Result<s::NativeData, CompileProblem> {
         Result::Ok(match data {
-            i::KnownData::Int(value) => o::LiteralData::Int(*value),
-            i::KnownData::Float(value) => o::LiteralData::Float(*value),
-            i::KnownData::Bool(value) => o::LiteralData::Bool(*value),
+            i::KnownData::Int(value) => s::NativeData::Int(*value),
+            i::KnownData::Float(value) => s::NativeData::Float(*value),
+            i::KnownData::Bool(value) => s::NativeData::Bool(*value),
             _ => panic!("TODO: nice error, encountered ct-only data type after resolving."),
         })
     }
@@ -85,10 +86,26 @@ impl<'a> Trivializer<'a> {
     fn trivialize_proxy(
         &mut self,
         base: &i::Expression,
-        dimensions: &Vec<(u64, s::ProxyMode)>,
+        dimensions: &Vec<(usize, s::ProxyMode)>,
     ) -> Result<o::Value, CompileProblem> {
+        // TODO: Check that the proxy is actually valid.
         let mut value = match base {
             i::Expression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
+            i::Expression::Literal(data, ..) => {
+                let int_dimensions = dimensions.iter().map(|(length, ..)| *length).collect();
+                let new_data = match data {
+                    i::KnownData::Array(nvec) => util::NVec::build_ok(int_dimensions, |index| {
+                        let real_index = s::apply_proxy_to_index(&dimensions[..], &index[..]);
+                        let item = nvec.borrow_item(&real_index);
+                        Self::trivialize_known_data(item)
+                    })?,
+                    _ => util::NVec::new(
+                        int_dimensions.iter().map(|e| *e as usize).collect(),
+                        Self::trivialize_known_data(data)?,
+                    ),
+                };
+                o::Value::literal(s::NativeData::Array(new_data))
+            }
             _ => unimplemented!(),
         };
         for (size, mode) in dimensions {

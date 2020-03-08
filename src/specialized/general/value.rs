@@ -1,62 +1,21 @@
 use super::{GenericProgram, Instruction, NativeType, ProxyMode, VariableId};
+use crate::shared::NativeData;
 
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]
-pub enum LiteralData {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-}
-
-impl LiteralData {
-    pub fn get_type(&self) -> NativeType {
-        match self {
-            Self::Int(..) => NativeType::int_scalar(),
-            Self::Float(..) => NativeType::float_scalar(),
-            Self::Bool(..) => NativeType::bool_scalar(),
-        }
-    }
-
-    pub fn binary_data(&self) -> u32 {
-        match self {
-            Self::Bool(data) => {
-                if *data {
-                    1
-                } else {
-                    0
-                }
-            }
-            // TODO: Check for signed values.
-            Self::Int(data) => *data as i32 as u32,
-            Self::Float(data) => f32::to_bits(*data as f32),
-        }
-    }
-}
-
-impl Debug for LiteralData {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Int(value) => write!(formatter, "{}i32", value),
-            Self::Float(value) => write!(formatter, "{}f32", value),
-            Self::Bool(value) => write!(formatter, "{}b8", if *value { "true" } else { "false" }),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq)]
 pub enum Index {
-    Constant(u64),
-    Variable { base: VariableId, multiplier: u64 },
+    Constant(usize),
+    Variable { base: VariableId, multiplier: usize },
 }
 
 #[derive(Clone, PartialEq)]
 pub enum Value {
-    Literal(LiteralData),
+    Literal(NativeData),
     VariableAccess {
         variable: VariableId,
         proxy: Vec<ProxyMode>,
-        // Variable for offset and u64 to multiply it by.
+        // Variable for offset and usize to multiply it by.
         indexes: Vec<Index>,
     },
 }
@@ -81,9 +40,25 @@ impl Value {
         }
     }
 
-    pub fn access_element(&self, indices: &[u64]) -> Value {
+    pub fn access_element(&self, indices: &[usize]) -> Value {
         match self {
-            Self::Literal(..) => unimplemented!(),
+            Self::Literal(data) => {
+                if indices.len() == 0 {
+                    self.clone()
+                } else {
+                    if let NativeData::Array(nvec) = data {
+                        let slice = nvec.clone_slice(indices);
+                        if slice.borrow_dimensions().len() == 0 {
+                            Value::Literal(slice.borrow_item(&[]).clone())
+                        } else {
+
+                            Value::Literal(NativeData::Array(slice))
+                        }
+                    } else {
+                        unreachable!("Encountered invalid array access.");
+                    }
+                }
+            }
             Self::VariableAccess {
                 variable,
                 proxy,

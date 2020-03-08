@@ -120,7 +120,7 @@ pub(super) fn compute_binary_operation(
             for a_item in array_a.borrow_all_items() {
                 items.push(compute_binary_operation_impl(a_item, operator, b));
             }
-            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
+            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions.into()))
         }
     } else {
         if let i::KnownData::Array(array_b) = b {
@@ -129,7 +129,7 @@ pub(super) fn compute_binary_operation(
             for b_item in array_b.borrow_all_items() {
                 items.push(compute_binary_operation_impl(a, operator, b_item));
             }
-            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions))
+            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions.into()))
         } else {
             compute_binary_operation_impl(a, operator, b)
         }
@@ -320,7 +320,7 @@ pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, (
                 new_items.push(util::resolve_known_data(old_item)?);
             }
             let dimensions = old_data.borrow_dimensions().clone();
-            let new_data = NVec::from_vec_and_dims(new_items, dimensions);
+            let new_data = NVec::from_vec_and_dims(new_items, dimensions.into());
             o::KnownData::Array(new_data)
         }
         i::KnownData::DataType(..)

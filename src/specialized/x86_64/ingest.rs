@@ -118,12 +118,7 @@ impl<'a> Specializer<'a> {
                 if value.indexes.len() > 0 {
                     unimplemented!()
                 } else {
-                    let new_data = match data {
-                        i::LiteralData::Int(value) => o::LiteralData::Int(*value),
-                        i::LiteralData::Float(value) => o::LiteralData::Float(*value),
-                        i::LiteralData::Bool(value) => o::LiteralData::Bool(*value),
-                    };
-                    o::Value::Literal(new_data)
+                    o::Value::Literal(data.clone())
                 }
             }
             i::ValueBase::Variable(var) => {

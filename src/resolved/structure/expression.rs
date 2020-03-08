@@ -81,7 +81,7 @@ pub enum Expression {
     InlineReturn(FilePosition),
     Proxy {
         base: Box<Expression>,
-        dimensions: Vec<(u64, ProxyMode)>,
+        dimensions: Vec<(usize, ProxyMode)>,
     },
     Access {
         base: Box<Expression>,
@@ -150,7 +150,7 @@ impl Expression {
                 for element in values {
                     debug_assert!(element.get_type(program).equivalent(&element_type));
                 }
-                element_type.wrap_with_dimension(values.len() as u64);
+                element_type.wrap_with_dimension(values.len() as usize);
                 element_type
             }
             Expression::Assert(..) => unimplemented!(),
