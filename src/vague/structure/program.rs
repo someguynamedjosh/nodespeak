@@ -25,7 +25,7 @@ impl Debug for VariableId {
     }
 }
 
-/// Represents an entire program written in the Waveguide language.
+/// Represents an entire program written in the Nodespeak language.
 pub struct Program {
     scopes: Vec<Scope>,
     entry_point: ScopeId,

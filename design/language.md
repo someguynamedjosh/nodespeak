@@ -4,7 +4,7 @@
 
 ### Literals
 
-Waveguide supports a handful of literals:
+Nodespeak supports a handful of literals:
 
 `1`, `0`, `-12_03` are all integers.
 
@@ -27,7 +27,7 @@ is parsed as if the underscores were never inserted.
 
 Array literals can be specified using brackets: `[1, 2, 3]`.
 
-Note that there is no string literal. Waveguide does not support dynamically
+Note that there is no string literal. Nodespeak does not support dynamically
 sized runtime content like strings, although they will likely be added in the 
 future as a compile-time-only datatype.
 
@@ -72,7 +72,7 @@ type of a variable. To do so, surround the expression in curly brackets.
 
 ### Data Types
 
-There are not many builtin data types in Waveguide. The most common ones are
+There are not many builtin data types in Nodespeak. The most common ones are
 `Bool`, `Int`, and `Float`. They do what they do in other languages. Note that
 unlike other languages, they are capitalized. This is in an effort to make the
 language more uniform. All data types are capitalized.
@@ -96,7 +96,7 @@ print(variable);
 Since the inputs to `if` are able to be determined at compile time, its effect
 can be determined at compile time, in turn allowing the value of `type` to be 
 determined, making the type of `variable` known at compile time. This is the
-biggest strength of waveguide, allowing for features that would normally require
+biggest strength of nodespeak, allowing for features that would normally require
 runtime type information without the overhead of RTTI. However, because RTTI is
 not used, the following is not valid:
 ```rust
@@ -183,7 +183,7 @@ the possibility of specifying array sizes in arbitrary order, which is very
 unintuitive. This is why the backwards-looking syntax was selected.
 
 One final note on arrays is that there are no dynamically-sized arrays. All
-arrays must have a size defined at compile time. Because of waveguide's builtin
+arrays must have a size defined at compile time. Because of nodespeak's builtin
 compile-time resolving, any expression that can be resolved at compile time
 can be used to specify the size of an array. This can be as simple as:
 ```rust
@@ -208,7 +208,7 @@ fn fibbonacci(Int iterations):(Int output) {
 [fibbonacci(12)]Int fibbonacci_array;
 ```
 Note that, unlike other languages, there is no special syntax needed to make
-the function `fibbonacci` work at compile time. That's the power of waveguide's
+the function `fibbonacci` work at compile time. That's the power of nodespeak's
 built-in interpreter.
 
 ## Expressions
@@ -287,9 +287,9 @@ As will be explained in the section on inflation, the following is also true:
 
 ## Inflation
 The concept of 'inflation' replaces the concept of automatic casting in other
-languages. In the interest of performance, waveguide will never automatically
+languages. In the interest of performance, nodespeak will never automatically
 perform "expensive" operations such as casting ints to floats and vice versa.
-The only "casts" waveguide will perform automatically are inflation smaller 
+The only "casts" nodespeak will perform automatically are inflation smaller 
 array data types or single value types to larger array types. Under the hood, 
 this conversion is completely free because no actual copying is occuring. 
 Instead, the original underlying data is made to appear larger, and any code 
@@ -310,7 +310,7 @@ value will be 'inflated' to a 5-element array:
 example(2):(Int result);
 assert(result == 10);
 ```
-Internally, waveguide will modify the code that accesses the elements of the
+Internally, nodespeak will modify the code that accesses the elements of the
 array to only access the single scalar value. Although it is not completely 
 accurate to say so, it is convenient to conceptualize this process as turning 
 the code for the `example` function into:
@@ -347,7 +347,7 @@ instead:
 ```rust
 Int result = ftoi(expensive(itof(40)));
 ```
-Now that the overview is complete, it's time to look at exactly how waveguide
+Now that the overview is complete, it's time to look at exactly how nodespeak
 decides to inflate values:
 
 ### Inflation Rules
@@ -457,7 +457,7 @@ Consider `[1, 2, 3] + [4, 5]`
 
 ## Functions
 
-Functions are the weirdest thing about waveguide. For loops are functions. If
+Functions are the weirdest thing about nodespeak. For loops are functions. If
 statements are functions. Regular functions are functions, too. So let's look
 at examples:
 
@@ -522,7 +522,7 @@ define them if you don't need them.
 `sort(3.0, 1.0):(biggest, smallest);` This will call the method `sort`, giving
 it the inputs `3.0` and `1.0`, putting the outputs of the function call in the
 variables `biggest` and `smallest`. This is one of the really useful things
-about functions in waveguide, there is minimal overhead to add multiple outputs
+about functions in nodespeak, there is minimal overhead to add multiple outputs
 to a function.
 
 `sin(1.0):(exampleArray[5]);` Anything you can put on the left of an equals
@@ -542,7 +542,7 @@ function the code is in to return instead of just the lambda. For example, if
 you put `return` in an `if` call inside the definition for `demo`, then it would 
 cause the `demo` function to return. `break` would return from the lambda inside 
 the `if` function. Note that, unlike other languages, there *must* be a 
-semicolon at the end of the `if` call, since it is a function in waveguide, 
+semicolon at the end of the `if` call, since it is a function in nodespeak, 
 while in other languages it is a statement. Here's a code block demonstrating
 all the principles mentioned:
 ```rust
@@ -611,7 +611,7 @@ semicolons are valid statements, due to the fact that many have side effects.
 ## Templates
 
 ### Introduction
-Waveguide has a powerful template syntax that allows for a large amount of 
+Nodespeak has a powerful template syntax that allows for a large amount of 
 flexibility when writing functions. First, let's consider a function that adds
 two values of arbitrary types:
 ```rust

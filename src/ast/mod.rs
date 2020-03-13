@@ -6,7 +6,7 @@ use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "ast/grammar.pest"]
-struct WaveguideParser;
+struct NodespeakParser;
 
 pub mod structure {
     pub use super::Rule;
@@ -98,7 +98,7 @@ pub(self) mod problems {
 }
 
 pub fn ingest(text: &str) -> Result<structure::Program, CompileProblem> {
-    WaveguideParser::parse(Rule::root, text).map_err(|parse_err| {
+    NodespeakParser::parse(Rule::root, text).map_err(|parse_err| {
         problems::bad_syntax(
             FilePosition::from_input_location(parse_err.location),
             match parse_err.variant {

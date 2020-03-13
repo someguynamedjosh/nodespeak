@@ -1,5 +1,5 @@
 extern crate text_io;
-extern crate waveguide;
+extern crate nodespeak;
 
 use std::env;
 use std::fs;
@@ -8,12 +8,12 @@ use std::process;
 use std::time::Instant;
 use text_io::*;
 
-use waveguide::native::traits::Program;
+use nodespeak::native::traits::Program;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        eprintln!("Usage: waveguide [compile|interpret|[phase]] [path to file]");
+        eprintln!("Usage: nodespeak [compile|interpret|[phase]] [path to file]");
         eprintln!("compile: compiles the specified file and outputs the result.");
         eprintln!("interpret: interprets the specified file using the built-in resolver.");
         eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
@@ -28,12 +28,12 @@ fn main() {
             process::exit(74);
         }
     };
-    let source_set = waveguide::SourceSet::from_raw_string(&args[2], &code);
+    let source_set = nodespeak::SourceSet::from_raw_string(&args[2], &code);
 
     println!("\nStarting...");
     let compile_start = Instant::now();
     match args[1].as_ref() {
-        "compile" => match waveguide::compile(&source_set) {
+        "compile" => match nodespeak::compile(&source_set) {
             Result::Ok(program) => println!("{:?}", program.program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -41,42 +41,42 @@ fn main() {
             }
         },
         "interpret" => unimplemented!(),
-        "parse" => match waveguide::parse(&source_set) {
+        "parse" => match nodespeak::parse(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "structure" => match waveguide::structure(&source_set) {
+        "structure" => match nodespeak::structure(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "resolve" => match waveguide::resolve(&source_set) {
+        "resolve" => match nodespeak::resolve(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "trivialize" => match waveguide::trivialize(&source_set) {
+        "trivialize" => match nodespeak::trivialize(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "specialize" => match waveguide::specialize(&source_set) {
+        "specialize" => match nodespeak::specialize(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "assemble" => match waveguide::assemble(&source_set) {
+        "assemble" => match nodespeak::assemble(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -84,7 +84,7 @@ fn main() {
             }
         },
         "execute" => {
-            let mut program = match waveguide::assemble(&source_set) {
+            let mut program = match nodespeak::assemble(&source_set) {
                 Result::Ok(program) => program,
                 Result::Err(err) => {
                     eprintln!("{}", err);
@@ -164,7 +164,7 @@ fn main() {
                     io::stdout().flush().unwrap();
                     let line: String = read!("{}\n");
                     // TODO: Handle unclosed brackets and such.
-                    match waveguide::util::parse_known_data(&line) {
+                    match nodespeak::util::parse_known_data(&line) {
                         Result::Ok(data) => {
                             if data.matches_data_type(data_type) {
                                 final_data = data;
@@ -185,7 +185,7 @@ fn main() {
 
     println!("\nInterpreting program...");
     let interpret_start = Instant::now();
-    let results = match waveguide::interpret(&mut program, inputs, &source_set) {
+    let results = match nodespeak::interpret(&mut program, inputs, &source_set) {
         Result::Ok(results) => results,
         Result::Err(description) => {
             eprintln!("{}", description);

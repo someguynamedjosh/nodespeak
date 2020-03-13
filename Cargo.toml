@@ -1,5 +1,5 @@
 [package]
-name = "waveguide"
+name = "nodespeak"
 version = "0.0.0"
 authors = ["Code_Cube <Code_Cube@gitlab.com>"]
 edition = "2018"

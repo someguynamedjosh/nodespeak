@@ -25,7 +25,7 @@ build:
   - merge_requests
   artifacts:
     paths: 
-    - target/release/waveguide
+    - target/release/nodespeak
     expire_in: 30 minutes
   
 document:
@@ -47,7 +47,7 @@ check_artifacts:
   - build
   - document
   script: 
-  - test -e target/release/waveguide
+  - test -e target/release/nodespeak
   - test -e target/doc
   only:
   - merge_requests
@@ -59,13 +59,13 @@ publish:
   - build
   - document
   script: 
-  - mv target/release/waveguide waveguide
+  - mv target/release/nodespeak nodespeak
   - mv target/doc pages
   only: 
   - master
   artifacts:
     paths:
-    - waveguide
+    - nodespeak
     - pages
 
 pages:
