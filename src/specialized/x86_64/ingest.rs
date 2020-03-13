@@ -1,6 +1,6 @@
+use crate::shared as s;
 use crate::specialized::x86_64::structure as o;
 use crate::trivial::structure as i;
-use crate::shared as s;
 use crate::util;
 use std::collections::HashMap;
 
@@ -71,8 +71,19 @@ impl<'a> Specializer<'a> {
             i::Instruction::Move { from, to } => {
                 let from = self.specialize_value(from);
                 let to = self.specialize_value(to);
-                self.target
-                    .add_instruction(o::Instruction::Move { from, to });
+                let operation_size = to.get_type(&self.target).borrow_dimensions().clone();
+                if operation_size.len() > 0 {
+                    let operation_dims = operation_size.iter().map(|(size, _)| *size).collect();
+                    for indexes in util::nd_index_iter(operation_dims) {
+                        self.target.add_instruction(o::Instruction::Move {
+                            from: from.access_element(&indexes),
+                            to: to.access_element(&indexes),
+                        });
+                    }
+                } else {
+                    self.target
+                        .add_instruction(o::Instruction::Move { from, to });
+                }
             }
             i::Instruction::BinaryOperation { op, a, b, x } => {
                 // TODO: Parallelize when appropriate.

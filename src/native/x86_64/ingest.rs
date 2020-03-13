@@ -18,6 +18,10 @@ enum RegisterNamespace {
 
 impl RegisterNamespace {
     fn is_compatible_with(&self, data_type: &i::NativeType) -> bool {
+        if data_type.is_array() {
+            // Currently, we have no code for storing arrays in registers.
+            return false;
+        }
         if data_type.is_int() {
             *self == Self::Primary
         } else if data_type.is_float() {
@@ -341,6 +345,15 @@ impl<'a> Assembler<'a> {
 
     fn write_mov_var32_to_register(&mut self, register: Register, variable: i::VariableId) {
         debug_assert!(register.is_compatible_with(self.source[variable].borrow_type()));
+        self.write_mov_var32_with_offset_to_register(register, variable, 0);
+    }
+
+    fn write_mov_var32_with_offset_to_register(
+        &mut self,
+        register: Register,
+        variable: i::VariableId,
+        offset: u32,
+    ) {
         match register.get_namespace() {
             RegisterNamespace::Primary => self.write_byte(0x8b),
             // Load value from memory into xmm register.
@@ -348,7 +361,7 @@ impl<'a> Assembler<'a> {
         }
         self.write_modrm_reg_disp32(register);
         let var_address = self.get_variable_address(variable) as u32;
-        self.write_32(var_address);
+        self.write_32(var_address + offset);
     }
 
     fn write_mov_imm32_to_register(&mut self, register: Register, imm32: u32) {
@@ -369,6 +382,15 @@ impl<'a> Assembler<'a> {
 
     fn write_mov_register_to_var32(&mut self, register: Register, variable: i::VariableId) {
         debug_assert!(register.is_compatible_with(self.source[variable].borrow_type()));
+        self.write_mov_register_to_var32_with_offset(register, variable, 0);
+    }
+
+    fn write_mov_register_to_var32_with_offset(
+        &mut self,
+        register: Register,
+        variable: i::VariableId,
+        offset: u32,
+    ) {
         match register.get_namespace() {
             RegisterNamespace::Primary => self.write_byte(0x89),
             // Write first operand (xmm reg) to second operand (memory)
@@ -376,7 +398,7 @@ impl<'a> Assembler<'a> {
         }
         self.write_modrm_reg_disp32(register);
         let var_address = self.get_variable_address(variable) as u32;
-        self.write_32(var_address);
+        self.write_32(var_address + offset);
     }
 
     fn write_mov_reg32_to_reg32(&mut self, from: Register, to: Register) {
@@ -413,8 +435,7 @@ impl<'a> Assembler<'a> {
         } else {
             let address = self.storage_size;
             // TODO: Align address.
-            // TODO: Proper sizes for different variable types.
-            self.storage_size += 4;
+            self.storage_size += self.source[variable].get_physical_size();
             self.storage_locations.insert(variable, address);
             address
         }
@@ -569,9 +590,9 @@ impl<'a> Assembler<'a> {
     /// marked as being empty.
     /// Meta: searches for any unused registers that can hold the specified data type.
     /// Write: potentially writes instructions to spill a register if no unused register is found.
-    fn prepare_any_register_for(&mut self, data_type: &i::NativeType) -> Register {
+    fn prepare_any_register_for(&mut self, data_type: &i::NativeBaseType) -> Register {
         // TODO: Register spilling.
-        if data_type.is_int() {
+        if data_type == &i::NativeBaseType::I32 {
             if let Some(register) = self.meta_find_unused_register_from_list(&INT_REGISTERS) {
                 return register;
             }
@@ -580,7 +601,7 @@ impl<'a> Assembler<'a> {
                 return register;
             }
             unreachable!("All int registers are locked, this should never happen.");
-        } else if data_type.is_float() {
+        } else if data_type == &i::NativeBaseType::F32 {
             if let Some(register) = self.meta_find_unused_register_from_list(&FLOAT_REGISTERS) {
                 return register;
             }
@@ -602,20 +623,36 @@ impl<'a> Assembler<'a> {
     /// in either case such that its contents cannot be spilled until it is unlocked again.
     fn load_value_into_any(&mut self, value: &i::Value) -> Register {
         match value {
-            i::Value::VariableAccess { variable, .. } => {
+            i::Value::VariableAccess {
+                variable,
+                proxy,
+                indexes,
+            } => {
+                debug_assert!(proxy.len() == 0);
                 if let Some(register) =
                     self.meta_find_register_containing(RegisterContent::Variable(*variable))
                 {
                     self.meta_lock_register(register);
                     register
                 } else {
-                    // TODO: Register spilling.
                     // TODO: arrays and all sorts of complicated tings.
                     let data_type = self.source[*variable].borrow_type();
-                    let write_into = self.prepare_any_register_for(data_type);
-                    self.write_mov_var32_to_register(write_into, *variable);
-                    self.register_contents[write_into as usize] =
-                        RegisterContent::Variable(*variable);
+                    debug_assert!(indexes.len() == data_type.borrow_dimensions().len());
+                    let base_type = data_type.get_base();
+                    let write_into = self.prepare_any_register_for(&base_type);
+                    if indexes.len() == 0 {
+                        self.write_mov_var32_to_register(write_into, *variable);
+                        self.register_contents[write_into as usize] =
+                            RegisterContent::Variable(*variable);
+                    } else {
+                        let var_type = self.source[*variable].borrow_type();
+                        let constant_offset = Self::compute_index_offset(var_type, &indexes[..]);
+                        self.write_mov_var32_with_offset_to_register(
+                            write_into,
+                            *variable,
+                            constant_offset,
+                        );
+                    }
                     self.meta_lock_register(write_into);
                     write_into
                 }
@@ -623,7 +660,8 @@ impl<'a> Assembler<'a> {
             i::Value::Literal(data) => {
                 let data_type = data.get_type();
                 let binary_data = data.binary_data();
-                let write_into = self.prepare_any_register_for(&data_type);
+                let base_type = data_type.get_base();
+                let write_into = self.prepare_any_register_for(&base_type);
                 self.write_mov_imm32_to_register(write_into, binary_data);
                 self.register_contents[write_into as usize] = RegisterContent::Temporary;
                 self.meta_lock_register(write_into);
@@ -642,7 +680,13 @@ impl<'a> Assembler<'a> {
     fn load_value_into_register(&mut self, value: &i::Value, register: Register) -> Register {
         self.prepare_register(register);
         match value {
-            i::Value::VariableAccess { variable, .. } => {
+            i::Value::VariableAccess {
+                variable,
+                proxy,
+                indexes,
+            } => {
+                debug_assert!(proxy.len() == 0);
+                debug_assert!(indexes.len() == 0);
                 if let Some(already_in) =
                     self.meta_find_register_containing(RegisterContent::Variable(*variable))
                 {
@@ -682,17 +726,59 @@ impl<'a> Assembler<'a> {
     /// (TODO: If value is an array access, then write to that element.)
     fn commit_value_in_register(&mut self, value: &i::Value, register: Register) {
         // TODO: Complicated array stuff.
-        if let i::Value::VariableAccess { variable, .. } = value {
-            debug_assert!(register.is_compatible_with(self.source[*variable].borrow_type()));
+        if let i::Value::VariableAccess {
+            variable,
+            proxy,
+            indexes,
+        } = value
+        {
+            debug_assert!(proxy.len() == 0);
+            debug_assert!(register.is_compatible_with(
+                &self.source[*variable]
+                    .borrow_type()
+                    .clone_and_unwrap(indexes.len())
+            ));
             let new_content = RegisterContent::Variable(*variable);
             // If any other register claims to contain this value, it's invalid now.
             for register in &ALL_VARIABLE_REGISTERS {
                 if self.register_contents[*register as usize] == new_content {
                     self.register_contents[*register as usize] = RegisterContent::Empty;
+                    debug_assert!(indexes.len() == 0);
                 }
             }
-            self.register_contents[register as usize] = RegisterContent::Variable(*variable);
+
+            if indexes.len() > 0 {
+                let var_type = self.source[*variable].borrow_type();
+                let constant_offset = Self::compute_index_offset(var_type, &indexes[..]);
+                self.write_mov_register_to_var32_with_offset(register, *variable, constant_offset);
+                self.register_contents[register as usize] = RegisterContent::Empty;
+            } else {
+                self.register_contents[register as usize] = new_content;
+            }
+        } else {
+            unreachable!();
         }
+    }
+
+    fn compute_index_offset(dtype: &i::NativeType, indexes: &[i::Index]) -> u32 {
+        let dtype_dims: Vec<_> = dtype
+            .borrow_dimensions()
+            .iter()
+            .map(|(len, _)| *len)
+            .collect();
+        debug_assert!(indexes.len() == dtype_dims.len());
+        let mut current_size = dtype.get_base().get_physical_size() as u32;
+        let mut constant_offset = 0;
+        for (index, dim_size) in indexes.iter().zip(dtype_dims.iter()).rev() {
+            match index {
+                i::Index::Constant(index) => {
+                    constant_offset += *index as u32 * current_size;
+                }
+                i::Index::Variable(..) => unimplemented!(),
+            }
+            current_size *= *dim_size as u32;
+        }
+        constant_offset
     }
 
     fn assemble_instruction(&mut self, instruction: &i::AnnotatedInstruction) {
@@ -825,7 +911,7 @@ impl<'a> Assembler<'a> {
                         let reg_a = self.load_value_into_any(a);
                         let reg_b = self.load_value_into_any(b);
                         // We need to save the value of a for later.
-                        let reg_a2 = self.prepare_any_register_for(&i::NativeType::float_scalar());
+                        let reg_a2 = self.prepare_any_register_for(&i::NativeBaseType::F32);
                         self.write_mov_reg32_to_reg32(reg_a, reg_a2);
 
                         self.meta_kill_variables(&instruction.kills);

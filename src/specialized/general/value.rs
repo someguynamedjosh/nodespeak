@@ -3,7 +3,7 @@ use crate::shared::NativeData;
 
 use std::fmt::{self, Debug, Formatter};
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Index {
     Constant(usize),
     Variable(VariableId),
