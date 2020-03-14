@@ -39,7 +39,7 @@ impl Debug for NativeData {
                     write!(formatter, ", ")?;
                 }
                 write!(formatter, "")
-            },
+            }
         }
     }
 }
@@ -60,7 +60,7 @@ impl NativeData {
             for index in 0..num_items {
                 items.push(NativeData::from_binary_data(
                     &item_type,
-                    &data[index..index + item_size],
+                    &data[index * item_size..(index + 1) * item_size],
                 ));
             }
             NativeData::Array(NVec::from_vec_and_dims(items, dims))
@@ -89,7 +89,10 @@ impl NativeData {
                 let dimensions = nvec.borrow_dimensions().clone();
                 NativeType::array(
                     base_type.get_base(),
-                    dimensions.iter().map(|index| (*index, ProxyMode::Keep)).collect(),
+                    dimensions
+                        .iter()
+                        .map(|index| (*index, ProxyMode::Keep))
+                        .collect(),
                 )
             }
         }
