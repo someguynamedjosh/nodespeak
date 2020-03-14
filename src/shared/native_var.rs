@@ -1,5 +1,5 @@
-use std::fmt::{self, Debug, Formatter};
 use crate::shared::ProxyMode;
+use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum NativeBaseType {

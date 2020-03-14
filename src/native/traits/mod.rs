@@ -1,4 +1,4 @@
-use crate::shared::{NativeType, NativeData};
+use crate::shared::{NativeData, NativeType};
 use crate::specialized::structure as i;
 
 pub trait Program {

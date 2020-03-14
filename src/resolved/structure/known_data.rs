@@ -81,7 +81,10 @@ impl KnownData {
         match self {
             KnownData::Array(data) => DataType::array(
                 data.borrow_all_items()[0].get_base_type(),
-                data.borrow_dimensions().iter().map(|i| *i as usize).collect(),
+                data.borrow_dimensions()
+                    .iter()
+                    .map(|i| *i as usize)
+                    .collect(),
             ),
             _ => DataType::scalar(self.get_base_type()),
         }

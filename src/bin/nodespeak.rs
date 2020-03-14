@@ -104,7 +104,10 @@ fn main() {
                         }
                     };
                     if input_type != &data.get_type() {
-                        eprintln!("You entered data of the incorrect type {:?}.", &data.get_type());
+                        eprintln!(
+                            "You entered data of the incorrect type {:?}.",
+                            &data.get_type()
+                        );
                         continue;
                     }
                     program.set_input_checked(input_index, data);

@@ -50,7 +50,6 @@ impl Value {
                         if slice.borrow_dimensions().len() == 0 {
                             Value::Literal(slice.borrow_item(&[]).clone())
                         } else {
-
                             Value::Literal(NativeData::Array(slice))
                         }
                     } else {
@@ -106,9 +105,7 @@ impl Debug for Value {
                 for (index, value) in indexes.iter().enumerate() {
                     match value {
                         Index::Constant(constant) => write!(formatter, "[{}", constant)?,
-                        Index::Variable(var) => {
-                            write!(formatter, "[{:?}", var)?
-                        }
+                        Index::Variable(var) => write!(formatter, "[{:?}", var)?,
                     }
                     if index < proxy.len() {
                         match proxy[index] {

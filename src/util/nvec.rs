@@ -32,7 +32,10 @@ impl<T: Clone> NVec<T> {
         ))
     }
 
-    pub fn build(dimensions: Vec<usize>, mut value_builder: impl FnMut(Vec<usize>) -> T) -> NVec<T> {
+    pub fn build(
+        dimensions: Vec<usize>,
+        mut value_builder: impl FnMut(Vec<usize>) -> T,
+    ) -> NVec<T> {
         let mut data = Vec::new();
         for index in crate::util::nd_index_iter(dimensions.clone()) {
             data.push(value_builder(index));

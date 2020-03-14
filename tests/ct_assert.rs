@@ -1,6 +1,6 @@
+use nodespeak;
 use std::fs;
 use std::path::PathBuf;
-use nodespeak;
 
 #[test]
 fn ct_asserts() {
