@@ -1,5 +1,5 @@
-extern crate text_io;
 extern crate nodespeak;
+extern crate text_io;
 
 use std::env;
 use std::fs;
@@ -92,17 +92,23 @@ fn main() {
                 }
             };
             for (input_index, input_type) in program.list_inputs().clone().iter().enumerate() {
-                print!("Enter input > ");
-                io::stdout().flush().unwrap();
-                let line: String = read!("{}\n");
-                if input_type.is_int() {
-                    drop(input_type);
-                    drop(input_index);
-                    program.set_input_i32(input_index, line.parse().unwrap());
-                } else if input_type.is_float() {
-                    program.set_input_f32(input_index, line.parse().unwrap());
-                } else {
-                    unimplemented!()
+                loop {
+                    print!("Enter an input of type {:?} > ", input_type);
+                    io::stdout().flush().unwrap();
+                    let line: String = read!("{}\n");
+                    let data = match nodespeak::util::parse_native_data(&line) {
+                        Ok(data) => data,
+                        Err(error) => {
+                            eprintln!("Failed to parse data: {}", error);
+                            continue;
+                        }
+                    };
+                    if input_type != &data.get_type() {
+                        eprintln!("You entered data of the incorrect type {:?}.", &data.get_type());
+                        continue;
+                    }
+                    program.set_input_checked(input_index, data);
+                    break;
                 }
             }
             println!("Executing program...");
@@ -112,22 +118,12 @@ fn main() {
                 process::exit(1);
             }
             println!("Program completed successfully!");
-            for (output_index, output_type) in program.list_outputs().clone().iter().enumerate() {
-                if output_type.is_int() {
-                    println!(
-                        "Output {}: {}",
-                        output_index,
-                        program.read_output_i32(output_index)
-                    );
-                } else if output_type.is_float() {
-                    println!(
-                        "Output {}: {}",
-                        output_index,
-                        program.read_output_f32(output_index)
-                    );
-                } else {
-                    unimplemented!()
-                }
+            for output_index in 0..program.list_outputs().len() {
+                println!(
+                    "Output {}: {:?}",
+                    output_index,
+                    program.read_output_structured(output_index)
+                );
             }
         }
         _ => {

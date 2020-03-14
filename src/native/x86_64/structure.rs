@@ -3,7 +3,7 @@ use std::mem;
 use std::ops::{Index, IndexMut};
 
 use crate::native::traits;
-pub use crate::shared::{NativeBaseType, NativeType};
+pub use crate::shared::{NativeBaseType, NativeData, NativeType};
 use crate::specialized::structure as i;
 
 const PAGE_SIZE: usize = 4096;
@@ -82,6 +82,21 @@ impl IndexMut<usize> for StorageBlock {
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         assert!(index < self.size);
         unsafe { &mut *self.contents.offset(index as isize) }
+    }
+}
+
+impl Index<std::ops::Range<usize>> for StorageBlock {
+    type Output = [u8];
+
+    fn index(&self, range: std::ops::Range<usize>) -> &[u8] {
+        assert!(range.start <= self.size);
+        assert!(range.end <= self.size);
+        unsafe {
+            std::slice::from_raw_parts(
+                self.contents.offset(range.start as isize),
+                range.end - range.start,
+            )
+        }
     }
 }
 
@@ -235,6 +250,15 @@ impl traits::Program for Program {
         Program::execute(self)
     }
 
+    fn set_input_checked(&mut self, index: usize, value: NativeData) {
+        assert!(index < self.inputs.len());
+        assert!(self.inputs[index].0 == value.get_type());
+        let address = self.inputs[index].1;
+        unsafe {
+            self.write_iter_to_storage(address, value.arbitrary_len_binary_data().iter());
+        }
+    }
+
     fn set_input_i32(&mut self, index: usize, value: i32) {
         assert!(index < self.inputs.len());
         assert!(self.inputs[index].0 == NativeType::int_scalar());
@@ -255,6 +279,16 @@ impl traits::Program for Program {
         unsafe {
             self.write_iter_to_storage(address, value.to_le_bytes().iter());
         }
+    }
+
+    fn read_output_structured(&self, index: usize) -> NativeData {
+        assert!(index < self.outputs.len());
+        let address = self.outputs[index].1;
+        let output_type = &self.outputs[index].0;
+        NativeData::from_binary_data(
+            &output_type,
+            &self.storage[address..address + output_type.get_physical_size()],
+        )
     }
 
     fn read_output_i32(&self, index: usize) -> i32 {
