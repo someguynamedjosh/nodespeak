@@ -88,6 +88,14 @@ function_definition = {
     "fn" ~ identifier ~ function_signature ~ returnable_code_block 
 }
 
+// If statements.
+else_if_clause = { "else" ~ "if" ~ expr ~ code_block }
+else_clause = { "else" ~ code_block }
+if_statement = { "if" ~ expr ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
+
+// For loop statements.
+for_loop_statement = { "for" ~ identifier ~ "=" ~ expr ~ "to" ~ expr ~ code_block }
+
 // Statements.
 
 empty_variable = { identifier }
@@ -120,6 +128,7 @@ assert_statement = { "assert" ~ expr ~ ";" }
 
 statement = { 
     function_definition | code_block | return_statement | assert_statement
+    | if_statement | for_loop_statement
     | input_variable_statement | output_variable_statement | create_variable_statement 
     | assign_statement | raw_expr_statement  
 }

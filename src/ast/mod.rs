@@ -61,6 +61,11 @@ pub mod structure {
             Rule::function_signature => "signature for function definition",
             Rule::function_definition => "function definition",
 
+            Rule::else_if_clause => "if statement else if clause",
+            Rule::else_clause => "if statement else clause",
+            Rule::if_statement => "if statement",
+            Rule::for_loop_statement => "for loop",
+
             Rule::empty_variable => "uninitialized variable name",
             Rule::assigned_variable => "initialized variable declaration",
             Rule::create_variable => "variable declaration",
