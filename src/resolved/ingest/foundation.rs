@@ -252,6 +252,8 @@ impl<'a> ScopeSimplifier<'a> {
                 outputs,
                 position,
             } => self.resolve_func_call(function, inputs, outputs, position)?,
+
+            _=>unimplemented!()
         })
     }
 

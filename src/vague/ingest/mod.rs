@@ -707,6 +707,21 @@ fn convert_function_signature(
     Result::Ok(())
 }
 
+fn convert_code_block(
+    program: &mut o::Program,
+    scope: o::ScopeId,
+    input: i::Node,
+) -> Result<(), CompileProblem> {
+    for child in input.into_inner() {
+        assert!(
+            child.as_rule() == i::Rule::statement,
+            "Required by grammar."
+        );
+        convert_statement(program, scope, child)?;
+    }
+    Ok(())
+}
+
 fn convert_returnable_code_block(
     program: &mut o::Program,
     scope: o::ScopeId,
@@ -1076,6 +1091,101 @@ fn convert_assert_statement(
     Result::Ok(())
 }
 
+fn convert_else_if_clause(
+    program: &mut o::Program,
+    scope: o::ScopeId,
+    input: i::Node,
+) -> Result<(o::Expression, o::ScopeId), CompileProblem> {
+    let mut input_iter = input.into_inner();
+    let child0 = input_iter.next().expect("Required by grammar.");
+    let condition = convert_expression(program, scope, true, child0)?;
+    let child1 = input_iter.next().expect("Required by grammar.");
+    let body_scope = program.create_child_scope(scope);
+    convert_code_block(program, body_scope, child1)?;
+    Ok((condition, body_scope))
+}
+
+fn convert_if_statement(
+    program: &mut o::Program,
+    scope: o::ScopeId,
+    input: i::Node,
+) -> Result<(), CompileProblem> {
+    let input_pos = FilePosition::from_pair(&input);
+    let mut input_iter = input.into_inner();
+    let mut clauses = Vec::new();
+    clauses.push({
+        let child0 = input_iter.next().expect("Required by grammar.");
+        let condition = convert_expression(program, scope, true, child0)?;
+        let child1 = input_iter.next().expect("Required by grammar.");
+        let body_scope = program.create_child_scope(scope);
+        convert_code_block(program, body_scope, child1)?;
+        (condition, body_scope)
+    });
+    let mut else_clause = None;
+    for child in input_iter {
+        match child.as_rule() {
+            i::Rule::else_if_clause => clauses.push(convert_else_if_clause(program, scope, child)?),
+            i::Rule::else_clause => {
+                let child0 = child.into_inner().next().expect("Required by grammar.");
+                let body_scope = program.create_child_scope(scope);
+                convert_code_block(program, body_scope, child0)?;
+                else_clause = Some(body_scope);
+            }
+            _ => unreachable!("Grammar specifies no other children.")
+        }
+    }
+    program[scope].add_expression(o::Expression::Branch {
+        clauses,
+        else_clause,
+        position: input_pos,
+    });
+    Ok(())
+}
+
+fn convert_for_loop_statement(
+    program: &mut o::Program,
+    scope: o::ScopeId,
+    input: i::Node,
+) -> Result<(), CompileProblem> {
+    let input_pos = FilePosition::from_pair(&input);
+    let mut input_iter = input.into_inner();
+    let loop_scope = program.create_child_scope(scope);
+    let counter = {
+        let child0 = input_iter.next().expect("Required by grammar.");
+        let child0_pos = FilePosition::from_pair(&child0);
+        assert!(child0.as_rule() == i::Rule::identifier);
+        let counter_name = child0.as_str();
+        let counter =
+            o::Variable::variable(child0_pos, o::DataType::scalar(o::BaseType::Int), None);
+        program.adopt_and_define_symbol(loop_scope, counter_name, counter)
+    };
+    let start = {
+        let child1 = input_iter.next().expect("Required by grammar.");
+        assert!(child1.as_rule() == i::Rule::expr);
+        Box::new(convert_expression(program, loop_scope, true, child1)?)
+    };
+    let end = {
+        let child2 = input_iter.next().expect("Required by grammar.");
+        assert!(child2.as_rule() == i::Rule::expr);
+        Box::new(convert_expression(program, loop_scope, true, child2)?)
+    };
+    let body = {
+        let child3 = input_iter.next().expect("Required by grammar.");
+        assert!(child3.as_rule() == i::Rule::code_block);
+        convert_code_block(program, loop_scope, child3)?;
+        loop_scope
+    };
+
+    program[scope].add_expression(o::Expression::ForLoop {
+        counter,
+        start,
+        end,
+        body,
+        position: input_pos,
+    });
+    Ok(())
+}
+
 fn convert_statement(
     program: &mut o::Program,
     scope: o::ScopeId,
@@ -1087,6 +1197,8 @@ fn convert_statement(
             i::Rule::code_block => unimplemented!(),
             i::Rule::return_statement => convert_return_statement(program, scope, child)?,
             i::Rule::assert_statement => convert_assert_statement(program, scope, child)?,
+            i::Rule::if_statement => convert_if_statement(program, scope, child)?,
+            i::Rule::for_loop_statement => convert_for_loop_statement(program, scope, child)?,
             i::Rule::input_variable_statement => {
                 convert_input_variable_statement(program, scope, child)?
             }

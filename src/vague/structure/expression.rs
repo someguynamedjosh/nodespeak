@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{KnownData, VariableId};
+use crate::vague::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -111,6 +111,18 @@ pub enum Expression {
         position: FilePosition,
     },
     Return(FilePosition),
+    Branch {
+        clauses: Vec<(Expression, ScopeId)>,
+        else_clause: Option<ScopeId>,
+        position: FilePosition,
+    },
+    ForLoop {
+        counter: VariableId,
+        start: Box<Expression>,
+        end: Box<Expression>,
+        body: ScopeId,
+        position: FilePosition,
+    },
 
     FuncCall {
         function: Box<Expression>,
@@ -155,6 +167,30 @@ impl Debug for Expression {
                 write!(formatter, "{:?} = {:?};", target, value)
             }
             Expression::Return(..) => write!(formatter, "return;"),
+            Expression::Branch {
+                clauses,
+                else_clause,
+                ..
+            } => {
+                assert!(clauses.len() > 0);
+                write!(formatter, "if {:?} {{ {:?} }}", &clauses[0].0, clauses[0].1)?;
+                for (condition, scope) in &clauses[1..] {
+                    write!(formatter, " else if {:?} {{ {:?} }}", condition, scope)?;
+                }
+                if let Some(scope) = else_clause {
+                    write!(formatter, " else {{ {:?} }}", scope)?;
+                }
+                write!(formatter, "")
+            }
+            Expression::ForLoop {
+                counter,
+                start,
+                end,
+                body,
+                ..
+            } => {
+                write!(formatter, "for {:?} = {:?} to {:?} {{ {:?} }}", counter, start, end, body)
+            }
 
             Expression::FuncCall {
                 function,
@@ -190,6 +226,8 @@ impl Expression {
             | Expression::Assert(_, position)
             | Expression::Assign { position, .. }
             | Expression::Return(position)
+            | Expression::Branch { position, .. }
+            | Expression::ForLoop { position, .. }
             | Expression::FuncCall { position, .. } => position.clone(),
         }
     }
@@ -231,6 +269,8 @@ impl Expression {
                 }) && value.is_valid()
             }
             Expression::Return(..) => true,
+            Expression::Branch { .. } => true,
+            Expression::ForLoop { .. } => true,
             Expression::FuncCall {
                 function,
                 inputs,
