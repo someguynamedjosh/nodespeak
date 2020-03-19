@@ -262,6 +262,80 @@ impl<'a> Trivializer<'a> {
         })
     }
 
+    fn trivialize_branch(
+        &mut self,
+        clauses: &Vec<(i::Expression, i::ScopeId)>,
+        else_clause: &Option<i::ScopeId>,
+    ) -> Result<(), CompileProblem> {
+        debug_assert!(clauses.len() > 0);
+        let end_label = self.target.create_label();
+        for (condition_expr, body) in clauses.iter() {
+            let skip_condition = self.trivialize_for_jump(condition_expr)?.as_negative();
+            let next_clause_label = self.target.create_label();
+            self.target
+                .add_instruction(o::Instruction::ConditionalJump {
+                    condition: skip_condition,
+                    label: next_clause_label,
+                });
+            for expr in self.source[*body].borrow_body().clone() {
+                self.trivialize_expression(&expr)?;
+            }
+            self.target
+                .add_instruction(o::Instruction::Jump { label: end_label });
+            self.target
+                .add_instruction(o::Instruction::Label(next_clause_label));
+        }
+        if let Some(body) = /* once told me */ else_clause {
+            for expr in self.source[*body].borrow_body().clone() {
+                self.trivialize_expression(&expr)?;
+            }
+        }
+        self.target
+            .add_instruction(o::Instruction::Label(end_label));
+        Ok(())
+    }
+
+    fn trivialize_for_loop(
+        &mut self,
+        counter: i::VariableId,
+        start: &i::Expression,
+        end: &i::Expression,
+        body: i::ScopeId,
+    ) -> Result<(), CompileProblem> {
+        let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
+        // TODO: Better value for part_of.
+        let tcount = o::Value::variable(self.trivialize_variable(counter)?);
+        let tstart = self.trivialize_and_require_value(start, start)?;
+        let tend = self.trivialize_and_require_value(end, end)?;
+        self.target.add_instruction(o::Instruction::Move {
+            from: tstart,
+            to: tcount.clone(),
+        });
+        self.target
+            .add_instruction(o::Instruction::Label(start_label));
+        self.target
+            .add_instruction(o::Instruction::Compare { a: tcount.clone(), b: tend });
+        self.target
+            .add_instruction(o::Instruction::ConditionalJump {
+                condition: o::Condition::GreaterThanOrEqual,
+                label: end_label,
+            });
+        for expr in self.source[body].borrow_body().clone() {
+            self.trivialize_expression(&expr)?;
+        }
+        self.target
+            .add_instruction(o::Instruction::BinaryOperation {
+                a: tcount.clone(),
+                b: o::Value::literal(s::NativeData::Int(1)),
+                x: tcount,
+                op: o::BinaryOperator::AddI,
+            });
+        self.target
+            .add_instruction(o::Instruction::Jump { label: start_label });
+        self.target.add_instruction(o::Instruction::Label(end_label));
+        Ok(())
+    }
+
     fn trivialize_expression(
         &mut self,
         expression: &i::Expression,
@@ -281,7 +355,7 @@ impl<'a> Trivializer<'a> {
                 let base = match base.borrow() {
                     i::Expression::Variable(id, ..) => self.trivialize_variable(*id)?,
                     i::Expression::Proxy { .. } => unimplemented!(),
-                    _ => panic!("TODO: nice error, invalid base for access."),
+                    _ => panic!("TODO: nice error, invalid base for access: {:?}", base),
                 };
                 let mut new_indexes = Vec::new();
                 for index in indexes {
@@ -317,15 +391,33 @@ impl<'a> Trivializer<'a> {
                 None
             }
             i::Expression::Return(..) => unimplemented!(),
+            i::Expression::Branch {
+                clauses,
+                else_clause,
+                ..
+            } => {
+                self.trivialize_branch(clauses, else_clause)?;
+                None
+            }
+            i::Expression::ForLoop {
+                counter,
+                start,
+                end,
+                body,
+                ..
+            } => {
+                self.trivialize_for_loop(*counter, start, end, *body)?;
+                None
+            }
 
             i::Expression::FuncCall { function, .. } => {
                 for expr in self.source[*function].borrow_body().clone() {
                     self.trivialize_expression(&expr)?;
                 }
                 None
-            },
+            }
 
-            _ => unimplemented!()
+            _ => unimplemented!(),
         })
     }
 }

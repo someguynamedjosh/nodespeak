@@ -12,6 +12,19 @@ pub enum Condition {
     NotEqual,
 }
 
+impl Condition {
+    pub fn as_negative(&self) -> Condition {
+        match self {
+            Self::LessThan => Self::GreaterThanOrEqual,
+            Self::GreaterThan => Self::LessThanOrEqual,
+            Self::LessThanOrEqual => Self::GreaterThan,
+            Self::GreaterThanOrEqual => Self::LessThan,
+            Self::Equal => Self::NotEqual,
+            Self::NotEqual => Self::Equal,
+        }
+    }
+}
+
 pub enum BinaryOperator {
     AddI,
     SubI,
