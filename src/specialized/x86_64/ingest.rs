@@ -119,6 +119,17 @@ impl<'a> Specializer<'a> {
                 self.target
                     .add_instruction(o::Instruction::Assert(condition));
             }
+            i::Instruction::Label(id) => self.target.add_instruction(o::Instruction::Label(*id)),
+            i::Instruction::Jump { label } => self
+                .target
+                .add_instruction(o::Instruction::Jump { label: *label }),
+            i::Instruction::ConditionalJump { label, condition } => {
+                self.target
+                    .add_instruction(o::Instruction::ConditionalJump {
+                        label: *label,
+                        condition: Self::specialize_condition(condition),
+                    })
+            }
             _ => unimplemented!("{:?}", instruction),
         }
     }

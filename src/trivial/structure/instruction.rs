@@ -1,4 +1,5 @@
-use crate::trivial::structure::{LabelId, Value};
+use crate::shared::LabelId;
+use crate::trivial::structure::Value;
 
 use std::fmt::{self, Debug, Formatter};
 

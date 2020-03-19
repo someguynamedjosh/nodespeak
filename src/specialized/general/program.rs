@@ -11,6 +11,15 @@ impl Debug for VariableId {
     }
 }
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+pub struct LabelId(usize);
+
+impl Debug for LabelId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "l{}", self.0)
+    }
+}
+
 pub trait Instruction {
     fn reads_from(&self) -> Vec<&Value>;
     fn writes_to(&self) -> Vec<&Value>;
@@ -35,6 +44,7 @@ pub struct GenericProgram<IType: Instruction> {
     instructions: Vec<WrappedInstruction<IType>>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
+    num_labels: usize,
 }
 
 impl<IType: Instruction> Index<VariableId> for GenericProgram<IType> {
@@ -59,7 +69,14 @@ impl<IType: Instruction> GenericProgram<IType> {
             instructions: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
+            num_labels: 0,
         }
+    }
+
+    pub fn create_label(&mut self) -> LabelId {
+        let id = LabelId(self.num_labels);
+        self.num_labels += 1;
+        id
     }
 
     pub fn adopt_variable(&mut self, variable: NativeVar) -> VariableId {

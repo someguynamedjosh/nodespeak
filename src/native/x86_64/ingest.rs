@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use super::structure as o;
+use crate::shared as s;
 use crate::specialized::structure as i;
 
 pub fn ingest(program: &i::Program) -> o::Program {
@@ -183,6 +184,11 @@ struct Assembler<'a> {
     storage_size: usize,
     /// The position each variable occupies in storage.
     storage_locations: HashMap<i::VariableId, usize>,
+    /// The address each label points to.
+    label_locations: HashMap<s::LabelId, usize>,
+    /// Places where the address a label points to should be inserted in the code, used when that
+    /// value is not known at the time because the label will occur later in the code.
+    label_uses: Vec<(usize, s::LabelId)>,
 }
 
 impl<'a> Assembler<'a> {
@@ -196,6 +202,8 @@ impl<'a> Assembler<'a> {
             register_locked: [false; NUM_REGISTERS],
             storage_size: 0,
             storage_locations: HashMap::new(),
+            label_locations: HashMap::new(),
+            label_uses: Vec::new(),
         }
     }
 
@@ -781,6 +789,149 @@ impl<'a> Assembler<'a> {
         constant_offset
     }
 
+    fn assemble_binary_operation(
+        &mut self,
+        instruction: &i::AnnotatedInstruction,
+        op: &i::BinaryOperator,
+        a: &i::Value,
+        b: &i::Value,
+        x: &i::Value,
+    ) {
+        // TODO: Optimize.
+        match op {
+            i::BinaryOperator::AddI => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_byte(0x01); // Add to second operand.
+                self.write_modrm_two_register(reg_b, reg_a);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::SubI => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_byte(0x29); // Subtract from second operand.
+                self.write_modrm_two_register(reg_b, reg_a);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::MulI => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0x0f, 0xaf]); // Multiply into first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::DivI => {
+                // The divide instruction requires the first operand to be contained in the
+                // a and d registers, with d containing the high bits and a containing the
+                // low bits.
+                let reg_a = self.load_value_into_register(a, Register::A);
+                self.load_zero_into_register(Register::D);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                // Divide by second operand, first operand is ignored.
+                self.write_bytes(&[0xF7]);
+                self.write_byte(0b11111000 | reg_b.opcode_index_u8());
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::ModI => {
+                // Same logic as above, because the divide instruction stores the remainder
+                // in the D register.
+                self.load_value_into_register(a, Register::A);
+                let reg_remainder = self.load_zero_into_register(Register::D);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_remainder);
+                // Divide by second operand, first operand is ignored.
+                self.write_bytes(&[0xF7]);
+                self.write_byte(0b11111000 | reg_b.opcode_index_u8());
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_remainder);
+            }
+            i::BinaryOperator::AddF => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0xf3, 0x0f, 0x58]); // Addss to first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::SubF => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::MulF => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss the first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::DivF => {
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a);
+            }
+            i::BinaryOperator::ModF => {
+                // There is no xmm modulo instruction, so we have to do a messy chain of
+                // instructions instead.
+                let reg_a = self.load_value_into_any(a);
+                let reg_b = self.load_value_into_any(b);
+                // We need to save the value of a for later.
+                let reg_a2 = self.prepare_any_register_for(&i::NativeBaseType::F32);
+                self.write_mov_reg32_to_reg32(reg_a, reg_a2);
+
+                self.meta_kill_variables(&instruction.kills);
+                self.prepare_locked_register(reg_a);
+                self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                // reg_a = a / b, reg_b = b, reg_a2 = a
+                // Convert 4xf32 from second operand to 4xi32 in first operand.
+                // Truncate ss in second operand to ss in first operand.
+                self.write_bytes(&[0x66, 0x0f, 0x3a, 0x0a]);
+                self.write_modrm_two_register(reg_a, reg_a);
+                self.write_byte(0b0011); // Specify rounding mode should be trucation.
+                                         // reg_a = trunc(a / b), reg_b = b, reg_a2 = a
+                self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss first operand.
+                self.write_modrm_two_register(reg_a, reg_b);
+                // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a
+                self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
+                self.write_modrm_two_register(reg_a2, reg_a);
+                // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a % b
+
+                self.meta_unlock_registers();
+                self.commit_value_in_register(x, reg_a2);
+            }
+            _ => unimplemented!("{:?}", op),
+        }
+    }
+
     fn assemble_instruction(&mut self, instruction: &i::AnnotatedInstruction) {
         // General template:
         // load_* functions such as load_value_into_any.
@@ -804,139 +955,7 @@ impl<'a> Assembler<'a> {
                 self.commit_value_in_register(to, reg_from);
             }
             i::Instruction::BinaryOperation { op, a, b, x } => {
-                // TODO: Optimize.
-                match op {
-                    i::BinaryOperator::AddI => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_byte(0x01); // Add to second operand.
-                        self.write_modrm_two_register(reg_b, reg_a);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::SubI => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_byte(0x29); // Subtract from second operand.
-                        self.write_modrm_two_register(reg_b, reg_a);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::MulI => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0x0f, 0xaf]); // Multiply into first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::DivI => {
-                        // The divide instruction requires the first operand to be contained in the
-                        // a and d registers, with d containing the high bits and a containing the
-                        // low bits.
-                        let reg_a = self.load_value_into_register(a, Register::A);
-                        self.load_zero_into_register(Register::D);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        // Divide by second operand, first operand is ignored.
-                        self.write_bytes(&[0xF7]);
-                        self.write_byte(0b11111000 | reg_b.opcode_index_u8());
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::ModI => {
-                        // Same logic as above, because the divide instruction stores the remainder
-                        // in the D register.
-                        self.load_value_into_register(a, Register::A);
-                        let reg_remainder = self.load_zero_into_register(Register::D);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_remainder);
-                        // Divide by second operand, first operand is ignored.
-                        self.write_bytes(&[0xF7]);
-                        self.write_byte(0b11111000 | reg_b.opcode_index_u8());
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_remainder);
-                    }
-                    i::BinaryOperator::AddF => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0xf3, 0x0f, 0x58]); // Addss to first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::SubF => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::MulF => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss the first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::DivF => {
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a);
-                    }
-                    i::BinaryOperator::ModF => {
-                        // There is no xmm modulo instruction, so we have to do a messy chain of
-                        // instructions instead.
-                        let reg_a = self.load_value_into_any(a);
-                        let reg_b = self.load_value_into_any(b);
-                        // We need to save the value of a for later.
-                        let reg_a2 = self.prepare_any_register_for(&i::NativeBaseType::F32);
-                        self.write_mov_reg32_to_reg32(reg_a, reg_a2);
-
-                        self.meta_kill_variables(&instruction.kills);
-                        self.prepare_locked_register(reg_a);
-                        self.write_bytes(&[0xf3, 0x0f, 0x5e]); // Divss the first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        // reg_a = a / b, reg_b = b, reg_a2 = a
-                        // Convert 4xf32 from second operand to 4xi32 in first operand.
-                        // Truncate ss in second operand to ss in first operand.
-                        self.write_bytes(&[0x66, 0x0f, 0x3a, 0x0a]);
-                        self.write_modrm_two_register(reg_a, reg_a);
-                        self.write_byte(0b0011); // Specify rounding mode should be trucation.
-                                                 // reg_a = trunc(a / b), reg_b = b, reg_a2 = a
-                        self.write_bytes(&[0xf3, 0x0f, 0x59]); // Mulss first operand.
-                        self.write_modrm_two_register(reg_a, reg_b);
-                        // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a
-                        self.write_bytes(&[0xf3, 0x0f, 0x5c]); // Subss from the first operand.
-                        self.write_modrm_two_register(reg_a2, reg_a);
-                        // reg_a = b * trunc(a / b), reg_b = b, reg_a2 = a % b
-
-                        self.meta_unlock_registers();
-                        self.commit_value_in_register(x, reg_a2);
-                    }
-                    _ => unimplemented!("{:?}", op),
-                }
+                self.assemble_binary_operation(instruction, op, a, b, x)
             }
             i::Instruction::Compare { a, b } => {
                 let reg_a = self.load_value_into_any(a);
@@ -954,6 +973,31 @@ impl<'a> Assembler<'a> {
                 self.write_mov_imm32_to_register(Register::A, 1); // 5 bytes
                 self.write_restore_rsp_and_return(); // 5 bytes
                 self.meta_unlock_registers();
+            }
+            i::Instruction::Label(id) => {
+                self.label_locations.insert(*id, self.target.len());
+            }
+            i::Instruction::Jump { label } => {
+                self.meta_kill_variables(&instruction.kills);
+                self.meta_unlock_registers();
+                self.write_byte(0xe9); // Jump with 32-bit immediate offset.
+                self.label_uses.push((self.target.len(), *label));
+                self.write_32(0); // This will be replaced with the actual offset later on.
+            }
+            i::Instruction::ConditionalJump { label, condition } => {
+                self.meta_kill_variables(&instruction.kills);
+                self.meta_unlock_registers();
+                self.write_byte(0x0f);
+                self.write_byte(match condition {
+                    i::Condition::Equal => 0x84,
+                    i::Condition::NotEqual => 0x85,
+                    i::Condition::GreaterThan => 0x8f,
+                    i::Condition::GreaterThanOrEqual => 0x8d,
+                    i::Condition::LessThan => 0x8c,
+                    i::Condition::LessThanOrEqual => 0x8e,
+                });
+                self.label_uses.push((self.target.len(), *label));
+                self.write_32(0); // This will be replaced with the actual offset later on.
             }
         }
     }

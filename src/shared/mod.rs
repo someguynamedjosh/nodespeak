@@ -1,6 +1,8 @@
+mod labels;
 mod native_data;
 mod native_var;
 
+pub use labels::*;
 pub use native_data::*;
 pub use native_var::*;
 

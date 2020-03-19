@@ -1,4 +1,4 @@
-use crate::shared::NativeVar;
+use crate::shared::{NativeVar, LabelCounter, LabelId};
 use crate::trivial::structure::Instruction;
 
 use std::fmt::{self, Debug, Formatter};
@@ -13,21 +13,12 @@ impl Debug for VariableId {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct LabelId(usize);
-
-impl Debug for LabelId {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "tl{}", self.0)
-    }
-}
-
 pub struct Program {
     instructions: Vec<Instruction>,
     variables: Vec<NativeVar>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
-    labels: usize,
+    label_counter: LabelCounter,
 }
 
 impl Debug for Program {
@@ -44,7 +35,7 @@ impl Debug for Program {
         for variable in self.outputs.iter() {
             writeln!(formatter, "  {:?}", variable)?;
         }
-        writeln!(formatter, "{} labels", self.labels)?;
+        writeln!(formatter, "{:?}", self.label_counter)?;
         writeln!(formatter, "instructions:")?;
         for instruction in self.instructions.iter() {
             writeln!(formatter, "  {:?}", instruction)?;
@@ -74,7 +65,7 @@ impl Program {
             variables: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
-            labels: 0,
+            label_counter: LabelCounter::new(),
         }
     }
 
@@ -117,8 +108,6 @@ impl Program {
     }
 
     pub fn create_label(&mut self) -> LabelId {
-        let id = LabelId(self.labels);
-        self.labels += 1;
-        id
+        self.label_counter.create_label()
     }
 }

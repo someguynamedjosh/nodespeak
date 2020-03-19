@@ -1,3 +1,4 @@
+use crate::shared::LabelId;
 use crate::specialized::general::Value;
 
 use std::fmt::{self, Debug, Formatter};
@@ -132,6 +133,14 @@ pub enum Instruction {
         b: Value,
     },
     Assert(Condition),
+    Label(LabelId),
+    Jump {
+        label: LabelId,
+    },
+    ConditionalJump {
+        label: LabelId,
+        condition: Condition,
+    },
 }
 
 impl Debug for Instruction {
@@ -144,8 +153,12 @@ impl Debug for Instruction {
             }
 
             Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),
-
             Instruction::Assert(value) => write!(formatter, "asrt {:?}", value),
+            Instruction::Label(id) => write!(formatter, "label {:?}", id),
+            Instruction::Jump { label } => write!(formatter, "jump to {:?}", label),
+            Instruction::ConditionalJump { label, condition } => {
+                write!(formatter, "jump to {:?} if {:?}", label, condition)
+            }
         }
     }
 }
@@ -156,7 +169,10 @@ impl crate::specialized::general::Instruction for Instruction {
             Self::Move { from, .. } => vec![from],
             Self::BinaryOperation { a, b, .. } => vec![a, b],
             Self::Compare { a, b } => vec![a, b],
-            Self::Assert(..) => vec![],
+            Self::Assert(..)
+            | Self::Label(..)
+            | Self::Jump { .. }
+            | Self::ConditionalJump { .. } => vec![],
         }
     }
 
@@ -164,7 +180,11 @@ impl crate::specialized::general::Instruction for Instruction {
         match self {
             Self::Move { to, .. } => vec![to],
             Self::BinaryOperation { x, .. } => vec![x],
-            Self::Compare { .. } | Self::Assert(..) => vec![],
+            Self::Compare { .. }
+            | Self::Assert(..)
+            | Self::Label(..)
+            | Self::Jump { .. }
+            | Self::ConditionalJump { .. } => vec![],
         }
     }
 }
