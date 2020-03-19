@@ -1,8 +1,7 @@
-use std::fmt::{self, Debug, Formatter};
+use std::borrow::Borrow;
+use std::collections::HashSet;
 
-use super::{
-    problems, BaseType, CompileProblem, Content, DataType, ScopeSimplifier, SimplifiedExpression,
-};
+use super::{BaseType, CompileProblem, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::FilePosition;
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -70,6 +69,12 @@ impl<'a> ScopeSimplifier<'a> {
                     panic!("TODO: Nice error, condition of if is not a bool.")
                 }
                 Content::Modified(new_condition) => {
+                    // We don't know if this branch will be executed, so we should commit all
+                    // known variables.
+                    let assigned_variables = self.collect_assignments_in_body_wrapper(*body);
+                    for assigned_variable in assigned_variables {
+                        self.commit_temporary_value_before_uncertainty(assigned_variable)?;
+                    }
                     let new_scope = self.copy_scope(*body, Some(self.current_scope))?;
                     let old_current_scope = self.current_scope;
                     self.current_scope = new_scope;
@@ -90,6 +95,13 @@ impl<'a> ScopeSimplifier<'a> {
                 if new_clauses.len() == 0 {
                     self.resolve_scope_in_place(*old_else_clause)?;
                 } else {
+                    // We don't know if this branch will be executed, so we should commit all
+                    // known variables.
+                    let assigned_variables =
+                        self.collect_assignments_in_body_wrapper(*old_else_clause);
+                    for assigned_variable in assigned_variables {
+                        self.commit_temporary_value_before_uncertainty(assigned_variable)?;
+                    }
                     new_else_clause = Some(self.resolve_scope_as_child(*old_else_clause)?);
                 }
             }
@@ -106,6 +118,54 @@ impl<'a> ScopeSimplifier<'a> {
                 })
             },
         })
+    }
+
+    fn collect_assignments_in_body(&self, body: i::ScopeId, output: &mut HashSet<i::VariableId>) {
+        for expr in self.source[body].borrow_body() {
+            if let i::Expression::Assign { target, .. } = expr {
+                if let i::Expression::Variable(id, ..) = target.borrow() {
+                    output.insert(*id);
+                } else if let i::Expression::Access { base, .. } = target.borrow() {
+                    if let i::Expression::Variable(id, ..) = base.borrow() {
+                        output.insert(*id);
+                    }
+                } else {
+                    unreachable!("Encountered invalid assignment expression.");
+                }
+            } else if let i::Expression::Branch {
+                clauses,
+                else_clause,
+                ..
+            } = expr
+            {
+                for (.., body) in clauses {
+                    self.collect_assignments_in_body(*body, output);
+                }
+                if let Some(body) = else_clause {
+                    self.collect_assignments_in_body(*body, output);
+                }
+            } else if let i::Expression::ForLoop { body, .. } = expr {
+                self.collect_assignments_in_body(*body, output);
+            } else if let i::Expression::FuncCall { outputs, .. } = expr {
+                for func_output in outputs {
+                    if let i::Expression::Variable(id, ..) = func_output {
+                        output.insert(*id);
+                    } else if let i::Expression::Access { base, .. } = func_output {
+                        if let i::Expression::Variable(id, ..) = base.borrow() {
+                            output.insert(*id);
+                        }
+                    } else {
+                        unreachable!("Encountered invalid function output.");
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_assignments_in_body_wrapper(&self, body: i::ScopeId) -> HashSet<i::VariableId> {
+        let mut hash_set = HashSet::new();
+        self.collect_assignments_in_body(body, &mut hash_set);
+        hash_set
     }
 
     pub(super) fn resolve_for_loop(
@@ -143,6 +203,14 @@ impl<'a> ScopeSimplifier<'a> {
                 })
             }
             (start_content, end_content) => {
+                let assigned_variables = self.collect_assignments_in_body_wrapper(body);
+                // Since they will be assigned multiple times during the loop body, we need to clear
+                // their temporary values before we start resolving it otherwise other functions
+                // will think that we know for sure what the content of these variables are even
+                // though their values are written to inside the loop body.
+                for assigned_variable in assigned_variables {
+                    self.commit_temporary_value_before_uncertainty(assigned_variable)?;
+                }
                 let resolved_start = match start_content {
                     Content::Modified(new) => new,
                     Content::Interpreted(i::KnownData::Int(value)) => {

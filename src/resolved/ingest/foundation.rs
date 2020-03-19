@@ -63,6 +63,35 @@ impl<'a> ScopeSimplifier<'a> {
         self.temp_values.insert(var, value);
     }
 
+    // This is used e.g. before branches where the fate of a variable with a known value is
+    // uncertain. It will add instructions to copy the currently known value to the variable at
+    // run time and then forget the currently known value.
+    pub(super) fn commit_temporary_value_before_uncertainty(
+        &mut self,
+        var: i::VariableId,
+    ) -> Result<(), CompileProblem> {
+        if self.borrow_temporary_value(var) == &i::KnownData::Unknown {
+            // The data is already unknown, we don't need to commit anything.
+            return Ok(());
+        }
+        let resolved_data = util::resolve_known_data(self.borrow_temporary_value(var))
+            .expect("TODO: Nice error, data cannot be used at compile time.");
+        let target = self
+            .convert(var)
+            .expect("TODO: Nice error, cannot convert variable.")
+            .clone();
+        self.target[self.current_scope].add_expression(o::Expression::Assign {
+            target: Box::new(target),
+            value: Box::new(o::Expression::Literal(
+                resolved_data,
+                FilePosition::placeholder(),
+            )),
+            position: FilePosition::placeholder(),
+        });
+        self.temp_values.insert(var, i::KnownData::Unknown);
+        Ok(())
+    }
+
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> &i::KnownData {
         self.temp_values
             .get(&var)
