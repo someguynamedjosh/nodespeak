@@ -3,6 +3,7 @@ use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::collections::{HashMap, HashSet};
 
+mod control_flow;
 mod data_type;
 mod expressions;
 mod foundation;

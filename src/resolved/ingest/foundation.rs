@@ -245,6 +245,18 @@ impl<'a> ScopeSimplifier<'a> {
                     data_type: DataType::scalar(BaseType::Void),
                 }
             }
+            i::Expression::Branch {
+                clauses,
+                else_clause,
+                position,
+            } => self.resolve_branch(clauses, else_clause, position)?,
+            i::Expression::ForLoop {
+                counter,
+                start,
+                end,
+                body,
+                position,
+            } => self.resolve_for_loop(*counter, start, end, *body, position)?,
 
             i::Expression::FuncCall {
                 function,
@@ -252,8 +264,6 @@ impl<'a> ScopeSimplifier<'a> {
                 outputs,
                 position,
             } => self.resolve_func_call(function, inputs, outputs, position)?,
-
-            _=>unimplemented!()
         })
     }
 

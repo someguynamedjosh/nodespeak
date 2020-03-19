@@ -323,7 +323,9 @@ impl<'a> Trivializer<'a> {
                     self.trivialize_expression(&expr)?;
                 }
                 None
-            }
+            },
+
+            _ => unimplemented!()
         })
     }
 }
