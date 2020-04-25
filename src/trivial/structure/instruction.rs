@@ -1,5 +1,4 @@
-use crate::shared::LabelId;
-use crate::trivial::structure::Value;
+use super::{LabelId, Value};
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -42,6 +41,8 @@ pub enum BinaryOperator {
     BAnd,
     BOr,
     BXor,
+    CompI(Condition),
+    CompF(Condition),
 }
 
 pub enum Instruction {
@@ -57,25 +58,15 @@ pub enum Instruction {
         x: Value,
     },
 
-    Not {
-        a: Value,
-        x: Value,
-    },
-
-    Compare {
-        a: Value,
-        b: Value,
-    },
     Label(LabelId),
     Jump {
         label: LabelId,
     },
-    ConditionalJump {
-        label: LabelId,
-        condition: Condition,
+    Branch {
+        condition: Value,
+        true_target: Option<LabelId>,
+        false_target: Option<LabelId>,
     },
-
-    Assert(Condition),
 }
 
 impl Debug for Instruction {
@@ -87,36 +78,41 @@ impl Debug for Instruction {
                 formatter,
                 "{} {:?}, {:?} -> {:?}",
                 match op {
-                    BinaryOperator::AddI => "addi",
-                    BinaryOperator::SubI => "subi",
-                    BinaryOperator::MulI => "muli",
-                    BinaryOperator::DivI => "divi",
-                    BinaryOperator::ModI => "modi",
+                    BinaryOperator::AddI => "addi".to_owned(),
+                    BinaryOperator::SubI => "subi".to_owned(),
+                    BinaryOperator::MulI => "muli".to_owned(),
+                    BinaryOperator::DivI => "divi".to_owned(),
+                    BinaryOperator::ModI => "modi".to_owned(),
 
-                    BinaryOperator::AddF => "addf",
-                    BinaryOperator::SubF => "subf",
-                    BinaryOperator::MulF => "mulf",
-                    BinaryOperator::DivF => "divf",
-                    BinaryOperator::ModF => "modf",
+                    BinaryOperator::AddF => "addf".to_owned(),
+                    BinaryOperator::SubF => "subf".to_owned(),
+                    BinaryOperator::MulF => "mulf".to_owned(),
+                    BinaryOperator::DivF => "divf".to_owned(),
+                    BinaryOperator::ModF => "modf".to_owned(),
 
-                    BinaryOperator::BAnd => "band",
-                    BinaryOperator::BOr => "bor ",
-                    BinaryOperator::BXor => "bxor",
+                    BinaryOperator::BAnd => "band".to_owned(),
+                    BinaryOperator::BOr => "bor ".to_owned(),
+                    BinaryOperator::BXor => "bxor".to_owned(),
+
+                    BinaryOperator::CompI(cond) => format!("compi {:?}", cond),
+                    BinaryOperator::CompF(cond) => format!("compf {:?}", cond),
                 },
                 a,
                 b,
                 x
             ),
-            Instruction::Not { a, x } => write!(formatter, "not  {:?}, -> {:?}", a, x),
 
-            Instruction::Compare { a, b } => write!(formatter, "comp {:?}, {:?}", a, b),
             Instruction::Label(id) => write!(formatter, "labl {:?}", id),
             Instruction::Jump { label } => write!(formatter, "jump to {:?}", label),
-            Instruction::ConditionalJump { label, condition } => {
-                write!(formatter, "jump to {:?} if {:?}", label, condition)
-            }
-
-            Instruction::Assert(value) => write!(formatter, "asrt {:?}", value),
+            Instruction::Branch {
+                condition,
+                true_target,
+                false_target,
+            } => write!(
+                formatter,
+                "if {:?} jump to {:?} else {:?}",
+                condition, true_target, false_target
+            ),
         }
     }
 }

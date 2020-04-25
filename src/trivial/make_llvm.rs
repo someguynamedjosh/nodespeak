@@ -1,5 +1,4 @@
 use super::structure as i;
-use crate::shared as s;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use std::collections::HashMap;
@@ -97,7 +96,6 @@ impl<'a> Converter<'a> {
     fn convert(mut self) {
         for instruction in self.source.borrow_instructions().clone() {
             match instruction {
-                i::Instruction::Assert(..) => unimplemented!(),
                 i::Instruction::BinaryOperation { op, a, b, x } => {
                     self.convert_binary_expression(op, a, b, x);
                 }
@@ -138,9 +136,9 @@ pub fn make_llvm(source: &i::Program) {
             let vtype = var.borrow_type();
             assert!(var.borrow_dimensions().len() == 0);
             input_types.push(match vtype.get_base() {
-                s::NativeBaseType::B8 => i1t,
-                s::NativeBaseType::I32 => i32t,
-                s::NativeBaseType::F32 => f32t,
+                i::BaseType::B1 => i1t,
+                i::BaseType::I32 => i32t,
+                i::BaseType::F32 => f32t,
             });
             value_map.insert(
                 *input,

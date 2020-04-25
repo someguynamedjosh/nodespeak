@@ -1,11 +1,11 @@
-use super::{Program, VariableId};
-use crate::shared::{NativeData, NativeType, ProxyMode};
+use super::{Program, VariableId, KnownData, DataType};
+use crate::shared::{ProxyMode};
 
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone)]
 pub enum ValueBase {
-    Literal(NativeData),
+    Literal(KnownData),
     Variable(VariableId),
 }
 
@@ -19,7 +19,7 @@ impl Debug for ValueBase {
 }
 
 impl ValueBase {
-    pub fn get_type(&self, program: &Program) -> NativeType {
+    pub fn get_type(&self, program: &Program) -> DataType {
         match self {
             Self::Literal(data) => data.get_type(),
             Self::Variable(var) => program[*var].borrow_type().clone(),
@@ -30,7 +30,7 @@ impl ValueBase {
 #[derive(Clone)]
 pub struct Value {
     pub base: ValueBase,
-    pub proxy: Vec<(ProxyMode, usize)>,
+    pub dimensions: Vec<(usize, ProxyMode)>,
     pub indexes: Vec<ValueBase>,
 }
 
@@ -38,7 +38,7 @@ impl Value {
     pub fn new(base: ValueBase) -> Value {
         Value {
             base,
-            proxy: Vec::new(),
+            dimensions: Vec::new(),
             indexes: Vec::new(),
         }
     }
@@ -47,32 +47,28 @@ impl Value {
         Self::new(ValueBase::Variable(variable))
     }
 
-    pub fn literal(data: NativeData) -> Value {
+    pub fn literal(data: KnownData) -> Value {
         Self::new(ValueBase::Literal(data))
     }
 
-    pub fn get_type(&self, program: &Program) -> NativeType {
+    pub fn get_type(&self, program: &Program) -> DataType {
         self.base.get_type(program)
-    }
-
-    pub fn borrow_proxy(&self) -> &Vec<(ProxyMode, usize)> {
-        &self.proxy
     }
 }
 
 impl Debug for Value {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        if self.proxy.len() == 0 {
+        if self.dimensions.len() == 0 {
             write!(formatter, "{:?}", self.base)?;
         } else {
             write!(formatter, "{{")?;
-            for (index, (mode, len)) in self.proxy.iter().enumerate() {
+            for (index, (len, mode)) in self.dimensions.iter().enumerate() {
                 match mode {
                     ProxyMode::Keep => write!(formatter, "{}", len)?,
                     ProxyMode::Discard => write!(formatter, "{}>X", len)?,
                     ProxyMode::Collapse => write!(formatter, "{}>1", len)?,
                 }
-                if index < self.proxy.len() - 1 {
+                if index < self.dimensions.len() - 1 {
                     write!(formatter, ", ")?;
                 }
             }

@@ -3,55 +3,55 @@ extern crate pest;
 use pest::iterators::Pair;
 use pest::Parser;
 
-use crate::shared::NativeData;
+use crate::trivial::structure::KnownData;
 use crate::util::NVec;
-use crate::vague::structure::KnownData;
+use crate::vague::structure::KnownData as VagueKnownData;
 
 #[derive(Parser)]
 #[grammar = "util/known_data.pest"]
-struct NativeDataParser;
+struct KnownDataParser;
 
-fn parse_literal(source: Pair<Rule>) -> NativeData {
+fn parse_literal(source: Pair<Rule>) -> KnownData {
     match source.as_rule() {
-        Rule::neg_float => NativeData::Float(
+        Rule::neg_float => KnownData::Float(
             -parse_literal(source.into_inner().next().expect("Required by grammar."))
                 .require_float(),
         ),
-        Rule::neg_int => NativeData::Int(
+        Rule::neg_int => KnownData::Int(
             -parse_literal(source.into_inner().next().expect("Required by grammar.")).require_int(),
         ),
-        Rule::float => NativeData::Float(
+        Rule::float => KnownData::Float(
             source
                 .as_str()
                 .replace("_", "")
                 .parse()
                 .expect("Valid float required by grammar."),
         ),
-        Rule::dec_int => NativeData::Int(
+        Rule::dec_int => KnownData::Int(
             source
                 .as_str()
                 .replace("_", "")
                 .parse()
                 .expect("Valid int required by grammar."),
         ),
-        Rule::hex_int => NativeData::Int(
+        Rule::hex_int => KnownData::Int(
             i64::from_str_radix(&source.as_str().replace("_", "")[2..], 16)
                 .expect("Grammar requires valid hexadecimal int."),
         ),
-        Rule::oct_int => NativeData::Int(
+        Rule::oct_int => KnownData::Int(
             i64::from_str_radix(&source.as_str().replace("_", "")[2..], 8)
                 .expect("Grammar requires valid octal int."),
         ),
-        Rule::legacy_oct_int => NativeData::Int(
+        Rule::legacy_oct_int => KnownData::Int(
             i64::from_str_radix(&source.as_str().replace("_", "")[1..], 8)
                 .expect("Grammar requires valid octal int."),
         ),
-        Rule::bin_int => NativeData::Int(
+        Rule::bin_int => KnownData::Int(
             i64::from_str_radix(&source.as_str().replace("_", "")[2..], 2)
                 .expect("Grammar requires valid binary int."),
         ),
-        Rule::bool_true => NativeData::Bool(true),
-        Rule::bool_false => NativeData::Bool(false),
+        Rule::bool_true => KnownData::Bool(true),
+        Rule::bool_false => KnownData::Bool(false),
         Rule::array_literal => {
             let children: Vec<_> = source
                 .into_inner()
@@ -59,19 +59,19 @@ fn parse_literal(source: Pair<Rule>) -> NativeData {
                 .collect();
             if children.len() == 0 {
                 panic!("TODO: Nice error, an array cannot have no children.");
-            } else if let NativeData::Array(..) = children[0] {
+            } else if let KnownData::Array(..) = children[0] {
                 let array_children: Vec<_> = children
                     .into_iter()
                     .map(|child| match child {
-                        NativeData::Array(array_data) => array_data,
+                        KnownData::Array(array_data) => array_data,
                         _ => panic!(
                             "TODO: nice error, all children of an array must have the same type."
                         ),
                     })
                     .collect();
-                NativeData::Array(NVec::collect(array_children))
+                KnownData::Array(NVec::collect(array_children))
             } else {
-                NativeData::Array(NVec::from_vec(children))
+                KnownData::Array(NVec::from_vec(children))
             }
         }
         _ => {
@@ -81,23 +81,23 @@ fn parse_literal(source: Pair<Rule>) -> NativeData {
     }
 }
 
-fn convert_native_to_vague(data: &NativeData) -> KnownData {
+fn convert_native_to_vague(data: &KnownData) -> VagueKnownData {
     match data {
-        NativeData::Bool(value) => KnownData::Bool(*value),
-        NativeData::Int(value) => KnownData::Int(*value),
-        NativeData::Float(value) => KnownData::Float(*value),
-        NativeData::Array(values) => {
+        KnownData::Bool(value) => VagueKnownData::Bool(*value),
+        KnownData::Int(value) => VagueKnownData::Int(*value),
+        KnownData::Float(value) => VagueKnownData::Float(*value),
+        KnownData::Array(values) => {
             let new_values = NVec::build(
                 values.borrow_dimensions().iter().cloned().collect(),
                 |index| convert_native_to_vague(values.borrow_item(&index)),
             );
-            KnownData::Array(new_values)
+            VagueKnownData::Array(new_values)
         }
     }
 }
 
-pub fn parse_known_data(source: &str) -> Result<KnownData, String> {
-    let mut parse_result = match NativeDataParser::parse(Rule::root, source) {
+pub fn parse_known_data(source: &str) -> Result<VagueKnownData, String> {
+    let mut parse_result = match KnownDataParser::parse(Rule::root, source) {
         Result::Ok(result) => result,
         Result::Err(err) => {
             return Result::Err(format!("{}", err));
@@ -113,8 +113,8 @@ pub fn parse_known_data(source: &str) -> Result<KnownData, String> {
     Result::Ok(convert_native_to_vague(&native))
 }
 
-pub fn parse_native_data(source: &str) -> Result<NativeData, String> {
-    let mut parse_result = match NativeDataParser::parse(Rule::root, source) {
+pub fn parse_native_data(source: &str) -> Result<KnownData, String> {
+    let mut parse_result = match KnownDataParser::parse(Rule::root, source) {
         Result::Ok(result) => result,
         Result::Err(err) => {
             return Result::Err(format!("{}", err));

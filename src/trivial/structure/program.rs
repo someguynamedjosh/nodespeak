@@ -1,6 +1,5 @@
-use crate::shared::{NativeVar, LabelStorage, LabelId};
+use super::Variable;
 use crate::trivial::structure::Instruction;
-
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -13,12 +12,21 @@ impl Debug for VariableId {
     }
 }
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+pub struct LabelId(usize);
+
+impl Debug for LabelId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "l{}", self.0)
+    }
+}
+
 pub struct Program {
     instructions: Vec<Instruction>,
-    variables: Vec<NativeVar>,
+    variables: Vec<Variable>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
-    labels: LabelStorage
+    num_labels: usize,
 }
 
 impl Debug for Program {
@@ -35,7 +43,7 @@ impl Debug for Program {
         for variable in self.outputs.iter() {
             writeln!(formatter, "  {:?}", variable)?;
         }
-        writeln!(formatter, "{:?}", self.labels)?;
+        writeln!(formatter, "{} labels", self.num_labels)?;
         writeln!(formatter, "instructions:")?;
         for instruction in self.instructions.iter() {
             writeln!(formatter, "  {:?}", instruction)?;
@@ -45,7 +53,7 @@ impl Debug for Program {
 }
 
 impl Index<VariableId> for Program {
-    type Output = NativeVar;
+    type Output = Variable;
 
     fn index(&self, variable: VariableId) -> &Self::Output {
         &self.variables[variable.0]
@@ -65,7 +73,7 @@ impl Program {
             variables: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
-            labels: LabelStorage::new(),
+            num_labels: 0,
         }
     }
 
@@ -77,17 +85,17 @@ impl Program {
         &self.instructions
     }
 
-    pub fn adopt_variable(&mut self, variable: NativeVar) -> VariableId {
+    pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
         let id = VariableId(self.variables.len());
         self.variables.push(variable);
         id
     }
 
-    pub fn borrow_variable(&self, id: VariableId) -> &NativeVar {
+    pub fn borrow_variable(&self, id: VariableId) -> &Variable {
         &self.variables[id.0]
     }
 
-    pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut NativeVar {
+    pub fn borrow_variable_mut(&mut self, id: VariableId) -> &mut Variable {
         &mut self.variables[id.0]
     }
 
@@ -107,7 +115,8 @@ impl Program {
         &self.outputs
     }
 
-    pub fn create_label(&mut self, single_source: bool) -> LabelId {
-        self.labels.create_label(single_source)
+    pub fn create_label(&mut self) -> LabelId {
+        self.num_labels += 1;
+        LabelId(self.num_labels - 1)
     }
 }
