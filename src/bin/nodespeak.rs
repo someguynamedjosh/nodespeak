@@ -64,6 +64,15 @@ fn main() {
                 process::exit(101);
             }
         },
+        "llvmir" => match nodespeak::trivialize(&source_set) {
+            Result::Ok(program) => {
+                nodespeak::trivial::make_llvm(&program);
+            }
+            Result::Err(err) => {
+                eprintln!("{}", err);
+                process::exit(101);
+            }
+        },
         "execute" => {
             unimplemented!()
         }
