@@ -15,6 +15,7 @@ struct Converter<'a> {
 
     value_pointers: HashMap<i::VariableId, LLVMValueRef>,
     input_pointer: LLVMValueRef,
+    output_pointer: LLVMValueRef,
 }
 
 impl<'a> Converter<'a> {
@@ -30,7 +31,9 @@ impl<'a> Converter<'a> {
                     .value_pointers
                     .get(&id)
                     .expect("A variable was not given a pointer.");
-                unsafe { LLVMBuildStore(self.builder, content, *ptr); }
+                unsafe {
+                    LLVMBuildStore(self.builder, content, *ptr);
+                }
             }
             i::ValueBase::Literal(..) => panic!("Cannot store to a constant."),
         }
@@ -56,17 +59,10 @@ impl<'a> Converter<'a> {
                     )
                 },
                 i::KnownData::Int(value) => unsafe {
-                    LLVMConstInt(
-                        LLVMInt32TypeInContext(self.context),
-                        *value as u64,
-                        0,
-                    )
+                    LLVMConstInt(LLVMInt32TypeInContext(self.context), *value as u64, 0)
                 },
                 i::KnownData::Float(value) => unsafe {
-                    LLVMConstReal(
-                        LLVMFloatTypeInContext(self.context),
-                        *value as f64,
-                    )
+                    LLVMConstReal(LLVMFloatTypeInContext(self.context), *value as f64)
                 },
             },
         }
@@ -95,7 +91,7 @@ impl<'a> Converter<'a> {
         self.store_value(to, from);
     }
 
-    fn create_input_pointers(&mut self) {
+    fn create_param_pointers(&mut self) {
         for (index, input) in self.source.borrow_inputs().iter().enumerate() {
             let mut indices = [self.u32_const(0), self.u32_const(index as u32)];
             let input_ptr = unsafe {
@@ -109,12 +105,26 @@ impl<'a> Converter<'a> {
             };
             self.value_pointers.insert(*input, input_ptr);
         }
+        for (index, output) in self.source.borrow_outputs().iter().enumerate() {
+            let mut indices = [self.u32_const(0), self.u32_const(index as u32)];
+            let output_ptr = unsafe {
+                LLVMBuildGEP(
+                    self.builder,
+                    self.output_pointer,
+                    indices.as_mut_ptr(),
+                    indices.len() as u32,
+                    UNNAMED,
+                )
+            };
+            self.value_pointers.insert(*output, output_ptr);
+        }
     }
 
     fn create_variable_pointers(&mut self) {
-        let input_set: HashSet<_> = self.source.borrow_inputs().iter().collect();
+        let (ins, outs) = (self.source.borrow_inputs(), self.source.borrow_outputs());
+        let param_set: HashSet<_> = ins.iter().chain(outs.iter()).collect();
         for var_id in self.source.iterate_all_variables() {
-            if input_set.contains(&var_id) {
+            if param_set.contains(&var_id) {
                 continue;
             }
             let llvmt = llvm_type(self.context, self.source[var_id].borrow_type());
@@ -134,12 +144,15 @@ impl<'a> Converter<'a> {
             llvmt::scalar::LLVMAddCFGSimplificationPass(fpm);
             LLVMInitializeFunctionPassManager(fpm);
 
-            assert!(LLVMRunFunctionPassManager(fpm, self.main_fn) == 1, "Optimization failed!");
+            assert!(
+                LLVMRunFunctionPassManager(fpm, self.main_fn) == 1,
+                "Optimization failed!"
+            );
         }
     }
 
     fn convert(mut self) {
-        self.create_input_pointers();
+        self.create_param_pointers();
         self.create_variable_pointers();
 
         for instruction in self.source.borrow_instructions().clone() {
@@ -159,13 +172,14 @@ impl<'a> Converter<'a> {
             LLVMDisposeBuilder(self.builder);
 
             // Dump human-readable IR to stdout
+            println!("\nUnoptimized:");
             LLVMDumpModule(self.module);
         }
 
         self.optimize();
 
         unsafe {
-            println!("Optimized:");
+            println!("\nOptimized:");
             LLVMDumpModule(self.module);
             LLVMContextDispose(self.context);
         }
@@ -198,15 +212,26 @@ pub fn make_llvm(source: &i::Program) {
             input_types.push(llvm_type(context, var.borrow_type()));
         }
         let input_data_type = LLVMStructType(input_types.as_mut_ptr(), input_types.len() as u32, 0);
-        let voidt = LLVMVoidTypeInContext(context);
         let input_pointer_type = LLVMPointerType(input_data_type, 0);
-        let mut argts = [input_pointer_type];
+
+        let mut output_types = Vec::new();
+        for output in source.borrow_outputs() {
+            let var = source.borrow_variable(*output);
+            output_types.push(llvm_type(context, var.borrow_type()));
+        }
+        let output_data_type =
+            LLVMStructType(output_types.as_mut_ptr(), output_types.len() as u32, 0);
+        let output_pointer_type = LLVMPointerType(output_data_type, 0);
+
+        let voidt = LLVMVoidTypeInContext(context);
+        let mut argts = [input_pointer_type, output_pointer_type];
         let function_type = LLVMFunctionType(voidt, argts.as_mut_ptr(), argts.len() as u32, 0);
         let main_fn = LLVMAddFunction(module, b"main\0".as_ptr() as *const _, function_type);
         let entry_block =
             LLVMAppendBasicBlockInContext(context, main_fn, b"entry\0".as_ptr() as *const _);
         LLVMPositionBuilderAtEnd(builder, entry_block);
         let input_pointer = LLVMGetParam(main_fn, 0);
+        let output_pointer = LLVMGetParam(main_fn, 1);
 
         let converter = Converter {
             source,
@@ -217,6 +242,7 @@ pub fn make_llvm(source: &i::Program) {
 
             value_pointers: HashMap::new(),
             input_pointer,
+            output_pointer,
         };
 
         converter.convert()
