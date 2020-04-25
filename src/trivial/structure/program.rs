@@ -1,4 +1,4 @@
-use crate::shared::{NativeVar, LabelCounter, LabelId};
+use crate::shared::{NativeVar, LabelStorage, LabelId};
 use crate::trivial::structure::Instruction;
 
 use std::fmt::{self, Debug, Formatter};
@@ -18,7 +18,7 @@ pub struct Program {
     variables: Vec<NativeVar>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
-    label_counter: LabelCounter,
+    labels: LabelStorage
 }
 
 impl Debug for Program {
@@ -35,7 +35,7 @@ impl Debug for Program {
         for variable in self.outputs.iter() {
             writeln!(formatter, "  {:?}", variable)?;
         }
-        writeln!(formatter, "{:?}", self.label_counter)?;
+        writeln!(formatter, "{:?}", self.labels)?;
         writeln!(formatter, "instructions:")?;
         for instruction in self.instructions.iter() {
             writeln!(formatter, "  {:?}", instruction)?;
@@ -65,7 +65,7 @@ impl Program {
             variables: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
-            label_counter: LabelCounter::new(),
+            labels: LabelStorage::new(),
         }
     }
 
@@ -107,7 +107,7 @@ impl Program {
         &self.outputs
     }
 
-    pub fn create_label(&mut self) -> LabelId {
-        self.label_counter.create_label()
+    pub fn create_label(&mut self, single_source: bool) -> LabelId {
+        self.labels.create_label(single_source)
     }
 }

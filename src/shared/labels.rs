@@ -9,22 +9,31 @@ impl Debug for LabelId {
     }
 }
 
-pub struct LabelCounter(usize);
+pub struct Label {
+    single_source: bool,
+}
 
-impl Debug for LabelCounter {
+pub struct LabelStorage(Vec<Label>);
+
+impl Debug for LabelStorage {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{} labels", self.0)
+        write!(formatter, "{} labels", self.0.len())
     }
 }
 
-impl LabelCounter {
-    pub fn new() -> LabelCounter {
-        LabelCounter(0)
+impl LabelStorage {
+    pub fn new() -> LabelStorage {
+        LabelStorage(Vec::new())
     }
 
-    pub fn create_label(&mut self) -> LabelId {
-        let id = LabelId(self.0);
-        self.0 += 1;
+    pub fn create_label(&mut self, single_source: bool) -> LabelId {
+        let id = LabelId(self.0.len());
+        self.0.push(Label { single_source });
         id
+    }
+
+    pub fn is_label_single_source(&mut self, label: LabelId) -> bool {
+        assert!(label.0 < self.0.len());
+        self.0[label.0].single_source
     }
 }

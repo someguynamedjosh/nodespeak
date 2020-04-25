@@ -72,7 +72,7 @@ impl<'a> ScopeSimplifier<'a> {
                     // We don't know if this branch will be executed, so we should commit all
                     // known variables.
                     let assigned_variables = self.collect_assignments_in_body_wrapper(*body);
-                    for assigned_variable in assigned_variables {
+                    for assigned_variable in assigned_variables.clone() {
                         self.commit_temporary_value_before_uncertainty(assigned_variable)?;
                     }
                     let new_scope = self.copy_scope(*body, Some(self.current_scope))?;
@@ -84,6 +84,11 @@ impl<'a> ScopeSimplifier<'a> {
                         {
                             self.target[self.current_scope].add_expression(new);
                         }
+                    }
+                    // Make sure that any values we know in the body of the if clause actually get
+                    // assigned there.
+                    for assigned_variable in assigned_variables {
+                        self.commit_temporary_value_before_uncertainty(assigned_variable)?;
                     }
                     self.current_scope = old_current_scope;
                     new_clauses.push((new_condition, new_scope));

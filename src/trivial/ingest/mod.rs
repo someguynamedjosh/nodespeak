@@ -268,10 +268,10 @@ impl<'a> Trivializer<'a> {
         else_clause: &Option<i::ScopeId>,
     ) -> Result<(), CompileProblem> {
         debug_assert!(clauses.len() > 0);
-        let end_label = self.target.create_label();
+        let end_label = self.target.create_label(false);
         for (condition_expr, body) in clauses.iter() {
             let skip_condition = self.trivialize_for_jump(condition_expr)?.as_negative();
-            let next_clause_label = self.target.create_label();
+            let next_clause_label = self.target.create_label(true);
             self.target
                 .add_instruction(o::Instruction::ConditionalJump {
                     condition: skip_condition,
@@ -302,7 +302,7 @@ impl<'a> Trivializer<'a> {
         end: &i::Expression,
         body: i::ScopeId,
     ) -> Result<(), CompileProblem> {
-        let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
+        let (start_label, end_label) = (self.target.create_label(false), self.target.create_label(false));
         // TODO: Better value for part_of.
         let tcount = o::Value::variable(self.trivialize_variable(counter)?);
         let tstart = self.trivialize_and_require_value(start, start)?;
@@ -416,8 +416,6 @@ impl<'a> Trivializer<'a> {
                 }
                 None
             }
-
-            _ => unimplemented!(),
         })
     }
 }
