@@ -257,15 +257,30 @@ impl<'a> Trivializer<'a> {
     fn trivialize_assignment(
         &mut self,
         expression: &i::Expression,
-        target: &Box<i::Expression>,
-        value: &Box<i::Expression>,
+        target: &i::Expression,
+        value: &i::Expression,
     ) -> Result<(), CompileProblem> {
         let tvalue = self.trivialize_and_require_value(value.borrow(), expression)?;
-        let ttarget = self.trivialize_and_require_value(target.borrow(), expression)?;
-        self.target.add_instruction(o::Instruction::Move {
-            from: tvalue,
-            to: ttarget,
-        });
+        if let i::Expression::Access { base, indexes, .. } = target {
+            let base = if let i::Expression::Variable(id, ..) = base.borrow() {
+                self.trivialize_variable(*id)?
+            } else {
+                panic!("TODO: Check if it is guaranteed that a variable is always the base.");
+            };
+            let (new_indexes, _result_type) =
+                self.trivialize_indexes(indexes, self.target[base].borrow_type().clone())?;
+            self.target.add_instruction(o::Instruction::Store {
+                from: tvalue,
+                to: o::Value::variable(base),
+                to_indexes: new_indexes,
+            });
+        } else {
+            let ttarget = self.trivialize_and_require_value(target.borrow(), expression)?;
+            self.target.add_instruction(o::Instruction::Move {
+                from: tvalue,
+                to: ttarget,
+            });
+        }
         Result::Ok(())
     }
 
@@ -281,13 +296,13 @@ impl<'a> Trivializer<'a> {
             let condition = self.trivialize_and_require_value(condition_expr, condition_expr)?;
             let body_label = self.target.create_label();
             let next_condition_label = self.target.create_label();
+            self.target.add_instruction(o::Instruction::Branch {
+                condition,
+                true_target: Some(body_label),
+                false_target: Some(next_condition_label),
+            });
             self.target
-                .add_instruction(o::Instruction::Branch {
-                    condition,
-                    true_target: Some(body_label),
-                    false_target: Some(next_condition_label),
-                });
-            self.target.add_instruction(o::Instruction::Label(body_label));
+                .add_instruction(o::Instruction::Label(body_label));
             for expr in self.source[*body].borrow_body().clone() {
                 self.trivialize_expression(&expr)?;
             }
@@ -313,10 +328,7 @@ impl<'a> Trivializer<'a> {
         end: &i::Expression,
         body: i::ScopeId,
     ) -> Result<(), CompileProblem> {
-        let (start_label, end_label) = (
-            self.target.create_label(),
-            self.target.create_label(),
-        );
+        let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
         // TODO: Better value for part_of.
         let tcount = o::Value::variable(self.trivialize_variable(counter)?);
         let tstart = self.trivialize_and_require_value(start, start)?;
@@ -336,12 +348,11 @@ impl<'a> Trivializer<'a> {
                 x: condition_var.clone(),
                 op: o::BinaryOperator::CompI(o::Condition::LessThan),
             });
-        self.target
-            .add_instruction(o::Instruction::Branch {
-                condition: condition_var.clone(),
-                true_target: Some(end_label),
-                false_target: Some(start_label),
-            });
+        self.target.add_instruction(o::Instruction::Branch {
+            condition: condition_var.clone(),
+            true_target: Some(end_label),
+            false_target: Some(start_label),
+        });
 
         self.target
             .add_instruction(o::Instruction::Label(start_label));
@@ -363,15 +374,64 @@ impl<'a> Trivializer<'a> {
                 x: condition_var.clone(),
                 op: o::BinaryOperator::CompI(o::Condition::LessThan),
             });
-        self.target
-            .add_instruction(o::Instruction::Branch {
-                condition: condition_var.clone(),
-                true_target: Some(end_label),
-                false_target: Some(start_label),
-            });
+        self.target.add_instruction(o::Instruction::Branch {
+            condition: condition_var.clone(),
+            true_target: Some(end_label),
+            false_target: Some(start_label),
+        });
         self.target
             .add_instruction(o::Instruction::Label(end_label));
         Ok(())
+    }
+
+    fn trivialize_indexes(
+        &mut self,
+        indexes: &Vec<i::Expression>,
+        data_type: o::DataType,
+    ) -> Result<(Vec<o::Value>, o::DataType), CompileProblem> {
+        let mut tindexes = Vec::with_capacity(indexes.len());
+        let mut element_type = data_type;
+        for index in indexes {
+            // TODO: Better value for part_of argument.
+            let index_value = self.trivialize_and_require_value(index, index)?;
+            let indext = index_value.get_type(&self.target);
+            if !indext.is_int() || !indext.is_scalar() {
+                panic!("TODO: Nice error, index is not int scalar.");
+            }
+            tindexes.push(index_value);
+            element_type = element_type.clone_and_unwrap(1);
+        }
+        Ok((tindexes, element_type))
+    }
+
+    fn trivialize_access(
+        &mut self,
+        base: &i::Expression,
+        indexes: &Vec<i::Expression>,
+    ) -> Result<o::Value, CompileProblem> {
+        let base = match base.borrow() {
+            i::Expression::Variable(id, ..) => self.trivialize_variable(*id)?,
+            i::Expression::Proxy { .. } => unimplemented!(),
+            _ => panic!("TODO: nice error, invalid base for access: {:?}", base),
+        };
+        let (new_indexes, result_type) =
+            self.trivialize_indexes(indexes, self.target[base].borrow_type().clone())?;
+
+        let output_holder = self
+            .target
+            .adopt_variable(o::Variable::new(result_type.clone()));
+        let mut output_value = o::Value::variable(output_holder);
+        output_value.dimensions = result_type
+            .borrow_dimensions()
+            .iter()
+            .map(|dim| (*dim, s::ProxyMode::Keep))
+            .collect();
+        self.target.add_instruction(o::Instruction::Load {
+            from: o::Value::variable(base),
+            to: output_value.clone(),
+            from_indexes: new_indexes,
+        });
+        Ok(output_value)
     }
 
     fn trivialize_expression(
@@ -389,25 +449,7 @@ impl<'a> Trivializer<'a> {
                 base, dimensions, ..
             } => Some(self.trivialize_proxy(base, dimensions)?),
             i::Expression::Access { base, indexes, .. } => {
-                // TODO: Check that indexes are integers.
-                let base = match base.borrow() {
-                    i::Expression::Variable(id, ..) => self.trivialize_variable(*id)?,
-                    i::Expression::Proxy { .. } => unimplemented!(),
-                    _ => panic!("TODO: nice error, invalid base for access: {:?}", base),
-                };
-                let mut new_indexes = Vec::new();
-                for index in indexes {
-                    let index_value = self.trivialize_and_require_value(index, expression)?;
-                    if index_value.dimensions.len() == 0 && index_value.indexes.len() == 0 {
-                        // TODO: Check that index is integer.
-                        new_indexes.push(index_value.base);
-                    } else {
-                        unimplemented!("Encountered indexed value inside index expression.");
-                    }
-                }
-                let mut value = o::Value::variable(base);
-                value.indexes = new_indexes;
-                Option::Some(value)
+                Some(self.trivialize_access(base, indexes)?)
             }
             i::Expression::InlineReturn(..) => unreachable!("Should be handled elsewhere."),
 

@@ -50,6 +50,16 @@ pub enum Instruction {
         from: Value,
         to: Value,
     },
+    Load {
+        from: Value,
+        from_indexes: Vec<Value>,
+        to: Value,
+    },
+    Store {
+        from: Value,
+        to: Value,
+        to_indexes: Vec<Value>,
+    },
 
     BinaryOperation {
         op: BinaryOperator,
@@ -73,6 +83,28 @@ impl Debug for Instruction {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Instruction::Move { from, to } => write!(formatter, "move {:?} -> {:?}", from, to),
+            Instruction::Load {
+                from,
+                to,
+                from_indexes,
+            } => {
+                write!(formatter, "load {:?}", from)?;
+                for index in from_indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, " -> {:?}", to)
+            },
+            Instruction::Store {
+                from,
+                to,
+                to_indexes,
+            } => {
+                write!(formatter, "store {:?} -> {:?}", from, to)?;
+                for index in to_indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
+            },
 
             Instruction::BinaryOperation { op, a, b, x } => write!(
                 formatter,

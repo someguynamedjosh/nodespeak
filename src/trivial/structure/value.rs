@@ -31,7 +31,6 @@ impl ValueBase {
 pub struct Value {
     pub base: ValueBase,
     pub dimensions: Vec<(usize, ProxyMode)>,
-    pub indexes: Vec<ValueBase>,
 }
 
 impl Value {
@@ -39,7 +38,6 @@ impl Value {
         Value {
             base,
             dimensions: Vec::new(),
-            indexes: Vec::new(),
         }
     }
 
@@ -73,9 +71,6 @@ impl Debug for Value {
                 }
             }
             write!(formatter, "}}{:?}", self.base)?;
-        }
-        for index in self.indexes.iter() {
-            write!(formatter, "[{:?}]", index)?;
         }
         write!(formatter, "")
     }

@@ -23,7 +23,6 @@ enum DataLocation {
 
 impl<'a> Converter<'a> {
     fn store_value(&mut self, of: &i::Value, vref: LLVMValueRef) {
-        assert!(of.indexes.len() == 0);
         if let i::ValueBase::Variable(id) = &of.base {
             // TODO: Check for existing content.
             self.value_map.insert(*id, DataLocation::ValueRef(vref));
@@ -37,7 +36,6 @@ impl<'a> Converter<'a> {
     }
 
     fn get_llvm_value_ref(&mut self, of: &i::Value) -> LLVMValueRef {
-        assert!(of.indexes.len() == 0);
         if let i::ValueBase::Variable(id) = &of.base {
             match self.value_map.get(id).unwrap() {
                 DataLocation::ValueRef(vref) => vref.clone(),
@@ -87,8 +85,6 @@ impl<'a> Converter<'a> {
     }
 
     fn convert_move(&mut self, from: &i::Value, to: &i::Value) {
-        assert!(from.indexes.len() == 0);
-        assert!(to.indexes.len() == 0);
         let from = self.get_llvm_value_ref(from);
         self.store_value(to, from);
     }
