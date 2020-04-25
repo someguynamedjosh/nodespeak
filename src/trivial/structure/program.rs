@@ -99,6 +99,10 @@ impl Program {
         &mut self.variables[id.0]
     }
 
+    pub fn iterate_all_variables(&self) -> impl Iterator<Item = VariableId> {
+        (0..self.variables.len()).map(|i| VariableId(i))
+    }
+
     pub fn add_input(&mut self, input: VariableId) {
         self.inputs.push(input);
     }
