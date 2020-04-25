@@ -3,10 +3,8 @@ extern crate text_io;
 
 use std::env;
 use std::fs;
-use std::io::{self, Write};
 use std::process;
 use std::time::Instant;
-use text_io::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
