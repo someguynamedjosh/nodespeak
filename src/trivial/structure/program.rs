@@ -15,6 +15,12 @@ impl Debug for VariableId {
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct LabelId(usize);
 
+impl LabelId {
+    pub fn raw(&self) -> usize {
+        self.0
+    }
+}
+
 impl Debug for LabelId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "l{}", self.0)
@@ -122,5 +128,9 @@ impl Program {
     pub fn create_label(&mut self) -> LabelId {
         self.num_labels += 1;
         LabelId(self.num_labels - 1)
+    }
+
+    pub fn get_num_labels(&self) -> usize {
+        self.num_labels
     }
 }

@@ -2,6 +2,7 @@ use super::structure as i;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::transforms as llvmt;
+use llvm_sys::*;
 use std::collections::{HashMap, HashSet};
 
 const UNNAMED: *const libc::c_char = b"\0".as_ptr() as *const libc::c_char;
@@ -16,6 +17,8 @@ struct Converter<'a> {
     value_pointers: HashMap<i::VariableId, LLVMValueRef>,
     input_pointer: LLVMValueRef,
     output_pointer: LLVMValueRef,
+    label_blocks: Vec<LLVMBasicBlockRef>,
+    current_block_terminated: bool,
 }
 
 impl<'a> Converter<'a> {
@@ -68,6 +71,10 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn get_block_for_label(&self, id: &i::LabelId) -> LLVMBasicBlockRef {
+        self.label_blocks[id.raw()]
+    }
+
     fn convert_binary_expression(
         &mut self,
         op: &i::BinaryOperator,
@@ -81,6 +88,19 @@ impl<'a> Converter<'a> {
                 let br = self.load_value(b);
                 unsafe { LLVMBuildAdd(self.builder, ar, br, UNNAMED) }
             }
+            i::BinaryOperator::CompI(condition) => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                let predicate = match condition {
+                    i::Condition::Equal => LLVMIntPredicate::LLVMIntEQ,
+                    i::Condition::NotEqual => LLVMIntPredicate::LLVMIntNE,
+                    i::Condition::GreaterThan => LLVMIntPredicate::LLVMIntSGT,
+                    i::Condition::GreaterThanOrEqual => LLVMIntPredicate::LLVMIntSGE,
+                    i::Condition::LessThan => LLVMIntPredicate::LLVMIntSLT,
+                    i::Condition::LessThanOrEqual => LLVMIntPredicate::LLVMIntSLE,
+                };
+                unsafe { LLVMBuildICmp(self.builder, predicate, ar, br, UNNAMED) }
+            }
             _ => unimplemented!(),
         };
         self.store_value(x, result);
@@ -89,6 +109,40 @@ impl<'a> Converter<'a> {
     fn convert_move(&mut self, from: &i::Value, to: &i::Value) {
         let from = self.load_value(from);
         self.store_value(to, from);
+    }
+
+    fn convert_label(&mut self, id: &i::LabelId) {
+        unsafe {
+            if !self.current_block_terminated {
+                LLVMBuildBr(self.builder, self.get_block_for_label(id));
+            }
+            LLVMPositionBuilderAtEnd(self.builder, self.get_block_for_label(id));
+        }
+        self.current_block_terminated = false;
+    }
+
+    fn convert_branch(
+        &mut self,
+        condition: &i::Value,
+        true_target: &i::LabelId,
+        false_target: &i::LabelId,
+    ) {
+        unsafe {
+            LLVMBuildCondBr(
+                self.builder,
+                self.load_value(condition),
+                self.get_block_for_label(true_target),
+                self.get_block_for_label(false_target),
+            );
+        }
+        self.current_block_terminated = true;
+    }
+
+    fn convert_jump(&mut self, label: &i::LabelId) {
+        unsafe {
+            LLVMBuildBr(self.builder, self.get_block_for_label(label));
+        }
+        self.current_block_terminated = true;
     }
 
     fn create_param_pointers(&mut self) {
@@ -133,6 +187,18 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn create_blocks_for_labels(&mut self) {
+        for label_index in 0..self.source.get_num_labels() {
+            self.label_blocks.push(unsafe {
+                LLVMAppendBasicBlockInContext(
+                    self.context,
+                    self.main_fn,
+                    format!("l{}\0", label_index).as_ptr() as *const _,
+                )
+            });
+        }
+    }
+
     fn optimize(&mut self) {
         unsafe {
             let fpm = LLVMCreateFunctionPassManagerForModule(self.module);
@@ -154,16 +220,22 @@ impl<'a> Converter<'a> {
     fn convert(mut self) {
         self.create_param_pointers();
         self.create_variable_pointers();
+        self.create_blocks_for_labels();
 
         for instruction in self.source.borrow_instructions().clone() {
             match instruction {
                 i::Instruction::BinaryOperation { op, a, b, x } => {
-                    self.convert_binary_expression(op, a, b, x);
+                    self.convert_binary_expression(op, a, b, x)
                 }
-                i::Instruction::Move { from, to } => {
-                    self.convert_move(from, to);
-                }
-                _ => unimplemented!(),
+                i::Instruction::Move { from, to } => self.convert_move(from, to),
+                i::Instruction::Label(id) => self.convert_label(id),
+                i::Instruction::Branch {
+                    condition,
+                    true_target,
+                    false_target,
+                } => self.convert_branch(condition, true_target, false_target),
+                i::Instruction::Jump { label } => self.convert_jump(label),
+                _ => unimplemented!("{:?}", instruction),
             }
         }
 
@@ -243,6 +315,8 @@ pub fn make_llvm(source: &i::Program) {
             value_pointers: HashMap::new(),
             input_pointer,
             output_pointer,
+            label_blocks: Vec::with_capacity(source.get_num_labels()),
+            current_block_terminated: false,
         };
 
         converter.convert()

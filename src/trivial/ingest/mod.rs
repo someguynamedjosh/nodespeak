@@ -298,8 +298,8 @@ impl<'a> Trivializer<'a> {
             let next_condition_label = self.target.create_label();
             self.target.add_instruction(o::Instruction::Branch {
                 condition,
-                true_target: Some(body_label),
-                false_target: Some(next_condition_label),
+                true_target: body_label,
+                false_target: next_condition_label,
             });
             self.target
                 .add_instruction(o::Instruction::Label(body_label));
@@ -350,8 +350,8 @@ impl<'a> Trivializer<'a> {
             });
         self.target.add_instruction(o::Instruction::Branch {
             condition: condition_var.clone(),
-            true_target: Some(end_label),
-            false_target: Some(start_label),
+            true_target: end_label,
+            false_target: start_label,
         });
 
         self.target
@@ -376,8 +376,8 @@ impl<'a> Trivializer<'a> {
             });
         self.target.add_instruction(o::Instruction::Branch {
             condition: condition_var.clone(),
-            true_target: Some(end_label),
-            false_target: Some(start_label),
+            true_target: end_label,
+            false_target: start_label,
         });
         self.target
             .add_instruction(o::Instruction::Label(end_label));

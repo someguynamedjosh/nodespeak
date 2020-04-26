@@ -74,8 +74,8 @@ pub enum Instruction {
     },
     Branch {
         condition: Value,
-        true_target: Option<LabelId>,
-        false_target: Option<LabelId>,
+        true_target: LabelId,
+        false_target: LabelId,
     },
 }
 
