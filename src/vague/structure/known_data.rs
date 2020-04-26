@@ -1,6 +1,6 @@
-use super::{BaseType, DataType};
+use super::DataType;
 use crate::problem::FilePosition;
-use crate::vague::structure::{Expression, ScopeId};
+use crate::vague::structure::ScopeId;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -37,7 +37,6 @@ impl FunctionData {
 #[derive(Clone, PartialEq)]
 pub enum KnownData {
     Void,
-    Unknown,
     Bool(bool),
     Int(i64),
     Float(f64),
@@ -49,7 +48,7 @@ pub enum KnownData {
 impl KnownData {
     pub fn build_array(dims: &[usize]) -> KnownData {
         if dims.len() == 0 {
-            KnownData::Unknown
+            KnownData::Void
         } else {
             KnownData::Array(
                 (0..dims[0])
@@ -60,7 +59,7 @@ impl KnownData {
     }
 
     pub fn new_array(size: usize) -> KnownData {
-        KnownData::Array(vec![KnownData::Unknown; size])
+        KnownData::Array(vec![KnownData::Void; size])
     }
 
     pub fn collect(items: Vec<KnownData>) -> KnownData {
@@ -68,35 +67,19 @@ impl KnownData {
         KnownData::Array(items)
     }
 
-    fn get_base_type(&self) -> BaseType {
+    pub fn get_data_type(&self) -> DataType {
         match self {
-            KnownData::Void => BaseType::Void,
-            KnownData::Bool(..) => BaseType::Bool,
-            KnownData::Int(..) => BaseType::Int,
-            KnownData::Float(..) => BaseType::Float,
-            KnownData::DataType(..) => BaseType::DataType_,
-            KnownData::Function(..) => BaseType::Function_,
-            _ => unreachable!(),
-        }
-    }
-
-    /// Returns Err if the value is KnownData::Unknown.
-    pub fn get_data_type(&self) -> Result<DataType, ()> {
-        match self {
-            KnownData::Unknown => Err(()),
             KnownData::Array(data) => {
-                let first_type = data.iter().find_map(|item| item.get_data_type().ok());
-                if let Some(mut data_type) = first_type {
-                    data_type.wrap_with_dimension(Expression::Literal(
-                        KnownData::Int(data.len() as i64),
-                        FilePosition::placeholder(),
-                    ));
-                    Ok(data_type)
-                } else {
-                    Err(())
-                }
+                assert!(data.len() > 0);
+                let first_type = data[0].get_data_type();
+                DataType::Array(data.len(), Box::new(first_type))
             }
-            _ => Ok(DataType::scalar(self.get_base_type())),
+            KnownData::Void => DataType::Void,
+            KnownData::Bool(..) => DataType::Bool,
+            KnownData::Int(..) => DataType::Int,
+            KnownData::Float(..) => DataType::Float,
+            KnownData::DataType(..) => DataType::DataType_,
+            KnownData::Function(..) => DataType::Function_,
         }
     }
 
@@ -149,71 +132,23 @@ impl KnownData {
         }
     }
 
-    fn matches_base_type(&self, base_type: &BaseType) -> bool {
-        match self {
-            KnownData::Void => {
-                if let BaseType::Void = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Unknown => false,
-            KnownData::Bool(_value) => {
-                if let BaseType::Bool = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Int(_value) => {
-                if let BaseType::Int = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Float(_value) => {
-                if let BaseType::Float = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::DataType(_value) => {
-                if let BaseType::DataType_ = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Function(_value) => {
-                if let BaseType::Function_ = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => panic!("No other base types exist."),
-        }
-    }
-
     pub fn matches_data_type(&self, data_type: &DataType) -> bool {
         match self {
             KnownData::Array(contents) => {
-                if data_type.borrow_dimensions().len() == 0 {
-                    return false;
-                }
-                // TODO? check dimensions
-                // Check that all the elements have the correct type.
-                for item in contents {
-                    if !item.matches_data_type(&data_type.clone_and_unwrap(1)) {
-                        return false;
+                if let DataType::Array(len, etype) = data_type {
+                    if len == &contents.len() {
+                        assert!(contents.len() > 0);
+                        return contents[0].matches_data_type(etype);
                     }
                 }
-                true
+                false
             }
-            _ => self.matches_base_type(data_type.borrow_base()),
+            KnownData::Bool(..) => data_type == &DataType::Bool,
+            KnownData::Int(..) => data_type == &DataType::Int,
+            KnownData::Float(..) => data_type == &DataType::Float,
+            KnownData::Function(..) => data_type == &DataType::Function_,
+            KnownData::DataType(..) => data_type == &DataType::DataType_,
+            KnownData::Void => data_type == &DataType::Void,
         }
     }
 }
@@ -222,7 +157,6 @@ impl Debug for KnownData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             KnownData::Void => write!(formatter, "[void]"),
-            KnownData::Unknown => write!(formatter, "[unknown]"),
             KnownData::Bool(value) => {
                 write!(formatter, "{}", if *value { "true" } else { "false" })
             }

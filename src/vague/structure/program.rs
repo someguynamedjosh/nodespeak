@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{self, Builtins, DataType, FunctionData, KnownData, Scope, Variable};
+use crate::vague::structure::{self, Builtins, FunctionData, KnownData, Scope, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -127,11 +127,6 @@ impl Program {
         id
     }
 
-    pub fn set_data_type(&mut self, variable: VariableId, data_type: DataType) {
-        assert!(variable.0 < self.variables.len());
-        self.variables[variable.0].set_data_type(data_type);
-    }
-
     pub fn get_entry_point(&self) -> ScopeId {
         self.entry_point
     }
@@ -187,7 +182,7 @@ impl Program {
         loop {
             let mut index: usize = 0;
             for variable in self.variables.iter() {
-                if let KnownData::Function(data) = variable.borrow_initial_value() {
+                if let Some(KnownData::Function(data)) = variable.borrow_initial_value() {
                     if data.get_body() == scope {
                         return Option::Some(VariableId(index));
                     }
@@ -210,7 +205,7 @@ impl Program {
         let mut real_scope = scope.0;
         loop {
             for variable in self.variables.iter() {
-                if let KnownData::Function(data) = variable.borrow_initial_value() {
+                if let Some(KnownData::Function(data)) = variable.borrow_initial_value() {
                     if data.get_body() == scope {
                         return Option::Some(data.clone());
                     }

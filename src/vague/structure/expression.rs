@@ -83,116 +83,60 @@ impl Debug for BinaryOperator {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum Expression {
+pub enum VPExpression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
-    Access {
-        base: Box<Expression>,
-        indexes: Vec<Expression>,
-        position: FilePosition,
-    },
-    InlineReturn(FilePosition),
+    Collect(Vec<VPExpression>, FilePosition),
 
-    UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
+    UnaryOperation(UnaryOperator, Box<VPExpression>, FilePosition),
     BinaryOperation(
-        Box<Expression>,
+        Box<VPExpression>,
         BinaryOperator,
-        Box<Expression>,
+        Box<VPExpression>,
         FilePosition,
     ),
-
-    Collect(Vec<Expression>, FilePosition),
-    CreationPoint(VariableId, FilePosition),
-
-    Assert(Box<Expression>, FilePosition),
-    Assign {
-        target: Box<Expression>,
-        value: Box<Expression>,
+    Index {
+        base: Box<VPExpression>,
+        indexes: Vec<VPExpression>,
         position: FilePosition,
     },
-    Return(FilePosition),
-    Branch {
-        clauses: Vec<(Expression, ScopeId)>,
-        else_clause: Option<ScopeId>,
-        position: FilePosition,
-    },
-    ForLoop {
-        counter: VariableId,
-        start: Box<Expression>,
-        end: Box<Expression>,
-        body: ScopeId,
-        position: FilePosition,
-    },
-
     FuncCall {
-        function: Box<Expression>,
-        inputs: Vec<Expression>,
-        outputs: Vec<Expression>,
+        function: Box<VPExpression>,
+        inputs: Vec<VPExpression>,
+        outputs: Vec<FuncCallOutput>,
         position: FilePosition,
     },
 }
 
-impl Debug for Expression {
+impl Debug for VPExpression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
-            Expression::Variable(id, ..) => write!(formatter, "{:?}", id),
-            Expression::Access { base, indexes, .. } => {
+            Self::Literal(value, ..) => write!(formatter, "{:?}", value),
+            Self::Variable(id, ..) => write!(formatter, "{:?}", id),
+
+            Self::UnaryOperation(operator, value, ..) => {
+                write!(formatter, "({:?} {:?})", operator, value)
+            }
+            Self::BinaryOperation(v1, operator, v2, ..) => {
+                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
+            }
+            Self::Index { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
                     write!(formatter, "[{:?}]", index)?;
                 }
                 write!(formatter, "")
             }
-            Expression::InlineReturn(..) => write!(formatter, "inline return"),
 
-            Expression::UnaryOperation(operator, value, ..) => {
-                write!(formatter, "({:?} {:?})", operator, value)
-            }
-            Expression::BinaryOperation(v1, operator, v2, ..) => {
-                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
-            }
-
-            Expression::Collect(values, ..) => {
+            Self::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
                     write!(formatter, "{:?}, ", value)?;
                 }
                 write!(formatter, "]")
             }
-            Expression::CreationPoint(var_id, ..) => write!(formatter, "define {:?}", var_id),
 
-            Expression::Assert(value, ..) => write!(formatter, "assert {:?};", value),
-            Expression::Assign { target, value, .. } => {
-                write!(formatter, "{:?} = {:?};", target, value)
-            }
-            Expression::Return(..) => write!(formatter, "return;"),
-            Expression::Branch {
-                clauses,
-                else_clause,
-                ..
-            } => {
-                assert!(clauses.len() > 0);
-                write!(formatter, "if {:?} {{ {:?} }}", &clauses[0].0, clauses[0].1)?;
-                for (condition, scope) in &clauses[1..] {
-                    write!(formatter, " else if {:?} {{ {:?} }}", condition, scope)?;
-                }
-                if let Some(scope) = else_clause {
-                    write!(formatter, " else {{ {:?} }}", scope)?;
-                }
-                write!(formatter, "")
-            }
-            Expression::ForLoop {
-                counter,
-                start,
-                end,
-                body,
-                ..
-            } => {
-                write!(formatter, "for {:?} = {:?} to {:?} {{ {:?} }}", counter, start, end, body)
-            }
-
-            Expression::FuncCall {
+            Self::FuncCall {
                 function,
                 inputs,
                 outputs,
@@ -212,77 +156,150 @@ impl Debug for Expression {
     }
 }
 
-impl Expression {
+impl VPExpression {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Expression::Literal(_, position)
-            | Expression::Variable(_, position)
-            | Expression::Access { position, .. }
-            | Expression::InlineReturn(position)
-            | Expression::UnaryOperation(_, _, position)
-            | Expression::BinaryOperation(_, _, _, position)
-            | Expression::Collect(_, position)
-            | Expression::CreationPoint(_, position)
-            | Expression::Assert(_, position)
-            | Expression::Assign { position, .. }
-            | Expression::Return(position)
-            | Expression::Branch { position, .. }
-            | Expression::ForLoop { position, .. }
-            | Expression::FuncCall { position, .. } => position.clone(),
+            Self::Literal(_, position)
+            | Self::Variable(_, position)
+            | Self::Index { position, .. }
+            | Self::UnaryOperation(_, _, position)
+            | Self::BinaryOperation(_, _, _, position)
+            | Self::Collect(_, position)
+            | Self::FuncCall { position, .. } => position.clone(),
         }
     }
+}
 
-    /// Different expressions have some rules regarding what can or cannot be put in them. This
-    /// function checks that all those rules are true:
-    /// For a Literal, the data cannot be unknown.
-    /// For an Access, the base must be a Literal, Variable, or Proxy of a Literal or Variable.
-    /// For an Assign, the target must be a Variable or Proxy of a Variable.
-    /// These rules will be performed recursively, so any expression that contains other expressions
-    /// inside it will only be valid if all its child expressions are also valid. Note that this
-    /// cannot check that child expressions will return the proper type to be part of the overall
-    /// expression. For example, if you have an add expression with a Float on one side and an Int
-    /// on the other, it does not violate any of the above rules, so it is 'valid'.
-    pub fn is_valid(&self) -> bool {
+#[derive(Clone, PartialEq)]
+pub enum VCExpression {
+    Variable(VariableId, FilePosition),
+    Index {
+        base: Box<VCExpression>,
+        indexes: Vec<VPExpression>,
+        position: FilePosition,
+    },
+}
+
+impl Debug for VCExpression {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Literal(value, ..) => value != &KnownData::Unknown,
-            Expression::Variable(..) => true,
-            Expression::Access { base, indexes, .. } => {
-                (match &**base {
-                    Expression::Literal(..) | Expression::Variable(..) => base.is_valid(),
-                    _ => false,
-                }) && indexes
-                    .iter()
-                    .fold(true, |valid, index| valid && index.is_valid())
+            Self::Variable(id, ..) => write!(formatter, "var {:?}", id),
+            Self::Index { base, indexes, .. } => {
+                write!(formatter, "({:?})", base)?;
+                for index in indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
             }
-            Expression::InlineReturn(..) => true,
-            Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
-            Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
-            Expression::Collect(values, ..) => values
-                .iter()
-                .fold(true, |valid, value| valid && value.is_valid()),
-            Expression::CreationPoint(..) => true,
-            Expression::Assert(argument, ..) => argument.is_valid(),
-            Expression::Assign { target, value, .. } => {
-                (match &**target {
-                    Expression::Variable(..) | Expression::Access { .. } => target.is_valid(),
-                    _ => false,
-                }) && value.is_valid()
-            }
-            Expression::Return(..) => true,
-            Expression::Branch { .. } => true,
-            Expression::ForLoop { .. } => true,
-            Expression::FuncCall {
-                function,
-                inputs,
-                outputs,
+        }
+    }
+}
+
+impl VCExpression {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::Variable(_, position) | Self::Index { position, .. } => position.clone(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum FuncCallOutput {
+    InlineReturn(FilePosition),
+    VCExpression(Box<VCExpression>),
+}
+
+impl Debug for FuncCallOutput {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::InlineReturn(..) => write!(formatter, "inline"),
+            Self::VCExpression(expr) => write!(formatter, "{:?}", expr),
+        }
+    }
+}
+
+impl FuncCallOutput {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::InlineReturn(pos) => pos.clone(),
+            Self::VCExpression(expr) => expr.clone_position(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum Statement {
+    CreationPoint(VariableId, FilePosition),
+    Assert(Box<VPExpression>, FilePosition),
+    Return(FilePosition),
+    Assign {
+        target: Box<VCExpression>,
+        value: Box<VPExpression>,
+        position: FilePosition,
+    },
+    Branch {
+        clauses: Vec<(VPExpression, ScopeId)>,
+        else_clause: Option<ScopeId>,
+        position: FilePosition,
+    },
+    ForLoop {
+        counter: VariableId,
+        start: Box<VPExpression>,
+        end: Box<VPExpression>,
+        body: ScopeId,
+        position: FilePosition,
+    },
+    RawVPExpression(Box<VPExpression>),
+}
+
+impl Debug for Statement {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::CreationPoint(var_id, ..) => write!(formatter, "define {:?}", var_id),
+
+            Self::Assert(value, ..) => write!(formatter, "assert {:?};", value),
+            Self::Assign { target, value, .. } => write!(formatter, "{:?} = {:?};", target, value),
+            Self::Return(..) => write!(formatter, "return;"),
+            Self::Branch {
+                clauses,
+                else_clause,
                 ..
             } => {
-                function.is_valid()
-                    && inputs
-                        .iter()
-                        .chain(outputs.iter())
-                        .fold(true, |valid, expr| valid && expr.is_valid())
+                assert!(clauses.len() > 0);
+                write!(formatter, "if {:?} {{ {:?} }}", &clauses[0].0, clauses[0].1)?;
+                for (condition, scope) in &clauses[1..] {
+                    write!(formatter, " else if {:?} {{ {:?} }}", condition, scope)?;
+                }
+                if let Some(scope) = else_clause {
+                    write!(formatter, " else {{ {:?} }}", scope)?;
+                }
+                write!(formatter, "")
             }
+            Self::ForLoop {
+                counter,
+                start,
+                end,
+                body,
+                ..
+            } => write!(
+                formatter,
+                "for {:?} = {:?} to {:?} {{ {:?} }}",
+                counter, start, end, body
+            ),
+        }
+    }
+}
+
+impl Statement {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::CreationPoint(_, position)
+            | Self::Assert(_, position)
+            | Self::Return(position)
+            | Self::Assign { position, .. }
+            | Self::Branch { position, .. }
+            | Self::ForLoop { position, .. } => position.clone(),
+            Self::RawVPExpression(expr) => expr.clone_position(),
         }
     }
 }
