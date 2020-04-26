@@ -36,28 +36,28 @@ fn main() {
                 process::exit(101);
             }
         },
-        "parse" => match nodespeak::parse(&source_set) {
+        "ast" => match nodespeak::parse(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "structure" => match nodespeak::structure(&source_set) {
+        "vague" => match nodespeak::structure(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "resolve" => match nodespeak::resolve(&source_set) {
+        "resolved" => match nodespeak::resolve(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "trivialize" => match nodespeak::trivialize(&source_set) {
+        "trivial" => match nodespeak::trivialize(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -83,7 +83,7 @@ fn main() {
             );
             eprintln!("compile: compiles the specified file and outputs the result.");
             eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
-            eprintln!("    phases: parse, structure, resolve, trivialize");
+            eprintln!("    phases: ast, vague, resolved, trivial, llvmir");
             process::exit(64);
         }
     }

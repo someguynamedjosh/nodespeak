@@ -1,7 +1,6 @@
 use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
-use crate::util::NVec;
 use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -26,10 +25,7 @@ impl<'a> ScopeSimplifier<'a> {
         if let i::KnownData::Unknown = starting_value {
             if intermediate_data_type.borrow_dimensions().len() > 0 {
                 let dims = intermediate_data_type.borrow_dimensions();
-                starting_value = i::KnownData::Array(NVec::new(
-                    dims.iter().map(|i| *i as usize).collect(),
-                    i::KnownData::Unknown,
-                ));
+                starting_value = i::KnownData::build_array(dims);
             }
         }
         self.set_temporary_value(old_var_id, starting_value);

@@ -59,19 +59,8 @@ fn parse_literal(source: Pair<Rule>) -> KnownData {
                 .collect();
             if children.len() == 0 {
                 panic!("TODO: Nice error, an array cannot have no children.");
-            } else if let KnownData::Array(..) = children[0] {
-                let array_children: Vec<_> = children
-                    .into_iter()
-                    .map(|child| match child {
-                        KnownData::Array(array_data) => array_data,
-                        _ => panic!(
-                            "TODO: nice error, all children of an array must have the same type."
-                        ),
-                    })
-                    .collect();
-                KnownData::Array(NVec::collect(array_children))
-            } else {
-                KnownData::Array(NVec::from_vec(children))
+            } else  {
+                KnownData::Array(children)
             }
         }
         _ => {
@@ -87,10 +76,7 @@ fn convert_native_to_vague(data: &KnownData) -> VagueKnownData {
         KnownData::Int(value) => VagueKnownData::Int(*value),
         KnownData::Float(value) => VagueKnownData::Float(*value),
         KnownData::Array(values) => {
-            let new_values = NVec::build(
-                values.borrow_dimensions().iter().cloned().collect(),
-                |index| convert_native_to_vague(values.borrow_item(&index)),
-            );
+            let new_values = values.iter().map(convert_native_to_vague).collect();
             VagueKnownData::Array(new_values)
         }
     }

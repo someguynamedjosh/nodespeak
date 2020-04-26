@@ -1,7 +1,6 @@
 use super::{problems, util, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
-use crate::util::NVec;
 use crate::vague::structure as i;
 use std::borrow::Borrow;
 
@@ -88,33 +87,30 @@ impl<'a> ScopeSimplifier<'a> {
                 }
                 // If we know at least one of the indexes right now at compile time...
                 if known_indexes.len() > 0 {
-                    // If the number of indexes we know result in a slice of the original array...
-                    if known_indexes.len() < base_data.borrow_dimensions().len() {
-                        assert!(
-                            base_data.is_slice_inside(&known_indexes),
-                            "TODO: nice error."
-                        );
-                        // Save only that slice of data to be used for our final output.
-                        base_data = base_data.clone_slice(&known_indexes);
-                    } else {
-                        // Otherwise, we know what specific element is going to be accessed at
-                        // compile time.
-                        assert!(
-                            known_indexes.len() == base_data.borrow_dimensions().len(),
-                            "TODO: nice error."
-                        );
-                        // Check that the index is in the array.
-                        assert!(base_data.is_inside(&known_indexes), "TODO: nice error");
-                        // Check that there are no extra dynamic indexes. (They would be indexing
-                        // a scalar type and thus be erroneous.)
-                        assert!(dynamic_indexes.len() == 0, "TODO: nice error");
-                        let element = base_data.borrow_item(&known_indexes).clone();
-                        // Special case return of that specific element.
-                        return Result::Ok(SimplifiedExpression {
-                            content: Content::Interpreted(element),
-                            data_type: final_type,
-                        });
+                    let mut array_ptr = &base_data;
+                    for (meta_index, index) in known_indexes.iter().enumerate() {
+                        if index >= &array_ptr.len() {
+                            panic!("TODO: Nice error.");
+                        }
+                        match &array_ptr[*index] {
+                            i::KnownData::Array(array) => array_ptr = array,
+                            _ => {
+                                if meta_index != known_indexes.len() - 1 {
+                                    panic!("TODO: Nice error, too many indexes.");
+                                }
+                                if dynamic_indexes.len() > 0 {
+                                    panic!("TODO: Nice error, too many indexes.");
+                                }
+                                let element = array_ptr[*index].clone();
+                                // Special case return of that specific element.
+                                return Result::Ok(SimplifiedExpression {
+                                    content: Content::Interpreted(element),
+                                    data_type: final_type,
+                                });
+                            }
+                        }
                     }
+                    base_data = array_ptr.clone();
                 }
 
                 // If there are no extra dynamic indexes, we can just return whatever portion of the
@@ -127,20 +123,16 @@ impl<'a> ScopeSimplifier<'a> {
                 // Otherwise, make an access expression using the leftover dynamic indexes.
                 } else {
                     let mut resolved_items = vec![];
-                    for item in base_data.borrow_all_items() {
+                    for item in &base_data {
                         resolved_items.push(
                             util::resolve_known_data(item)
                                 .expect("TODO: nice error, cannot use data at run time."),
                         );
                     }
-                    let resolved_data = NVec::from_vec_and_dims(
-                        resolved_items,
-                        base_data.borrow_dimensions().into(),
-                    );
                     SimplifiedExpression {
                         content: Content::Modified(o::Expression::Access {
                             base: Box::new(o::Expression::Literal(
-                                o::KnownData::Array(resolved_data),
+                                o::KnownData::Array(resolved_items),
                                 base_position,
                             )),
                             indexes: dynamic_indexes,

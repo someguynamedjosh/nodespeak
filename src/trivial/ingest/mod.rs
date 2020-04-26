@@ -2,7 +2,6 @@ use crate::problem::CompileProblem;
 use crate::resolved::structure as i;
 use crate::shared as s;
 use crate::trivial::structure as o;
-use crate::util;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -87,6 +86,32 @@ impl<'a> Trivializer<'a> {
         })
     }
 
+    fn apply_proxy_to_known_data(
+        proxy: &[(usize, s::ProxyMode)],
+        data: &i::KnownData,
+    ) -> Result<o::KnownData, CompileProblem> {
+        let int_dimensions: Vec<_> = proxy.iter().map(|(length, ..)| *length).collect();
+        Ok(if proxy.len() == 0 {
+            Self::trivialize_known_data(data)?
+        } else if let i::KnownData::Array(vec) = data {
+            let proxy_elements = vec
+                .iter()
+                .map(|element| Self::apply_proxy_to_known_data(&proxy[1..], element))
+                .collect::<Result<Vec<_>, _>>()?;
+            if proxy[0].1 == s::ProxyMode::Collapse && proxy_elements.len() == 1 {
+                o::KnownData::build_array(&[proxy[0].0], proxy_elements[0].clone())
+            } else if proxy[0].1 == s::ProxyMode::Discard {
+                o::KnownData::build_array(&[proxy[0].0], o::KnownData::Array(proxy_elements))
+            } else if proxy[0].1 == s::ProxyMode::Keep {
+                o::KnownData::Array(proxy_elements)
+            } else {
+                panic!("TODO: Nice error, invalid proxy for data.");
+            }
+        } else {
+            o::KnownData::build_array(&int_dimensions[..], Self::trivialize_known_data(data)?)
+        })
+    }
+
     fn trivialize_proxy(
         &mut self,
         base: &i::Expression,
@@ -100,27 +125,7 @@ impl<'a> Trivializer<'a> {
                 base
             }
             i::Expression::Literal(data, ..) => {
-                let int_dimensions = dimensions.iter().map(|(length, ..)| *length).collect();
-                let new_data = match data {
-                    i::KnownData::Array(nvec) => {
-                        o::KnownData::Array(util::NVec::build_ok(int_dimensions, |index| {
-                            let real_index = s::apply_proxy_to_index(&dimensions[..], &index[..]);
-                            let item = nvec.borrow_item(&real_index);
-                            Self::trivialize_known_data(item)
-                        })?)
-                    }
-                    _ => {
-                        if int_dimensions.len() == 0 {
-                            Self::trivialize_known_data(data)?
-                        } else {
-                            o::KnownData::Array(util::NVec::new(
-                                int_dimensions.iter().map(|e| *e as usize).collect(),
-                                Self::trivialize_known_data(data)?,
-                            ))
-                        }
-                    }
-                };
-                o::Value::literal(new_data)
+                o::Value::literal(Self::apply_proxy_to_known_data(&dimensions[..], data)?)
             }
             _ => {
                 // TODO: Figure out what to provide for the part_of argument.

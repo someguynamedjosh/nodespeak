@@ -1,8 +1,7 @@
-use super::{util, BaseType, DataType};
+use super::{BaseType, DataType};
 use crate::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::shared as s;
-use crate::util::NVec;
 use crate::vague::structure as i;
 
 use std::convert::TryInto;
@@ -23,113 +22,56 @@ pub(super) fn compute_binary_operation(
 ) -> i::KnownData {
     if let i::KnownData::Array(array_a) = a {
         if let i::KnownData::Array(array_b) = b {
-            let a_dims = array_a.borrow_dimensions().clone();
-            let b_dims = array_b.borrow_dimensions().clone();
-            let order = a_dims.len().max(b_dims.len());
+            let a_size = array_a.len();
+            let b_size = array_b.len();
 
-            // Combine all the largest dimensions of each array into a single list of dimensions.
-            let mut ab_dims = Vec::new();
-            for index in 0..order {
-                let mut ab_dim = 1;
-                if index < a_dims.len() {
-                    ab_dim = ab_dim.max(a_dims[index]);
-                }
-                if index < b_dims.len() {
-                    ab_dim = ab_dim.max(b_dims[index]);
-                }
-                ab_dims.push(ab_dim);
-            }
+            let (inc_a, inc_b) = if a_size == b_size {
+                (true, true)
+            } else if a_size == 1 {
+                (false, true)
+            } else if b_size == 1 {
+                (true, false)
+            } else {
+                panic!("TODO: nice error, invalid inflation.");
+            };
 
-            // Considering the dimensions of the operators and the dimensions of the output, figure
-            // out how to access everything.
-            let mut a_index_methods = Vec::new();
-            let mut b_index_methods = Vec::new();
-            for index in 0..order {
-                if index < a_dims.len() {
-                    if a_dims[index] == ab_dims[index] {
-                        a_index_methods.push(IndexMethod::Basic);
-                    } else if a_dims[index] == 1 {
-                        a_index_methods.push(IndexMethod::Single);
-                    } else {
-                        panic!("TODO: nice error, invalid inflation.");
-                    }
-                } else {
-                    a_index_methods.push(IndexMethod::Ignore);
-                }
-                if index < b_dims.len() {
-                    if b_dims[index] == ab_dims[index] {
-                        b_index_methods.push(IndexMethod::Basic);
-                    } else if b_dims[index] == 1 {
-                        b_index_methods.push(IndexMethod::Single);
-                    } else {
-                        panic!("TODO: nice error, invalid inflation.");
-                    }
-                } else {
-                    b_index_methods.push(IndexMethod::Ignore);
-                }
-            }
-
-            let mut ab_index: Vec<_> = ab_dims.iter().map(|_| 0).collect();
-            let mut a_index: Vec<_> = a_dims.iter().map(|_| 0).collect();
-            let mut b_index: Vec<_> = b_dims.iter().map(|_| 0).collect();
-            let mut result_items = Vec::new();
-            'main_loop: loop {
-                // Update a_index and b_index.
-                for (dimension, index) in ab_index.iter().enumerate() {
-                    match a_index_methods[dimension] {
-                        IndexMethod::Basic => a_index[dimension] = *index,
-                        IndexMethod::Single => a_index[dimension] = 1,
-                        IndexMethod::Ignore => (),
-                    }
-                    match b_index_methods[dimension] {
-                        IndexMethod::Basic => b_index[dimension] = *index,
-                        IndexMethod::Single => b_index[dimension] = 1,
-                        IndexMethod::Ignore => (),
-                    }
-                }
+            let result_size = a_size.max(b_size);
+            let mut result_items = Vec::with_capacity(result_size);
+            let mut a_index = 0;
+            let mut b_index = 0;
+            for index in 0..result_size {
                 // Do some math, finally.
                 result_items.push(compute_binary_operation(
-                    array_a.borrow_item(&a_index),
+                    &array_a[a_index],
                     operator,
-                    array_b.borrow_item(&b_index),
+                    &array_b[b_index],
                 ));
 
                 // Update the index for the next go-around.
-                let last_dimension = ab_index.len() - 1;
-                ab_index[last_dimension] += 1;
-                // Roll over that addition so that we are actually accessing the next element, not
-                // just the [][][][][next] element.
-                for dimension in (0..ab_index.len()).rev() {
-                    if ab_index[dimension] < ab_dims[dimension] {
-                        continue;
-                    }
-                    if dimension > 0 {
-                        ab_index[dimension] = 0;
-                        ab_index[dimension - 1] += 1;
-                    } else {
-                        // We have moved past the range of the biggest dimension, therefore there
-                        // is no more array to iterate over.
-                        break 'main_loop;
-                    }
+                if inc_a {
+                    a_index += 1;
+                }
+                if inc_b {
+                    b_index += 1;
                 }
             }
-            i::KnownData::Array(NVec::from_vec_and_dims(result_items, ab_dims))
+            i::KnownData::Array(result_items)
         } else {
-            let dimensions = array_a.borrow_dimensions().clone();
-            let mut items = Vec::with_capacity(array_a.borrow_all_items().len());
-            for a_item in array_a.borrow_all_items() {
+            let a_size = array_a.len();
+            let mut items = Vec::with_capacity(a_size);
+            for a_item in array_a {
                 items.push(compute_binary_operation_impl(a_item, operator, b));
             }
-            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions.into()))
+            i::KnownData::Array(items)
         }
     } else {
         if let i::KnownData::Array(array_b) = b {
-            let dimensions = array_b.borrow_dimensions().clone();
-            let mut items = Vec::with_capacity(array_b.borrow_all_items().len());
-            for b_item in array_b.borrow_all_items() {
+            let b_size = array_b.len();
+            let mut items = Vec::with_capacity(b_size);
+            for b_item in array_b {
                 items.push(compute_binary_operation_impl(a, operator, b_item));
             }
-            i::KnownData::Array(NVec::from_vec_and_dims(items, dimensions.into()))
+            i::KnownData::Array(items)
         } else {
             compute_binary_operation_impl(a, operator, b)
         }
@@ -313,14 +255,11 @@ pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, (
         i::KnownData::Int(value) => o::KnownData::Int(*value),
         i::KnownData::Float(value) => o::KnownData::Float(*value),
         i::KnownData::Array(old_data) => {
-            let old_items = old_data.borrow_all_items();
-            let mut new_items = vec![];
-            for old_item in old_items {
-                new_items.push(util::resolve_known_data(old_item)?);
+            let mut items = Vec::with_capacity(old_data.len());
+            for old_item in old_data {
+                items.push(resolve_known_data(old_item)?);
             }
-            let dimensions = old_data.borrow_dimensions().clone();
-            let new_data = NVec::from_vec_and_dims(new_items, dimensions.into());
-            o::KnownData::Array(new_data)
+            o::KnownData::Array(items)
         }
         i::KnownData::DataType(..)
         | i::KnownData::Function(..)

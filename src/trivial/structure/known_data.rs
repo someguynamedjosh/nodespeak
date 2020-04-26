@@ -7,7 +7,7 @@ pub enum KnownData {
     Int(i64),
     Float(f64),
     Bool(bool),
-    Array(NVec<KnownData>),
+    Array(Vec<KnownData>),
 }
 
 impl Debug for KnownData {
@@ -17,27 +17,14 @@ impl Debug for KnownData {
             Self::Float(value) => write!(formatter, "{}f32", value),
             Self::Bool(value) => write!(formatter, "{}b1", if *value { "true" } else { "false" }),
             Self::Array(values) => {
-                let dims = values.borrow_dimensions();
-                assert!(dims.len() > 0);
-                for index in util::nd_index_iter(Vec::from(dims)) {
-                    for component in index.iter().rev() {
-                        if *component == 0 {
-                            write!(formatter, "[")?;
-                        } else {
-                            break;
-                        }
+                write!(formatter, "[")?;
+                if values.len() > 0 {
+                    for value in &values[..values.len() - 1] {
+                        write!(formatter, "{:?}, ", value)?;
                     }
-                    write!(formatter, "{:?}", values.borrow_item(&index[..]))?;
-                    for (dim_index, component) in index.iter().enumerate().rev() {
-                        if *component == dims[dim_index] - 1 {
-                            write!(formatter, "]")?;
-                        } else {
-                            break;
-                        }
-                    }
-                    write!(formatter, ", ")?;
+                    write!(formatter, "{:?}", values[values.len() - 1])?;
                 }
-                write!(formatter, "")
+                write!(formatter, "]")
             }
         }
     }
@@ -71,21 +58,23 @@ impl KnownData {
     //         }
     //     }
     // }
+    pub fn build_array(dimensions: &[usize], element: KnownData) -> KnownData {
+        if dimensions.len() == 0 {
+            element
+        } else {
+            let flat_element = Self::build_array(&dimensions[1..], element);
+            KnownData::Array(vec![flat_element; dimensions[0]])
+        }
+    }
 
     pub fn get_type(&self) -> DataType {
         match self {
             Self::Int(..) => DataType::i32_scalar(),
             Self::Float(..) => DataType::f32_scalar(),
             Self::Bool(..) => DataType::b1_scalar(),
-            Self::Array(nvec) => {
-                let items = nvec.borrow_all_items();
-                assert!(items.len() > 0);
-                let base_type = items[0].get_type();
-                let dimensions = nvec.borrow_dimensions().iter().map(|x| *x).collect();
-                DataType::array(
-                    base_type.get_base(),
-                    dimensions,
-                )
+            Self::Array(data) => {
+                let dtype = data[0].get_type();
+                dtype.wrap_with_dimension(data.len())
             }
         }
     }
@@ -119,7 +108,7 @@ impl KnownData {
                 }
             }
             Self::Array(values) => {
-                for value in values.borrow_all_items().iter() {
+                for value in values {
                     value.add_binary_data(to);
                 }
             }

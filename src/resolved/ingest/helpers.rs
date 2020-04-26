@@ -60,9 +60,11 @@ impl<'a> ScopeSimplifier<'a> {
                 if all_indexes_known {
                     // TODO: Check that value is correct type.
                     // TODO: Handle setting array slices.
-                    self.borrow_temporary_value_mut(base_var_id)
-                        .require_array_mut()
-                        .set_item(&known_indexes, value);
+                    let mut array_ptr = self.borrow_temporary_value_mut(base_var_id).require_array_mut();
+                    for index in &known_indexes[..known_indexes.len() - 1] {
+                        array_ptr = array_ptr[*index].require_array_mut();
+                    }
+                    array_ptr[known_indexes[known_indexes.len() - 1]] = value;
                     Result::Ok(())
                 } else {
                     Result::Err(o::Expression::Access {

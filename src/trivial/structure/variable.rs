@@ -89,6 +89,17 @@ impl DataType {
             dimensions: (&self.dimensions[num_dimensions..]).into(),
         }
     }
+
+    pub fn wrap_with_dimension(&self, dimension: usize) -> Self {
+        Self {
+            base: self.base,
+            dimensions: [dimension]
+                .iter()
+                .chain(self.dimensions.iter())
+                .cloned()
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone)]

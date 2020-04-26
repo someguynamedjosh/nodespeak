@@ -5,7 +5,6 @@ use super::{
 };
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
-use crate::util::NVec;
 use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
@@ -63,6 +62,58 @@ impl<'a> ScopeSimplifier<'a> {
         self.temp_values.insert(var, value);
     }
 
+    fn commit_temporary_to_array(
+        &mut self,
+        indexes: Vec<usize>,
+        var: i::VariableId,
+        array_data: &[i::KnownData],
+    ) -> Result<Vec<i::KnownData>, CompileProblem> {
+        let mut unknown = Vec::with_capacity(array_data.len());
+        for (index, element) in array_data.iter().enumerate() {
+            let mut next_indexes = indexes.clone();
+            next_indexes.push(index);
+            if let i::KnownData::Array(vec) = element {
+                unknown.push(i::KnownData::Array(self.commit_temporary_to_array(
+                    next_indexes,
+                    var,
+                    &vec[..],
+                )?));
+            } else if element != &i::KnownData::Unknown {
+                unknown.push(i::KnownData::Unknown);
+                let resolved = util::resolve_known_data(element)
+                    .expect("TODO: Nice error, data cannot be used at run time.");
+                let target = self
+                    .convert(var)
+                    .expect("TODO: Nice error, cannot convert variable.")
+                    .clone();
+                let indexes = next_indexes
+                    .iter()
+                    .map(|index| {
+                        o::Expression::Literal(
+                            o::KnownData::Int(*index as i64),
+                            FilePosition::placeholder(),
+                        )
+                    })
+                    .collect();
+                self.target[self.current_scope].add_expression(o::Expression::Assign {
+                    target: Box::new(o::Expression::Access {
+                        base: Box::new(target),
+                        indexes,
+                        position: FilePosition::placeholder(),
+                    }),
+                    value: Box::new(o::Expression::Literal(
+                        resolved,
+                        FilePosition::placeholder(),
+                    )),
+                    position: FilePosition::placeholder(),
+                })
+            } else {
+                unknown.push(i::KnownData::Unknown);
+            }
+        }
+        Ok(unknown)
+    }
+
     // This is used e.g. before branches where the fate of a variable with a known value is
     // uncertain. It will add instructions to copy the currently known value to the variable at
     // run time and then forget the currently known value.
@@ -70,26 +121,34 @@ impl<'a> ScopeSimplifier<'a> {
         &mut self,
         var: i::VariableId,
     ) -> Result<(), CompileProblem> {
-        if self.borrow_temporary_value(var) == &i::KnownData::Unknown {
+        let temporary_value = self.borrow_temporary_value(var);
+        if temporary_value == &i::KnownData::Unknown {
             // The data is already unknown, we don't need to commit anything.
             return Ok(());
         }
-        let resolved_data = util::resolve_known_data(self.borrow_temporary_value(var))
-            .expect("TODO: Nice error, data cannot be used at compile time.");
-        let target = self
-            .convert(var)
-            .expect("TODO: Nice error, cannot convert variable.")
-            .clone();
-        self.target[self.current_scope].add_expression(o::Expression::Assign {
-            target: Box::new(target),
-            value: Box::new(o::Expression::Literal(
-                resolved_data,
-                FilePosition::placeholder(),
-            )),
-            position: FilePosition::placeholder(),
-        });
-        self.temp_values.insert(var, i::KnownData::Unknown);
-        Ok(())
+        if let i::KnownData::Array(arr) = temporary_value {
+            let arr = arr.clone();
+            let unknown = self.commit_temporary_to_array(Vec::new(), var, &arr[..])?;
+            self.temp_values.insert(var, i::KnownData::Array(unknown));
+            Ok(())
+        } else {
+            let resolved_data = util::resolve_known_data(self.borrow_temporary_value(var))
+                .expect("TODO: Nice error, data cannot be used at run time.");
+            let target = self
+                .convert(var)
+                .expect("TODO: Nice error, cannot convert variable.")
+                .clone();
+            self.target[self.current_scope].add_expression(o::Expression::Assign {
+                target: Box::new(target),
+                value: Box::new(o::Expression::Literal(
+                    resolved_data,
+                    FilePosition::placeholder(),
+                )),
+                position: FilePosition::placeholder(),
+            });
+            self.temp_values.insert(var, i::KnownData::Unknown);
+            Ok(())
+        }
     }
 
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> &i::KnownData {
@@ -203,36 +262,15 @@ impl<'a> ScopeSimplifier<'a> {
                             ),
                         });
                     }
+                    let final_data = i::KnownData::Array(data);
                     // TODO: Check that data types are compatible with each other.
-                    if let i::KnownData::Array(..) = &data[0] {
-                        // Get all the sub arrays and collect them into a higher-dimension array.
-                        let mut sub_arrays = Vec::with_capacity(data.len());
-                        for datum in data {
-                            sub_arrays.push(match datum {
-                                i::KnownData::Array(sub_array) => sub_array,
-                                _ => panic!("TODO: nice error, data types incompatible."),
-                            })
-                        }
-                        let final_data = i::KnownData::Array(NVec::collect(sub_arrays));
-                        SimplifiedExpression {
-                            data_type: self.input_to_intermediate_type(
-                                final_data
-                                    .get_data_type()
-                                    .expect("Data cannot be unknown, we just built it."),
-                            )?,
-                            content: Content::Interpreted(final_data),
-                        }
-                    } else {
-                        // Each element is a scalar, so just make a new 1d array out of them.
-                        let final_data = i::KnownData::Array(NVec::from_vec(data));
-                        SimplifiedExpression {
-                            data_type: self.input_to_intermediate_type(
-                                final_data
-                                    .get_data_type()
-                                    .expect("Data cannot be unknown, we just built it."),
-                            )?,
-                            content: Content::Interpreted(final_data),
-                        }
+                    SimplifiedExpression {
+                        data_type: self.input_to_intermediate_type(
+                            final_data
+                                .get_data_type()
+                                .expect("Data cannot be unknown, we just built it."),
+                        )?,
+                        content: Content::Interpreted(final_data),
                     }
                 } else {
                     let mut items = Vec::with_capacity(resolved_values.len());
