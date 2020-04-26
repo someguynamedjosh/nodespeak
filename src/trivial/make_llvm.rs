@@ -88,6 +88,51 @@ impl<'a> Converter<'a> {
                 let br = self.load_value(b);
                 unsafe { LLVMBuildAdd(self.builder, ar, br, UNNAMED) }
             }
+            i::BinaryOperator::SubI => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildSub(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::MulI => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildMul(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::DivI => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildSDiv(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::ModI => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildSRem(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::AddF => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildFAdd(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::SubF => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildFSub(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::MulF => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildFMul(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::DivF => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildFDiv(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::ModF => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildFRem(self.builder, ar, br, UNNAMED) }
+            }
             i::BinaryOperator::CompI(condition) => {
                 let ar = self.load_value(a);
                 let br = self.load_value(b);
@@ -101,7 +146,34 @@ impl<'a> Converter<'a> {
                 };
                 unsafe { LLVMBuildICmp(self.builder, predicate, ar, br, UNNAMED) }
             }
-            _ => unimplemented!(),
+            i::BinaryOperator::CompF(condition) => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                let predicate = match condition {
+                    i::Condition::Equal => LLVMRealPredicate::LLVMRealOEQ,
+                    i::Condition::NotEqual => LLVMRealPredicate::LLVMRealONE,
+                    i::Condition::GreaterThan => LLVMRealPredicate::LLVMRealOGT,
+                    i::Condition::GreaterThanOrEqual => LLVMRealPredicate::LLVMRealOGE,
+                    i::Condition::LessThan => LLVMRealPredicate::LLVMRealOLT,
+                    i::Condition::LessThanOrEqual => LLVMRealPredicate::LLVMRealOLE,
+                };
+                unsafe { LLVMBuildFCmp(self.builder, predicate, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::BAnd => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::BOr => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) }
+            }
+            i::BinaryOperator::BXor => {
+                let ar = self.load_value(a);
+                let br = self.load_value(b);
+                unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) }
+            }
         };
         self.store_value(x, result);
     }
