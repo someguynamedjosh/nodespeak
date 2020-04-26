@@ -1,5 +1,4 @@
 use super::{DataType};
-use crate::util::{self, NVec};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]

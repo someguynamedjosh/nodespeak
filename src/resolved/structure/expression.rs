@@ -1,4 +1,4 @@
-use super::{BaseType, DataType, Program};
+use super::{DataType, Program};
 use crate::problem::FilePosition;
 use crate::resolved::structure::{KnownData, ScopeId, VariableId};
 use crate::shared::ProxyMode;

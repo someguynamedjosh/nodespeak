@@ -275,7 +275,6 @@ impl<'a> ScopeSimplifier<'a> {
                 } else {
                     let mut items = Vec::with_capacity(resolved_values.len());
                     // TODO: Error for zero-sized arrays.
-                    let data_type = resolved_values[0].data_type.clone();
                     // Standard treatment, fully interpreted values become literal expressions.
                     for (value, value_position) in
                         resolved_values.into_iter().zip(value_positions.into_iter())

@@ -6,12 +6,6 @@ use crate::vague::structure as i;
 
 use std::convert::TryInto;
 
-enum IndexMethod {
-    Basic,  // Literally use the current index. (value[index])
-    Single, // Always use the index 0. (value[0])
-    Ignore, // Do not index. (value)
-}
-
 /// Expression must be a binary operator expression (add, equals, etc.) and A and B must be valid
 /// inputs for that expression. They cannot have different base types.
 /// TODO: Implement arrays, and arrays of different sizes.
@@ -39,7 +33,7 @@ pub(super) fn compute_binary_operation(
             let mut result_items = Vec::with_capacity(result_size);
             let mut a_index = 0;
             let mut b_index = 0;
-            for index in 0..result_size {
+            for _ in 0..result_size {
                 // Do some math, finally.
                 result_items.push(compute_binary_operation(
                     &array_a[a_index],

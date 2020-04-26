@@ -4,7 +4,6 @@ use pest::iterators::Pair;
 use pest::Parser;
 
 use crate::trivial::structure::KnownData;
-use crate::util::NVec;
 use crate::vague::structure::KnownData as VagueKnownData;
 
 #[derive(Parser)]
