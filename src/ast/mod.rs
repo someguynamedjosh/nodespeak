@@ -29,30 +29,29 @@ pub mod structure {
             Rule::dec_digit => "digit",
             Rule::float => "float literal",
             Rule::int => "int literal",
-            Rule::array_literal => "array literal",
             Rule::literal => "literal value",
             Rule::identifier => "identifier",
 
-            Rule::expr_part_1 => "expression",
-            Rule::expr_part_2 => "expression",
-            Rule::expr_part => "expression",
-            Rule::expr => "expression",
-            Rule::negate => "unary negation",
-            Rule::index_expr => "array access",
+            Rule::vp_var => "variable",
+            Rule::build_array => "array data",
+            Rule::vpe_part_1 | Rule::vpe_part_2 | Rule::vpe_part | Rule::vpe => {
+                "value-producing expression"
+            }
+            Rule::build_array_type => "array type",
+            Rule::vp_index => "index expression",
+            Rule::negate => "negate",
             Rule::operator => "binary operator",
 
-            Rule::func_expr_input_list => "input list for function call",
-            Rule::inline_output => "inline keyword",
-            Rule::inline_var_dec => "inline variable declaration",
-            Rule::func_expr_output => "output for function call",
-            Rule::func_expr_output_list => "output list for function call",
-            Rule::func_expr => "single-output function expression",
+            Rule::var_dec => "variable declaration",
+            Rule::vc_identifier => "variable",
+            Rule::vc_index => "index expression",
+            Rule::vce => "value-consuming expression",
 
-            Rule::named_data_type => "name of a data type",
-            Rule::dynamic_data_type => "dynamic data type expression",
-            Rule::basic_data_type => "data type",
-            Rule::array_data_type => "array data type",
-            Rule::data_type => "data type",
+            Rule::func_call_input_list => "input list for function call",
+            Rule::inline_output => "inline keyword",
+            Rule::func_call_output => "output for function call",
+            Rule::func_call_output_list => "output list for function call",
+            Rule::func_call => "single-output function callession",
 
             Rule::named_function_parameter => "function parameter definition",
             Rule::function_inputs => "input list for function definition",
@@ -61,30 +60,23 @@ pub mod structure {
             Rule::function_signature => "signature for function definition",
             Rule::function_definition => "function definition",
 
-            Rule::else_if_clause => "if statement else if clause",
-            Rule::else_clause => "if statement else clause",
+            Rule::else_if_clause => "else if clause",
+            Rule::else_clause => "else clause",
             Rule::if_statement => "if statement",
             Rule::for_loop_statement => "for loop",
 
-            Rule::empty_variable => "uninitialized variable name",
-            Rule::assigned_variable => "initialized variable declaration",
-            Rule::create_variable => "variable declaration",
-            Rule::create_variable_statement => "variable declaration statement",
             Rule::input_variable_statement => "input declaration statement",
             Rule::output_variable_statement => "output declaration statement",
-
-            Rule::assign_array_access => "LHS assignment indexing",
-            Rule::assign_expr => "LHS assignment expression",
-            Rule::assign_statement => "assignment expression",
+            Rule::assign_statement => "assignment statement",
+            Rule::raw_vpe_statement => "value-producing expression as a statement",
+            Rule::raw_vce_statement => "value-consuming expression as a statement",
+            Rule::return_statement => "return statement",
+            Rule::assert_statement => "assert statement",
+            Rule::statement => "statement",
 
             Rule::code_block => "code block",
             Rule::returnable_code_block => "code block",
-            Rule::return_statement => "return statement",
 
-            Rule::assert_statement => "assert statement",
-
-            Rule::raw_expr_statement => "expression as statement",
-            Rule::statement => "statement",
             Rule::root => "program",
         }
     }

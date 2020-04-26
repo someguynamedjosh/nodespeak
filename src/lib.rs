@@ -24,7 +24,10 @@ impl<'a> SourceSet<'a> {
     #[cfg(feature = "no-vague")]
     pub fn new<'s>() -> SourceSet<'s> {
         SourceSet {
-            sources: vec![],
+            sources: vec![(
+                "placeholder".to_owned(),
+                "placeholder"
+            )],
         }
     }
 

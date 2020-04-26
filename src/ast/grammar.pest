@@ -21,25 +21,22 @@ literal = _{ float | int }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-// Expressions
+// Value Producing Expressions
+vp_var = { identifier }
 
-array_literal = { "[" ~ (expr ~ ("," ~ expr)*)? ~ "]" }
+build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ "]" }
 
-expr_part_1 = { 
-    literal | func_expr | identifier | "(" ~ expr ~ ")" | array_literal 
-}
+vpe_part_1 = { literal | func_call | vp_var | "(" ~ vpe ~ ")" | build_array }
 
-index_expr = {
-    expr_part_1 ~ ("[" ~ expr ~ "]")+
-}
+build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
 
-negate = { "-" ~ (expr_part_1 | index_expr) }
+vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ "]")+ }
 
-expr_part_2 = _{
-    negate | index_expr | expr_part_1
-}
+negate = { "-" ~ (vpe_part_1 | build_array_type | vp_index) }
 
-expr_part = { expr_part_2 }
+vpe_part_2 = _{ negate | build_array_type | vp_index | vpe_part_1 }
+
+vpe_part = { vpe_part_2 }
 
 // Operator precedence is done after parsing, because it is inneficient to build
 // it into the grammar.
@@ -50,35 +47,32 @@ operator = {
     | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
 }
 
-expr = { expr_part ~ (operator ~ expr_part)* }
+vpe = { vpe_part ~ (operator ~ vpe_part)* }
 
-// Function calls (part of expressions, so they are called function expressions.)
+// Value Consuming Expressions
+var_dec = { vpe ~ identifier }
+vc_identifier = { identifier }
+vc_index = { vc_identifier ~ ("[" ~ vpe ~ "]")+ }
+vce = { vc_index | var_dec | vc_identifier }
 
-func_expr_input_list = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
+// Function calls
+
+func_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ")" }
 inline_output = { "inline" }
-inline_var_dec = { data_type ~ identifier }
-func_expr_output = _{ inline_var_dec | assign_expr | inline_output }
-func_expr_output_list = { ":" ~ "(" ~ (func_expr_output~ ("," ~ func_expr_output)*)? ~ ")" }
-func_expr = { identifier ~ func_expr_input_list ~ func_expr_output_list? }
-
-// Data types.
-
-named_data_type = { identifier }
-dynamic_data_type = { "{" ~ expr ~ "}" }
-basic_data_type = { named_data_type | dynamic_data_type }
-array_data_type = { ("[" ~ expr ~ "]")+ ~ basic_data_type }
-data_type = { array_data_type | basic_data_type }
+func_call_output = _{ vce | inline_output }
+func_call_output_list = { ":" ~ "(" ~ (func_call_output~ ("," ~ func_call_output)*)? ~ ")" }
+func_call = { identifier ~ func_call_input_list ~ func_call_output_list? }
 
 // Function definitions (techincally part of statements.)
 
-named_function_parameter = { data_type ~ identifier }
+named_function_parameter = { vpe ~ identifier }
 function_inputs = { "(" ~ (
     named_function_parameter ~ ("," ~ named_function_parameter)*
 )? ~ ")" }
 function_outputs = { ":" ~ "(" ~ (
     named_function_parameter ~ ("," ~ named_function_parameter)*
 )? ~ ")" }
-single_function_output = { ":" ~ data_type }
+single_function_output = { ":" ~ vpe }
 
 function_signature = {
     (function_inputs ~ (function_outputs | single_function_output)?)
@@ -89,48 +83,30 @@ function_definition = {
 }
 
 // If statements.
-else_if_clause = { "else" ~ "if" ~ expr ~ code_block }
+else_if_clause = { "else" ~ "if" ~ vpe ~ code_block }
 else_clause = { "else" ~ code_block }
-if_statement = { "if" ~ expr ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
+if_statement = { "if" ~ vpe ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
 
 // For loop statements.
-for_loop_statement = { "for" ~ identifier ~ "=" ~ expr ~ "to" ~ expr ~ code_block }
+for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ code_block }
 
 // Statements.
-
-empty_variable = { identifier }
-assigned_variable = { identifier ~ "=" ~ expr }
-create_variable = _{ assigned_variable | empty_variable }
-create_variable_statement = { 
-    data_type ~ create_variable ~ ("," ~ create_variable)* ~ ";"
-}
-
-input_variable_statement = {
-    "input" ~ data_type ~ identifier ~ ("," ~ identifier)* ~ ";"
-}
-output_variable_statement = {
-    "output" ~ data_type ~ identifier ~ ("," ~ identifier)* ~ ";"
-}
-
-assign_array_access = { "[" ~ expr ~ "]" }
-assign_expr = { identifier ~ (assign_array_access)* }
-assign_statement = { assign_expr ~ "=" ~ expr ~ ";" }
-
-raw_expr_statement = _{ expr ~ ";" }
-
-code_block = { "{" ~ statement* ~ "}" }
-
-returnable_code_block = { "{" ~ statement* ~ expr? ~ "}" }
-
-return_statement = { "return" ~ (expr ~ ("," ~ expr)*)? ~ ";" }
-
-assert_statement = { "assert" ~ expr ~ ";" }
+input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
+output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
+assign_statement = { vce ~ "=" ~ vpe ~ ";" }
+raw_vpe_statement = _{ vpe ~ ";" }
+raw_vce_statement = _{ vce ~ ";" }
+return_statement = { "return" ~ (vpe ~ ("," ~ vpe)*)? ~ ";" }
+assert_statement = { "assert" ~ vpe ~ ";" }
 
 statement = { 
     function_definition | code_block | return_statement | assert_statement
     | if_statement | for_loop_statement
-    | input_variable_statement | output_variable_statement | create_variable_statement 
-    | assign_statement | raw_expr_statement  
+    | input_variable_statement | output_variable_statement 
+    | assign_statement | raw_vpe_statement | raw_vce_statement
 }
+
+code_block = { "{" ~ statement* ~ "}" }
+returnable_code_block = { "{" ~ statement* ~ vpe? ~ "}" }
 
 root = { SOI ~ statement* ~ EOI }
