@@ -5,6 +5,12 @@ authors = ["Code_Cube <Code_Cube@gitlab.com>"]
 edition = "2018"
 default-run="nodespeak"
 
+[features]
+no-vague=["no-resolved"]
+no-resolved=["no-trivial"]
+no-trivial=["no-llvmir"]
+no-llvmir=[]
+
 [dependencies]
 colored = "1.8"
 libc = "0.2"

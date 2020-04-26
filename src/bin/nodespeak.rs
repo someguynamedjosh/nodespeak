@@ -29,20 +29,14 @@ fn main() {
     println!("\nStarting...");
     let compile_start = Instant::now();
     match args[1].as_ref() {
-        "compile" => match nodespeak::compile(&source_set) {
-            Result::Ok(program) => println!("{:?}", program.program),
-            Result::Err(err) => {
-                eprintln!("{}", err);
-                process::exit(101);
-            }
-        },
         "ast" => match nodespeak::parse(&source_set) {
-            Result::Ok(program) => println!("{:?}", program),
+            Result::Ok(program) => println!("{:#?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
+        #[cfg(not(feature = "no-vague"))]
         "vague" => match nodespeak::structure(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
@@ -50,6 +44,7 @@ fn main() {
                 process::exit(101);
             }
         },
+        #[cfg(not(feature = "no-resolved"))]
         "resolved" => match nodespeak::resolve(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
@@ -57,6 +52,7 @@ fn main() {
                 process::exit(101);
             }
         },
+        #[cfg(not(feature = "no-trivial"))]
         "trivial" => match nodespeak::trivialize(&source_set) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
@@ -64,6 +60,7 @@ fn main() {
                 process::exit(101);
             }
         },
+        #[cfg(not(feature = "no-llvmir"))]
         "llvmir" => match nodespeak::trivialize(&source_set) {
             Result::Ok(program) => {
                 nodespeak::trivial::make_llvm(&program);

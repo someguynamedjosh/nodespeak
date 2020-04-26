@@ -7,10 +7,13 @@ use terminal_size;
 
 pub mod ast;
 pub mod problem;
+#[cfg(not(feature = "no-resolved"))]
 pub mod resolved;
 pub mod shared;
+#[cfg(not(feature = "no-trivial"))]
 pub mod trivial;
 pub mod util;
+#[cfg(not(feature = "no-vague"))]
 pub mod vague;
 
 pub struct SourceSet<'a> {
@@ -18,6 +21,14 @@ pub struct SourceSet<'a> {
 }
 
 impl<'a> SourceSet<'a> {
+    #[cfg(feature = "no-vague")]
+    pub fn new<'s>() -> SourceSet<'s> {
+        SourceSet {
+            sources: vec![],
+        }
+    }
+
+    #[cfg(not(feature = "no-vague"))]
     pub fn new<'s>() -> SourceSet<'s> {
         SourceSet {
             sources: vec![(
@@ -38,16 +49,13 @@ impl<'a> SourceSet<'a> {
     }
 }
 
-pub struct CompileResult {
-    pub program: trivial::structure::Program,
-}
-
 fn parse_impl<'a>(
     sources: &SourceSet<'a>,
 ) -> Result<ast::structure::Program<'a>, problem::CompileProblem> {
     ast::ingest(sources.borrow_sources()[1].1)
 }
 
+#[cfg(not(feature = "no-vague"))]
 fn structure_impl(
     sources: &SourceSet,
 ) -> Result<vague::structure::Program, problem::CompileProblem> {
@@ -55,6 +63,7 @@ fn structure_impl(
     vague::ingest(&mut parsed)
 }
 
+#[cfg(not(feature = "no-resolved"))]
 fn resolve_impl(
     sources: &SourceSet,
 ) -> Result<resolved::structure::Program, problem::CompileProblem> {
@@ -62,18 +71,12 @@ fn resolve_impl(
     resolved::ingest(&mut program)
 }
 
+#[cfg(not(feature = "no-trivial"))]
 fn trivialize_impl(
     sources: &SourceSet,
 ) -> Result<trivial::structure::Program, problem::CompileProblem> {
     let resolved = resolve_impl(sources)?;
     trivial::ingest(&resolved)
-}
-
-fn compile_impl(sources: &SourceSet) -> Result<CompileResult, problem::CompileProblem> {
-    let trivialized = trivialize_impl(sources)?;
-    Result::Ok(CompileResult {
-        program: trivialized,
-    })
 }
 
 fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> String + 'a {
@@ -87,21 +90,19 @@ pub fn parse<'a>(sources: &SourceSet<'a>) -> Result<ast::structure::Program<'a>,
     parse_impl(sources).map_err(error_map(sources))
 }
 
+#[cfg(not(feature = "no-vague"))]
 pub fn structure(sources: &SourceSet) -> Result<vague::structure::Program, String> {
     structure_impl(sources).map_err(error_map(sources))
 }
 
+#[cfg(not(feature = "no-resolved"))]
 pub fn resolve(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
     resolve_impl(sources).map_err(error_map(sources))
 }
 
+#[cfg(not(feature = "no-trivial"))]
 pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
     trivialize_impl(sources).map_err(error_map(sources))
-}
-
-pub fn compile(sources: &SourceSet) -> Result<CompileResult, String> {
-    // TODO: Handle multiple sources.
-    compile_impl(sources).map_err(error_map(sources))
 }
 
 // pub fn interpret(
