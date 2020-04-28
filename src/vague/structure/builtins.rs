@@ -1,5 +1,7 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{DataType, Statement, Program, Variable, VariableId};
+use crate::vague::structure::{
+    DataType, KnownData, Program, Statement, VPExpression, Variable, VariableId,
+};
 
 #[readonly::make]
 #[derive(Debug)]
@@ -26,10 +28,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let automatic_type = program.adopt_and_define_symbol(
         scope,
         "Auto",
-        Variable::data_type(
-            FilePosition::placeholder(),
-            DataType::Automatic,
-        ),
+        Variable::data_type(FilePosition::placeholder(), DataType::Automatic),
     );
     let bool_type = program.adopt_and_define_symbol(
         scope,
@@ -44,10 +43,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     let float_type = program.adopt_and_define_symbol(
         scope,
         "Float",
-        Variable::data_type(
-            FilePosition::placeholder(),
-            DataType::Float,
-        ),
+        Variable::data_type(FilePosition::placeholder(), DataType::Float),
     );
     let void_type = program.adopt_and_define_symbol(
         scope,
@@ -55,26 +51,35 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
         Variable::data_type(FilePosition::placeholder(), DataType::Void),
     );
 
-    program[scope].add_statement(Statement::CreationPoint(
-        automatic_type,
+    let data_type_literal = Box::new(VPExpression::Literal(
+        KnownData::DataType(DataType::DataType_),
         FilePosition::placeholder(),
     ));
-    program[scope].add_statement(Statement::CreationPoint(
-        bool_type,
-        FilePosition::placeholder(),
-    ));
-    program[scope].add_statement(Statement::CreationPoint(
-        int_type,
-        FilePosition::placeholder(),
-    ));
-    program[scope].add_statement(Statement::CreationPoint(
-        float_type,
-        FilePosition::placeholder(),
-    ));
-    program[scope].add_statement(Statement::CreationPoint(
-        void_type,
-        FilePosition::placeholder(),
-    ));
+    program[scope].add_statement(Statement::CreationPoint {
+        var: automatic_type,
+        var_type: data_type_literal.clone(),
+        position: FilePosition::placeholder(),
+    });
+    program[scope].add_statement(Statement::CreationPoint {
+        var: bool_type,
+        var_type: data_type_literal.clone(),
+        position: FilePosition::placeholder(),
+    });
+    program[scope].add_statement(Statement::CreationPoint {
+        var: int_type,
+        var_type: data_type_literal.clone(),
+        position: FilePosition::placeholder(),
+    });
+    program[scope].add_statement(Statement::CreationPoint {
+        var: float_type,
+        var_type: data_type_literal.clone(),
+        position: FilePosition::placeholder(),
+    });
+    program[scope].add_statement(Statement::CreationPoint {
+        var: void_type,
+        var_type: data_type_literal.clone(),
+        position: FilePosition::placeholder(),
+    });
 
     let builtins = Builtins {
         automatic_type,

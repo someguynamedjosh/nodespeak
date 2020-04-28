@@ -44,12 +44,13 @@ impl Debug for Program {
                 format!("{:?}", scope).replace("\n", "\n    ")
             )?;
         }
+        writeln!(formatter, "\n");
         for (index, variable) in self.variables.iter().enumerate() {
-            write!(formatter, "\ndetails for {:?}:\n", VariableId(index))?;
-            write!(
+            writeln!(
                 formatter,
-                "    {}",
-                format!("{:?}", variable).replace("\n", "\n    ")
+                "initial value of {:?}: {:?}",
+                VariableId(index),
+                variable.borrow_initial_value()
             )?;
         }
         write!(formatter, "")

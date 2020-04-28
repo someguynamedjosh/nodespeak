@@ -17,7 +17,7 @@ float = @{
     | (dec_digit+ ~ "e" ~ ("+" | "-")? ~ dec_digit+)
 }
 
-literal = _{ float | int }
+literal = { float | int }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
@@ -32,14 +32,14 @@ build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
 
 vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ "]")+ }
 
-negate = { "-" ~ (vpe_part_1 | build_array_type | vp_index) }
+negate = { "-" ~ (vpe_part_1 | vp_index) }
 
 vpe_part_2 = _{ negate | build_array_type | vp_index | vpe_part_1 }
 
 vpe_part = { vpe_part_2 }
 
-// Operator precedence is done after parsing, because it is inneficient to build
-// it into the grammar.
+// Operator precedence is done after parsing, because Pest uses an algorithm which chokes and
+// slows down drastically if operator precedence is built in to the grammar.
 operator = { 
     "**" | "*" | "//" | "/" | "%" | "+" | "-"
     | "<=" | ">=" | "<" | ">" | "==" | "!="
@@ -94,8 +94,8 @@ for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ code_block 
 input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
 output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
 assign_statement = { vce ~ "=" ~ vpe ~ ";" }
-raw_vpe_statement = _{ vpe ~ ";" }
-raw_vce_statement = _{ vce ~ ";" }
+func_call_statement = _{ func_call ~ ";" }
+var_dec_statement = _{ var_dec ~ ";" }
 return_statement = { "return" ~ (vpe ~ ("," ~ vpe)*)? ~ ";" }
 assert_statement = { "assert" ~ vpe ~ ";" }
 
@@ -103,7 +103,7 @@ statement = {
     function_definition | code_block | return_statement | assert_statement
     | if_statement | for_loop_statement
     | input_variable_statement | output_variable_statement 
-    | assign_statement | raw_vpe_statement | raw_vce_statement
+    | assign_statement | func_call_statement | var_dec_statement
 }
 
 code_block = { "{" ~ statement* ~ "}" }

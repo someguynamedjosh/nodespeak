@@ -87,6 +87,11 @@ pub enum VPExpression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
     Collect(Vec<VPExpression>, FilePosition),
+    BuildArrayType {
+        dimensions: Vec<VPExpression>,
+        base: Box<VPExpression>,
+        position: FilePosition,
+    },
 
     UnaryOperation(UnaryOperator, Box<VPExpression>, FilePosition),
     BinaryOperation(
@@ -113,6 +118,21 @@ impl Debug for VPExpression {
         match self {
             Self::Literal(value, ..) => write!(formatter, "{:?}", value),
             Self::Variable(id, ..) => write!(formatter, "{:?}", id),
+            Self::Collect(values, ..) => {
+                write!(formatter, "[")?;
+                for value in values.iter() {
+                    write!(formatter, "{:?}, ", value)?;
+                }
+                write!(formatter, "]")
+            }
+            Self::BuildArrayType {
+                dimensions, base, ..
+            } => {
+                for dimension in dimensions.iter() {
+                    write!(formatter, "[{:?}]", dimension)?;
+                }
+                write!(formatter, "{:?}", base)
+            }
 
             Self::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -126,14 +146,6 @@ impl Debug for VPExpression {
                     write!(formatter, "[{:?}]", index)?;
                 }
                 write!(formatter, "")
-            }
-
-            Self::Collect(values, ..) => {
-                write!(formatter, "[")?;
-                for value in values.iter() {
-                    write!(formatter, "{:?}, ", value)?;
-                }
-                write!(formatter, "]")
             }
 
             Self::FuncCall {
@@ -161,10 +173,11 @@ impl VPExpression {
         match self {
             Self::Literal(_, position)
             | Self::Variable(_, position)
-            | Self::Index { position, .. }
+            | Self::Collect(_, position)
+            | Self::BuildArrayType { position, .. }
             | Self::UnaryOperation(_, _, position)
             | Self::BinaryOperation(_, _, _, position)
-            | Self::Collect(_, position)
+            | Self::Index { position, .. }
             | Self::FuncCall { position, .. } => position.clone(),
         }
     }
@@ -229,7 +242,11 @@ impl FuncCallOutput {
 
 #[derive(Clone, PartialEq)]
 pub enum Statement {
-    CreationPoint(VariableId, FilePosition),
+    CreationPoint {
+        var: VariableId,
+        var_type: Box<VPExpression>,
+        position: FilePosition,
+    },
     Assert(Box<VPExpression>, FilePosition),
     Return(FilePosition),
     Assign {
@@ -255,11 +272,12 @@ pub enum Statement {
 impl Debug for Statement {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Self::CreationPoint(var_id, ..) => write!(formatter, "define {:?}", var_id),
-
+            Self::CreationPoint { var, var_type, .. } => {
+                write!(formatter, "define {:?} {:?}", var_type, var)
+            }
             Self::Assert(value, ..) => write!(formatter, "assert {:?};", value),
-            Self::Assign { target, value, .. } => write!(formatter, "{:?} = {:?};", target, value),
             Self::Return(..) => write!(formatter, "return;"),
+            Self::Assign { target, value, .. } => write!(formatter, "{:?} = {:?};", target, value),
             Self::Branch {
                 clauses,
                 else_clause,
@@ -286,6 +304,7 @@ impl Debug for Statement {
                 "for {:?} = {:?} to {:?} {{ {:?} }}",
                 counter, start, end, body
             ),
+            Self::RawVPExpression(expr) => write!(formatter, "{:?}", expr),
         }
     }
 }
@@ -293,7 +312,7 @@ impl Debug for Statement {
 impl Statement {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Self::CreationPoint(_, position)
+            Self::CreationPoint { position, .. }
             | Self::Assert(_, position)
             | Self::Return(position)
             | Self::Assign { position, .. }

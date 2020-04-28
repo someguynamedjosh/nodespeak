@@ -84,6 +84,31 @@ pub fn missing_return_values(
     ])
 }
 
+pub fn too_many_inline_returns(
+    func_call_pos: FilePosition,
+    output_list_pos: FilePosition,
+    num_inline_returns: usize,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            func_call_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Too Many Inline Returns\nThis list of function outputs uses the inline ",
+                    "keyword {} times, but it should only be used once."
+                ),
+                num_inline_returns
+            ),
+        ),
+        ProblemDescriptor::new(
+            output_list_pos,
+            Hint,
+            concat!("Encountered while parsing this function call."),
+        ),
+    ])
+}
+
 pub fn missing_inline_return(
     func_call_pos: FilePosition,
     output_list_pos: FilePosition,
