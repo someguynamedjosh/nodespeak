@@ -53,7 +53,6 @@ pub mod structure {
             Rule::func_call_output_list => "output list for function call",
             Rule::func_call => "single-output function callession",
 
-            Rule::named_function_parameter => "function parameter definition",
             Rule::function_inputs => "input list for function definition",
             Rule::function_outputs => "output list for function definition",
             Rule::single_function_output => "single output for function definition",
@@ -75,7 +74,6 @@ pub mod structure {
             Rule::statement => "statement",
 
             Rule::code_block => "code block",
-            Rule::returnable_code_block => "code block",
 
             Rule::root => "program",
         }

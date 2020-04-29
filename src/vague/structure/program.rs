@@ -44,7 +44,7 @@ impl Debug for Program {
                 format!("{:?}", scope).replace("\n", "\n    ")
             )?;
         }
-        writeln!(formatter, "\n");
+        writeln!(formatter, "\n")?;
         for (index, variable) in self.variables.iter().enumerate() {
             writeln!(
                 formatter,

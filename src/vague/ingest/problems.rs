@@ -25,63 +25,25 @@ pub fn return_from_root(pos: FilePosition) -> CompileProblem {
     )])
 }
 
-pub fn extra_return_value(
-    statement_pos: FilePosition,
-    extra_pos: FilePosition,
-    function_header: FilePosition,
-    expected_num_values: usize,
+pub fn missing_output_definition(
+    pos: FilePosition,
+    func_name: &str,
+    output_name: &str,
 ) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            statement_pos,
-            Error,
-            &format!(
-                concat!(
-                    "Too Many Return Values\nThe highlighted return statement specifies too many ",
-                    "values. The function it is a part of only has {} output values.",
-                ),
-                expected_num_values
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        pos,
+        Error,
+        &format!(
+            concat!(
+                "Missing Output Definition\nThe function named {} defines an output named {} but ",
+                "no such variable exists within the body of the function. Define a variable named ",
+                "{} inside the function to fix this error."
             ),
+            func_name,
+            output_name,
+            output_name,
         ),
-        ProblemDescriptor::new(
-            extra_pos,
-            Hint,
-            concat!("This value has no corresponding output."),
-        ),
-        ProblemDescriptor::new(
-            function_header,
-            Hint,
-            concat!("The header of the function is as follows:"),
-        ),
-    ])
-}
-
-pub fn missing_return_values(
-    statement_pos: FilePosition,
-    function_header: FilePosition,
-    expected_num_values: usize,
-    actual_num_values: usize,
-) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            statement_pos,
-            Error,
-            &format!(
-                concat!(
-                    "Not Enough Return Values\nReturn statements must either specify values for ",
-                    "every output or specify no outputs. The highlighted return statement ",
-                    "specifies values for {} outputs, but the function it is a part of has {} ",
-                    "outputs."
-                ),
-                actual_num_values, expected_num_values,
-            ),
-        ),
-        ProblemDescriptor::new(
-            function_header,
-            Hint,
-            concat!("The header of the function is as follows:"),
-        ),
-    ])
+    )])
 }
 
 pub fn too_many_inline_returns(

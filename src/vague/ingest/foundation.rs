@@ -23,6 +23,13 @@ impl VagueIngester {
         }
     }
 
+    pub(super) fn lookup_identifier_without_error(
+        &self,
+        name: &str,
+    ) -> Option<o::VariableId> {
+        self.target.lookup_symbol(self.current_scope, name)
+    }
+
     pub(super) fn add_statement(&mut self, statement: o::Statement) {
         self.target[self.current_scope].add_statement(statement);
     }

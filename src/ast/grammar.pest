@@ -65,21 +65,19 @@ func_call = { identifier ~ func_call_input_list ~ func_call_output_list? }
 
 // Function definitions (techincally part of statements.)
 
-named_function_parameter = { vpe ~ identifier }
 function_inputs = { "(" ~ (
-    named_function_parameter ~ ("," ~ named_function_parameter)*
+    identifier ~ ("," ~ identifier )*
 )? ~ ")" }
 function_outputs = { ":" ~ "(" ~ (
-    named_function_parameter ~ ("," ~ named_function_parameter)*
+    identifier ~ ("," ~ identifier)*
 )? ~ ")" }
-single_function_output = { ":" ~ vpe }
+single_function_output = { ":" ~ identifier }
 
 function_signature = {
     (function_inputs ~ (function_outputs | single_function_output)?)
-    | (function_outputs | single_function_output)?
 }
 function_definition = { 
-    "fn" ~ identifier ~ function_signature ~ returnable_code_block 
+    "fn" ~ identifier ~ function_signature ~ code_block 
 }
 
 // If statements.
@@ -96,7 +94,7 @@ output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* 
 assign_statement = { vce ~ "=" ~ vpe ~ ";" }
 func_call_statement = _{ func_call ~ ";" }
 var_dec_statement = _{ var_dec ~ ";" }
-return_statement = { "return" ~ (vpe ~ ("," ~ vpe)*)? ~ ";" }
+return_statement = { "return" ~ ";" }
 assert_statement = { "assert" ~ vpe ~ ";" }
 
 statement = { 
@@ -107,6 +105,5 @@ statement = {
 }
 
 code_block = { "{" ~ statement* ~ "}" }
-returnable_code_block = { "{" ~ statement* ~ vpe? ~ "}" }
 
 root = { SOI ~ statement* ~ EOI }
