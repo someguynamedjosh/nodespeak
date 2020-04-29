@@ -1,7 +1,5 @@
-use super::{DataType, Program};
 use crate::problem::FilePosition;
 use crate::resolved::structure::{KnownData, ScopeId, VariableId};
-use crate::shared::ProxyMode;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -75,152 +73,190 @@ impl Debug for BinaryOperator {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum Expression {
-    Variable(VariableId, FilePosition),
+pub enum VPExpression {
     Literal(KnownData, FilePosition),
-    InlineReturn(FilePosition),
-    Proxy {
-        base: Box<Expression>,
-        dimensions: Vec<(usize, ProxyMode)>,
-    },
-    Access {
-        base: Box<Expression>,
-        indexes: Vec<Expression>,
+    Variable(VariableId, FilePosition),
+    Collect(Vec<VPExpression>, FilePosition),
+    BuildArrayType {
+        dimensions: Vec<VPExpression>,
+        base: Box<VPExpression>,
         position: FilePosition,
     },
 
-    UnaryOperation(UnaryOperator, Box<Expression>, FilePosition),
+    UnaryOperation(UnaryOperator, Box<VPExpression>, FilePosition),
     BinaryOperation(
-        Box<Expression>,
+        Box<VPExpression>,
         BinaryOperator,
-        Box<Expression>,
+        Box<VPExpression>,
         FilePosition,
     ),
-    Collect(Vec<Expression>, FilePosition),
-
-    Assert(Box<Expression>, FilePosition),
-    Assign {
-        target: Box<Expression>,
-        value: Box<Expression>,
+    Index {
+        base: Box<VPExpression>,
+        indexes: Vec<VPExpression>,
         position: FilePosition,
     },
-    Return(FilePosition),
-    Branch {
-        clauses: Vec<(Expression, ScopeId)>,
-        else_clause: Option<ScopeId>,
-        position: FilePosition,
-    },
-    ForLoop {
-        counter: VariableId,
-        start: Box<Expression>,
-        end: Box<Expression>,
-        body: ScopeId,
-        position: FilePosition,
-    },
-
     FuncCall {
-        function: ScopeId,
+        function: Box<VPExpression>,
         position: FilePosition,
     },
 }
 
-impl Expression {
-    // TODO: Validation function.
-    pub fn get_type(&self, program: &Program) -> DataType {
-        match self {
-            Expression::Variable(id, ..) => program[*id].borrow_data_type().clone(),
-            Expression::Literal(data, ..) => data.get_data_type(),
-            Expression::InlineReturn(..) => unimplemented!(),
-            Expression::Proxy { base, dimensions } => {
-                let base_type = base.get_type(program);
-                let base_dimensions = base_type.borrow_dimensions();
-                let mut new_dimensions = Vec::new();
-                let mut current_base_dimension = 0;
-                for (new_size, proxy_mode) in dimensions {
-                    match proxy_mode {
-                        ProxyMode::Keep => {
-                            debug_assert!(new_size == &base_dimensions[current_base_dimension].0);
-                            new_dimensions.push(base_dimensions[current_base_dimension].clone());
-                            current_base_dimension += 1;
-                        }
-                        ProxyMode::Collapse | ProxyMode::Discard => {
-                            new_dimensions.push((*new_size, *proxy_mode));
-                        }
-                    }
-                }
-                DataType::proxy(base_type.borrow_base().clone(), new_dimensions)
-            }
-            Expression::Access { .. } => unimplemented!(),
-            Expression::UnaryOperation(_, value, ..) => value.get_type(program),
-            Expression::BinaryOperation(a, _, b, ..) => {
-                debug_assert!(a.get_type(program).equivalent(&b.get_type(program)));
-                a.get_type(program)
-            }
-            Expression::Collect(values, ..) => {
-                debug_assert!(values.len() > 0);
-                let mut element_type = values[0].get_type(program);
-                for element in values {
-                    debug_assert!(element.get_type(program).equivalent(&element_type));
-                }
-                element_type.wrap_with_dimension(values.len() as usize);
-                element_type
-            }
-            Expression::Assert(..) => unimplemented!(),
-            Expression::Assign { .. } => unimplemented!(),
-            Expression::Return { .. } => unimplemented!(),
-            Expression::Branch { .. } => unimplemented!(),
-            Expression::ForLoop { .. } => unimplemented!(),
-            Expression::FuncCall { .. } => unimplemented!(),
-        }
-    }
-}
-
-impl Debug for Expression {
+impl Debug for VPExpression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Expression::Variable(var_id, ..) => write!(formatter, "{:?}", var_id),
-            Expression::Literal(value, ..) => write!(formatter, "{:?}", value),
-            Expression::InlineReturn(..) => write!(formatter, "inline return"),
-            Expression::Proxy {
-                base, dimensions, ..
-            } => {
-                write!(formatter, "{{")?;
-                for (index, dimension) in dimensions.iter().enumerate() {
-                    write!(formatter, "{:?}", dimension)?;
-                    if index < dimensions.len() - 1 {
-                        write!(formatter, ", ")?;
-                    }
-                }
-                write!(formatter, "}}{:?}", base)
-            }
-            Expression::Access { base, indexes, .. } => {
-                write!(formatter, "{:?}", base)?;
-                for index in indexes {
-                    write!(formatter, "[{:?}]", index)?;
-                }
-                write!(formatter, "")
-            }
-
-            Expression::UnaryOperation(operator, value, ..) => {
-                write!(formatter, "({:?} {:?})", operator, value)
-            }
-            Expression::BinaryOperation(v1, operator, v2, ..) => {
-                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
-            }
-            Expression::Collect(values, ..) => {
+            Self::Literal(value, ..) => write!(formatter, "{:?}", value),
+            Self::Variable(id, ..) => write!(formatter, "{:?}", id),
+            Self::Collect(values, ..) => {
                 write!(formatter, "[")?;
                 for value in values.iter() {
                     write!(formatter, "{:?}, ", value)?;
                 }
                 write!(formatter, "]")
             }
-
-            Expression::Assert(value, ..) => write!(formatter, "assert {:?};", value),
-            Expression::Assign { target, value, .. } => {
-                write!(formatter, "{:?} = {:?};", target, value)
+            Self::BuildArrayType {
+                dimensions, base, ..
+            } => {
+                for dimension in dimensions.iter() {
+                    write!(formatter, "[{:?}]", dimension)?;
+                }
+                write!(formatter, "{:?}", base)
             }
-            Expression::Return(..) => write!(formatter, "return;"),
-            Expression::Branch {
+
+            Self::UnaryOperation(operator, value, ..) => {
+                write!(formatter, "({:?} {:?})", operator, value)
+            }
+            Self::BinaryOperation(v1, operator, v2, ..) => {
+                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
+            }
+            Self::Index { base, indexes, .. } => {
+                write!(formatter, "{:?}", base)?;
+                for index in indexes.iter() {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
+            }
+
+            Self::FuncCall {
+                function,
+                ..
+            } => {
+                write!(formatter, "call {:?}", function)
+            }
+        }
+    }
+}
+
+impl VPExpression {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::Literal(_, position)
+            | Self::Variable(_, position)
+            | Self::Collect(_, position)
+            | Self::BuildArrayType { position, .. }
+            | Self::UnaryOperation(_, _, position)
+            | Self::BinaryOperation(_, _, _, position)
+            | Self::Index { position, .. }
+            | Self::FuncCall { position, .. } => position.clone(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum VCExpression {
+    Variable(VariableId, FilePosition),
+    Index {
+        base: Box<VCExpression>,
+        indexes: Vec<VPExpression>,
+        position: FilePosition,
+    },
+}
+
+impl Debug for VCExpression {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Variable(id, ..) => write!(formatter, "var {:?}", id),
+            Self::Index { base, indexes, .. } => {
+                write!(formatter, "({:?})", base)?;
+                for index in indexes {
+                    write!(formatter, "[{:?}]", index)?;
+                }
+                write!(formatter, "")
+            }
+        }
+    }
+}
+
+impl VCExpression {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::Variable(_, position) | Self::Index { position, .. } => position.clone(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum FuncCallOutput {
+    InlineReturn(FilePosition),
+    VCExpression(Box<VCExpression>),
+}
+
+impl Debug for FuncCallOutput {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::InlineReturn(..) => write!(formatter, "inline"),
+            Self::VCExpression(expr) => write!(formatter, "{:?}", expr),
+        }
+    }
+}
+
+impl FuncCallOutput {
+    pub fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::InlineReturn(pos) => pos.clone(),
+            Self::VCExpression(expr) => expr.clone_position(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum Statement {
+    CreationPoint {
+        var: VariableId,
+        var_type: Box<VPExpression>,
+        position: FilePosition,
+    },
+    Assert(Box<VPExpression>, FilePosition),
+    Return(FilePosition),
+    Assign {
+        target: Box<VCExpression>,
+        value: Box<VPExpression>,
+        position: FilePosition,
+    },
+    Branch {
+        clauses: Vec<(VPExpression, ScopeId)>,
+        else_clause: Option<ScopeId>,
+        position: FilePosition,
+    },
+    ForLoop {
+        counter: VariableId,
+        start: Box<VPExpression>,
+        end: Box<VPExpression>,
+        body: ScopeId,
+        position: FilePosition,
+    },
+    RawVPExpression(Box<VPExpression>),
+}
+
+impl Debug for Statement {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::CreationPoint { var, var_type, .. } => {
+                write!(formatter, "define {:?} {:?}", var_type, var)
+            }
+            Self::Assert(value, ..) => write!(formatter, "assert {:?};", value),
+            Self::Return(..) => write!(formatter, "return;"),
+            Self::Assign { target, value, .. } => write!(formatter, "{:?} = {:?};", target, value),
+            Self::Branch {
                 clauses,
                 else_clause,
                 ..
@@ -235,7 +271,7 @@ impl Debug for Expression {
                 }
                 write!(formatter, "")
             }
-            Expression::ForLoop {
+            Self::ForLoop {
                 counter,
                 start,
                 end,
@@ -246,67 +282,21 @@ impl Debug for Expression {
                 "for {:?} = {:?} to {:?} {{ {:?} }}",
                 counter, start, end, body
             ),
-
-            Expression::FuncCall { function, .. } => write!(formatter, "call {:?} ", function),
+            Self::RawVPExpression(expr) => write!(formatter, "{:?}", expr),
         }
     }
 }
 
-impl Expression {
+impl Statement {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Expression::Variable(_, position)
-            | Expression::Literal(_, position)
-            | Expression::InlineReturn(position)
-            | Expression::Access { position, .. }
-            | Expression::UnaryOperation(_, _, position)
-            | Expression::BinaryOperation(_, _, _, position)
-            | Expression::Collect(_, position)
-            | Expression::Assert(_, position)
-            | Expression::Assign { position, .. }
-            | Expression::Return(position)
-            | Expression::Branch { position, .. }
-            | Expression::ForLoop { position, .. }
-            | Expression::FuncCall { position, .. } => position.clone(),
-            Expression::Proxy { base, .. } => base.clone_position(),
-        }
-    }
-
-    /// Different expressions have some rules regarding what can or cannot be put in them. This
-    /// function checks that all those rules are true:
-    /// For a Literal, the data cannot be unknown.
-    /// For an Access, the base must be a Literal, Variable, or Proxy of a Literal or Variable.
-    /// For an Assign, the target must be a Variable or Proxy of a Variable.
-    /// These rules will be performed recursively, so any expression that contains other expressions
-    /// inside it will only be valid if all its child expressions are also valid. Note that this
-    /// cannot check that child expressions will return the proper type to be part of the overall
-    /// expression. For example, if you have an add expression with a Float on one side and an Int
-    /// on the other, it does not violate any of the above rules, so it is 'valid'.
-    pub fn is_valid(&self) -> bool {
-        // TODO: Access and Proxy expressions.
-        match self {
-            Expression::Variable(..) => true,
-            Expression::Literal(..) => true,
-            Expression::InlineReturn(..) => true,
-            Expression::Proxy { .. } => true, // TODO: Actual implementation.
-            Expression::Access { .. } => true, // TODO: Actual implementation.
-            Expression::UnaryOperation(_, operand, ..) => operand.is_valid(),
-            Expression::BinaryOperation(op1, _, op2, ..) => op1.is_valid() && op2.is_valid(),
-            Expression::Collect(values, ..) => values
-                .iter()
-                .fold(true, |valid, value| valid && value.is_valid()),
-            Expression::Assert(argument, ..) => argument.is_valid(),
-            Expression::Assign { target, value, .. } => {
-                (match &**target {
-                    Expression::Variable(..) => true,
-                    Expression::Access { .. } => target.is_valid(),
-                    _ => false,
-                }) && value.is_valid()
-            }
-            Expression::Return(..) => true,
-            Expression::Branch { .. } => true,
-            Expression::ForLoop { .. } => true,
-            Expression::FuncCall { .. } => true,
+            Self::CreationPoint { position, .. }
+            | Self::Assert(_, position)
+            | Self::Return(position)
+            | Self::Assign { position, .. }
+            | Self::Branch { position, .. }
+            | Self::ForLoop { position, .. } => position.clone(),
+            Self::RawVPExpression(expr) => expr.clone_position(),
         }
     }
 }

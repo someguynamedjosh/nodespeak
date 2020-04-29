@@ -1,11 +1,11 @@
-use crate::resolved::structure::{Expression, ScopeId, VariableId};
+use crate::resolved::structure::{Statement, ScopeId, VariableId};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
 pub struct Scope {
     symbols: HashMap<String, VariableId>,
     intermediates: Vec<VariableId>,
-    body: Vec<Expression>,
+    body: Vec<Statement>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     parent: Option<ScopeId>,
@@ -31,8 +31,8 @@ impl Debug for Scope {
             write!(formatter, "\noutput {}: {:?}", index + 1, value)?;
         }
         write!(formatter, "\nbody:")?;
-        for expression in self.body.iter() {
-            write!(formatter, "\n    {:?}", expression)?;
+        for statement in self.body.iter() {
+            write!(formatter, "\n    {:?}", statement)?;
         }
         write!(formatter, "")
     }
@@ -65,9 +65,8 @@ impl Scope {
         self.parent.clone()
     }
 
-    pub fn add_expression(&mut self, expression: Expression) {
-        debug_assert!(expression.is_valid(), "{:?}", expression);
-        self.body.push(expression)
+    pub fn add_statement(&mut self, statement: Statement) {
+        self.body.push(statement)
     }
 
     pub fn define_symbol(&mut self, symbol: &str, definition: VariableId) {
@@ -94,7 +93,7 @@ impl Scope {
         self.outputs.push(output);
     }
 
-    pub fn borrow_body(&self) -> &Vec<Expression> {
+    pub fn borrow_body(&self) -> &Vec<Statement> {
         &self.body
     }
 

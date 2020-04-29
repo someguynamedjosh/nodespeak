@@ -1,4 +1,4 @@
-use super::{BaseType, DataType};
+use super::{DataType};
 use crate::problem::FilePosition;
 use crate::resolved::structure::ScopeId;
 
@@ -52,23 +52,14 @@ impl KnownData {
         KnownData::Array(items)
     }
 
-    fn get_base_type(&self) -> BaseType {
-        match self {
-            KnownData::Bool(..) => BaseType::Bool,
-            KnownData::Int(..) => BaseType::Int,
-            KnownData::Float(..) => BaseType::Float,
-            _ => unreachable!(),
-        }
-    }
-
     pub fn get_data_type(&self) -> DataType {
         match self {
             KnownData::Array(data) => {
-                let mut dtype = data[0].get_data_type();
-                dtype.wrap_with_dimension(data.len());
-                dtype
+                DataType::Array(data.len(), Box::new(data[0].get_data_type()))
             }
-            _ => DataType::scalar(self.get_base_type()),
+            KnownData::Bool(..) => DataType::Bool,
+            KnownData::Int(..) => DataType::Int,
+            KnownData::Float(..) => DataType::Float,
         }
     }
 
@@ -107,52 +98,20 @@ impl KnownData {
         }
     }
 
-    fn matches_base_type(&self, base_type: &BaseType) -> bool {
-        match self {
-            KnownData::Bool(_value) => {
-                if let BaseType::Bool = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Int(_value) => {
-                if let BaseType::Int = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            KnownData::Float(_value) => {
-                if let BaseType::Float = base_type {
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => panic!("No other base types exist."),
-        }
-    }
-
     pub fn matches_data_type(&self, data_type: &DataType) -> bool {
         match self {
             KnownData::Array(contents) => {
-                if data_type.borrow_dimensions().len() == 0 {
-                    return false;
-                }
-                if contents.len() != data_type.borrow_dimensions()[0].0 {
-                    return false;
-                }
-                // TODO? check dimensions
-                // Check that all the elements have the correct type.
-                for item in contents {
-                    if !item.matches_data_type(&data_type.clone_and_unwrap(1)) {
-                        return false;
+                assert!(contents.len() > 0);
+                if let DataType::Array(len, etype) = data_type {
+                    if contents.len() == *len {
+                        return contents[0].matches_data_type(etype);
                     }
                 }
-                true
+                false
             }
-            _ => self.matches_base_type(data_type.borrow_base()),
+            KnownData::Bool(..) => data_type == &DataType::Bool,
+            KnownData::Int(..) => data_type == &DataType::Int,
+            KnownData::Float(..) => data_type == &DataType::Float,
         }
     }
 }

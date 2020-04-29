@@ -9,6 +9,16 @@ pub enum ProxyMode {
     Collapse,
 }
 
+impl ProxyMode {
+    pub fn symbol(&self) -> &str {
+        match self {
+            Self::Keep => "",
+            Self::Discard => ">X",
+            Self::Collapse => ">1",
+        }
+    }
+}
+
 pub fn apply_proxy_to_index(proxy: &[(usize, ProxyMode)], index: &[usize]) -> Vec<usize> {
     let mut current_dimension = 0;
     let mut result = Vec::new();

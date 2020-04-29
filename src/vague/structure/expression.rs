@@ -3,16 +3,6 @@ use crate::vague::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum ProxyMode {
-    /// Use the original array's dimensions.
-    Literal,
-    /// Discard the index.
-    Discard,
-    /// No matter what, use index zero.
-    Collapse,
-}
-
-#[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Negate,
     Not,
