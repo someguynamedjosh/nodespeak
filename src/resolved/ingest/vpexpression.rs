@@ -141,6 +141,49 @@ impl<'a> ScopeSimplifier<'a> {
         }
     }
 
+    fn resolve_binary_operation(
+        &mut self,
+        lhs: &i::VPExpression,
+        operator: i::BinaryOperator,
+        rhs: &i::VPExpression,
+        position: &FilePosition,
+    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+        let res_lhs = self.resolve_vp_expression(lhs)?;
+        let res_rhs = self.resolve_vp_expression(rhs)?;
+        let bct = if let Ok(bct) =
+            util::biggest_type(res_lhs.borrow_data_type(), res_rhs.borrow_data_type())
+        {
+            bct
+        } else {
+            return Err(problems::no_bct(
+                position.clone(),
+                lhs.clone_position(),
+                res_lhs.borrow_data_type(),
+                rhs.clone_position(),
+                res_rhs.borrow_data_type(),
+            ));
+        };
+        if let (
+            SimplifiedVPExpression::Interpreted(lhs_data, ..),
+            SimplifiedVPExpression::Interpreted(rhs_data, ..),
+        ) = (&res_lhs, &res_rhs)
+        {
+            let result = util::compute_binary_operation(lhs_data, operator, rhs_data);
+            debug_assert!(self.input_to_intermediate_type(result.get_data_type()) == bct);
+            Ok(SimplifiedVPExpression::Interpreted(result, position.clone(), bct))
+        } else {
+            Ok(SimplifiedVPExpression::Modified(
+                o::VPExpression::BinaryOperation(
+                    Box::new(res_lhs.as_vp_expression()?),
+                    util::resolve_operator(operator),
+                    Box::new(res_rhs.as_vp_expression()?),
+                    position.clone()
+                ),
+                bct
+            ))
+        }
+    }
+
     fn resolve_vp_index(
         &mut self,
         base: &i::VPExpression,
@@ -166,14 +209,14 @@ impl<'a> ScopeSimplifier<'a> {
                 pos.clone(),
                 self.input_to_intermediate_type(value.get_data_type()),
             ),
-            i::VPExpression::Variable(id, position) => {
-                self.resolve_vp_variable(*id, position)?
-            }
+            i::VPExpression::Variable(id, position) => self.resolve_vp_variable(*id, position)?,
             i::VPExpression::Collect(..) => unimplemented!(),
             i::VPExpression::BuildArrayType { .. } => unimplemented!(),
 
             i::VPExpression::UnaryOperation(..) => unimplemented!(),
-            i::VPExpression::BinaryOperation(..) => unimplemented!(),
+            i::VPExpression::BinaryOperation(lhs, operator, rhs, position) => {
+                self.resolve_binary_operation(lhs, *operator, rhs, position)?
+            }
             i::VPExpression::Index {
                 base,
                 indexes,
