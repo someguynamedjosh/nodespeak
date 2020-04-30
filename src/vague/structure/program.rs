@@ -1,5 +1,5 @@
 use crate::problem::FilePosition;
-use crate::vague::structure::{self, Builtins, FunctionData, KnownData, Scope, Variable};
+use crate::vague::structure::{self, Builtins, MacroData, KnownData, Scope, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -169,21 +169,21 @@ impl Program {
         self.adopt_and_define_intermediate(scope, Variable::automatic(position))
     }
 
-    // Tries to find a function variable which uses the specified scope as a
-    // function body. If nothing is found, Option::None is returned. Note that
+    // Tries to find a macro variable which uses the specified scope as a
+    // macro body. If nothing is found, Option::None is returned. Note that
     // while the data in the variable is guaranteed to contain correct
-    // information about e.g. the inputs and outputs of the function, it is not
-    // guaranteed to be the actual original variable that described the function
+    // information about e.g. the inputs and outputs of the macro, it is not
+    // guaranteed to be the actual original variable that described the macro
     // when the program was first parsed.
-    pub fn find_parent_function(&self, scope: ScopeId) -> Option<VariableId> {
+    pub fn find_parent_macro(&self, scope: ScopeId) -> Option<VariableId> {
         // TODO: This is very inefficient.
-        // TODO: This function might be useless and buggy, need to review how it
+        // TODO: This macro might be useless and buggy, need to review how it
         // is used in the rest of the code.
         let mut real_scope = scope.0;
         loop {
             let mut index: usize = 0;
             for variable in self.variables.iter() {
-                if let Some(KnownData::Function(data)) = variable.borrow_initial_value() {
+                if let Some(KnownData::Macro(data)) = variable.borrow_initial_value() {
                     if data.get_body() == scope {
                         return Option::Some(VariableId(index));
                     }
@@ -197,16 +197,16 @@ impl Program {
         }
     }
 
-    // Tries to find a function variable which uses the specified scope as a
-    // function body. If nothing is found, Option::None is returned.
-    pub fn lookup_and_clone_parent_function(&self, scope: ScopeId) -> Option<FunctionData> {
+    // Tries to find a macro variable which uses the specified scope as a
+    // macro body. If nothing is found, Option::None is returned.
+    pub fn lookup_and_clone_parent_macro(&self, scope: ScopeId) -> Option<MacroData> {
         // TODO: This is very inefficient.
-        // TODO: This function might be useless and buggy, need to review how it
+        // TODO: This macro might be useless and buggy, need to review how it
         // is used in the rest of the code.
         let mut real_scope = scope.0;
         loop {
             for variable in self.variables.iter() {
-                if let Some(KnownData::Function(data)) = variable.borrow_initial_value() {
+                if let Some(KnownData::Macro(data)) = variable.borrow_initial_value() {
                     if data.get_body() == scope {
                         return Option::Some(data.clone());
                     }

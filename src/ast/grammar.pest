@@ -26,7 +26,7 @@ vp_var = { identifier }
 
 build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ "]" }
 
-vpe_part_1 = { literal | func_call | vp_var | "(" ~ vpe ~ ")" | build_array }
+vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
 
 build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
 
@@ -55,29 +55,29 @@ vc_identifier = { identifier }
 vc_index = { vc_identifier ~ ("[" ~ vpe ~ "]")+ }
 vce = { vc_index | var_dec | vc_identifier }
 
-// Function calls
+// Macro calls
 
-func_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ")" }
+macro_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ")" }
 inline_output = { "inline" }
-func_call_output = _{ vce | inline_output }
-func_call_output_list = { ":" ~ "(" ~ (func_call_output~ ("," ~ func_call_output)*)? ~ ")" }
-func_call = { identifier ~ func_call_input_list ~ func_call_output_list? }
+macro_call_output = _{ vce | inline_output }
+macro_call_output_list = { ":" ~ "(" ~ (macro_call_output~ ("," ~ macro_call_output)*)? ~ ")" }
+macro_call = { identifier ~ macro_call_input_list ~ macro_call_output_list? }
 
-// Function definitions (techincally part of statements.)
+// Macro definitions (techincally part of statements.)
 
-function_inputs = { "(" ~ (
+macro_inputs = { "(" ~ (
     identifier ~ ("," ~ identifier )*
 )? ~ ")" }
-function_outputs = { ":" ~ "(" ~ (
+macro_outputs = { ":" ~ "(" ~ (
     identifier ~ ("," ~ identifier)*
 )? ~ ")" }
-single_function_output = { ":" ~ identifier }
+single_macro_output = { ":" ~ identifier }
 
-function_signature = {
-    (function_inputs ~ (function_outputs | single_function_output)?)
+macro_signature = {
+    (macro_inputs ~ (macro_outputs | single_macro_output)?)
 }
-function_definition = { 
-    "fn" ~ identifier ~ function_signature ~ code_block 
+macro_definition = { 
+    "macro" ~ identifier ~ macro_signature ~ code_block 
 }
 
 // If statements.
@@ -92,16 +92,16 @@ for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ code_block 
 input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
 output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
 assign_statement = { vce ~ "=" ~ vpe ~ ";" }
-func_call_statement = _{ func_call ~ ";" }
+macro_call_statement = _{ macro_call ~ ";" }
 var_dec_statement = _{ var_dec ~ ";" }
 return_statement = { "return" ~ ";" }
 assert_statement = { "assert" ~ vpe ~ ";" }
 
 statement = { 
-    function_definition | code_block | return_statement | assert_statement
+    macro_definition | code_block | return_statement | assert_statement
     | if_statement | for_loop_statement
     | input_variable_statement | output_variable_statement 
-    | assign_statement | func_call_statement | var_dec_statement
+    | assign_statement | macro_call_statement | var_dec_statement
 }
 
 code_block = { "{" ~ statement* ~ "}" }

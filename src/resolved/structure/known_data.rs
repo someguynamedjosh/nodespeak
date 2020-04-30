@@ -5,20 +5,20 @@ use crate::resolved::structure::ScopeId;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Debug)]
-pub struct FunctionData {
+pub struct MacroData {
     body: ScopeId,
     header: FilePosition,
 }
 
-impl PartialEq for FunctionData {
+impl PartialEq for MacroData {
     fn eq(&self, other: &Self) -> bool {
         self.body == other.body
     }
 }
 
-impl FunctionData {
-    pub fn new(body: ScopeId, header: FilePosition) -> FunctionData {
-        FunctionData { body, header }
+impl MacroData {
+    pub fn new(body: ScopeId, header: FilePosition) -> MacroData {
+        MacroData { body, header }
     }
 
     pub fn set_header(&mut self, new_header: FilePosition) {

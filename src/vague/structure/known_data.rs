@@ -5,20 +5,20 @@ use crate::vague::structure::ScopeId;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Debug)]
-pub struct FunctionData {
+pub struct MacroData {
     body: ScopeId,
     header: FilePosition,
 }
 
-impl PartialEq for FunctionData {
+impl PartialEq for MacroData {
     fn eq(&self, other: &Self) -> bool {
         self.body == other.body
     }
 }
 
-impl FunctionData {
-    pub fn new(body: ScopeId, header: FilePosition) -> FunctionData {
-        FunctionData { body, header }
+impl MacroData {
+    pub fn new(body: ScopeId, header: FilePosition) -> MacroData {
+        MacroData { body, header }
     }
 
     pub fn set_header(&mut self, new_header: FilePosition) {
@@ -41,7 +41,7 @@ pub enum KnownData {
     Int(i64),
     Float(f64),
     DataType(DataType),
-    Function(FunctionData),
+    Macro(MacroData),
     Array(Vec<KnownData>),
 }
 
@@ -78,8 +78,8 @@ impl KnownData {
             KnownData::Bool(..) => DataType::Bool,
             KnownData::Int(..) => DataType::Int,
             KnownData::Float(..) => DataType::Float,
-            KnownData::DataType(..) => DataType::DataType_,
-            KnownData::Function(..) => DataType::Function_,
+            KnownData::DataType(..) => DataType::DataType,
+            KnownData::Macro(..) => DataType::Macro,
         }
     }
 
@@ -111,10 +111,10 @@ impl KnownData {
         }
     }
 
-    pub fn require_function(&self) -> &FunctionData {
+    pub fn require_macro(&self) -> &MacroData {
         match self {
-            KnownData::Function(value) => value,
-            _ => panic!("Expected data to be a function."),
+            KnownData::Macro(value) => value,
+            _ => panic!("Expected data to be a macro."),
         }
     }
 
@@ -146,8 +146,8 @@ impl KnownData {
             KnownData::Bool(..) => data_type == &DataType::Bool,
             KnownData::Int(..) => data_type == &DataType::Int,
             KnownData::Float(..) => data_type == &DataType::Float,
-            KnownData::Function(..) => data_type == &DataType::Function_,
-            KnownData::DataType(..) => data_type == &DataType::DataType_,
+            KnownData::Macro(..) => data_type == &DataType::Macro,
+            KnownData::DataType(..) => data_type == &DataType::DataType,
             KnownData::Void => data_type == &DataType::Void,
         }
     }
@@ -173,9 +173,9 @@ impl Debug for KnownData {
                 write!(formatter, "]")
             }
             KnownData::DataType(value) => write!(formatter, "{:?}", value),
-            // TODO: Implement function formatter.
-            KnownData::Function(value) => {
-                write!(formatter, "function with body at {:?}", value.body)
+            // TODO: Implement macro formatter.
+            KnownData::Macro(value) => {
+                write!(formatter, "macro with body at {:?}", value.body)
             }
         }
     }

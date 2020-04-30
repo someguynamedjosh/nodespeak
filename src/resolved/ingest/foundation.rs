@@ -89,7 +89,7 @@ pub(super) struct ScopeResolver<'a> {
     // conflicts), we still have to worry about a single variable having
     // multiple conversions. For example, type parameters can be resolved to
     // different values depending on the types used for the inputs and outputs
-    // of the function.
+    // of the macro.
     stack: Vec<ResolverTable>,
     temp_values: HashMap<i::VariableId, i::KnownData>,
 }

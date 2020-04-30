@@ -79,12 +79,12 @@ language more uniform. All data types are capitalized.
 
 **TO BE IMPLEMENTED LATER**
 There are several builtin datatypes that are only available at compile time:
-`Function_`, `DataType_`, `Lambda_`. Because they are only available at compile
+`Macro`, `DataType`, `Lambda_`. Because they are only available at compile
 time, they are suffixed with an underscore. Whenever a variable with one of
 these types is referenced in the code, its value must be determinable at compile
 time. This means that the following code is valid:
 ```rust
-DataType_ type;
+DataType type;
 if(true) {
     type = Float;
 } else {
@@ -208,7 +208,7 @@ fn fibbonacci(Int iterations):(Int output) {
 [fibbonacci(12)]Int fibbonacci_array;
 ```
 Note that, unlike other languages, there is no special syntax needed to make
-the function `fibbonacci` work at compile time. That's the power of nodespeak's
+the macro `fibbonacci` work at compile time. That's the power of nodespeak's
 built-in interpreter.
 
 ## Expressions
@@ -303,7 +303,7 @@ fn example([5]Int inputs):(Int sum) {
     }
 }
 ```
-The function calls for a 1-dimensional, 5-element array. If we call it using a 
+The macro calls for a 1-dimensional, 5-element array. If we call it using a 
 simple integer, which can be thought of as a 0-dimensional array, the single 
 value will be 'inflated' to a 5-element array:
 ```rust
@@ -313,7 +313,7 @@ assert(result == 10);
 Internally, nodespeak will modify the code that accesses the elements of the
 array to only access the single scalar value. Although it is not completely 
 accurate to say so, it is convenient to conceptualize this process as turning 
-the code for the `example` function into:
+the code for the `example` macro into:
 ```rust
 fn example(Int inputs):(Int sum) {
     sum = 0;
@@ -340,7 +340,7 @@ Calling it like so:
 expensive(40):(Int result):
 ```
 Would theoretically work fine, as `result` could simply be `20`. However, this
-would involve adding two extra function calls, one to convert `40` to a float,
+would involve adding two extra macro calls, one to convert `40` to a float,
 and another to turn the result back into an integer. The code above will
 produce an error. If you really want behavior like what is mentioned, do this
 instead:
@@ -455,10 +455,10 @@ Consider `[1, 2, 3] + [4, 5]`
 - The common type is `[3]Int + [2]Int`.
 - There is no BCT rule that can be applied to this, so the inflation is invalid.
 
-## Functions
+## Macros
 
-Functions are the weirdest thing about nodespeak. For loops are functions. If
-statements are functions. Regular functions are functions, too. So let's look
+Macros are the weirdest thing about nodespeak. For loops are macros. If
+statements are macros. Regular macros are macros, too. So let's look
 at examples:
 
 ### Declaration
@@ -470,10 +470,10 @@ fn double(Int input):(Int output) {
     output = input * 2;
 }
 ```
-Functions are declared similarly to rust, by prefixing the definition with the
-`fn` keyword. The keyword is followed by the name of the function, then a
-description of the inputs and outputs of the function. After that, a code block
-surrounded in curly brackets contains the actual code for the function. 
+Macros are declared similarly to rust, by prefixing the definition with the
+`fn` keyword. The keyword is followed by the name of the macro, then a
+description of the inputs and outputs of the macro. After that, a code block
+surrounded in curly brackets contains the actual code for the macro. 
 
 ```rust
 fn double(Int input):(Int output) {
@@ -502,7 +502,7 @@ it is usually recommended to provide a name for readability reasons, there are
 some methods that are so self-explanatory that they do not require one. In this
 case, the type of the output can be provided without parenthesis. This will
 internally generate a variable with a syntactically invalid name, so the only
-way to set its value is with the return function. This syntax is most similar to 
+way to set its value is with the return macro. This syntax is most similar to 
 the single-return-only paradigm of many popular languages.
 
 ```rust
@@ -510,7 +510,7 @@ fn test {
     assert(2 + 2 == 4);
 }
 ```
-Sometimes you don't need inputs or outputs for your function. You don't have to
+Sometimes you don't need inputs or outputs for your macro. You don't have to
 define them if you don't need them.
 
 ### Usage
@@ -520,29 +520,29 @@ define them if you don't need them.
 `sin(1.0):(result);` Does the same thing as before, just with different syntax.
 
 `sort(3.0, 1.0):(biggest, smallest);` This will call the method `sort`, giving
-it the inputs `3.0` and `1.0`, putting the outputs of the function call in the
+it the inputs `3.0` and `1.0`, putting the outputs of the macro call in the
 variables `biggest` and `smallest`. This is one of the really useful things
-about functions in nodespeak, there is minimal overhead to add multiple outputs
-to a function.
+about macros in nodespeak, there is minimal overhead to add multiple outputs
+to a macro.
 
 `sin(1.0):(exampleArray[5]);` Anything you can put on the left of an equals
-sign, you can put into the output of a function call.
+sign, you can put into the output of a macro call.
 
 `sin(1.0):(Float sineOutput);` This includes variable declarations. The scope
 of the variable will be the same as if it was declared on a line above the
-function call and then only the variable name was in the output section of the
-function call.
+macro call and then only the variable name was in the output section of the
+macro call.
 
-`if(true) { stuff(); };` `if` is a function. true is provided for the first
+`if(true) { stuff(); };` `if` is a macro. true is provided for the first
 argument. The section of code after it is a **lambda**, which is like a
-miniature function. It can contain any code that a function body can, except 
+miniature macro. It can contain any code that a macro body can, except 
 that if you want to 'return' from a lambda, you use a `break` statement instead 
 of a `return` statement. If you were to use `return`, it would cause whatever
-function the code is in to return instead of just the lambda. For example, if 
+macro the code is in to return instead of just the lambda. For example, if 
 you put `return` in an `if` call inside the definition for `demo`, then it would 
-cause the `demo` function to return. `break` would return from the lambda inside 
-the `if` function. Note that, unlike other languages, there *must* be a 
-semicolon at the end of the `if` call, since it is a function in nodespeak, 
+cause the `demo` macro to return. `break` would return from the lambda inside 
+the `if` macro. Note that, unlike other languages, there *must* be a 
+semicolon at the end of the `if` call, since it is a macro in nodespeak, 
 while in other languages it is a statement. Here's a code block demonstrating
 all the principles mentioned:
 ```rust
@@ -563,56 +563,56 @@ fn demo():Int {
         return 0;
     }
     // Nothing else will be executed because we have already returned from the
-    // overall function.
+    // overall macro.
 }
 ```
 
 `repeat(10) (Int iteration) { print(iteration); };` Lambdas can have inputs and
-outputs. They are specified just like function inputs and outputs.
+outputs. They are specified just like macro inputs and outputs.
 
-`repeat(10) (iter) { print(iter); };` A function author can specify what types
+`repeat(10) (iter) { print(iter); };` A macro author can specify what types
 are required for inputs or outpus of lambdas, so the type can be ommitted for 
 brevity in most cases.
 
 `if(false) { stuff(); } else { things(); };` This is a bigger example of the
-`if` function. In this case, `else` is what's known as an 'adjective'.
-Adjectives are specified by the author of the function, and are used to modify
-either the behavior of the overall function or the behavior of lambdas coming
+`if` macro. In this case, `else` is what's known as an 'adjective'.
+Adjectives are specified by the author of the macro, and are used to modify
+either the behavior of the overall macro or the behavior of lambdas coming
 after the adjective. In this case, the `else` adjective signals to the `if`
-function that the lambda containing the call to `things()` should only be
+macro that the lambda containing the call to `things()` should only be
 executed if all the other conditions are false.
 
 `if(false) { stuff(); } elif(true) { things(); } else { nothing(); };` This is
-a complete example of the `if` function. `elif` is another adjective that
+a complete example of the `if` macro. `elif` is another adjective that
 signals that the code block containing the call to `things()` should only be
 executed if the condition (`true`) is true and all the conditions before it are
 false. The code block with the `else` adjective would, in this case, not run, 
 because the condition for the `elif` adjective is `true`, so not all the
 conditions before it are `false`.
 
-`try { stuff(); };` is also a valid function call. In this case, there are no
+`try { stuff(); };` is also a valid macro call. In this case, there are no
 arguments. This would be equivalent to `try() { stuff(); };`.
 
 Note that although the above suggests you could do something like 
-`really long function call thing with no arguments or code blocks;`, (where 
-`really` is the name of the function, and the remainder of the words are 
+`really long macro call thing with no arguments or code blocks;`, (where 
+`really` is the name of the macro, and the remainder of the words are 
 adjectives) this would cause ambiguity in the grammar, making the compiler 
-impossible to write. Instead, a restriction is enforced that every function call
+impossible to write. Instead, a restriction is enforced that every macro call
 must either specify inputs, outputs, or a code block with no adjectives before 
 it. This covers 99.9% of use cases. These are all examples of legal calls: 
-`func {} adj1 adj2;`, `func() adj1 adj2;`, `func:() adj1 adj2;`. These are not 
-legal: `func adj1;`, `func adj1(in1, in2) { };`, `func;`. This illustrates the
-ambiguity problem, because `func adj1;` actually creates a variable named `adj1`
-of type `func`, and `func;` is a valid statement which has no effect (and will
+`macro {} adj1 adj2;`, `macro() adj1 adj2;`, `macro:() adj1 adj2;`. These are not 
+legal: `macro adj1;`, `macro adj1(in1, in2) { };`, `macro;`. This illustrates the
+ambiguity problem, because `macro adj1;` actually creates a variable named `adj1`
+of type `macro`, and `macro;` is a valid statement which has no effect (and will
 produce a compiler warning.) This is because all expressions followed by
 semicolons are valid statements, due to the fact that many have side effects. 
-(Remember, `if` is technically just a function call, making it an expression.)
+(Remember, `if` is technically just a macro call, making it an expression.)
 
 ## Templates
 
 ### Introduction
 Nodespeak has a powerful template syntax that allows for a large amount of 
-flexibility when writing functions. First, let's consider a function that adds
+flexibility when writing macros. First, let's consider a macro that adds
 two values of arbitrary types:
 ```rust
 fn add(T? value_one, T? value_two):T {
@@ -620,7 +620,7 @@ fn add(T? value_one, T? value_two):T {
 }
 ```
 The question mark after the letter T indicates that it is a template parameter.
-Let's look at what happens when this function is called:
+Let's look at what happens when this macro is called:
 ```rust
 Int result = add(12, 3);
 ```
@@ -633,8 +633,8 @@ resolves to `Int`. The output type must then be `Int`.
 ### Using Template Types In The Body
 Using a question mark internally declares a new type, which you can use like any
 other type name. (This is why `T` can be used without a question mark as the
-output of our example function.) For example, consider this overly verbose
-addition function:
+output of our example macro.) For example, consider this overly verbose
+addition macro:
 ```rust
 fn overly_verbose_addition(T? input1, T? input2):T {
     T result = input1 + input2;
@@ -654,12 +654,12 @@ fn overly_complicated_addition(T? input1, T? input2):T {
 }
 ```
 Also, since `T` is a type name, you can declare an array of `T`. Now consider
-we call our overly-complicated addition function like this:
+we call our overly-complicated addition macro like this:
 ```rust
 [256]Int buffer1, buffer2, output;
 overly_complicated_addition(buffer1, buffer2):(output);
 ```
-In this case, `T` resolves to `[256]Int`, making our function body equivalent
+In this case, `T` resolves to `[256]Int`, making our macro body equivalent
 to this:
 ```rust
 fn overly_complicated_addition([256]Int input1, [256]Int input2):[256]Int {
@@ -670,7 +670,7 @@ fn overly_complicated_addition([256]Int input1, [256]Int input2):[256]Int {
     return buffer[2];
 }
 ```
-As you can see, the function makes sense just by dropping `[256]Int` in place of
+As you can see, the macro makes sense just by dropping `[256]Int` in place of
 `T`, demonstrating the advantages of the backwards array declaration syntax.
 
 ### Array Templates
@@ -681,7 +681,7 @@ we can use to specify arrays as inputs:
 ```rust
 fn accepts_triplet([3]T? input) { ... }
 ```
-This accepts a 3-element array of an unknown type. This function could be called
+This accepts a 3-element array of an unknown type. This macro could be called
 like so:
 ```rust
 accepts_triplet([1, 2, 3]); # T == Int
@@ -753,7 +753,7 @@ find_element(array, element); # SIZE == 5, T == [4]Int
 ### Where To Use The Question Mark
 The question mark is only used for parts of a template expression that should be
 used to determine the value of a particular template parameter. Outputs of a 
-function cannot have question marks, and most inputs usually use question marks.
+macro cannot have question marks, and most inputs usually use question marks.
 Question marks in templates for inputs are only invalid when the template
 parameter is being used as an input for an expression. For example:
 ```rust
@@ -763,8 +763,8 @@ This is because the question mark indicates that the compiler should try and
 determine the value of that parameter based on the actual data type that is
 inputted. The above syntax says that the compiler must find a value for `SIZE`
 such that `factorial(SIZE)` equals the size of the array that was given to the
-function. This requires the compiler to perform the reverse of the `factorial`
-function. Since this problem is not solvable in the general case in a reasonable
+macro. This requires the compiler to perform the reverse of the `factorial`
+macro. Since this problem is not solvable in the general case in a reasonable
 amount of time, it has been chosen to not implement any kind of solver into the
 compiler for these situations. Instead, the question mark should only be used in
 cases where the compiler can trivially determine its value:

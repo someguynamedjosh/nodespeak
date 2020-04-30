@@ -14,11 +14,11 @@ pub struct Builtins {
 }
 
 pub const FAKE_BUILTIN_SOURCE: &str = r#"
-DataType_ Auto;
-DataType_ Bool;
-DataType_ Int;
-DataType_ Float;
-DataType_ Void;
+DataType Auto;
+DataType Bool;
+DataType Int;
+DataType Float;
+DataType Void;
 "#;
 
 // Adds built-in methods to the root scope.
@@ -52,7 +52,7 @@ pub fn add_builtins(program: &mut Program) -> Builtins {
     );
 
     let data_type_literal = Box::new(VPExpression::Literal(
-        KnownData::DataType(DataType::DataType_),
+        KnownData::DataType(DataType::DataType),
         FilePosition::placeholder(),
     ));
     program[scope].add_statement(Statement::CreationPoint {

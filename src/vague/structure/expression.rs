@@ -95,8 +95,8 @@ pub enum VPExpression {
         indexes: Vec<VPExpression>,
         position: FilePosition,
     },
-    FuncCall {
-        function: Box<VPExpression>,
+    MacroCall {
+        mcro: Box<VPExpression>,
         inputs: Vec<VPExpression>,
         outputs: Vec<FuncCallOutput>,
         position: FilePosition,
@@ -138,13 +138,13 @@ impl Debug for VPExpression {
                 write!(formatter, "")
             }
 
-            Self::FuncCall {
-                function,
+            Self::MacroCall {
+                mcro,
                 inputs,
                 outputs,
                 ..
             } => {
-                write!(formatter, "call {:?}(", function)?;
+                write!(formatter, "call {:?}(", mcro)?;
                 for expr in inputs {
                     write!(formatter, "{:?},", expr)?;
                 }
@@ -168,7 +168,7 @@ impl VPExpression {
             | Self::UnaryOperation(_, _, position)
             | Self::BinaryOperation(_, _, _, position)
             | Self::Index { position, .. }
-            | Self::FuncCall { position, .. } => position.clone(),
+            | Self::MacroCall { position, .. } => position.clone(),
         }
     }
 }

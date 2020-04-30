@@ -127,7 +127,7 @@ impl<'a> ScopeResolver<'a> {
                 i::KnownData::Int(value) => i::KnownData::Bool(*value == b.require_int()),
                 i::KnownData::Float(value) => i::KnownData::Bool(*value == b.require_float()),
                 i::KnownData::DataType(value) => i::KnownData::Bool(value == b.require_data_type()),
-                i::KnownData::Function(value) => i::KnownData::Bool(value == b.require_function()),
+                i::KnownData::Macro(value) => i::KnownData::Bool(value == b.require_macro()),
                 i::KnownData::Array(value) => i::KnownData::Bool(value == b.require_array()),
                 _ => unreachable!(),
             },
@@ -136,7 +136,7 @@ impl<'a> ScopeResolver<'a> {
                 i::KnownData::Int(value) => i::KnownData::Bool(*value != b.require_int()),
                 i::KnownData::Float(value) => i::KnownData::Bool(*value != b.require_float()),
                 i::KnownData::DataType(value) => i::KnownData::Bool(value != b.require_data_type()),
-                i::KnownData::Function(value) => i::KnownData::Bool(value != b.require_function()),
+                i::KnownData::Macro(value) => i::KnownData::Bool(value != b.require_macro()),
                 i::KnownData::Array(value) => i::KnownData::Bool(value != b.require_array()),
                 _ => unreachable!(),
             },
@@ -217,7 +217,7 @@ impl<'a> ScopeResolver<'a> {
                 }
                 o::KnownData::Array(items)
             }
-            i::KnownData::DataType(..) | i::KnownData::Function(..) | i::KnownData::Void => {
+            i::KnownData::DataType(..) | i::KnownData::Macro(..) | i::KnownData::Void => {
                 return Result::Err(())
             }
         })

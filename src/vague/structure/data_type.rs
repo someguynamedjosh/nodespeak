@@ -11,8 +11,8 @@ pub enum DataType {
     Int,
     Float,
     Void,
-    DataType_,
-    Function_,
+    DataType,
+    Macro,
     Array(usize, Box<DataType>),
 }
 
@@ -33,8 +33,8 @@ impl DataType {
             | Self::Int
             | Self::Float
             | Self::Void
-            | Self::DataType_
-            | Self::Function_ => self == other,
+            | Self::DataType
+            | Self::Macro => self == other,
             // TODO?: better equivalency for this.
             Self::Dynamic(..) | Self::LoadTemplateParameter(..) => match other {
                 Self::Dynamic(..) | Self::LoadTemplateParameter(..) => true,
@@ -61,8 +61,8 @@ impl Debug for DataType {
             Self::Int => write!(formatter, "Int"),
             Self::Float => write!(formatter, "Float"),
             Self::Void => write!(formatter, "Void"),
-            Self::DataType_ => write!(formatter, "DataType_"),
-            Self::Function_ => write!(formatter, "Function_"),
+            Self::DataType => write!(formatter, "DataType"),
+            Self::Macro => write!(formatter, "Macro"),
             Self::Array(size, etype) => write!(formatter, "[{}]{:?}", size, etype),
         }
     }

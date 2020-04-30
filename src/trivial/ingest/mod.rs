@@ -490,8 +490,8 @@ impl<'a> Trivializer<'a> {
                 None
             }
 
-            i::Expression::FuncCall { function, .. } => {
-                for expr in self.source[*function].borrow_body().clone() {
+            i::Expression::MacroCall { macro, .. } => {
+                for expr in self.source[*macro].borrow_body().clone() {
                     self.trivialize_expression(&expr)?;
                 }
                 None

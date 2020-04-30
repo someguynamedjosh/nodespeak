@@ -5,14 +5,15 @@ use crate::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
 
 impl VagueIngester {
-    pub(super) fn convert_function_signature<'a>(
+    pub(super) fn convert_macro_signature<'a>(
         &mut self,
         node: i::Node<'a>,
     ) -> Result<(Vec<o::VariableId>, Vec<i::Node<'a>>), CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::function_signature);
+        debug_assert!(node.as_rule() == i::Rule::macro_signature);
         let mut children = node.into_inner();
         let inputs_node = children.next().expect("illegal grammar");
-        let outputs_node = children.next().expect("illegal grammar");
+        let outputs_node = children.next();
+        let outputs = outputs_node.map(|node| node.into_inner().collect()).unwrap_or_default();
         let input_ids = inputs_node
             .into_inner()
             .map(|child| {
@@ -23,20 +24,20 @@ impl VagueIngester {
                     .adopt_and_define_symbol(self.current_scope, name, var)
             })
             .collect();
-        Ok((input_ids, outputs_node.into_inner().collect()))
+        Ok((input_ids, outputs))
     }
 
-    pub(super) fn convert_function_definition(
+    pub(super) fn convert_macro_definition(
         &mut self,
         node: i::Node,
     ) -> Result<(), CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::function_definition);
+        debug_assert!(node.as_rule() == i::Rule::macro_definition);
         let position = FilePosition::from_pair(&node);
         let mut children = node.into_inner();
-        let func_name_node = children.next().expect("illegal grammar");
+        let macro_name_node = children.next().expect("illegal grammar");
         let signature_node = children.next().expect("illegal grammar");
         let header_pos = {
-            let mut pos = FilePosition::from_pair(&func_name_node);
+            let mut pos = FilePosition::from_pair(&macro_name_node);
             pos.include(&signature_node);
             pos
         };
@@ -46,31 +47,31 @@ impl VagueIngester {
         let old_current_scope = self.current_scope;
         self.current_scope = body_scope;
 
-        let (input_ids, output_nodes) = self.convert_function_signature(signature_node)?;
+        let (input_ids, output_nodes) = self.convert_macro_signature(signature_node)?;
         for id in input_ids {
             self.target[self.current_scope].add_input(id);
         }
         self.convert_code_block(body_node)?;
-        let func_name = func_name_node.as_str();
+        let macro_name = macro_name_node.as_str();
         for node in output_nodes {
             let name = node.as_str();
             if let Some(id) = self.lookup_identifier_without_error(name) {
                 self.target[self.current_scope].add_output(id);
             } else {
                 let pos = FilePosition::from_pair(&node);
-                return Err(problems::missing_output_definition(pos, func_name, &name));
+                return Err(problems::missing_output_definition(pos, macro_name, &name));
             };
         }
 
         self.current_scope = old_current_scope;
-        let var = o::Variable::function_def(o::FunctionData::new(body_scope, header_pos));
+        let var = o::Variable::macro_def(o::MacroData::new(body_scope, header_pos));
         let var_id = self
             .target
-            .adopt_and_define_symbol(self.current_scope, func_name, var);
+            .adopt_and_define_symbol(self.current_scope, macro_name, var);
         self.add_statement(o::Statement::CreationPoint {
             var: var_id,
             var_type: Box::new(
-                o::VPExpression::Literal(o::KnownData::DataType(o::DataType::Function_),
+                o::VPExpression::Literal(o::KnownData::DataType(o::DataType::Macro),
                 FilePosition::placeholder(),
             )),
             position
@@ -146,7 +147,7 @@ impl VagueIngester {
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::input_variable_statement);
         if self.current_scope != self.target.get_entry_point() {
-            return Err(problems::io_inside_function(FilePosition::from_pair(&node)));
+            return Err(problems::io_inside_macro(FilePosition::from_pair(&node)));
         }
         let mut children = node.into_inner();
         let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
@@ -165,7 +166,7 @@ impl VagueIngester {
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::output_variable_statement);
         if self.current_scope != self.target.get_entry_point() {
-            return Err(problems::io_inside_function(FilePosition::from_pair(&node)));
+            return Err(problems::io_inside_macro(FilePosition::from_pair(&node)));
         }
         let mut children = node.into_inner();
         let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
@@ -196,7 +197,7 @@ impl VagueIngester {
         debug_assert!(node.as_rule() == i::Rule::statement);
         let child = node.into_inner().next().expect("illegal grammar");
         match child.as_rule() {
-            i::Rule::function_definition => self.convert_function_definition(child)?,
+            i::Rule::macro_definition => self.convert_macro_definition(child)?,
             i::Rule::code_block => self.convert_code_block(child)?,
             i::Rule::return_statement => self.convert_return_statement(child)?,
             i::Rule::assert_statement => self.convert_assert_statement(child)?,
@@ -205,8 +206,8 @@ impl VagueIngester {
             i::Rule::input_variable_statement => self.convert_input_variable_statement(child)?,
             i::Rule::output_variable_statement => self.convert_output_variable_statement(child)?,
             i::Rule::assign_statement => self.convert_assign_statement(child)?,
-            i::Rule::func_call => {
-                self.convert_func_call(child, false)?;
+            i::Rule::macro_call => {
+                self.convert_macro_call(child, false)?;
             }
             i::Rule::var_dec => {
                 self.convert_var_dec(child)?;

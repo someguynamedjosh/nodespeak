@@ -162,7 +162,7 @@ class Variable:
         type_declaration = source.get('data_type')
         if type(type_declaration) == type(''):
             self.type_name = type_declaration
-            if self.type_name == 'Function_':
+            if self.type_name == 'Macro':
                 self.matching_scope = int(source.get('initial_value').get(0).get('body').get(0))
         else:
             self.type_name = 'todo...'
@@ -207,15 +207,15 @@ class Scope:
             out += '  ' + call.describe().replace('\n', '\n  ') + '\n'
         return out
 
-class FuncCall:
-    def __init__(self, function, inputs, outputs):
-        self.function = function
+class MacroCall:
+    def __init__(self, macro, inputs, outputs):
+        self.macro = macro
         self.inputs = inputs
         self.outputs = outputs
     
     def describe(self):
         global variables
-        out = 'call ' + variables[self.function].describe() + '\n'
+        out = 'call ' + variables[self.macro].describe() + '\n'
         for index, value in enumerate(self.inputs):
             out += '  i' + str(index + 1) + ': ' + variables[value].describe() + '\n'
         for index, value in enumerate(self.outputs):
@@ -237,7 +237,7 @@ for scope_source in scope_sources:
     scopes.append(scope)
     if scope_source.get('body') != '[]':
         for call in scope_source.get('body').items:
-            function = int(call.get('function').get(0))
+            macro = int(call.get('macro').get(0))
             inputs, outputs = [], []
             if call.get('inputs') != '[]':
                 for iinput in call.get('inputs').items:
@@ -247,7 +247,7 @@ for scope_source in scope_sources:
                 for output in call.get('outputs').items:
                     # TODO: Properly handle var access objects.
                     outputs.append(int(output.get('base').get(0)))
-            scope.body.append(FuncCall(function, inputs, outputs))
+            scope.body.append(MacroCall(macro, inputs, outputs))
     if type(scope_source.get('symbols')) is not str:
         for symbol in scope_source.get('symbols').keys():
             real_name = symbol[1:-1] # Strip quotations.

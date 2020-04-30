@@ -1,7 +1,7 @@
 # (Internal) Vague Program Description
 
 ## Scope
-An object storing names of variables and functions that are valid
+An object storing names of variables and macros that are valid
 in the scope. Since both of them will eventually be able to be used
 interchangeably in expressions, they should both be grouped together as an enum.
 Think it should be called `Entity` because that sounds generic enough. Scopes
@@ -16,12 +16,12 @@ ultimately not full-on scopes (such as using expressions to declare the type of
 a variable.)
 
 ## Statements
-Have a list of input and output entities. Point to a function entity that is
+Have a list of input and output entities. Point to a macro entity that is
 used to perform the computation. 
 
 ## Entities
-Entity is an enum encapsulating functions and variables. Variables have data
-types, functions have a scope and a code block and lists of variables defined
+Entity is an enum encapsulating macros and variables. Variables have data
+types, macros have a scope and a code block and lists of variables defined
 in that scope that are inputs and outputs.
 
 ## Data Types

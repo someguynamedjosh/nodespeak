@@ -222,7 +222,7 @@ impl<'a> ScopeResolver<'a> {
                 indexes,
                 position,
             } => self.resolve_vp_index(base, indexes, position)?,
-            i::VPExpression::FuncCall { .. } => unimplemented!(),
+            i::VPExpression::MacroCall { .. } => unimplemented!(),
         })
     }
 }

@@ -173,11 +173,11 @@ impl VagueIngester {
         Ok(o::VPExpression::Literal(value, position))
     }
 
-    pub(super) fn convert_func_call_input_list(
+    pub(super) fn convert_macro_call_input_list(
         &mut self,
         node: i::Node,
     ) -> Result<Vec<o::VPExpression>, CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::func_call_input_list);
+        debug_assert!(node.as_rule() == i::Rule::macro_call_input_list);
         let mut inputs = Vec::new();
         for child in node.into_inner() {
             inputs.push(self.convert_vpe(child)?);
@@ -185,11 +185,11 @@ impl VagueIngester {
         Ok(inputs)
     }
 
-    pub(super) fn convert_func_call_output_list(
+    pub(super) fn convert_macro_call_output_list(
         &mut self,
         node: i::Node,
     ) -> Result<Vec<o::FuncCallOutput>, CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::func_call_output_list);
+        debug_assert!(node.as_rule() == i::Rule::macro_call_output_list);
         let mut outputs = Vec::new();
         for child in node.into_inner() {
             let output = match child.as_rule() {
@@ -204,22 +204,22 @@ impl VagueIngester {
         Ok(outputs)
     }
 
-    pub(super) fn convert_func_call(
+    pub(super) fn convert_macro_call(
         &mut self,
         node: i::Node,
         require_inline_output: bool,
     ) -> Result<o::VPExpression, CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::func_call);
+        debug_assert!(node.as_rule() == i::Rule::macro_call);
         let position = FilePosition::from_pair(&node);
         let mut children = node.into_inner();
         let name_node = children.next().expect("illegal grammar");
         let input_list_node = children.next().expect("illegal grammar");
         let maybe_output_list_node = children.next();
 
-        let input_list = self.convert_func_call_input_list(input_list_node)?;
+        let input_list = self.convert_macro_call_input_list(input_list_node)?;
         let output_list = if let Some(output_list_node) = maybe_output_list_node {
             let output_list_position = FilePosition::from_pair(&output_list_node);
-            let output_list = self.convert_func_call_output_list(output_list_node)?;
+            let output_list = self.convert_macro_call_output_list(output_list_node)?;
             let num_inline_outputs = output_list.iter().fold(0, |counter, item| {
                 if let o::FuncCallOutput::InlineReturn(..) = item {
                     counter + 1
@@ -247,8 +247,8 @@ impl VagueIngester {
             vec![]
         };
 
-        Ok(o::VPExpression::FuncCall {
-            function: Box::new(o::VPExpression::Variable(
+        Ok(o::VPExpression::MacroCall {
+            mcro: Box::new(o::VPExpression::Variable(
                 self.lookup_identifier(&name_node)?,
                 FilePosition::from_pair(&name_node),
             )),
@@ -290,7 +290,7 @@ impl VagueIngester {
         let child = node.into_inner().next().expect("illegal grammar");
         match child.as_rule() {
             i::Rule::literal => self.convert_literal(child),
-            i::Rule::func_call => self.convert_func_call(child, true),
+            i::Rule::macro_call => self.convert_macro_call(child, true),
             i::Rule::vp_var => self.convert_vp_var(child),
             i::Rule::vpe => self.convert_vpe(child),
             i::Rule::build_array => self.convert_build_array(child),

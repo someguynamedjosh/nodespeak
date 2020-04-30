@@ -4,19 +4,19 @@ use ProblemType::Error;
 use ProblemType::Hint;
 
 pub fn wrong_number_of_inputs(
-    func_call_pos: FilePosition,
+    macro_call_pos: FilePosition,
     header_pos: FilePosition,
     provided: usize,
     expected: usize,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
-            func_call_pos,
+            macro_call_pos,
             Error,
             &format!(
                 concat!(
-                    "Wrong Number Of Inputs\nThis function call has {} input ",
-                    "arguments but the function it is calling has {} input ",
+                    "Wrong Number Of Inputs\nThis macro call has {} input ",
+                    "arguments but the macro it is calling has {} input ",
                     "parameters.",
                 ),
                 provided, expected,
@@ -25,25 +25,25 @@ pub fn wrong_number_of_inputs(
         ProblemDescriptor::new(
             header_pos,
             Hint,
-            concat!("The header of the function being called is as follows:"),
+            concat!("The header of the macro being called is as follows:"),
         ),
     ])
 }
 
 pub fn wrong_number_of_outputs(
-    func_call_pos: FilePosition,
+    macro_call_pos: FilePosition,
     header_pos: FilePosition,
     provided: usize,
     expected: usize,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
-            func_call_pos,
+            macro_call_pos,
             Error,
             &format!(
                 concat!(
-                    "Wrong Number Of Outputs\nThis function call has {} output ",
-                    "arguments but the function it is calling has {} output ",
+                    "Wrong Number Of Outputs\nThis macro call has {} output ",
+                    "arguments but the macro it is calling has {} output ",
                     "parameters.",
                 ),
                 provided, expected,
@@ -52,18 +52,18 @@ pub fn wrong_number_of_outputs(
         ProblemDescriptor::new(
             header_pos,
             Hint,
-            concat!("The header of the function being called is as follows:"),
+            concat!("The header of the macro being called is as follows:"),
         ),
     ])
 }
 
-pub fn vague_function(func_call_pos: FilePosition, expr_pos: FilePosition) -> CompileProblem {
+pub fn vague_macro(macro_call_pos: FilePosition, expr_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
-            func_call_pos,
+            macro_call_pos,
             Error,
             concat!(
-                "Vague Function\nCannot determine what function is ",
+                "Vague Macro\nCannot determine what macro is ",
                 "being called here:"
             ),
         ),
@@ -78,13 +78,13 @@ pub fn vague_function(func_call_pos: FilePosition, expr_pos: FilePosition) -> Co
     ])
 }
 
-pub fn not_function(expr_pos: FilePosition) -> CompileProblem {
+pub fn not_macro(expr_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         expr_pos,
         Error,
         concat!(
-            "Incorrect Type\nThe highlighted expression should resolve to a function because it ",
-            "is being used in a function call. However, it resolves to a different data type.",
+            "Incorrect Type\nThe highlighted expression should resolve to a macro because it ",
+            "is being used in a macro call. However, it resolves to a different data type.",
         ),
     )])
 }

@@ -1,4 +1,4 @@
-use super::{DataType, FunctionData, KnownData};
+use super::{DataType, MacroData, KnownData};
 use crate::problem::FilePosition;
 
 use std::fmt::{self, Debug, Formatter};
@@ -38,10 +38,10 @@ impl Variable {
         Self::new_impl(definition, Option::Some(value))
     }
 
-    pub fn function_def(function_data: FunctionData) -> Variable {
+    pub fn macro_def(macro_data: MacroData) -> Variable {
         Self::with_value(
-            function_data.get_header().clone(),
-            KnownData::Function(function_data),
+            macro_data.get_header().clone(),
+            KnownData::Macro(macro_data),
         )
     }
 
