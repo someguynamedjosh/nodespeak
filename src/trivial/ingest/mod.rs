@@ -40,8 +40,8 @@ impl<'a> Trivializer<'a> {
             let trivialized = self.trivialize_variable(*output)?;
             self.target.add_output(trivialized);
         }
-        for expr in self.source[source_entry_point].borrow_body().clone() {
-            self.trivialize_expression(&expr)?;
+        for statement in self.source[source_entry_point].borrow_body().clone() {
+            self.trivialize_statement(&statement)?;
         }
         Result::Ok(())
     }
@@ -60,7 +60,9 @@ impl<'a> Trivializer<'a> {
             i::DataType::Float => o::DataType::F32,
             i::DataType::Int => o::DataType::I32,
             i::DataType::Bool => o::DataType::B1,
-            i::DataType::Array(len, base) => o::DataType::Array(*len, Box::new(Self::trivialize_data_type(base)))
+            i::DataType::Array(len, base) => {
+                o::DataType::Array(*len, Box::new(Self::trivialize_data_type(base)))
+            }
         }
     }
 
@@ -109,92 +111,88 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_binary_expression(
         &mut self,
-        expression: &i::VPExpression,
         left: &i::VPExpression,
         operator: i::BinaryOperator,
         right: &i::VPExpression,
+        out_typ: &i::DataType,
     ) -> Result<o::Value, CompileProblem> {
-        let a = self.trivialize_and_require_value(left, expression)?;
-        let b = self.trivialize_and_require_value(right, expression)?;
-        let base_type = a.get_type(&self.target);
-        let dimensions: Vec<_> = a.dimensions.iter().map(|(size, _)| *size).collect();
-        let typ = o::DataType::array(base_type, dimensions.clone());
-        let base = typ.get_base();
-        let out_base = match operator {
-            i::BinaryOperator::Add
-            | i::BinaryOperator::Subtract
-            | i::BinaryOperator::Multiply
-            | i::BinaryOperator::Divide
-            | i::BinaryOperator::Modulo
-            | i::BinaryOperator::Power => base,
-            i::BinaryOperator::Equal
-            | i::BinaryOperator::NotEqual
-            | i::BinaryOperator::GreaterThan
-            | i::BinaryOperator::LessThan
-            | i::BinaryOperator::GreaterThanOrEqual
-            | i::BinaryOperator::LessThanOrEqual => o::BaseType::B1,
-            _ => unimplemented!(),
-        };
-        let out_typ = o::DataType::array(out_base, dimensions);
+        let a = self.trivialize_vp_expression(left)?;
+        let b = self.trivialize_vp_expression(right)?;
+        let out_typ = Self::trivialize_data_type(out_typ);
+        let mut base = out_typ.clone();
+        while let o::DataType::Array(_, etype) = base {
+            base = *etype;
+        }
         let x = o::Value::variable(self.target.adopt_variable(o::Variable::new(out_typ)));
         let x2 = x.clone();
         let toperator = match operator {
             i::BinaryOperator::Add => match base {
-                o::BaseType::F32 => o::BinaryOperator::AddF,
-                o::BaseType::I32 => o::BinaryOperator::AddI,
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::AddF,
+                o::DataType::I32 => o::BinaryOperator::AddI,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Subtract => match base {
-                o::BaseType::F32 => o::BinaryOperator::SubF,
-                o::BaseType::I32 => o::BinaryOperator::SubI,
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::SubF,
+                o::DataType::I32 => o::BinaryOperator::SubI,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Multiply => match base {
-                o::BaseType::F32 => o::BinaryOperator::MulF,
-                o::BaseType::I32 => o::BinaryOperator::MulI,
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::MulF,
+                o::DataType::I32 => o::BinaryOperator::MulI,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Divide => match base {
-                o::BaseType::F32 => o::BinaryOperator::DivF,
-                o::BaseType::I32 => o::BinaryOperator::DivI,
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::DivF,
+                o::DataType::I32 => o::BinaryOperator::DivI,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Modulo => match base {
-                o::BaseType::F32 => o::BinaryOperator::ModF,
-                o::BaseType::I32 => o::BinaryOperator::ModI,
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::ModF,
+                o::DataType::I32 => o::BinaryOperator::ModI,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Power => unimplemented!(),
 
             i::BinaryOperator::Equal => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::Equal),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::Equal),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::Equal),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::Equal),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::NotEqual => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::NotEqual),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::NotEqual),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::NotEqual),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::NotEqual),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::GreaterThan => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::GreaterThan),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::GreaterThan),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::GreaterThan),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::GreaterThan),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::GreaterThanOrEqual => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::GreaterThanOrEqual),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::GreaterThanOrEqual),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::GreaterThanOrEqual),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::GreaterThanOrEqual),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::LessThan => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::LessThan),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::LessThan),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::LessThan),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::LessThan),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::LessThanOrEqual => match base {
-                o::BaseType::F32 => o::BinaryOperator::CompF(o::Condition::LessThanOrEqual),
-                o::BaseType::I32 => o::BinaryOperator::CompI(o::Condition::LessThanOrEqual),
-                o::BaseType::B1 => unimplemented!(),
+                o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::LessThanOrEqual),
+                o::DataType::I32 => o::BinaryOperator::CompI(o::Condition::LessThanOrEqual),
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
             },
 
             i::BinaryOperator::And => unimplemented!(),
@@ -216,29 +214,18 @@ impl<'a> Trivializer<'a> {
         Result::Ok(x2)
     }
 
-    fn trivialize_and_require_value(
-        &mut self,
-        expression: &i::Expression,
-        part_of: &i::Expression,
-    ) -> Result<o::Value, CompileProblem> {
-        match self.trivialize_expression(expression)? {
-            Some(value) => Result::Ok(value),
-            None => Result::Err(problems::void_value(
-                expression.clone_position(),
-                part_of.clone_position(),
-            )),
-        }
-    }
-
     fn trivialize_assignment(
         &mut self,
-        expression: &i::Expression,
-        target: &i::Expression,
-        value: &i::Expression,
+        statement: &i::Statement,
+        target: &i::VCExpression,
+        value: &i::VPExpression,
     ) -> Result<(), CompileProblem> {
-        let tvalue = self.trivialize_and_require_value(value.borrow(), expression)?;
-        if let i::Expression::Access { base, indexes, .. } = target {
-            let base = if let i::Expression::Variable(id, ..) = base.borrow() {
+        let tvalue = self.trivialize_vp_expression(value.borrow())?;
+        // TODO: Clean up this mess.
+        // I think it would be good to make VCExpression a single struct where we have a base
+        // variable ID with a vec storing all of the indexes, possibly len 0 for non-indexed stuff.
+        if let i::VCExpression::Index { base, indexes, .. } = target {
+            let base = if let i::VCExpression::Variable(id, ..) = base.borrow() {
                 self.trivialize_variable(*id)?
             } else {
                 panic!("TODO: Check if it is guaranteed that a variable is always the base.");
@@ -250,26 +237,27 @@ impl<'a> Trivializer<'a> {
                 to: o::Value::variable(base),
                 to_indexes: new_indexes,
             });
-        } else {
-            let ttarget = self.trivialize_and_require_value(target.borrow(), expression)?;
+        } else if let i::VCExpression::Variable(id, ..) = target {
+            let ttarget = o::Value::variable(self.trivialize_variable(*id)?);
             self.target.add_instruction(o::Instruction::Move {
                 from: tvalue,
                 to: ttarget,
             });
+        } else {
+            unreachable!()
         }
-        Result::Ok(())
+        Ok(())
     }
 
     fn trivialize_branch(
         &mut self,
-        clauses: &Vec<(i::Expression, i::ScopeId)>,
+        clauses: &Vec<(i::VPExpression, i::ScopeId)>,
         else_clause: &Option<i::ScopeId>,
     ) -> Result<(), CompileProblem> {
         debug_assert!(clauses.len() > 0);
         let end_label = self.target.create_label();
         for (condition_expr, body) in clauses.iter() {
-            // TODO: Figure out what to do for the part_of argument.
-            let condition = self.trivialize_and_require_value(condition_expr, condition_expr)?;
+            let condition = self.trivialize_vp_expression(condition_expr)?;
             let body_label = self.target.create_label();
             let next_condition_label = self.target.create_label();
             self.target.add_instruction(o::Instruction::Branch {
@@ -279,8 +267,8 @@ impl<'a> Trivializer<'a> {
             });
             self.target
                 .add_instruction(o::Instruction::Label(body_label));
-            for expr in self.source[*body].borrow_body().clone() {
-                self.trivialize_expression(&expr)?;
+            for statement in self.source[*body].borrow_body().clone() {
+                self.trivialize_statement(&statement)?;
             }
             self.target
                 .add_instruction(o::Instruction::Jump { label: end_label });
@@ -288,8 +276,8 @@ impl<'a> Trivializer<'a> {
                 .add_instruction(o::Instruction::Label(next_condition_label));
         }
         if let Some(body) = /* once told me */ else_clause {
-            for expr in self.source[*body].borrow_body().clone() {
-                self.trivialize_expression(&expr)?;
+            for statement in self.source[*body].borrow_body().clone() {
+                self.trivialize_statement(&statement)?;
             }
         }
         self.target
@@ -300,22 +288,21 @@ impl<'a> Trivializer<'a> {
     fn trivialize_for_loop(
         &mut self,
         counter: i::VariableId,
-        start: &i::Expression,
-        end: &i::Expression,
+        start: &i::VPExpression,
+        end: &i::VPExpression,
         body: i::ScopeId,
     ) -> Result<(), CompileProblem> {
         let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
-        // TODO: Better value for part_of.
         let tcount = o::Value::variable(self.trivialize_variable(counter)?);
-        let tstart = self.trivialize_and_require_value(start, start)?;
-        let tend = self.trivialize_and_require_value(end, end)?;
+        let tstart = self.trivialize_vp_expression(start)?;
+        let tend = self.trivialize_vp_expression(end)?;
         self.target.add_instruction(o::Instruction::Move {
             from: tstart,
             to: tcount.clone(),
         });
         let condition_var = o::Value::variable(
             self.target
-                .adopt_variable(o::Variable::new(o::DataType::b1_scalar())),
+                .adopt_variable(o::Variable::new(o::DataType::B1)),
         );
         self.target
             .add_instruction(o::Instruction::BinaryOperation {
@@ -332,8 +319,8 @@ impl<'a> Trivializer<'a> {
 
         self.target
             .add_instruction(o::Instruction::Label(start_label));
-        for expr in self.source[body].borrow_body().clone() {
-            self.trivialize_expression(&expr)?;
+        for statement in self.source[body].borrow_body().clone() {
+            self.trivialize_statement(&statement)?;
         }
 
         self.target
@@ -362,95 +349,89 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_indexes(
         &mut self,
-        indexes: &Vec<i::Expression>,
+        indexes: &Vec<i::VPExpression>,
         data_type: o::DataType,
     ) -> Result<(Vec<o::Value>, o::DataType), CompileProblem> {
         let mut tindexes = Vec::with_capacity(indexes.len());
         let mut element_type = data_type;
         for index in indexes {
-            // TODO: Better value for part_of argument.
-            let index_value = self.trivialize_and_require_value(index, index)?;
+            let index_value = self.trivialize_vp_expression(index)?;
             let indext = index_value.get_type(&self.target);
-            if !indext.is_int() || !indext.is_scalar() {
+            if indext != o::DataType::I32 {
+                // TODO: Check if this is guaranteed to be handled in the previous phase.
                 panic!("TODO: Nice error, index is not int scalar.");
             }
             tindexes.push(index_value);
-            element_type = element_type.clone_and_unwrap(1);
+            element_type = if let o::DataType::Array(_, etype) = element_type {
+                *etype
+            } else {
+                unreachable!("Illegal array access should be handled by previous phase.")
+            };
         }
         Ok((tindexes, element_type))
     }
 
-    fn trivialize_access(
+    fn trivialize_index(
         &mut self,
-        base: &i::Expression,
-        indexes: &Vec<i::Expression>,
+        base: &i::VPExpression,
+        indexes: &Vec<i::VPExpression>,
     ) -> Result<o::Value, CompileProblem> {
-        let base = match base.borrow() {
-            i::Expression::Variable(id, ..) => self.trivialize_variable(*id)?,
-            i::Expression::Proxy { .. } => unimplemented!(),
-            _ => panic!("TODO: nice error, invalid base for access: {:?}", base),
-        };
+        let base_value = self.trivialize_vp_expression(base)?;
         let (new_indexes, result_type) =
-            self.trivialize_indexes(indexes, self.target[base].borrow_type().clone())?;
+            self.trivialize_indexes(indexes, base_value.get_type(&self.target))?;
 
         let output_holder = self
             .target
             .adopt_variable(o::Variable::new(result_type.clone()));
         let mut output_value = o::Value::variable(output_holder);
         output_value.dimensions = result_type
-            .borrow_dimensions()
+            .collect_dimensions()
             .iter()
             .map(|dim| (*dim, s::ProxyMode::Keep))
             .collect();
         self.target.add_instruction(o::Instruction::Load {
-            from: o::Value::variable(base),
+            from: base_value,
             to: output_value.clone(),
             from_indexes: new_indexes,
         });
         Ok(output_value)
     }
 
-    fn trivialize_expression(
+    fn trivialize_vp_expression(
         &mut self,
-        expression: &i::Expression,
-    ) -> Result<Option<o::Value>, CompileProblem> {
-        Result::Ok(match expression {
-            i::Expression::Literal(data, ..) => {
-                Option::Some(o::Value::literal(Self::trivialize_known_data(data)?))
+        expression: &i::VPExpression,
+    ) -> Result<o::Value, CompileProblem> {
+        Ok(match expression {
+            i::VPExpression::Literal(data, ..) => {
+                o::Value::literal(Self::trivialize_known_data(data)?)
             }
-            i::Expression::Variable(id, ..) => {
-                Option::Some(o::Value::variable(self.trivialize_variable(*id)?))
-            }
-            i::Expression::Proxy {
-                base, dimensions, ..
-            } => Some(self.trivialize_proxy(base, dimensions)?),
-            i::Expression::Access { base, indexes, .. } => {
-                Some(self.trivialize_access(base, indexes)?)
-            }
-            i::Expression::InlineReturn(..) => unreachable!("Should be handled elsewhere."),
+            i::VPExpression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
+            i::VPExpression::Index { base, indexes, .. } => self.trivialize_index(base, indexes)?,
 
-            i::Expression::UnaryOperation(..) => unimplemented!(),
-            i::Expression::BinaryOperation(left, operator, right, ..) => {
-                Option::Some(self.trivialize_binary_expression(expression, left, *operator, right)?)
-            }
+            i::VPExpression::UnaryOperation(..) => unimplemented!(),
+            i::VPExpression::BinaryOperation {
+                lhs, op, rhs, typ, ..
+            } => self.trivialize_binary_expression(lhs, *op, rhs, typ)?,
 
-            i::Expression::Collect(..) => unimplemented!(),
+            i::VPExpression::Collect(..) => unimplemented!(),
+        })
+    }
 
-            i::Expression::Assert(..) => unimplemented!(),
-            i::Expression::Assign { target, value, .. } => {
-                self.trivialize_assignment(expression, target, value)?;
-                None
+    fn trivialize_statement(&mut self, statement: &i::Statement) -> Result<(), CompileProblem> {
+        Ok(match statement {
+            i::Statement::Assert(..) => unimplemented!(),
+            i::Statement::Assign { target, value, .. } => {
+                self.trivialize_assignment(statement, target, value)?;
             }
-            i::Expression::Return(..) => unimplemented!(),
-            i::Expression::Branch {
+            i::Statement::Return(..) => unimplemented!(),
+            i::Statement::Branch {
                 clauses,
                 else_clause,
                 ..
             } => {
                 self.trivialize_branch(clauses, else_clause)?;
-                None
             }
-            i::Expression::ForLoop {
+            i::Statement::ForLoop {
                 counter,
                 start,
                 end,
@@ -458,14 +439,11 @@ impl<'a> Trivializer<'a> {
                 ..
             } => {
                 self.trivialize_for_loop(*counter, start, end, *body)?;
-                None
             }
-
-            i::Expression::MacroCall { macro, .. } => {
-                for expr in self.source[*macro].borrow_body().clone() {
-                    self.trivialize_expression(&expr)?;
+            i::Statement::MacroCall { mcro, .. } => {
+                for statement in self.source[*mcro].borrow_body().clone() {
+                    self.trivialize_statement(&statement)?;
                 }
-                None
             }
         })
     }

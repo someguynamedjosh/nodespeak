@@ -78,12 +78,13 @@ impl<'a> ScopeResolver<'a> {
         if resolved_expr.borrow_data_type() != &DataType::Void {
             panic!("TODO: Nice error, vpe as statement yields an unused value.");
         }
-        match resolved_expr {
-            ResolvedVPExpression::Interpreted(..) => Ok(ResolvedStatement::Interpreted),
-            ResolvedVPExpression::Modified(new_expr, ..) => Ok(ResolvedStatement::Modified(
-                o::Statement::RawVPExpression(Box::new(new_expr)),
-            )),
-        }
+        unimplemented!()
+        // match resolved_expr {
+        //     ResolvedVPExpression::Interpreted(..) => Ok(ResolvedStatement::Interpreted),
+        //     ResolvedVPExpression::Modified(new_expr, ..) => Ok(ResolvedStatement::Modified(
+        //         o::Statement::RawVPExpression(Box::new(new_expr)),
+        //     )),
+        // }
     }
 
     pub(super) fn resolve_statement(

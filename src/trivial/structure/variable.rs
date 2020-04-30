@@ -8,6 +8,24 @@ pub enum DataType {
     Array(usize, Box<DataType>),
 }
 
+impl DataType {
+    fn collect_dimensions_impl(&self, dims: &mut Vec<usize>) {
+        match self {
+            Self::Array(len, etype) => {
+                dims.push(*len);
+                etype.collect_dimensions_impl(dims);
+            }
+            _ => (),
+        }
+    }
+
+    pub fn collect_dimensions(&self) -> Vec<usize> {
+        let mut result = Vec::new();
+        self.collect_dimensions_impl(&mut result);
+        result
+    }
+}
+
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {

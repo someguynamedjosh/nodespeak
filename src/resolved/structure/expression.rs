@@ -77,11 +77,6 @@ pub enum VPExpression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
     Collect(Vec<VPExpression>, FilePosition),
-    BuildArrayType {
-        dimensions: Vec<VPExpression>,
-        base: Box<VPExpression>,
-        position: FilePosition,
-    },
 
     UnaryOperation(UnaryOperator, Box<VPExpression>, FilePosition),
     BinaryOperation {
@@ -94,10 +89,6 @@ pub enum VPExpression {
     Index {
         base: Box<VPExpression>,
         indexes: Vec<VPExpression>,
-        position: FilePosition,
-    },
-    MacroCall {
-        mcro: Box<VPExpression>,
         position: FilePosition,
     },
 }
@@ -114,14 +105,6 @@ impl Debug for VPExpression {
                 }
                 write!(formatter, "]")
             }
-            Self::BuildArrayType {
-                dimensions, base, ..
-            } => {
-                for dimension in dimensions.iter() {
-                    write!(formatter, "[{:?}]", dimension)?;
-                }
-                write!(formatter, "{:?}", base)
-            }
 
             Self::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
@@ -136,8 +119,6 @@ impl Debug for VPExpression {
                 }
                 write!(formatter, "")
             }
-
-            Self::MacroCall { mcro, .. } => write!(formatter, "call {:?}", mcro),
         }
     }
 }
@@ -148,11 +129,9 @@ impl VPExpression {
             Self::Literal(_, position)
             | Self::Variable(_, position)
             | Self::Collect(_, position)
-            | Self::BuildArrayType { position, .. }
             | Self::UnaryOperation(_, _, position)
             | Self::BinaryOperation { position, .. }
-            | Self::Index { position, .. }
-            | Self::MacroCall { position, .. } => position.clone(),
+            | Self::Index { position, .. } => position.clone(),
         }
     }
 }
@@ -216,11 +195,6 @@ impl FuncCallOutput {
 
 #[derive(Clone, PartialEq)]
 pub enum Statement {
-    CreationPoint {
-        var: VariableId,
-        var_type: Box<VPExpression>,
-        position: FilePosition,
-    },
     Assert(Box<VPExpression>, FilePosition),
     Return(FilePosition),
     Assign {
@@ -240,15 +214,15 @@ pub enum Statement {
         body: ScopeId,
         position: FilePosition,
     },
-    RawVPExpression(Box<VPExpression>),
+    MacroCall {
+        mcro: ScopeId,
+        position: FilePosition,
+    },
 }
 
 impl Debug for Statement {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Self::CreationPoint { var, var_type, .. } => {
-                write!(formatter, "define {:?} {:?}", var_type, var)
-            }
             Self::Assert(value, ..) => write!(formatter, "assert {:?};", value),
             Self::Return(..) => write!(formatter, "return;"),
             Self::Assign { target, value, .. } => write!(formatter, "{:?} = {:?};", target, value),
@@ -278,7 +252,7 @@ impl Debug for Statement {
                 "for {:?} = {:?} to {:?} {{ {:?} }}",
                 counter, start, end, body
             ),
-            Self::RawVPExpression(expr) => write!(formatter, "{:?}", expr),
+            Self::MacroCall { mcro, .. } => write!(formatter, "call {:?}", mcro),
         }
     }
 }
@@ -286,13 +260,12 @@ impl Debug for Statement {
 impl Statement {
     pub fn clone_position(&self) -> FilePosition {
         match self {
-            Self::CreationPoint { position, .. }
-            | Self::Assert(_, position)
+            Self::Assert(_, position)
             | Self::Return(position)
             | Self::Assign { position, .. }
             | Self::Branch { position, .. }
-            | Self::ForLoop { position, .. } => position.clone(),
-            Self::RawVPExpression(expr) => expr.clone_position(),
+            | Self::ForLoop { position, .. }
+            | Self::MacroCall { position, .. } => position.clone(),
         }
     }
 }
