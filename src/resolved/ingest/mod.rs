@@ -18,6 +18,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
+    let old_outputs = outputs.clone();
     let mut resolver = ScopeSimplifier::new(program);
     let new_entry_point = resolver.resolve_scope(entry_point)?;
     let inputs: Vec<_> = inputs
@@ -38,24 +39,40 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
                 .0
         })
         .collect();
-    let mut result = resolver.target;
 
     for input in inputs {
         if let Option::Some(var_id) = input {
-            result.add_input(var_id);
+            resolver.target.add_input(var_id);
         } else {
             panic!("TODO: Nice error, input not available at run time.")
         }
     }
     for output in outputs {
         if let Option::Some(var_id) = output {
-            result.add_output(var_id);
+            resolver.target.add_output(var_id);
         } else {
             panic!("TODO: Nice error, input not available at run time.")
         }
     }
-    result.set_entry_point(new_entry_point);
-    Result::Ok(result)
+    for output in old_outputs {
+        if let Some(data) = resolver.borrow_temporary_value(output) {
+            let resolved_id = resolver
+                .get_var_info(output)
+                .expect("Var used before defined, should be caught in vague phase")
+                .0
+                .expect("TODO: Nice error, output could not be used at runtime");
+            let resolved_data = util::resolve_known_data(data)
+                .expect("TODO: Nice error, data cannot be used at run time.");
+            let p = FilePosition::placeholder();
+            resolver.target[new_entry_point].add_statement(o::Statement::Assign {
+                target: Box::new(o::VCExpression::Variable(resolved_id, p.clone())),
+                value: Box::new(o::VPExpression::Literal(resolved_data, p.clone())),
+                position: p.clone(),
+            });
+        }
+    }
+    resolver.target.set_entry_point(new_entry_point);
+    Result::Ok(resolver.target)
 }
 
 #[derive(Clone, Debug)]
@@ -84,7 +101,7 @@ pub(super) struct ScopeSimplifier<'a> {
     // different values depending on the types used for the inputs and outputs
     // of the function.
     stack: Vec<SimplifierTable>,
-    pub temp_values: HashMap<i::VariableId, i::KnownData>,
+    temp_values: HashMap<i::VariableId, i::KnownData>,
 }
 
 #[derive(Clone, Debug)]
@@ -127,9 +144,45 @@ impl SimplifiedVPExpression {
 }
 
 #[derive(Clone, Debug)]
-pub(self) struct SimplifiedVCExpression {
-    pub(self) expr: o::VCExpression,
-    pub(self) dtype: DataType,
+pub(self) enum SimplifiedVCExpression {
+    /// We are not sure what variable / element the VCE is targeting.
+    Modified(o::VCExpression, DataType),
+    /// We know exactly what variable / element the VCE is targeting.
+    Specific(i::VariableId, FilePosition, DataType),
+}
+
+impl SimplifiedVCExpression {
+    pub(self) fn borrow_data_type(&self) -> &DataType {
+        match self {
+            Self::Modified(_, dtype) => dtype,
+            Self::Specific(_, _, dtype) => dtype,
+        }
+    }
+
+    pub(self) fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::Modified(expr, _) => expr.clone_position(),
+            Self::Specific(_, pos, _) => pos.clone(),
+        }
+    }
+
+    /// If the result is already an expression, returns that. If the result is specific, returns
+    /// a VCE referencing the specific variable.
+    pub(self) fn as_vc_expression(
+        self,
+        resolver: &ScopeSimplifier,
+    ) -> Result<o::VCExpression, CompileProblem> {
+        match self {
+            Self::Modified(expr, ..) => Ok(expr),
+            Self::Specific(in_id, pos, ..) => {
+                let (var_id, _var_type) = resolver.get_var_info(in_id).expect(
+                    "Variable used before defined, should have been caught in vague phase.",
+                );
+                let var_id = var_id.expect("TODO: nice error, variable not available at runtime.");
+                Ok(o::VCExpression::Variable(var_id, pos))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

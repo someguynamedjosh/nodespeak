@@ -12,14 +12,10 @@ impl<'a> ScopeSimplifier<'a> {
         var_id: i::VariableId,
         position: &FilePosition,
     ) -> Result<SimplifiedVCExpression, CompileProblem> {
-        let (var_id, var_type) = self
+        let (_, var_type) = self
             .get_var_info(var_id)
             .expect("Variable used before declaration, vague step should have caught this.");
-        let var_id = var_id.expect("TODO: Nice error, variable not available at run time.");
-        Ok(SimplifiedVCExpression {
-            expr: o::VCExpression::Variable(var_id, position.clone()),
-            dtype: var_type.clone(),
-        })
+        Ok(SimplifiedVCExpression::Specific(var_id, position.clone(), var_type.clone()))
     }
 
     pub(super) fn resolve_vc_expression(

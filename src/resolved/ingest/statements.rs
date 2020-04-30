@@ -30,6 +30,9 @@ impl<'a> ScopeSimplifier<'a> {
             None
         };
         self.set_var_info(old_var_id, resolved_id, data_type);
+        if let Some(data) = self.source[old_var_id].borrow_initial_value() {
+            self.set_temporary_value(old_var_id, data.clone());
+        }
 
         Ok(SimplifiedStatement::Interpreted)
     }
@@ -42,15 +45,29 @@ impl<'a> ScopeSimplifier<'a> {
     ) -> Result<SimplifiedStatement, CompileProblem> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
-        if &lhs.dtype != rhs.borrow_data_type() {
+        if lhs.borrow_data_type() != rhs.borrow_data_type() {
             // TODO: Better logic for when this applies.
             panic!("TODO: Nice error, bad assignment.");
         }
-        Ok(SimplifiedStatement::Modified(o::Statement::Assign {
-            target: Box::new(lhs.expr),
-            value: Box::new(rhs.as_vp_expression()?),
-            position: position.clone(),
-        }))
+        if let (
+            SimplifiedVCExpression::Specific(target_id, ..),
+            SimplifiedVPExpression::Interpreted(value_data, ..),
+        ) = (&lhs, &rhs)
+        {
+            self.set_temporary_value(*target_id, value_data.clone());
+            Ok(SimplifiedStatement::Interpreted)
+        } else {
+            if let SimplifiedVCExpression::Specific(target_id, ..) = lhs {
+                self.clear_temporary_value(target_id);
+            } else {
+                unimplemented!("Can't clear a range of temporary values yet.");
+            }
+            Ok(SimplifiedStatement::Modified(o::Statement::Assign {
+                target: Box::new(lhs.as_vc_expression(self)?),
+                value: Box::new(rhs.as_vp_expression()?),
+                position: position.clone(),
+            }))
+        }
     }
 
     fn resolve_raw_vp_expression(

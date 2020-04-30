@@ -10,7 +10,7 @@ impl<'a> ScopeSimplifier<'a> {
         var_id: i::VariableId,
         position: &FilePosition,
     ) -> Result<SimplifiedVPExpression, CompileProblem> {
-        if let Some(value) = self.source[var_id].borrow_initial_value() {
+        if let Some(value) = self.borrow_temporary_value(var_id) {
             Ok(SimplifiedVPExpression::Interpreted(
                 value.clone(),
                 position.clone(),

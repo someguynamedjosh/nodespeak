@@ -71,6 +71,10 @@ impl<'a> ScopeSimplifier<'a> {
         self.temp_values.insert(var, value);
     }
 
+    pub(super) fn clear_temporary_value(&mut self, var: i::VariableId) {
+        self.temp_values.remove(&var);
+    }
+
     pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> Option<&i::KnownData> {
         self.temp_values.get(&var)
     }
