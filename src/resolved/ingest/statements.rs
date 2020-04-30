@@ -1,124 +1,94 @@
-use super::{problems, BaseType, Content, DataType, ScopeSimplifier, SimplifiedExpression};
+use super::{
+    problems, util, DataType, ScopeSimplifier, SimplifiedStatement, SimplifiedVCExpression,
+    SimplifiedVPExpression,
+};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 
 impl<'a> ScopeSimplifier<'a> {
-    pub(super) fn resolve_creation_point(
+    fn resolve_creation_point(
         &mut self,
         old_var_id: i::VariableId,
+        dtype: &i::VPExpression,
         position: &FilePosition,
-    ) -> Result<SimplifiedExpression, CompileProblem> {
-        let old_data_type = self.source[old_var_id].borrow_data_type().clone();
-        let intermediate_data_type = self.input_to_intermediate_type(old_data_type)?;
-        if let Result::Ok(output_type) = intermediate_data_type.to_output_type() {
-            let new_var = o::Variable::new(position.clone(), output_type);
-            let var_id = self
-                .target
-                .adopt_and_define_intermediate(self.current_scope, new_var);
-            let expression = o::Expression::Variable(var_id, FilePosition::placeholder());
-            self.add_conversion(old_var_id, expression);
-        } else if intermediate_data_type.is_automatic() {
-            self.add_unresolved_auto_var(old_var_id);
-        }
-        let mut starting_value = self.source[old_var_id].borrow_initial_value().clone();
-        if let i::KnownData::Unknown = starting_value {
-            if intermediate_data_type.borrow_dimensions().len() > 0 {
-                let dims = intermediate_data_type.borrow_dimensions();
-                starting_value = i::KnownData::build_array(dims);
+    ) -> Result<SimplifiedStatement, CompileProblem> {
+        let resolved_dtype = self.resolve_vp_expression(dtype)?;
+        let data_type = if let SimplifiedVPExpression::Interpreted(data, ..) = resolved_dtype {
+            if let i::KnownData::DataType(in_type) = data {
+                self.input_to_intermediate_type(in_type)
+            } else {
+                panic!("TODO: Nice error, value is not a data type")
             }
-        }
-        self.set_temporary_value(old_var_id, starting_value);
-
-        Result::Ok(SimplifiedExpression {
-            content: Content::Interpreted(i::KnownData::Void),
-            data_type: DataType::new(BaseType::Void),
-        })
-    }
-
-    pub(super) fn resolve_assign_statement(
-        &mut self,
-        target: &i::Expression,
-        value: &i::Expression,
-        position: &FilePosition,
-    ) -> Result<SimplifiedExpression, CompileProblem> {
-        let value_pos = value.clone_position();
-        let resolved_value = self.resolve_expression(value)?;
-        let data_type = match resolved_value.data_type.to_output_type() {
-            Result::Ok(result) => result,
-            Result::Err(..) => panic!("TODO: Nice error."),
+        } else {
+            panic!("TODO: Nice error, expression was not computable at compile time")
         };
-        let target_pos = target.clone_position();
-        let resolved_target = self.resolve_assignment_access_expression(target, data_type)?;
-        if !resolved_value.data_type.equivalent(&resolved_target.1) {
-            return Err(problems::mismatched_assign(
-                position.clone(),
-                target_pos,
-                &resolved_target.1,
-                value_pos,
-                &resolved_value.data_type,
-            ));
-        }
-        Result::Ok(match resolved_value.content {
-            Content::Interpreted(known_value) => {
-                let result =
-                    self.assign_value_to_expression(&target, known_value, position.clone())?;
-                if let Result::Err(resolved_expresion) = result {
-                    self.assign_unknown_to_expression(&target);
-                    SimplifiedExpression {
-                        content: Content::Modified(resolved_expresion),
-                        data_type: DataType::scalar(BaseType::Void),
-                    }
-                } else {
-                    SimplifiedExpression {
-                        content: Content::Interpreted(i::KnownData::Void),
-                        data_type: DataType::scalar(BaseType::Void),
-                    }
-                }
-            }
-            Content::Modified(resolved_value) => {
-                self.assign_unknown_to_expression(&target);
-                let content = Content::Modified(o::Expression::Assign {
-                    target: Box::new(resolved_target.0),
-                    value: Box::new(resolved_value),
-                    position: position.clone(),
-                });
-                SimplifiedExpression {
-                    content,
-                    data_type: DataType::scalar(BaseType::Void),
-                }
-            }
-        })
+        let resolved_id = if let Some(data_type) = data_type.resolve() {
+            let resolved_var = o::Variable::new(position.clone(), data_type);
+            Some(self.target.adopt_variable(resolved_var))
+        } else {
+            None
+        };
+        self.set_var_info(old_var_id, resolved_id, data_type);
+
+        Ok(SimplifiedStatement::Interpreted)
     }
 
-    pub(super) fn resolve_assert_statement(
+    fn resolve_assign_statement(
         &mut self,
-        value: &i::Expression,
+        target: &i::VCExpression,
+        value: &i::VPExpression,
         position: &FilePosition,
-    ) -> Result<SimplifiedExpression, CompileProblem> {
-        let resolved_value = self.resolve_expression(value)?;
-        Result::Ok(match resolved_value.content {
-            Content::Interpreted(value) => {
-                if let i::KnownData::Bool(succeed) = value {
-                    if succeed {
-                        SimplifiedExpression {
-                            content: Content::Interpreted(i::KnownData::Void),
-                            data_type: DataType::scalar(BaseType::Void),
-                        }
-                    } else {
-                        return Result::Err(problems::guaranteed_assert(position.clone()));
-                    }
-                } else {
-                    panic!("TODO: nice error, argument to assert is not bool.")
-                }
-            }
-            Content::Modified(expression) => SimplifiedExpression {
-                content: Content::Modified(o::Expression::Assert(
-                    Box::new(expression),
-                    position.clone(),
-                )),
-                data_type: DataType::scalar(BaseType::Void),
-            },
-        })
+    ) -> Result<SimplifiedStatement, CompileProblem> {
+        let lhs = self.resolve_vc_expression(target)?;
+        let rhs = self.resolve_vp_expression(value)?;
+        if &lhs.dtype != rhs.borrow_data_type() {
+            // TODO: Better logic for when this applies.
+            panic!("TODO: Nice error, bad assignment.");
+        }
+        Ok(SimplifiedStatement::Modified(o::Statement::Assign {
+            target: Box::new(lhs.expr),
+            value: Box::new(rhs.as_vp_expression()?),
+            position: position.clone(),
+        }))
+    }
+
+    fn resolve_raw_vp_expression(
+        &mut self,
+        expr: &i::VPExpression,
+    ) -> Result<SimplifiedStatement, CompileProblem> {
+        let resolved_expr = self.resolve_vp_expression(expr)?;
+        if resolved_expr.borrow_data_type() != &DataType::Void {
+            panic!("TODO: Nice error, vpe as statement yields an unused value.");
+        }
+        match resolved_expr {
+            SimplifiedVPExpression::Interpreted(..) => Ok(SimplifiedStatement::Interpreted),
+            SimplifiedVPExpression::Modified(new_expr, ..) => Ok(SimplifiedStatement::Modified(
+                o::Statement::RawVPExpression(Box::new(new_expr)),
+            )),
+        }
+    }
+
+    pub(super) fn resolve_statement(
+        &mut self,
+        statement: &i::Statement,
+    ) -> Result<SimplifiedStatement, CompileProblem> {
+        match statement {
+            i::Statement::CreationPoint {
+                var,
+                var_type,
+                position,
+            } => self.resolve_creation_point(*var, var_type, position),
+            i::Statement::Assert(..) => unimplemented!(),
+            i::Statement::Return(..) => unimplemented!(),
+            i::Statement::Assign {
+                target,
+                value,
+                position,
+            } => self.resolve_assign_statement(target, value, position),
+            i::Statement::Branch { .. } => unimplemented!(),
+            i::Statement::ForLoop { .. } => unimplemented!(),
+            i::Statement::RawVPExpression(expr) => self.resolve_raw_vp_expression(expr),
+        }
     }
 }

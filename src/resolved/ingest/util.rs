@@ -1,4 +1,4 @@
-use super::{BaseType, DataType};
+use super::{DataType};
 use crate::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::shared as s;
@@ -162,85 +162,37 @@ fn compute_binary_operation_impl(
     }
 }
 
-fn biggest_scalar(a: &BaseType, b: &BaseType) -> Result<BaseType, ()> {
-    // BCT rule 1
-    if a == &BaseType::Automatic {
-        Result::Ok(b.clone())
-    } else if b == &BaseType::Automatic {
-        Result::Ok(a.clone())
-    } else if a == b {
-        Result::Ok(a.clone())
-    } else {
-        Result::Err(())
-    }
-}
-
 /// Returns Result::Err if there is no biggest type.
 pub(super) fn biggest_type(a: &DataType, b: &DataType) -> Result<DataType, ()> {
     // BCT rule 1
-    if a.is_specific_scalar(&BaseType::Automatic) {
-        Result::Ok(b.clone())
-    } else if b.is_specific_scalar(&BaseType::Automatic) {
-        Result::Ok(a.clone())
+    if a == &DataType::Automatic {
+        Ok(b.clone())
+    } else if b == &DataType::Automatic {
+        Ok(a.clone())
     // BCT rule 2
-    } else if a.equivalent(b) {
-        Result::Ok(a.clone())
-    // BCT rules 3 - 5
-    } else if a.is_array() || b.is_array() {
-        let a_dims = a.borrow_dimensions().clone();
-        let b_dims = b.borrow_dimensions().clone();
-        let mut final_dims = Vec::new();
-        for index in 0..a_dims.len().max(b_dims.len()) {
-            // BCT rule 5
-            if index >= a_dims.len() {
-                final_dims.push(b_dims[index]);
-            } else if index >= b_dims.len() {
-                final_dims.push(a_dims[index]);
-            // BCT rule 3
-            } else if a_dims[index] == b_dims[index] {
-                final_dims.push(a_dims[index]);
-            // BCT rule 4
-            } else if a_dims[index] == 1 {
-                final_dims.push(b_dims[index]);
-            } else if b_dims[index] == 1 {
-                final_dims.push(a_dims[index]);
-            } else {
-                return Result::Err(());
-            }
-        }
-        let base_type = biggest_scalar(a.borrow_base(), b.borrow_base())?;
-        Result::Ok(DataType::array(base_type, final_dims))
-    } else {
-        Result::Err(())
-    }
-}
-
-pub(super) fn inflate(
-    expr: o::Expression,
-    from: &DataType,
-    to: &DataType,
-) -> Result<o::Expression, CompileProblem> {
-    // TODO: Nice error if array dimension not int.
-    let from_dims = from.borrow_dimensions().clone();
-    let to_dims = to.borrow_dimensions().clone();
-    let mut final_dims = Vec::new();
-    for index in 0..from_dims.len().max(to_dims.len()) {
-        if index >= to_dims.len() {
-            panic!("TODO: nice error, cannot inflate to smaller dimension array.");
-        } else if index >= from_dims.len() {
-            final_dims.push((to_dims[index], s::ProxyMode::Discard));
-        } else if to_dims[index] == from_dims[index] {
-            final_dims.push((to_dims[index], s::ProxyMode::Keep));
-        } else if from_dims[index] == 1 {
-            final_dims.push((to_dims[index], s::ProxyMode::Collapse));
+    } else if a == b {
+        Ok(a.clone())
+    // BCT rules 3 & 4
+    } else if let (DataType::Array(alen, abase), DataType::Array(blen, bbase)) = (a, b) {
+        // BCT rule 3
+        if alen == blen {
+            Ok(DataType::Array(*alen, Box::new(biggest_type(abase, bbase)?)))
+        // BCT rule 4
+        } else if *alen == 1 {
+            Ok(DataType::Array(*blen, Box::new(biggest_type(abase, bbase)?)))
+        } else if *blen == 1 {
+            Ok(DataType::Array(*alen, Box::new(biggest_type(abase, bbase)?)))
         } else {
-            panic!("TODO: nice error, invalid inflation.");
+            Err(())
         }
+    // BCT rule 5
+    } else if let DataType::Array(alen, abase) = a {
+        Ok(DataType::Array(*alen, Box::new(biggest_type(abase, b)?)))
+    } else if let DataType::Array(blen, bbase) = b {
+        Ok(DataType::Array(*blen, Box::new(biggest_type(a, bbase)?)))
+    } else {
+        Err(())
     }
-    Result::Ok(o::Expression::Proxy {
-        base: Box::new(expr),
-        dimensions: final_dims,
-    })
 }
 
 pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, ()> {
@@ -257,7 +209,6 @@ pub(super) fn resolve_known_data(input: &i::KnownData) -> Result<o::KnownData, (
         }
         i::KnownData::DataType(..)
         | i::KnownData::Function(..)
-        | i::KnownData::Unknown
         | i::KnownData::Void => return Result::Err(()),
     })
 }

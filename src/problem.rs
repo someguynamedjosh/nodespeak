@@ -72,6 +72,15 @@ impl FilePosition {
         }
     }
 
+    pub fn union(parts: &[&FilePosition]) -> FilePosition {
+        assert!(parts.len() > 0);
+        let mut result = parts[0].clone();
+        for part in &parts[1..] {
+            result.include_other(part);
+        }
+        result
+    }
+
     pub fn include<R: RuleType>(&mut self, pair: &Pair<R>) {
         let span = pair.as_span();
         self.start_pos = cmp::min(self.start_pos, span.start());

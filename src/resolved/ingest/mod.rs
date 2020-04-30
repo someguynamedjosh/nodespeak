@@ -1,16 +1,16 @@
-use crate::problem::CompileProblem;
+use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::collections::{HashMap, HashSet};
 
-mod control_flow;
 mod data_type;
-mod expressions;
 mod foundation;
 mod helpers;
 pub(self) mod problems;
 mod statements;
 pub(self) mod util;
+mod vcexpression;
+mod vpexpression;
 
 pub(self) use data_type::*;
 
@@ -22,34 +22,36 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let new_entry_point = resolver.resolve_scope(entry_point, None)?;
     let inputs: Vec<_> = inputs
         .into_iter()
-        .map(|id| resolver.convert(id).map(|e| e.clone()))
+        .map(|id| {
+            resolver
+                .get_var_info(id)
+                .expect("undefined input, should be caught in vague phase.")
+                .0
+        })
         .collect();
     let outputs: Vec<_> = outputs
         .into_iter()
-        .map(|id| resolver.convert(id).map(|e| e.clone()))
+        .map(|id| {
+            resolver
+                .get_var_info(id)
+                .expect("undefined input, should be caught in vague phase.")
+                .0
+        })
         .collect();
     let mut result = resolver.target;
 
     for input in inputs {
-        if let Option::Some(expr) = input {
-            if let o::Expression::Variable(var_id, ..) = expr {
-                result[new_entry_point].add_input(var_id);
-            } else {
-                unreachable!("TODO: see if this needs a compile error.");
-            }
+        if let Option::Some(var_id) = input {
+            result[new_entry_point].add_input(var_id);
         } else {
-            unreachable!("TODO: see if this needs a compile error.");
+            panic!("TODO: Nice error, input not available at run time.")
         }
     }
     for output in outputs {
-        if let Option::Some(expr) = output {
-            if let o::Expression::Variable(var_id, ..) = expr {
-                result[new_entry_point].add_output(var_id);
-            } else {
-                unreachable!("TODO: see if this needs a compile error.");
-            }
+        if let Option::Some(var_id) = output {
+            result[new_entry_point].add_output(var_id);
         } else {
-            unreachable!("TODO: see if this needs a compile error.");
+            panic!("TODO: Nice error, input not available at run time.")
         }
     }
     result.set_entry_point(new_entry_point);
@@ -58,14 +60,14 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 
 #[derive(Clone, Debug)]
 struct SimplifierTable {
-    pub conversions: HashMap<i::VariableId, o::Expression>,
+    pub variables: HashMap<i::VariableId, (Option<o::VariableId>, DataType)>,
     pub unresolved_auto_vars: HashSet<i::VariableId>,
 }
 
 impl SimplifierTable {
     pub(self) fn new() -> SimplifierTable {
         SimplifierTable {
-            conversions: HashMap::new(),
+            variables: HashMap::new(),
             unresolved_auto_vars: HashSet::new(),
         }
     }
@@ -86,14 +88,54 @@ pub(super) struct ScopeSimplifier<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub(self) enum Content {
+pub(self) enum SimplifiedVPExpression {
     /// A simpler or resolved version of the expression was found.
-    Modified(o::Expression),
+    Modified(o::VPExpression, DataType),
     /// The entire value of the expression has a determinate value.
-    Interpreted(i::KnownData),
+    Interpreted(i::KnownData, FilePosition, DataType),
 }
 
-pub(self) struct SimplifiedExpression {
-    pub content: Content,
-    pub data_type: DataType,
+impl SimplifiedVPExpression {
+    pub(self) fn borrow_data_type(&self) -> &DataType {
+        match self {
+            Self::Modified(_, dtype) => dtype,
+            Self::Interpreted(_, _, dtype) => dtype,
+        }
+    }
+
+    pub(self) fn clone_position(&self) -> FilePosition {
+        match self {
+            Self::Modified(expr, _) => expr.clone_position(),
+            Self::Interpreted(_, pos, _) => pos.clone(),
+        }
+    }
+
+    /// If the result is already an expression, returns that. If the result is interpreted, returns
+    /// a literal expression containing the interpreted value.
+    pub(self) fn as_vp_expression(self) -> Result<o::VPExpression, CompileProblem> {
+        match self {
+            Self::Modified(expr, ..) => Ok(expr),
+            Self::Interpreted(data, pos, dtype) => {
+                if let Ok(rdata) = util::resolve_known_data(&data) {
+                    Ok(o::VPExpression::Literal(rdata, pos))
+                } else {
+                    Err(problems::value_not_run_time_compatible(pos, &dtype))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(self) struct SimplifiedVCExpression {
+    pub(self) expr: o::VCExpression,
+    pub(self) dtype: DataType,
+}
+
+#[derive(Clone, Debug)]
+pub(self) enum SimplifiedStatement {
+    /// A simpler or resolved version of the statement was found.
+    Modified(o::Statement),
+    /// The statement had an effect that was entirely predictable at compile time.
+    Interpreted,
 }

@@ -119,6 +119,58 @@ pub fn array_index_not_int(
     ])
 }
 
+pub fn array_index_less_than_zero(
+    index: FilePosition,
+    value: i64,
+    expression: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            index,
+            Error,
+            &format!(
+                concat!(
+                    "Array Index Less Than Zero\nThe value of the highlighted expression was ",
+                    "computed to be {}:",
+                ),
+                value
+            ),
+        ),
+        ProblemDescriptor::new(
+            expression,
+            Hint,
+            "Encountered while resolving this expression:",
+        ),
+    ])
+}
+
+pub fn array_index_too_big(
+    index: FilePosition,
+    value: i64,
+    arr_size: i64,
+    expression: FilePosition,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            index,
+            Error,
+            &format!(
+                concat!(
+                    "Array Index Too Big\nThe value of the highlighted expression was ",
+                    "computed to be {}, which is too big when indexing an array of size {}:",
+                ),
+                value,
+                arr_size,
+            ),
+        ),
+        ProblemDescriptor::new(
+            expression,
+            Hint,
+            "Encountered while resolving this expression:",
+        ),
+    ])
+}
+
 pub fn array_size_not_positive(size: FilePosition, value: i64) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         size,
@@ -212,6 +264,51 @@ pub fn mismatched_assign(
             lhs,
             Hint,
             &format!("But the left hand side has data type {:?}:", lhs_type),
+        ),
+    ])
+}
+
+pub fn value_not_run_time_compatible(value_pos: FilePosition, dtype: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        value_pos,
+        Error,
+        &format!(
+            concat!(
+                "Value Not Run Time Compatible\nThe value of the highlighted expression was ",
+                "calculated at compile time, but the way it is used requires it to be available ",
+                "at run time. This is not possible as it yields a value of type {:?}."
+            ),
+            dtype
+        ),
+    )])
+}
+
+pub fn too_many_indexes(
+    expr_pos: FilePosition,
+    num_indexes: usize,
+    max_indexes: usize,
+    base_pos: FilePosition,
+    base_type: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            expr_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Too Many Indexes\nThe highlighted expression is indexing a value {} times, ",
+                    "but the value it is indexing can only be indexed at most {} times."
+                ),
+                num_indexes, max_indexes
+            ),
+        ),
+        ProblemDescriptor::new(
+            base_pos,
+            Hint,
+            &format!(
+                concat!("The base of the expression has the data type {:?}"),
+                base_type
+            ),
         ),
     ])
 }
