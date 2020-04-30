@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 
-use super::ScopeSimplifier;
+use super::ScopeResolver;
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 
@@ -45,8 +45,8 @@ impl Debug for DataType {
     }
 }
 
-impl<'a> ScopeSimplifier<'a> {
-    pub fn input_to_intermediate_type(&mut self, source: i::DataType) -> DataType {
+impl<'a> ScopeResolver<'a> {
+    pub fn resolve_data_type_partially(&mut self, source: i::DataType) -> DataType {
         match source {
             i::DataType::Automatic => DataType::Automatic,
             i::DataType::Dynamic(..) => unimplemented!("TODO: Dynamic types."),
@@ -59,7 +59,7 @@ impl<'a> ScopeSimplifier<'a> {
             i::DataType::Void => DataType::Void,
             i::DataType::Array(len, etype) => DataType::Array(
                 len,
-                Box::new(self.input_to_intermediate_type(etype.as_ref().clone())),
+                Box::new(self.resolve_data_type_partially(etype.as_ref().clone())),
             ),
         }
     }

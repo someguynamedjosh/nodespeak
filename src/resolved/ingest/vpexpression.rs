@@ -1,27 +1,27 @@
-use super::{problems, util, DataType, ScopeSimplifier, SimplifiedVPExpression};
+use super::{problems, DataType, ScopeResolver, ResolvedVPExpression};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::borrow::Borrow;
 
-impl<'a> ScopeSimplifier<'a> {
+impl<'a> ScopeResolver<'a> {
     fn resolve_vp_variable(
         &mut self,
         var_id: i::VariableId,
         position: &FilePosition,
-    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
         if let Some(value) = self.borrow_temporary_value(var_id) {
-            Ok(SimplifiedVPExpression::Interpreted(
+            Ok(ResolvedVPExpression::Interpreted(
                 value.clone(),
                 position.clone(),
-                self.input_to_intermediate_type(value.get_data_type()),
+                self.resolve_data_type_partially(value.get_data_type()),
             ))
         } else {
             let (resolved_id, dtype) = self.get_var_info(var_id).expect(
                 "Variable used before defined, should have been caught by the previous phase.",
             );
             let resolved_id = resolved_id.expect("TODO: Nice error, cannot use var at run time.");
-            Ok(SimplifiedVPExpression::Modified(
+            Ok(ResolvedVPExpression::Modified(
                 o::VPExpression::Variable(resolved_id, position.clone()),
                 dtype.clone(),
             ))
@@ -30,9 +30,9 @@ impl<'a> ScopeSimplifier<'a> {
 
     fn resolve_vp_index_impl(
         &mut self,
-        resolved_base: SimplifiedVPExpression,
+        resolved_base: ResolvedVPExpression,
         index: &i::VPExpression,
-    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
         let resolved_index = self.resolve_vp_expression(index)?;
         let (array_length, etype) =
             if let DataType::Array(len, dtype) = resolved_base.borrow_data_type() {
@@ -46,7 +46,7 @@ impl<'a> ScopeSimplifier<'a> {
 
         match resolved_index {
             // If the index is compile-time constant.
-            SimplifiedVPExpression::Interpreted(data, index_pos, dtype) => {
+            ResolvedVPExpression::Interpreted(data, index_pos, dtype) => {
                 // Safe because we already checked that it was an int.
                 let value = data.require_int();
                 // Check that the index is in bounds.
@@ -58,16 +58,16 @@ impl<'a> ScopeSimplifier<'a> {
                 }
                 Ok(match resolved_base {
                     // If the base is also compile-time constant, return a new constant value.
-                    SimplifiedVPExpression::Interpreted(base_data, base_pos, base_type) => {
+                    ResolvedVPExpression::Interpreted(base_data, base_pos, base_type) => {
                         let element = base_data.require_array()[value as usize].clone();
                         let mut pos = base_pos;
                         pos.include_other(&index_pos);
-                        SimplifiedVPExpression::Interpreted(element, pos, etype)
+                        ResolvedVPExpression::Interpreted(element, pos, etype)
                     }
-                    SimplifiedVPExpression::Modified(base_expr, base_type) => {
+                    ResolvedVPExpression::Modified(base_expr, base_type) => {
                         let pos = FilePosition::union(&[&base_expr.clone_position(), &index_pos]);
                         let index = Self::int_literal(value, index_pos);
-                        SimplifiedVPExpression::Modified(
+                        ResolvedVPExpression::Modified(
                             // Otherwise, if it's an index expression, add the new index to it.
                             if let o::VPExpression::Index {
                                 base,
@@ -95,7 +95,7 @@ impl<'a> ScopeSimplifier<'a> {
                 })
             }
             // Otherwise, if the index is only available as a run-time expression...
-            SimplifiedVPExpression::Modified(index_expr, ..) => {
+            ResolvedVPExpression::Modified(index_expr, ..) => {
                 let pos = FilePosition::union(&[
                     &resolved_base.clone_position(),
                     &index_expr.clone_position(),
@@ -103,9 +103,9 @@ impl<'a> ScopeSimplifier<'a> {
                 let expr = match resolved_base {
                     // If the base is a compile-time constant, make it a literal and return a new
                     // expression.
-                    SimplifiedVPExpression::Interpreted(base_data, base_pos, base_type) => {
+                    ResolvedVPExpression::Interpreted(base_data, base_pos, base_type) => {
                         let base_expr = o::VPExpression::Literal(
-                            util::resolve_known_data(&base_data).expect("TODO: Nice error."),
+                            Self::resolve_known_data(&base_data).expect("TODO: Nice error."),
                             base_pos,
                         );
                         o::VPExpression::Index {
@@ -114,7 +114,7 @@ impl<'a> ScopeSimplifier<'a> {
                             position: pos,
                         }
                     }
-                    SimplifiedVPExpression::Modified(base_expr, base_type) => {
+                    ResolvedVPExpression::Modified(base_expr, base_type) => {
                         // Otherwise, if it's an index expression, add the new index to it.
                         if let o::VPExpression::Index {
                             base, mut indexes, ..
@@ -136,7 +136,7 @@ impl<'a> ScopeSimplifier<'a> {
                         }
                     }
                 };
-                Ok(SimplifiedVPExpression::Modified(expr, etype))
+                Ok(ResolvedVPExpression::Modified(expr, etype))
             }
         }
     }
@@ -147,11 +147,11 @@ impl<'a> ScopeSimplifier<'a> {
         operator: i::BinaryOperator,
         rhs: &i::VPExpression,
         position: &FilePosition,
-    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
         let res_lhs = self.resolve_vp_expression(lhs)?;
         let res_rhs = self.resolve_vp_expression(rhs)?;
         let bct = if let Ok(bct) =
-            util::biggest_type(res_lhs.borrow_data_type(), res_rhs.borrow_data_type())
+            Self::biggest_type(res_lhs.borrow_data_type(), res_rhs.borrow_data_type())
         {
             bct
         } else {
@@ -164,18 +164,18 @@ impl<'a> ScopeSimplifier<'a> {
             ));
         };
         if let (
-            SimplifiedVPExpression::Interpreted(lhs_data, ..),
-            SimplifiedVPExpression::Interpreted(rhs_data, ..),
+            ResolvedVPExpression::Interpreted(lhs_data, ..),
+            ResolvedVPExpression::Interpreted(rhs_data, ..),
         ) = (&res_lhs, &res_rhs)
         {
-            let result = util::compute_binary_operation(lhs_data, operator, rhs_data);
-            debug_assert!(self.input_to_intermediate_type(result.get_data_type()) == bct);
-            Ok(SimplifiedVPExpression::Interpreted(result, position.clone(), bct))
+            let result = Self::compute_binary_operation(lhs_data, operator, rhs_data);
+            debug_assert!(self.resolve_data_type_partially(result.get_data_type()) == bct);
+            Ok(ResolvedVPExpression::Interpreted(result, position.clone(), bct))
         } else {
-            Ok(SimplifiedVPExpression::Modified(
+            Ok(ResolvedVPExpression::Modified(
                 o::VPExpression::BinaryOperation(
                     Box::new(res_lhs.as_vp_expression()?),
-                    util::resolve_operator(operator),
+                    Self::resolve_operator(operator),
                     Box::new(res_rhs.as_vp_expression()?),
                     position.clone()
                 ),
@@ -189,7 +189,7 @@ impl<'a> ScopeSimplifier<'a> {
         base: &i::VPExpression,
         indexes: &Vec<i::VPExpression>,
         position: &FilePosition,
-    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
         // Resolve the base expression that is being indexed.
         let resolved_base = self.resolve_vp_expression(base)?;
         let mut result = resolved_base;
@@ -202,12 +202,12 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn resolve_vp_expression(
         &mut self,
         input: &i::VPExpression,
-    ) -> Result<SimplifiedVPExpression, CompileProblem> {
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
         Ok(match input {
-            i::VPExpression::Literal(value, pos) => SimplifiedVPExpression::Interpreted(
+            i::VPExpression::Literal(value, pos) => ResolvedVPExpression::Interpreted(
                 value.clone(),
                 pos.clone(),
-                self.input_to_intermediate_type(value.get_data_type()),
+                self.resolve_data_type_partially(value.get_data_type()),
             ),
             i::VPExpression::Variable(id, position) => self.resolve_vp_variable(*id, position)?,
             i::VPExpression::Collect(..) => unimplemented!(),

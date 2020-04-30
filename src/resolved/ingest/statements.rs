@@ -1,22 +1,22 @@
 use super::{
-    problems, util, DataType, ScopeSimplifier, SimplifiedStatement, SimplifiedVCExpression,
-    SimplifiedVPExpression,
+    problems, util, DataType, ScopeResolver, ResolvedStatement, ResolvedVCExpression,
+    ResolvedVPExpression,
 };
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 
-impl<'a> ScopeSimplifier<'a> {
+impl<'a> ScopeResolver<'a> {
     fn resolve_creation_point(
         &mut self,
         old_var_id: i::VariableId,
         dtype: &i::VPExpression,
         position: &FilePosition,
-    ) -> Result<SimplifiedStatement, CompileProblem> {
+    ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_dtype = self.resolve_vp_expression(dtype)?;
-        let data_type = if let SimplifiedVPExpression::Interpreted(data, ..) = resolved_dtype {
+        let data_type = if let ResolvedVPExpression::Interpreted(data, ..) = resolved_dtype {
             if let i::KnownData::DataType(in_type) = data {
-                self.input_to_intermediate_type(in_type)
+                self.resolve_data_type_partially(in_type)
             } else {
                 panic!("TODO: Nice error, value is not a data type")
             }
@@ -34,7 +34,7 @@ impl<'a> ScopeSimplifier<'a> {
             self.set_temporary_value(old_var_id, data.clone());
         }
 
-        Ok(SimplifiedStatement::Interpreted)
+        Ok(ResolvedStatement::Interpreted)
     }
 
     fn resolve_assign_statement(
@@ -42,7 +42,7 @@ impl<'a> ScopeSimplifier<'a> {
         target: &i::VCExpression,
         value: &i::VPExpression,
         position: &FilePosition,
-    ) -> Result<SimplifiedStatement, CompileProblem> {
+    ) -> Result<ResolvedStatement, CompileProblem> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
         if lhs.borrow_data_type() != rhs.borrow_data_type() {
@@ -50,19 +50,19 @@ impl<'a> ScopeSimplifier<'a> {
             panic!("TODO: Nice error, bad assignment.");
         }
         if let (
-            SimplifiedVCExpression::Specific(target_id, ..),
-            SimplifiedVPExpression::Interpreted(value_data, ..),
+            ResolvedVCExpression::Specific(target_id, ..),
+            ResolvedVPExpression::Interpreted(value_data, ..),
         ) = (&lhs, &rhs)
         {
             self.set_temporary_value(*target_id, value_data.clone());
-            Ok(SimplifiedStatement::Interpreted)
+            Ok(ResolvedStatement::Interpreted)
         } else {
-            if let SimplifiedVCExpression::Specific(target_id, ..) = lhs {
+            if let ResolvedVCExpression::Specific(target_id, ..) = lhs {
                 self.clear_temporary_value(target_id);
             } else {
                 unimplemented!("Can't clear a range of temporary values yet.");
             }
-            Ok(SimplifiedStatement::Modified(o::Statement::Assign {
+            Ok(ResolvedStatement::Modified(o::Statement::Assign {
                 target: Box::new(lhs.as_vc_expression(self)?),
                 value: Box::new(rhs.as_vp_expression()?),
                 position: position.clone(),
@@ -73,14 +73,14 @@ impl<'a> ScopeSimplifier<'a> {
     fn resolve_raw_vp_expression(
         &mut self,
         expr: &i::VPExpression,
-    ) -> Result<SimplifiedStatement, CompileProblem> {
+    ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_expr = self.resolve_vp_expression(expr)?;
         if resolved_expr.borrow_data_type() != &DataType::Void {
             panic!("TODO: Nice error, vpe as statement yields an unused value.");
         }
         match resolved_expr {
-            SimplifiedVPExpression::Interpreted(..) => Ok(SimplifiedStatement::Interpreted),
-            SimplifiedVPExpression::Modified(new_expr, ..) => Ok(SimplifiedStatement::Modified(
+            ResolvedVPExpression::Interpreted(..) => Ok(ResolvedStatement::Interpreted),
+            ResolvedVPExpression::Modified(new_expr, ..) => Ok(ResolvedStatement::Modified(
                 o::Statement::RawVPExpression(Box::new(new_expr)),
             )),
         }
@@ -89,7 +89,7 @@ impl<'a> ScopeSimplifier<'a> {
     pub(super) fn resolve_statement(
         &mut self,
         statement: &i::Statement,
-    ) -> Result<SimplifiedStatement, CompileProblem> {
+    ) -> Result<ResolvedStatement, CompileProblem> {
         match statement {
             i::Statement::CreationPoint {
                 var,
