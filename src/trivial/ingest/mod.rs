@@ -46,6 +46,29 @@ impl<'a> Trivializer<'a> {
         Result::Ok(())
     }
 
+    fn bct_dimensions(type1: &o::DataType, type2: &o::DataType) -> Vec<usize> {
+        let t1dims = type1.collect_dimensions();
+        let t2dims = type2.collect_dimensions();
+        let mut bctdims = Vec::new();
+        for index in 0..(t1dims.len().max(t2dims.len())) {
+            let dim = if index >= t1dims.len() {
+                t2dims[index]
+            } else if index >= t2dims.len() {
+                t1dims[index]
+            } else if t1dims[index] == 1 {
+                t2dims[index]
+            } else if t2dims[index] == 1 {
+                t1dims[index]
+            } else if t1dims[index] == t2dims[index] {
+                t1dims[index]
+            } else {
+                unreachable!("Invalid bct should have been caught earlier.")
+            };
+            bctdims.push(dim);
+        }
+        bctdims
+    }
+
     fn trivialize_known_data(data: &i::KnownData) -> Result<o::KnownData, CompileProblem> {
         Result::Ok(match data {
             i::KnownData::Int(value) => o::KnownData::Int(*value),
@@ -116,14 +139,18 @@ impl<'a> Trivializer<'a> {
         right: &i::VPExpression,
         out_typ: &i::DataType,
     ) -> Result<o::Value, CompileProblem> {
-        let a = self.trivialize_vp_expression(left)?;
-        let b = self.trivialize_vp_expression(right)?;
+        let mut a = self.trivialize_vp_expression(left)?;
+        let mut b = self.trivialize_vp_expression(right)?;
+        let bct_dims = Self::bct_dimensions(&a.get_type(&self.target), &b.get_type(&self.target));
+        a.inflate(&bct_dims[..]);
+        b.inflate(&bct_dims[..]);
         let out_typ = Self::trivialize_data_type(out_typ);
         let mut base = out_typ.clone();
         while let o::DataType::Array(_, etype) = base {
             base = *etype;
         }
-        let x = o::Value::variable(self.target.adopt_variable(o::Variable::new(out_typ)));
+        let x_var = self.target.adopt_variable(o::Variable::new(out_typ));
+        let x = o::Value::variable(x_var, &self.target);
         let x2 = x.clone();
         let toperator = match operator {
             i::BinaryOperator::Add => match base {
@@ -232,13 +259,14 @@ impl<'a> Trivializer<'a> {
             };
             let (new_indexes, _result_type) =
                 self.trivialize_indexes(indexes, self.target[base].borrow_type().clone())?;
+            let base = o::Value::variable(base, &self.target);
             self.target.add_instruction(o::Instruction::Store {
                 from: tvalue,
-                to: o::Value::variable(base),
+                to: base,
                 to_indexes: new_indexes,
             });
         } else if let i::VCExpression::Variable(id, ..) = target {
-            let ttarget = o::Value::variable(self.trivialize_variable(*id)?);
+            let ttarget = o::Value::variable(self.trivialize_variable(*id)?, &self.target);
             self.target.add_instruction(o::Instruction::Move {
                 from: tvalue,
                 to: ttarget,
@@ -293,17 +321,17 @@ impl<'a> Trivializer<'a> {
         body: i::ScopeId,
     ) -> Result<(), CompileProblem> {
         let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
-        let tcount = o::Value::variable(self.trivialize_variable(counter)?);
+        let tcount = o::Value::variable(self.trivialize_variable(counter)?, &self.target);
         let tstart = self.trivialize_vp_expression(start)?;
         let tend = self.trivialize_vp_expression(end)?;
         self.target.add_instruction(o::Instruction::Move {
             from: tstart,
             to: tcount.clone(),
         });
-        let condition_var = o::Value::variable(
-            self.target
-                .adopt_variable(o::Variable::new(o::DataType::B1)),
-        );
+        let condition_var = self
+            .target
+            .adopt_variable(o::Variable::new(o::DataType::B1));
+        let condition_var = o::Value::variable(condition_var, &self.target);
         self.target
             .add_instruction(o::Instruction::BinaryOperation {
                 a: tcount.clone(),
@@ -383,7 +411,7 @@ impl<'a> Trivializer<'a> {
         let output_holder = self
             .target
             .adopt_variable(o::Variable::new(result_type.clone()));
-        let mut output_value = o::Value::variable(output_holder);
+        let mut output_value = o::Value::variable(output_holder, &self.target);
         output_value.dimensions = result_type
             .collect_dimensions()
             .iter()
@@ -405,7 +433,9 @@ impl<'a> Trivializer<'a> {
             i::VPExpression::Literal(data, ..) => {
                 o::Value::literal(Self::trivialize_known_data(data)?)
             }
-            i::VPExpression::Variable(id, ..) => o::Value::variable(self.trivialize_variable(*id)?),
+            i::VPExpression::Variable(id, ..) => {
+                o::Value::variable(self.trivialize_variable(*id)?, &self.target)
+            }
             i::VPExpression::Index { base, indexes, .. } => self.trivialize_index(base, indexes)?,
 
             i::VPExpression::UnaryOperation(..) => unimplemented!(),

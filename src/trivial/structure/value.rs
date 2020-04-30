@@ -1,5 +1,5 @@
-use super::{Program, VariableId, KnownData, DataType};
-use crate::shared::{ProxyMode};
+use super::{DataType, KnownData, Program, VariableId};
+use crate::shared::ProxyMode;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -34,23 +34,49 @@ pub struct Value {
 }
 
 impl Value {
-    pub fn new(base: ValueBase) -> Value {
+    fn new(base: ValueBase, base_type: &DataType) -> Value {
         Value {
             base,
-            dimensions: Vec::new(),
+            dimensions: base_type
+                .collect_dimensions()
+                .iter()
+                .map(|len| (*len, ProxyMode::Keep))
+                .collect(),
         }
     }
 
-    pub fn variable(variable: VariableId) -> Value {
-        Self::new(ValueBase::Variable(variable))
+    pub fn variable(variable: VariableId, program: &Program) -> Value {
+        Self::new(
+            ValueBase::Variable(variable),
+            program[variable].borrow_type(),
+        )
     }
 
     pub fn literal(data: KnownData) -> Value {
-        Self::new(ValueBase::Literal(data))
+        let base_type = data.get_type();
+        Self::new(ValueBase::Literal(data), &base_type)
     }
 
     pub fn get_type(&self, program: &Program) -> DataType {
         self.base.get_type(program)
+    }
+
+    pub fn inflate(&mut self, dimensions: &[usize]) {
+        let mut new_dimensions = Vec::new();
+        for (index, target_dimension) in dimensions.iter().cloned().enumerate() {
+            if index >= self.dimensions.len() {
+                new_dimensions.push((target_dimension, ProxyMode::Discard));
+            } else if self.dimensions[index].0 == target_dimension {
+                new_dimensions.push(self.dimensions[index].clone());
+            } else {
+                assert!(
+                    self.dimensions[index].0 == 1,
+                    "Illegal inflation should have been caught earlier."
+                );
+                new_dimensions.push((target_dimension, ProxyMode::Collapse));
+            }
+        }
+        self.dimensions = new_dimensions;
     }
 }
 
