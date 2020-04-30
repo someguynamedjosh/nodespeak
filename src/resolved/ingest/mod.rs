@@ -19,7 +19,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let inputs = program[entry_point].borrow_inputs().clone();
     let outputs = program[entry_point].borrow_outputs().clone();
     let mut resolver = ScopeSimplifier::new(program);
-    let new_entry_point = resolver.resolve_scope(entry_point, None)?;
+    let new_entry_point = resolver.resolve_scope(entry_point)?;
     let inputs: Vec<_> = inputs
         .into_iter()
         .map(|id| {
@@ -42,14 +42,14 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 
     for input in inputs {
         if let Option::Some(var_id) = input {
-            result[new_entry_point].add_input(var_id);
+            result.add_input(var_id);
         } else {
             panic!("TODO: Nice error, input not available at run time.")
         }
     }
     for output in outputs {
         if let Option::Some(var_id) = output {
-            result[new_entry_point].add_output(var_id);
+            result.add_output(var_id);
         } else {
             panic!("TODO: Nice error, input not available at run time.")
         }

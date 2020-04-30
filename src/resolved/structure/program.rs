@@ -29,11 +29,19 @@ pub struct Program {
     scopes: Vec<Scope>,
     entry_point: ScopeId,
     variables: Vec<Variable>,
+    inputs: Vec<VariableId>,
+    outputs: Vec<VariableId>,
 }
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "entry point: {:?}", self.entry_point)?;
+        for (index, input) in self.inputs.iter().enumerate() {
+            write!(formatter, "\ninput {}: {:?}", index, input)?;
+        }
+        for (index, output) in self.outputs.iter().enumerate() {
+            write!(formatter, "\noutput {}: {:?}", index, output)?;
+        }
         for (index, scope) in self.scopes.iter().enumerate() {
             write!(formatter, "\ncontents of {:?}:\n", ScopeId(index))?;
             write!(
@@ -88,32 +96,15 @@ impl Program {
             scopes: vec![Scope::new()],
             entry_point: ScopeId(0),
             variables: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
 
-    /// Creates a new scope that has no parent.
     pub fn create_scope(&mut self) -> ScopeId {
         let id = ScopeId(self.scopes.len());
         self.scopes.push(Scope::new());
         id
-    }
-
-    pub fn create_child_scope(&mut self, parent: ScopeId) -> ScopeId {
-        assert!(parent.0 < self.scopes.len());
-        let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::from_parent(parent));
-        id
-    }
-
-    // ===SYMBOLS/VARIABLES=========================================================================
-    pub fn lookup_symbol(&self, scope: ScopeId, symbol: &str) -> Option<VariableId> {
-        match self[scope].borrow_symbols().get(symbol) {
-            Option::Some(value_) => Option::Some(*value_),
-            Option::None => match self[scope].get_parent() {
-                Option::Some(parent) => self.lookup_symbol(parent, symbol),
-                Option::None => Option::None,
-            },
-        }
     }
 
     pub fn modify_variable(&mut self, variable: VariableId, modified: Variable) {
@@ -140,24 +131,11 @@ impl Program {
         self.entry_point = new_entry_point;
     }
 
-    pub fn adopt_and_define_symbol(
-        &mut self,
-        scope: ScopeId,
-        symbol: &str,
-        definition: Variable,
-    ) -> VariableId {
-        let id = self.adopt_variable(definition);
-        self[scope].define_symbol(symbol, id);
-        id
+    pub fn add_input(&mut self, input: VariableId) {
+        self.inputs.push(input);
     }
 
-    pub fn adopt_and_define_intermediate(
-        &mut self,
-        scope: ScopeId,
-        definition: Variable,
-    ) -> VariableId {
-        let id = self.adopt_variable(definition);
-        self[scope].define_intermediate(id);
-        id
+    pub fn add_output(&mut self, output: VariableId) {
+        self.outputs.push(output);
     }
 }

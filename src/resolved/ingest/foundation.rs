@@ -79,28 +79,12 @@ impl<'a> ScopeSimplifier<'a> {
         o::VPExpression::Literal(o::KnownData::Int(value), position)
     }
 
-    pub(super) fn copy_scope(
-        &mut self,
-        _source: i::ScopeId,
-        parent: Option<o::ScopeId>,
-    ) -> Result<o::ScopeId, CompileProblem> {
-        let copy = match parent {
-            Option::Some(parent_id) => self.target.create_child_scope(parent_id),
-            Option::None => self.target.create_scope(),
-        };
-
-        // Variables are only copied once their CreationPoint is hit.
-
-        Result::Ok(copy)
-    }
-
     pub(super) fn resolve_scope(
         &mut self,
         source: i::ScopeId,
-        parent: Option<o::ScopeId>,
     ) -> Result<o::ScopeId, CompileProblem> {
         let old_current_scope = self.current_scope;
-        self.current_scope = self.copy_scope(source, parent)?;
+        self.current_scope = self.target.create_scope();
         let old_body = self.source[source].borrow_body().clone();
         for statement in old_body {
             if let SimplifiedStatement::Modified(new) = self.resolve_statement(&statement)? {
