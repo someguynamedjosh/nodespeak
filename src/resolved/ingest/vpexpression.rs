@@ -1,4 +1,4 @@
-use super::{problems, DataType, ScopeResolver, ResolvedVPExpression};
+use super::{problems, DataType, ResolvedVPExpression, ScopeResolver};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -25,6 +25,55 @@ impl<'a> ScopeResolver<'a> {
                 o::VPExpression::Variable(resolved_id, position.clone()),
                 dtype.clone(),
             ))
+        }
+    }
+
+    fn resolve_build_array_type(
+        &mut self,
+        dimensions: &Vec<i::VPExpression>,
+        base: &i::VPExpression,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        let mut int_dims = Vec::new();
+        for dim in dimensions {
+            let resolved = self.resolve_vp_expression(dim)?;
+            let rpos = resolved.clone_position();
+            if let ResolvedVPExpression::Interpreted(data, ..) = resolved {
+                if let i::KnownData::Int(value) = data {
+                    if value < 1 {
+                        return Err(problems::array_size_less_than_one(rpos, value));
+                    }
+                    int_dims.push(value as usize);
+                } else {
+                    return Err(problems::array_size_not_int(rpos, &data.get_data_type()));
+                }
+            } else {
+                return Err(problems::array_size_not_resolved(rpos));
+            }
+        }
+        let resolved_base = self.resolve_vp_expression(base)?;
+        if resolved_base.borrow_data_type() != &DataType::DataType {
+            return Err(problems::array_base_not_data_type(
+                resolved_base.clone_position(),
+                resolved_base.borrow_data_type(),
+            ));
+        }
+        if let ResolvedVPExpression::Interpreted(data, ..) = resolved_base {
+            if let i::KnownData::DataType(dtype, ..) = data {
+                let mut final_type = dtype.clone();
+                for dim in int_dims {
+                    final_type = i::DataType::Array(dim, Box::new(final_type));
+                }
+                Ok(ResolvedVPExpression::Interpreted(
+                    i::KnownData::DataType(final_type),
+                    position.clone(),
+                    DataType::DataType,
+                ))
+            } else {
+                unreachable!("We already checked that the expr was a data type.")
+            }
+        } else {
+            unreachable!("Data is both dynamic and a data type. That should be impossible.");
         }
     }
 
@@ -170,16 +219,24 @@ impl<'a> ScopeResolver<'a> {
         {
             let result = Self::compute_binary_operation(lhs_data, operator, rhs_data);
             debug_assert!(self.resolve_data_type_partially(result.get_data_type()) == bct);
-            Ok(ResolvedVPExpression::Interpreted(result, position.clone(), bct))
+            Ok(ResolvedVPExpression::Interpreted(
+                result,
+                position.clone(),
+                bct,
+            ))
         } else {
             Ok(ResolvedVPExpression::Modified(
-                o::VPExpression::BinaryOperation(
-                    Box::new(res_lhs.as_vp_expression()?),
-                    Self::resolve_operator(operator),
-                    Box::new(res_rhs.as_vp_expression()?),
-                    position.clone()
-                ),
-                bct
+                o::VPExpression::BinaryOperation {
+                    lhs: Box::new(res_lhs.as_vp_expression()?),
+                    op: Self::resolve_operator(operator),
+                    rhs: Box::new(res_rhs.as_vp_expression()?),
+                    typ: bct
+                        .clone()
+                        .resolve()
+                        .expect("TODO: Nice error, data not available at compile time."),
+                    position: position.clone(),
+                },
+                bct,
             ))
         }
     }
@@ -211,7 +268,11 @@ impl<'a> ScopeResolver<'a> {
             ),
             i::VPExpression::Variable(id, position) => self.resolve_vp_variable(*id, position)?,
             i::VPExpression::Collect(..) => unimplemented!(),
-            i::VPExpression::BuildArrayType { .. } => unimplemented!(),
+            i::VPExpression::BuildArrayType {
+                dimensions,
+                base,
+                position,
+            } => self.resolve_build_array_type(dimensions, base, position)?,
 
             i::VPExpression::UnaryOperation(..) => unimplemented!(),
             i::VPExpression::BinaryOperation(lhs, operator, rhs, position) => {

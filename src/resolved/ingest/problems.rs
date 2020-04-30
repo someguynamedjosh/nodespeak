@@ -159,8 +159,7 @@ pub fn array_index_too_big(
                     "Array Index Too Big\nThe value of the highlighted expression was ",
                     "computed to be {}, which is too big when indexing an array of size {}:",
                 ),
-                value,
-                arr_size,
+                value, arr_size,
             ),
         ),
         ProblemDescriptor::new(
@@ -171,15 +170,40 @@ pub fn array_index_too_big(
     ])
 }
 
-pub fn array_size_not_positive(size: FilePosition, value: i64) -> CompileProblem {
+pub fn array_base_not_data_type(
+    base: FilePosition,
+    typ: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        base,
+        Error,
+        &format!(
+            concat!(
+                "Array Base Not Data Type\nExpected a data type (as a base for an array type), ",
+                "got a {:?} instead."
+            ),
+            typ,
+        ),
+    )])
+}
+
+pub fn array_base_not_resolved(base: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        base,
+        Error,
+        concat!(
+            "Dynamic Array Base\nCannot determine what the value of the highlighted expression is ",
+            "at compile time."
+        ),
+    )])
+}
+
+pub fn array_size_less_than_one(size: FilePosition, value: i64) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         size,
         Error,
         &format!(
-            concat!(
-                "Non-Positive Array Size\nThe highlighted expression resolves to {}, which is not ",
-                "greater than zero."
-            ),
+            concat!("Array Size Less Than One\nThe highlighted expression resolves to {}. ",),
             value
         ),
     )])

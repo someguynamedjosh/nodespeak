@@ -30,14 +30,14 @@ impl<'a> Trivializer<'a> {
 
     fn entry_point(&mut self) -> Result<(), CompileProblem> {
         let source_entry_point = self.source.get_entry_point();
-        let source_inputs = self.source[source_entry_point].borrow_inputs().clone();
+        let source_inputs = self.source.borrow_inputs();
         for input in source_inputs {
-            let trivialized = self.trivialize_variable(input)?;
+            let trivialized = self.trivialize_variable(*input)?;
             self.target.add_input(trivialized);
         }
-        let source_outputs = self.source[source_entry_point].borrow_outputs().clone();
+        let source_outputs = self.source.borrow_outputs();
         for output in source_outputs {
-            let trivialized = self.trivialize_variable(output)?;
+            let trivialized = self.trivialize_variable(*output)?;
             self.target.add_output(trivialized);
         }
         for expr in self.source[source_entry_point].borrow_body().clone() {
@@ -55,18 +55,13 @@ impl<'a> Trivializer<'a> {
         })
     }
 
-    fn trivialize_data_type(data_type: &i::DataType) -> Result<o::DataType, CompileProblem> {
-        let base_type = match data_type.borrow_base() {
-            i::BaseType::Float => o::BaseType::F32,
-            i::BaseType::Int => o::BaseType::I32,
-            i::BaseType::Bool => o::BaseType::B1,
-        };
-        let dimensions = data_type
-            .borrow_dimensions()
-            .iter()
-            .map(|dim| dim.0)
-            .collect();
-        Result::Ok(o::DataType::array(base_type, dimensions))
+    fn trivialize_data_type(data_type: &i::DataType) -> o::DataType {
+        match data_type {
+            i::DataType::Float => o::DataType::F32,
+            i::DataType::Int => o::DataType::I32,
+            i::DataType::Bool => o::DataType::B1,
+            i::DataType::Array(len, base) => o::DataType::Array(*len, Box::new(Self::trivialize_data_type(base)))
+        }
     }
 
     fn trivialize_variable(
@@ -77,7 +72,7 @@ impl<'a> Trivializer<'a> {
             Some(trivialized) => *trivialized,
             None => {
                 let data_type = self.source[variable].borrow_data_type();
-                let typ = Self::trivialize_data_type(data_type)?;
+                let typ = Self::trivialize_data_type(data_type);
                 let trivial_variable = o::Variable::new(typ);
                 let id = self.target.adopt_variable(trivial_variable);
                 self.variable_map.insert(variable, id);
@@ -112,40 +107,16 @@ impl<'a> Trivializer<'a> {
         })
     }
 
-    fn trivialize_proxy(
-        &mut self,
-        base: &i::Expression,
-        dimensions: &Vec<(usize, s::ProxyMode)>,
-    ) -> Result<o::Value, CompileProblem> {
-        // TODO: Check that the proxy is actually valid.
-        Ok(match base {
-            i::Expression::Variable(id, ..) => {
-                let mut base = o::Value::variable(self.trivialize_variable(*id)?);
-                base.dimensions = dimensions.clone();
-                base
-            }
-            i::Expression::Literal(data, ..) => {
-                o::Value::literal(Self::apply_proxy_to_known_data(&dimensions[..], data)?)
-            }
-            _ => {
-                // TODO: Figure out what to provide for the part_of argument.
-                let mut base = self.trivialize_and_require_value(base, base)?;
-                base.dimensions = dimensions.clone();
-                base
-            }
-        })
-    }
-
     fn trivialize_binary_expression(
         &mut self,
-        expression: &i::Expression,
-        left: &i::Expression,
+        expression: &i::VPExpression,
+        left: &i::VPExpression,
         operator: i::BinaryOperator,
-        right: &i::Expression,
+        right: &i::VPExpression,
     ) -> Result<o::Value, CompileProblem> {
         let a = self.trivialize_and_require_value(left, expression)?;
         let b = self.trivialize_and_require_value(right, expression)?;
-        let base_type = a.get_type(&self.target).get_base();
+        let base_type = a.get_type(&self.target);
         let dimensions: Vec<_> = a.dimensions.iter().map(|(size, _)| *size).collect();
         let typ = o::DataType::array(base_type, dimensions.clone());
         let base = typ.get_base();

@@ -37,7 +37,7 @@ impl<'a> ScopeResolver<'a> {
         Ok(ResolvedStatement::Interpreted)
     }
 
-    fn resolve_assign_statement(
+    pub(super) fn resolve_assign_statement(
         &mut self,
         target: &i::VCExpression,
         value: &i::VPExpression,

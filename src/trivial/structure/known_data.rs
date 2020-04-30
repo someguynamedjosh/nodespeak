@@ -30,33 +30,6 @@ impl Debug for KnownData {
 }
 
 impl KnownData {
-    // pub fn from_binary_data(target_type: &DataType, data: &[u8]) -> KnownData {
-    //     // assert!(target_type.get_physical_size() == data.len());
-    //     if target_type.borrow_dimensions().len() > 0 {
-    //         let dims: Vec<_> = target_type.borrow_dimensions().clone();
-    //         let num_items = dims.iter().fold(1, |num, dim| num * dim);
-    //         let item_type = target_type.clone_and_unwrap(dims.len());
-    //         let item_size = item_type.get_physical_size();
-    //         let mut items = Vec::with_capacity(num_items);
-    //         for index in 0..num_items {
-    //             items.push(KnownData::from_binary_data(
-    //                 &item_type,
-    //                 &data[index * item_size..(index + 1) * item_size],
-    //             ));
-    //         }
-    //         KnownData::Array(NVec::from_vec_and_dims(items, dims))
-    //     } else {
-    //         match target_type.get_base() {
-    //             BaseType::B8 => Self::Bool(data[0] > 0),
-    //             BaseType::I32 => {
-    //                 Self::Int(i32::from_le_bytes([data[0], data[1], data[2], data[3]]) as i64)
-    //             }
-    //             BaseType::F32 => {
-    //                 Self::Float(f32::from_le_bytes([data[0], data[1], data[2], data[3]]) as f64)
-    //             }
-    //         }
-    //     }
-    // }
     pub fn build_array(dimensions: &[usize], element: KnownData) -> KnownData {
         if dimensions.len() == 0 {
             element
@@ -68,12 +41,12 @@ impl KnownData {
 
     pub fn get_type(&self) -> DataType {
         match self {
-            Self::Int(..) => DataType::i32_scalar(),
-            Self::Float(..) => DataType::f32_scalar(),
-            Self::Bool(..) => DataType::b1_scalar(),
+            Self::Int(..) => DataType::I32,
+            Self::Float(..) => DataType::F32,
+            Self::Bool(..) => DataType::B1,
             Self::Array(data) => {
-                let dtype = data[0].get_type();
-                dtype.wrap_with_dimension(data.len())
+                assert!(data.len() > 0);
+                DataType::Array(data.len(), Box::new(data[0].get_type()))
             }
         }
     }

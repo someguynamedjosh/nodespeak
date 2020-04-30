@@ -131,8 +131,16 @@ impl Program {
         self.entry_point = new_entry_point;
     }
 
+    pub fn borrow_inputs(&self) -> &[VariableId] {
+        &self.inputs[..]
+    }
+
     pub fn add_input(&mut self, input: VariableId) {
         self.inputs.push(input);
+    }
+
+    pub fn borrow_outputs(&self) -> &[VariableId] {
+        &self.outputs[..]
     }
 
     pub fn add_output(&mut self, output: VariableId) {

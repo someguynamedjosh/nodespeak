@@ -1,5 +1,5 @@
+use super::{DataType, KnownData, ScopeId, VariableId};
 use crate::problem::FilePosition;
-use crate::resolved::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -84,12 +84,13 @@ pub enum VPExpression {
     },
 
     UnaryOperation(UnaryOperator, Box<VPExpression>, FilePosition),
-    BinaryOperation(
-        Box<VPExpression>,
-        BinaryOperator,
-        Box<VPExpression>,
-        FilePosition,
-    ),
+    BinaryOperation {
+        lhs: Box<VPExpression>,
+        op: BinaryOperator,
+        rhs: Box<VPExpression>,
+        typ: DataType,
+        position: FilePosition,
+    },
     Index {
         base: Box<VPExpression>,
         indexes: Vec<VPExpression>,
@@ -125,9 +126,9 @@ impl Debug for VPExpression {
             Self::UnaryOperation(operator, value, ..) => {
                 write!(formatter, "({:?} {:?})", operator, value)
             }
-            Self::BinaryOperation(v1, operator, v2, ..) => {
-                write!(formatter, "({:?} {:?} {:?})", v1, operator, v2)
-            }
+            Self::BinaryOperation {
+                lhs, op, rhs, typ, ..
+            } => write!(formatter, "({:?} {:?} {:?} as {:?})", lhs, op, rhs, typ),
             Self::Index { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {
@@ -136,12 +137,7 @@ impl Debug for VPExpression {
                 write!(formatter, "")
             }
 
-            Self::MacroCall {
-                mcro,
-                ..
-            } => {
-                write!(formatter, "call {:?}", mcro)
-            }
+            Self::MacroCall { mcro, .. } => write!(formatter, "call {:?}", mcro),
         }
     }
 }
@@ -154,7 +150,7 @@ impl VPExpression {
             | Self::Collect(_, position)
             | Self::BuildArrayType { position, .. }
             | Self::UnaryOperation(_, _, position)
-            | Self::BinaryOperation(_, _, _, position)
+            | Self::BinaryOperation { position, .. }
             | Self::Index { position, .. }
             | Self::MacroCall { position, .. } => position.clone(),
         }
