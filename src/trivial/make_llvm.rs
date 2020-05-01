@@ -1,4 +1,5 @@
 use super::structure as i;
+use crate::shared::{self, ProxyMode};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::transforms as llvmt;
@@ -26,53 +27,105 @@ impl<'a> Converter<'a> {
         unsafe { LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0) }
     }
 
-    fn store_value(&mut self, value: &i::Value, content: LLVMValueRef) {
-        assert!(value.dimensions.len() == 0);
+    fn store_value(&mut self, value: &i::Value, content: LLVMValueRef, const_indexes: &[u32]) {
+        assert!(value.dimensions.len() == const_indexes.len());
         match &value.base {
             i::ValueBase::Variable(id) => {
-                let ptr = self
+                let mut ptr = *self
                     .value_pointers
                     .get(&id)
                     .expect("A variable was not given a pointer.");
+                if const_indexes.len() > 0 {
+                    let mut indices = Vec::new();
+                    indices.push(self.u32_const(0));
+                    const_indexes
+                        .iter()
+                        .for_each(|e| indices.push(self.u32_const(*e)));
+                    ptr = unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            ptr,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    };
+                }
                 unsafe {
-                    LLVMBuildStore(self.builder, content, *ptr);
+                    LLVMBuildStore(self.builder, content, ptr);
                 }
             }
             i::ValueBase::Literal(..) => panic!("Cannot store to a constant."),
         }
     }
 
-    fn load_value(&mut self, value: &i::Value) -> LLVMValueRef {
-        assert!(value.dimensions.len() == 0);
+    fn load_value(&mut self, value: &i::Value, const_indexes: &[u32]) -> LLVMValueRef {
+        assert!(value.dimensions.len() == const_indexes.len());
         match &value.base {
             i::ValueBase::Variable(id) => {
-                let ptr = self
+                let mut ptr = *self
                     .value_pointers
                     .get(&id)
                     .expect("A variable was not given a pointer.");
-                unsafe { LLVMBuildLoad(self.builder, *ptr, UNNAMED) }
+                if const_indexes.len() > 0 {
+                    let mut indices = Vec::new();
+                    indices.push(self.u32_const(0));
+                    for (index, (_, proxy_mode)) in value.dimensions.iter().enumerate() {
+                        match proxy_mode {
+                            ProxyMode::Keep => indices.push(self.u32_const(const_indexes[index])),
+                            ProxyMode::Collapse => indices.push(self.u32_const(0)),
+                            ProxyMode::Discard => (),
+                        }
+                    }
+                    ptr = unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            ptr,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    };
+                }
+                unsafe { LLVMBuildLoad(self.builder, ptr, UNNAMED) }
             }
-            i::ValueBase::Literal(lit) => match lit {
-                i::KnownData::Array(..) => unimplemented!(),
-                i::KnownData::Bool(value) => unsafe {
-                    LLVMConstInt(
-                        LLVMInt1TypeInContext(self.context),
-                        if *value { 1 } else { 0 },
-                        0,
-                    )
-                },
-                i::KnownData::Int(value) => unsafe {
-                    LLVMConstInt(LLVMInt32TypeInContext(self.context), *value as u64, 0)
-                },
-                i::KnownData::Float(value) => unsafe {
-                    LLVMConstReal(LLVMFloatTypeInContext(self.context), *value as f64)
-                },
-            },
+            i::ValueBase::Literal(data) => {
+                let mut data = data.clone();
+                for index in const_indexes {
+                    if let i::KnownData::Array(mut values) = data {
+                        data = values.remove(*index as usize);
+                    } else {
+                        unreachable!("Illegal indexes should be caught earlier.");
+                    }
+                }
+                match data {
+                    i::KnownData::Array(..) => unimplemented!(),
+                    i::KnownData::Bool(value) => unsafe {
+                        LLVMConstInt(
+                            LLVMInt1TypeInContext(self.context),
+                            if value { 1 } else { 0 },
+                            0,
+                        )
+                    },
+                    i::KnownData::Int(value) => unsafe {
+                        assert!(const_indexes.len() == 0);
+                        LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0)
+                    },
+                    i::KnownData::Float(value) => unsafe {
+                        assert!(const_indexes.len() == 0);
+                        LLVMConstReal(LLVMFloatTypeInContext(self.context), value as f64)
+                    },
+                }
+            }
         }
     }
 
     fn get_block_for_label(&self, id: &i::LabelId) -> LLVMBasicBlockRef {
         self.label_blocks[id.raw()]
+    }
+
+    fn usize_vec_to_u32(vec: Vec<usize>) -> Vec<u32> {
+        vec.into_iter().map(|i| i as u32).collect()
     }
 
     fn convert_binary_expression(
@@ -82,60 +135,35 @@ impl<'a> Converter<'a> {
         b: &i::Value,
         x: &i::Value,
     ) {
-        let result = match op {
-            i::BinaryOperator::AddI => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildAdd(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::SubI => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildSub(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::MulI => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildMul(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::DivI => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildSDiv(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::ModI => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildSRem(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::AddF => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildFAdd(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::SubF => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildFSub(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::MulF => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildFMul(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::DivF => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildFDiv(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::ModF => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildFRem(self.builder, ar, br, UNNAMED) }
-            }
+        let dimensions = x.dimensions.iter().map(|(len, _)| *len).collect();
+        for position in shared::NDIndexIter::new(dimensions) {
+            let coord = Self::usize_vec_to_u32(position);
+            let ar = self.load_value(a, &coord[..]);
+            let br = self.load_value(b, &coord[..]);
+
+            let xr = self.do_binary_op(op, ar, br);
+            self.store_value(x, xr, &coord[..]);
+        }
+    }
+
+    fn do_binary_op(
+        &mut self,
+        op: &i::BinaryOperator,
+        ar: LLVMValueRef,
+        br: LLVMValueRef,
+    ) -> LLVMValueRef {
+        match op {
+            i::BinaryOperator::AddI => unsafe { LLVMBuildAdd(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::SubI => unsafe { LLVMBuildSub(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::MulI => unsafe { LLVMBuildMul(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::DivI => unsafe { LLVMBuildSDiv(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::ModI => unsafe { LLVMBuildSRem(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::AddF => unsafe { LLVMBuildFAdd(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::SubF => unsafe { LLVMBuildFSub(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::MulF => unsafe { LLVMBuildFMul(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::DivF => unsafe { LLVMBuildFDiv(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::ModF => unsafe { LLVMBuildFRem(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::CompI(condition) => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
                 let predicate = match condition {
                     i::Condition::Equal => LLVMIntPredicate::LLVMIntEQ,
                     i::Condition::NotEqual => LLVMIntPredicate::LLVMIntNE,
@@ -147,8 +175,6 @@ impl<'a> Converter<'a> {
                 unsafe { LLVMBuildICmp(self.builder, predicate, ar, br, UNNAMED) }
             }
             i::BinaryOperator::CompF(condition) => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
                 let predicate = match condition {
                     i::Condition::Equal => LLVMRealPredicate::LLVMRealOEQ,
                     i::Condition::NotEqual => LLVMRealPredicate::LLVMRealONE,
@@ -159,28 +185,19 @@ impl<'a> Converter<'a> {
                 };
                 unsafe { LLVMBuildFCmp(self.builder, predicate, ar, br, UNNAMED) }
             }
-            i::BinaryOperator::BAnd => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::BOr => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) }
-            }
-            i::BinaryOperator::BXor => {
-                let ar = self.load_value(a);
-                let br = self.load_value(b);
-                unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) }
-            }
-        };
-        self.store_value(x, result);
+            i::BinaryOperator::BAnd => unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::BOr => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::BXor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
+        }
     }
 
     fn convert_move(&mut self, from: &i::Value, to: &i::Value) {
-        let from = self.load_value(from);
-        self.store_value(to, from);
+        let dimensions = to.dimensions.iter().map(|(len, _)| *len).collect();
+        for position in shared::NDIndexIter::new(dimensions) {
+            let coord = Self::usize_vec_to_u32(position);
+            let from = self.load_value(from, &coord[..]);
+            self.store_value(to, from, &coord[..]);
+        }
     }
 
     fn convert_label(&mut self, id: &i::LabelId) {
@@ -202,7 +219,7 @@ impl<'a> Converter<'a> {
         unsafe {
             LLVMBuildCondBr(
                 self.builder,
-                self.load_value(condition),
+                self.load_value(condition, &[]),
                 self.get_block_for_label(true_target),
                 self.get_block_for_label(false_target),
             );
@@ -273,19 +290,57 @@ impl<'a> Converter<'a> {
 
     fn optimize(&mut self) {
         unsafe {
-            let fpm = LLVMCreateFunctionPassManagerForModule(self.module);
+            debug_assert!(
+                llvm_sys::analysis::LLVMVerifyModule(
+                    self.module,
+                    llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction,
+                    std::ptr::null_mut()
+                ) == 0,
+                "Module failed to verify."
+            );
+
+            llvm_sys::target::LLVM_InitializeNativeTarget();
+            execution_engine::LLVMLinkInMCJIT();
+            let eengine = {
+                let mut eengine =
+                    std::mem::MaybeUninit::<execution_engine::LLVMExecutionEngineRef>::uninit();
+                let mut error_ref: *mut libc::c_char = std::ptr::null_mut();
+                let error = execution_engine::LLVMCreateExecutionEngineForModule(
+                    eengine.as_mut_ptr(),
+                    self.module,
+                    &mut error_ref,
+                );
+                if error == 1 {
+                    eprintln!(
+                        "Failed to initialize execution engine:\n{:?}",
+                        std::ffi::CStr::from_ptr(error_ref)
+                    );
+                    LLVMDisposeMessage(error_ref);
+                    panic!("See above error.");
+                }
+                eengine.assume_init()
+            };
+
+            // println!("{:?}", std::ffi::CStr::from_ptr(LLVMGetTarget(self.module)));
+            let tm = execution_engine::LLVMGetExecutionEngineTargetMachine(eengine);
+            let dl = llvm_sys::target_machine::LLVMCreateTargetDataLayout(tm);
+            llvm_sys::target::LLVMSetModuleDataLayout(self.module, dl);
+            LLVMSetTarget(self.module, target_machine::LLVMGetTargetMachineTriple(tm));
+
+            let pm = LLVMCreatePassManager();
             // Convert all our stores / loads into flat, efficient SSA style code.
-            llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(fpm);
-            llvmt::instcombine::LLVMAddInstructionCombiningPass(fpm);
-            llvmt::scalar::LLVMAddReassociatePass(fpm);
-            llvmt::scalar::LLVMAddGVNPass(fpm);
-            llvmt::scalar::LLVMAddCFGSimplificationPass(fpm);
-            LLVMInitializeFunctionPassManager(fpm);
+            llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
+            llvmt::scalar::LLVMAddEarlyCSEPass(pm);
+            // llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
+            llvmt::scalar::LLVMAddReassociatePass(pm);
+            llvmt::scalar::LLVMAddGVNPass(pm);
+            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
 
             assert!(
-                LLVMRunFunctionPassManager(fpm, self.main_fn) == 1,
+                LLVMRunPassManager(pm, self.module) == 1,
                 "Optimization failed!"
             );
+            LLVMDisposePassManager(pm);
         }
     }
 
@@ -320,6 +375,7 @@ impl<'a> Converter<'a> {
             LLVMDumpModule(self.module);
         }
 
+        println!("Starting optimization.");
         self.optimize();
 
         unsafe {
@@ -331,17 +387,14 @@ impl<'a> Converter<'a> {
 }
 
 fn llvm_type(context: LLVMContextRef, trivial_type: &i::DataType) -> LLVMTypeRef {
-    let mut llvm_type = unsafe {
-        match trivial_type.get_base() {
-            i::BaseType::B1 => LLVMInt1TypeInContext(context),
-            i::BaseType::I32 => LLVMInt32TypeInContext(context),
-            i::BaseType::F32 => LLVMFloatTypeInContext(context),
+    unsafe {
+        match trivial_type {
+            i::DataType::B1 => LLVMInt1TypeInContext(context),
+            i::DataType::I32 => LLVMInt32TypeInContext(context),
+            i::DataType::F32 => LLVMFloatTypeInContext(context),
+            i::DataType::Array(len, etype) => LLVMArrayType(llvm_type(context, etype), *len as u32),
         }
-    };
-    for dim in trivial_type.borrow_dimensions().iter().rev() {
-        llvm_type = unsafe { LLVMArrayType(llvm_type, *dim as u32) };
     }
-    llvm_type
 }
 
 pub fn make_llvm(source: &i::Program) {
