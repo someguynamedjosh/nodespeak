@@ -1,4 +1,4 @@
 /target
 **/*.rs.bk
-examples/scratch.ns
-src/bin/scratch.rs
+examples/scratch*.ns
+src/bin/scratch*.rs

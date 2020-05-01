@@ -299,47 +299,16 @@ impl<'a> Converter<'a> {
                 "Module failed to verify."
             );
 
-            llvm_sys::target::LLVM_InitializeNativeTarget();
-            execution_engine::LLVMLinkInMCJIT();
-            let eengine = {
-                let mut eengine =
-                    std::mem::MaybeUninit::<execution_engine::LLVMExecutionEngineRef>::uninit();
-                let mut error_ref: *mut libc::c_char = std::ptr::null_mut();
-                let error = execution_engine::LLVMCreateExecutionEngineForModule(
-                    eengine.as_mut_ptr(),
-                    self.module,
-                    &mut error_ref,
-                );
-                if error == 1 {
-                    eprintln!(
-                        "Failed to initialize execution engine:\n{:?}",
-                        std::ffi::CStr::from_ptr(error_ref)
-                    );
-                    LLVMDisposeMessage(error_ref);
-                    panic!("See above error.");
-                }
-                eengine.assume_init()
-            };
-
-            // println!("{:?}", std::ffi::CStr::from_ptr(LLVMGetTarget(self.module)));
-            let tm = execution_engine::LLVMGetExecutionEngineTargetMachine(eengine);
-            let dl = llvm_sys::target_machine::LLVMCreateTargetDataLayout(tm);
-            llvm_sys::target::LLVMSetModuleDataLayout(self.module, dl);
-            LLVMSetTarget(self.module, target_machine::LLVMGetTargetMachineTriple(tm));
-
             let pm = LLVMCreatePassManager();
             // Convert all our stores / loads into flat, efficient SSA style code.
             llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
             llvmt::scalar::LLVMAddEarlyCSEPass(pm);
-            // llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
+            llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
             llvmt::scalar::LLVMAddReassociatePass(pm);
             llvmt::scalar::LLVMAddGVNPass(pm);
             llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
 
-            assert!(
-                LLVMRunPassManager(pm, self.module) == 1,
-                "Optimization failed!"
-            );
+            LLVMRunPassManager(pm, self.module);
             LLVMDisposePassManager(pm);
         }
     }
@@ -408,7 +377,12 @@ pub fn make_llvm(source: &i::Program) {
             let var = source.borrow_variable(*input);
             input_types.push(llvm_type(context, var.borrow_type()));
         }
-        let input_data_type = LLVMStructType(input_types.as_mut_ptr(), input_types.len() as u32, 0);
+        let input_data_type = LLVMStructTypeInContext(
+            context,
+            input_types.as_mut_ptr(),
+            input_types.len() as u32,
+            0,
+        );
         let input_pointer_type = LLVMPointerType(input_data_type, 0);
 
         let mut output_types = Vec::new();
@@ -416,8 +390,12 @@ pub fn make_llvm(source: &i::Program) {
             let var = source.borrow_variable(*output);
             output_types.push(llvm_type(context, var.borrow_type()));
         }
-        let output_data_type =
-            LLVMStructType(output_types.as_mut_ptr(), output_types.len() as u32, 0);
+        let output_data_type = LLVMStructTypeInContext(
+            context,
+            output_types.as_mut_ptr(),
+            output_types.len() as u32,
+            0,
+        );
         let output_pointer_type = LLVMPointerType(output_data_type, 0);
 
         let voidt = LLVMVoidTypeInContext(context);
