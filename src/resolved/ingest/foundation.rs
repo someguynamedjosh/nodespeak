@@ -55,7 +55,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
                 .expect("TODO: Nice error, data cannot be used at run time.");
             let p = FilePosition::placeholder();
             resolver.target[new_entry_point].add_statement(o::Statement::Assign {
-                target: Box::new(o::VCExpression::Variable(resolved_id, p.clone())),
+                target: Box::new(o::VCExpression::variable(resolved_id, p.clone())),
                 value: Box::new(o::VPExpression::Literal(resolved_data, p.clone())),
                 position: p.clone(),
             });
@@ -244,7 +244,7 @@ impl ResolvedVCExpression {
 
     pub(super) fn clone_position(&self) -> FilePosition {
         match self {
-            Self::Modified(expr, _) => expr.clone_position(),
+            Self::Modified(expr, _) => expr.position.clone(),
             Self::Specific(_, pos, _) => pos.clone(),
         }
     }
@@ -262,7 +262,7 @@ impl ResolvedVCExpression {
                     "Variable used before defined, should have been caught in vague phase.",
                 );
                 let var_id = var_id.expect("TODO: nice error, variable not available at runtime.");
-                Ok(o::VCExpression::Variable(var_id, pos))
+                Ok(o::VCExpression::variable(var_id, pos))
             }
         }
     }

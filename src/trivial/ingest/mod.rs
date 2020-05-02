@@ -248,31 +248,23 @@ impl<'a> Trivializer<'a> {
         value: &i::VPExpression,
     ) -> Result<(), CompileProblem> {
         let tvalue = self.trivialize_vp_expression(value.borrow())?;
-        // TODO: Clean up this mess.
-        // I think it would be good to make VCExpression a single struct where we have a base
-        // variable ID with a vec storing all of the indexes, possibly len 0 for non-indexed stuff.
-        if let i::VCExpression::Index { base, indexes, .. } = target {
-            let base = if let i::VCExpression::Variable(id, ..) = base.borrow() {
-                self.trivialize_variable(*id)?
-            } else {
-                panic!("TODO: Check if it is guaranteed that a variable is always the base.");
-            };
-            let (new_indexes, _result_type) =
-                self.trivialize_indexes(indexes, self.target[base].borrow_type().clone())?;
-            let base = o::Value::variable(base, &self.target);
+
+        let base = self.trivialize_variable(target.base)?;
+        let base_type = self.target[base].borrow_type().clone();
+        let (new_indexes, _result_type) = self.trivialize_indexes(&target.indexes, base_type)?;
+        let base = o::Value::variable(base, &self.target);
+
+        if target.indexes.len() > 0 {
             self.target.add_instruction(o::Instruction::Store {
                 from: tvalue,
                 to: base,
                 to_indexes: new_indexes,
             });
-        } else if let i::VCExpression::Variable(id, ..) = target {
-            let ttarget = o::Value::variable(self.trivialize_variable(*id)?, &self.target);
+        } else {
             self.target.add_instruction(o::Instruction::Move {
                 from: tvalue,
-                to: ttarget,
+                to: base,
             });
-        } else {
-            unreachable!()
         }
         Ok(())
     }

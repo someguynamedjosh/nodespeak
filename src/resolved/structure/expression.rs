@@ -137,34 +137,40 @@ impl VPExpression {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum VCExpression {
-    Variable(VariableId, FilePosition),
-    Index {
-        base: Box<VCExpression>,
-        indexes: Vec<VPExpression>,
-        position: FilePosition,
-    },
+pub struct VCExpression {
+    pub base: VariableId,
+    pub indexes: Vec<VPExpression>,
+    pub position: FilePosition,
 }
 
 impl Debug for VCExpression {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Variable(id, ..) => write!(formatter, "var {:?}", id),
-            Self::Index { base, indexes, .. } => {
-                write!(formatter, "({:?})", base)?;
-                for index in indexes {
-                    write!(formatter, "[{:?}]", index)?;
-                }
-                write!(formatter, "")
-            }
+        write!(formatter, "({:?})", self.base)?;
+        for index in &self.indexes {
+            write!(formatter, "[{:?}]", index)?;
         }
+        write!(formatter, "")
     }
 }
 
 impl VCExpression {
-    pub fn clone_position(&self) -> FilePosition {
-        match self {
-            Self::Variable(_, position) | Self::Index { position, .. } => position.clone(),
+    pub fn variable(id: VariableId, position: FilePosition) -> VCExpression {
+        VCExpression {
+            base: id,
+            indexes: Vec::new(),
+            position,
+        }
+    }
+
+    pub fn index(
+        base: VariableId,
+        indexes: Vec<VPExpression>,
+        position: FilePosition,
+    ) -> VCExpression {
+        VCExpression {
+            base,
+            indexes,
+            position,
         }
     }
 }
@@ -188,7 +194,7 @@ impl FuncCallOutput {
     pub fn clone_position(&self) -> FilePosition {
         match self {
             Self::InlineReturn(pos) => pos.clone(),
-            Self::VCExpression(expr) => expr.clone_position(),
+            Self::VCExpression(expr) => expr.position.clone(),
         }
     }
 }
