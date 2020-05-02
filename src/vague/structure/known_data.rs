@@ -63,7 +63,21 @@ impl KnownData {
     }
 
     pub fn collect(items: Vec<KnownData>) -> KnownData {
-        // TODO: Ensure that each data type is compatible.
+        debug_assert!(items.len() > 0);
+        debug_assert!(
+            {
+                let dtype = items[0].get_data_type();
+                let mut matches = true;
+                for item in &items {
+                    if item.get_data_type() != dtype {
+                        matches = false;
+                        break;
+                    }
+                }
+                matches
+            },
+            "known data array items are incompatible."
+        );
         KnownData::Array(items)
     }
 
@@ -173,10 +187,7 @@ impl Debug for KnownData {
                 write!(formatter, "]")
             }
             KnownData::DataType(value) => write!(formatter, "{:?}", value),
-            // TODO: Implement macro formatter.
-            KnownData::Macro(value) => {
-                write!(formatter, "macro with body at {:?}", value.body)
-            }
+            KnownData::Macro(value) => write!(formatter, "macro with body at {:?}", value.body),
         }
     }
 }

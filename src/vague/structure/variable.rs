@@ -7,6 +7,7 @@ use std::fmt::{self, Debug, Formatter};
 pub struct Variable {
     definition: FilePosition,
     initial_value: Option<KnownData>,
+    read_only: bool,
 }
 
 impl Debug for Variable {
@@ -15,15 +16,16 @@ impl Debug for Variable {
     }
 }
 
-// TODO: Read-only variables.
 impl Variable {
     fn new_impl(
         definition: FilePosition,
         initial_value: Option<KnownData>,
+        read_only: bool,
     ) -> Variable {
         Variable {
             definition,
             initial_value: initial_value,
+            read_only,
         }
     }
 
@@ -31,22 +33,22 @@ impl Variable {
         definition: FilePosition,
         initial_value: Option<KnownData>,
     ) -> Variable {
-        Self::new_impl(definition, initial_value)
+        Self::new_impl(definition, initial_value, false)
     }
 
-    pub fn with_value(definition: FilePosition, value: KnownData) -> Variable {
-        Self::new_impl(definition, Option::Some(value))
+    pub fn constant(definition: FilePosition, value: KnownData) -> Variable {
+        Self::new_impl(definition, Option::Some(value), true)
     }
 
     pub fn macro_def(macro_data: MacroData) -> Variable {
-        Self::with_value(
+        Self::constant(
             macro_data.get_header().clone(),
             KnownData::Macro(macro_data),
         )
     }
 
     pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
-        Self::with_value(
+        Self::constant(
             definition,
             KnownData::DataType(value),
         )
@@ -77,5 +79,9 @@ impl Variable {
 
     pub fn borrow_initial_value(&self) -> &Option<KnownData> {
         &self.initial_value
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
     }
 }

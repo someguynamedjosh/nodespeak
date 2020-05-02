@@ -52,10 +52,10 @@ impl Operator {
         }
     }
 
-    fn left_assoc(&self) -> bool {
+    fn right_associative(&self) -> bool {
         match self {
-            Self::Power => false,
-            _ => true,
+            Self::Power => true,
+            _ => false,
         }
     }
 
@@ -395,10 +395,12 @@ impl VagueIngester {
                     let op_str = child.as_str();
                     let new_operator = op_str_to_operator(op_str);
                     // Shunting yard algorithm.
-                    // TODO: Implement right-associative operators.
                     loop {
                         let top_op_prec = operator_stack.last().unwrap().precedence();
-                        if new_operator.precedence() >= top_op_prec {
+                        if new_operator.precedence() > top_op_prec
+                            || (new_operator.precedence() == top_op_prec
+                                && new_operator.right_associative())
+                        {
                             operator_stack.push(new_operator);
                             break;
                         } else {

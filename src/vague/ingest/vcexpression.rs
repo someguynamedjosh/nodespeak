@@ -1,4 +1,4 @@
-use super::VagueIngester;
+use super::{problems, VagueIngester};
 use crate::ast::structure as i;
 use crate::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
@@ -21,11 +21,14 @@ impl VagueIngester {
         Ok(o::VCExpression::Index {
             base: Box::new(base),
             indexes,
-            position
+            position,
         })
     }
 
-    pub(super) fn convert_var_dec(&mut self, node: i::Node) -> Result<o::VCExpression, CompileProblem> {
+    pub(super) fn convert_var_dec(
+        &mut self,
+        node: i::Node,
+    ) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::var_dec);
         let position = FilePosition::from_pair(&node);
         let mut children = node.into_inner();
@@ -44,6 +47,12 @@ impl VagueIngester {
         let position = FilePosition::from_pair(&node);
         let child = node.into_inner().next().expect("illegal grammar");
         let var_id = self.lookup_identifier(&child)?;
+        if self.target[var_id].is_read_only() {
+            return Err(problems::write_to_read_only_variable(
+                position,
+                child.as_str(),
+            ));
+        }
         Ok(o::VCExpression::Variable(var_id, position))
     }
 
@@ -54,7 +63,7 @@ impl VagueIngester {
             i::Rule::vc_index => self.convert_vc_index(child),
             i::Rule::var_dec => self.convert_var_dec(child),
             i::Rule::vc_identifier => self.convert_vc_identifier(child),
-            _ => unreachable!("illegal grammar")
+            _ => unreachable!("illegal grammar"),
         }
     }
 }

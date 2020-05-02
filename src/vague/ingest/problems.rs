@@ -39,9 +39,7 @@ pub fn missing_output_definition(
                 "no such variable exists within the body of the macro. Define a variable named ",
                 "{} inside the macro to fix this error."
             ),
-            macro_name,
-            output_name,
-            output_name,
+            macro_name, output_name, output_name,
         ),
     )])
 }
@@ -102,20 +100,21 @@ pub fn io_inside_macro(declaration_pos: FilePosition) -> CompileProblem {
         declaration_pos,
         Error,
         concat!(
-            "I/O Inside Macro\nInput and output variables cannot be declared inside ",
-            "macros. They can only be declared in the root scope, I.E. outside of macros."
+            "I/O Inside Macro\nInput and output variables can only be declared in the root scope.",
         ),
     )])
 }
 
-pub fn hint_encountered_while_parsing(
-    context_description: &str,
-    context_pos: FilePosition,
-    error: &mut CompileProblem,
-) {
-    error.add_descriptor(ProblemDescriptor::new(
-        context_pos,
-        Hint,
-        &format!("Error encountered while parsing {}:", context_description),
-    ));
+pub fn write_to_read_only_variable(var_pos: FilePosition, var_name: &str) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        var_pos,
+        Error,
+        &format!(
+            concat!(
+                "Write To Read-Only Variable\nThe variable {} is read-only, so it cannot be ",
+                "assigned a different value."
+            ),
+            var_name
+        ),
+    )])
 }

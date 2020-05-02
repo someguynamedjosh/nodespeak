@@ -13,7 +13,9 @@ impl VagueIngester {
         let mut children = node.into_inner();
         let inputs_node = children.next().expect("illegal grammar");
         let outputs_node = children.next();
-        let outputs = outputs_node.map(|node| node.into_inner().collect()).unwrap_or_default();
+        let outputs = outputs_node
+            .map(|node| node.into_inner().collect())
+            .unwrap_or_default();
         let input_ids = inputs_node
             .into_inner()
             .map(|child| {
@@ -27,10 +29,7 @@ impl VagueIngester {
         Ok((input_ids, outputs))
     }
 
-    pub(super) fn convert_macro_definition(
-        &mut self,
-        node: i::Node,
-    ) -> Result<(), CompileProblem> {
+    pub(super) fn convert_macro_definition(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_definition);
         let position = FilePosition::from_pair(&node);
         let mut children = node.into_inner();
@@ -70,11 +69,11 @@ impl VagueIngester {
             .adopt_and_define_symbol(self.current_scope, macro_name, var);
         self.add_statement(o::Statement::CreationPoint {
             var: var_id,
-            var_type: Box::new(
-                o::VPExpression::Literal(o::KnownData::DataType(o::DataType::Macro),
+            var_type: Box::new(o::VPExpression::Literal(
+                o::KnownData::DataType(o::DataType::Macro),
                 FilePosition::placeholder(),
             )),
-            position
+            position,
         });
         Ok(())
     }
@@ -87,19 +86,81 @@ impl VagueIngester {
         Ok(())
     }
 
+    pub(super) fn convert_code_block_in_new_scope(
+        &mut self,
+        node: i::Node,
+    ) -> Result<o::ScopeId, CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::code_block);
+        let new_scope = self.target.create_child_scope(self.current_scope);
+        let old_scope = self.current_scope;
+        self.current_scope = new_scope;
+        for child in node.into_inner() {
+            self.convert_statement(child)?;
+        }
+        self.current_scope = old_scope;
+        Ok(new_scope)
+    }
+
     pub(super) fn convert_return_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::return_statement);
-        unimplemented!()
+        let position = FilePosition::from_pair(&node);
+        if self.current_scope == self.target.get_entry_point() {
+            Err(problems::return_from_root(position))
+        } else {
+            self.add_statement(o::Statement::Return(position));
+            Ok(())
+        }
     }
 
     pub(super) fn convert_assert_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::assert_statement);
-        unimplemented!()
+        let position = FilePosition::from_pair(&node);
+        let mut children = node.into_inner();
+        let condition_node = children.next().expect("illegal grammar");
+        let condition = self.convert_vpe(condition_node)?;
+        self.add_statement(o::Statement::Assert(Box::new(condition), position));
+        Ok(())
     }
 
     pub(super) fn convert_if_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::if_statement);
-        unimplemented!()
+        let position = FilePosition::from_pair(&node);
+        let mut children = node.into_inner();
+        let primary_condition = self.convert_vpe(children.next().expect("illegal grammar"))?;
+        let primary_body_node = children.next().expect("illegal grammar");
+        let primary_body = self.convert_code_block_in_new_scope(primary_body_node)?;
+
+        let mut clauses = vec![(primary_condition, primary_body)];
+        let mut else_clause = None;
+        for child in children {
+            match child.as_rule() {
+                i::Rule::else_if_clause => {
+                    // Else if clauses should only show up before the else clause.
+                    debug_assert!(else_clause.is_none(), "illegal grammar");
+                    let mut children = child.into_inner();
+                    let condition_node = children.next().expect("illegal grammar");
+                    let condition = self.convert_vpe(condition_node)?;
+                    let body_node = children.next().expect("illegal grammar");
+                    let body = self.convert_code_block_in_new_scope(body_node)?;
+                    clauses.push((condition, body));
+                }
+                i::Rule::else_clause => {
+                    debug_assert!(else_clause.is_none(), "illegal grammar");
+                    let mut children = child.into_inner();
+                    let body_node = children.next().expect("illegal grammar");
+                    let body = self.convert_code_block_in_new_scope(body_node)?;
+                    else_clause = Some(body);
+                }
+                _ => unreachable!("illegal grammar"),
+            }
+        }
+
+        self.add_statement(o::Statement::Branch {
+            clauses,
+            else_clause,
+            position,
+        });
+        Ok(())
     }
 
     pub(super) fn convert_for_loop_statement(
