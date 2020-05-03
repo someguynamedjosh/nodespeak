@@ -2,7 +2,6 @@ extern crate nodespeak;
 extern crate text_io;
 
 use std::env;
-use std::fs;
 use std::process;
 use std::time::Instant;
 
@@ -17,14 +16,11 @@ fn main() {
         process::exit(64);
     }
 
-    let code = match fs::read_to_string(&args[2]) {
-        Result::Ok(content) => content,
-        Result::Err(_err) => {
-            eprintln!("Could not read from {}", &args[2]);
-            process::exit(74);
-        }
-    };
-    let source_set = nodespeak::SourceSet::from_raw_string(&args[2], &code);
+    let mut source_set = nodespeak::SourceSet::new();
+    if let Err(_err) = source_set.add_item_from_file(args[2].clone()) {
+        eprintln!("Could not read from {}", &args[2]);
+        process::exit(74);
+    }
 
     println!("\nStarting...");
     let compile_start = Instant::now();
@@ -68,14 +64,9 @@ fn main() {
                 process::exit(101);
             }
         },
-        "execute" => {
-            unimplemented!()
-        }
+        "execute" => unimplemented!(),
         _ => {
-            eprintln!(
-                "Invalid mode '{}', expected compile or a phase.",
-                args[1]
-            );
+            eprintln!("Invalid mode '{}', expected compile or a phase.", args[1]);
             eprintln!("compile: compiles the specified file and outputs the result.");
             eprintln!("[phase]: runs compilation of the file up until [phase] of compilation.");
             eprintln!("    phases: ast, vague, resolved, trivial, llvmir");

@@ -234,7 +234,7 @@ impl CompileProblem {
 
             let position = &descriptor.position;
             let source_name = &sources.borrow_sources()[position.file].0;
-            let grabbed = Self::grab_text(sources.borrow_sources()[position.file].1, position);
+            let grabbed = Self::grab_text(&sources.borrow_sources()[position.file].1, position);
             let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());

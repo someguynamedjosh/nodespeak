@@ -633,6 +633,6 @@ pub fn ingest(source: &i::Program) -> o::Program {
         let Converter {
             context, module, ..
         } = converter;
-        o::Program::new(context, module)
+        o::Program::new(context, module, input_data_type, output_data_type)
     }
 }

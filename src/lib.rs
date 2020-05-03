@@ -18,43 +18,47 @@ pub mod util;
 #[cfg(not(feature = "no-vague"))]
 pub mod vague;
 
-pub struct SourceSet<'a> {
-    sources: Vec<(String, &'a str)>,
+pub struct SourceSet {
+    sources: Vec<(String, String)>,
 }
 
-impl<'a> SourceSet<'a> {
+impl SourceSet {
     #[cfg(feature = "no-vague")]
-    pub fn new<'s>() -> SourceSet<'s> {
+    pub fn new() -> SourceSet {
         SourceSet {
             sources: vec![("placeholder".to_owned(), "placeholder")],
         }
     }
 
     #[cfg(not(feature = "no-vague"))]
-    pub fn new<'s>() -> SourceSet<'s> {
+    pub fn new() -> SourceSet {
         SourceSet {
             sources: vec![(
                 "(internal code) builtins".to_owned(),
-                vague::structure::FAKE_BUILTIN_SOURCE,
+                vague::structure::FAKE_BUILTIN_SOURCE.to_owned(),
             )],
         }
     }
 
-    pub fn from_raw_string<'s>(name: &str, content: &'s str) -> SourceSet<'s> {
-        let mut result = Self::new::<'s>();
-        result.sources.push((name.to_owned(), content));
-        result
+    pub fn add_item(&mut self, name: String, content: String) {
+        self.sources.push((name, content));
     }
 
-    pub fn borrow_sources(&self) -> &Vec<(String, &'a str)> {
+    pub fn add_item_from_file(&mut self, filename: String) -> std::io::Result<()> {
+        let content = std::fs::read_to_string(&filename)?;
+        self.sources.push((filename, content));
+        Ok(())
+    }
+
+    pub fn borrow_sources(&self) -> &Vec<(String, String)> {
         &self.sources
     }
 }
 
 fn to_ast_impl<'a>(
-    sources: &SourceSet<'a>,
+    sources: &'a SourceSet,
 ) -> Result<ast::structure::Program<'a>, problem::CompileProblem> {
-    ast::ingest(sources.borrow_sources()[1].1)
+    ast::ingest(&sources.borrow_sources()[1].1)
 }
 
 #[cfg(not(feature = "no-vague"))]
@@ -96,7 +100,7 @@ fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> 
     }
 }
 
-pub fn to_ast<'a>(sources: &SourceSet<'a>) -> Result<ast::structure::Program<'a>, String> {
+pub fn to_ast<'a>(sources: &'a SourceSet) -> Result<ast::structure::Program<'a>, String> {
     to_ast_impl(sources).map_err(error_map(sources))
 }
 
