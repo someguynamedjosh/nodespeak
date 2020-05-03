@@ -45,6 +45,41 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn apply_proxy_to_const_indexes(proxy: &[(usize, ProxyMode)], indexes: &[u32]) -> Vec<u32> {
+        debug_assert!(proxy.len() == indexes.len());
+        let mut result = Vec::new();
+        for position in 0..proxy.len() {
+            match proxy[position].1 {
+                ProxyMode::Keep => result.push(indexes[position]),
+                ProxyMode::Collapse => result.push(0),
+                ProxyMode::Discard => (),
+            }
+        }
+        result
+    }
+
+    fn apply_proxy_to_dyn_indexes(
+        &self,
+        proxy: &[(usize, ProxyMode)],
+        indexes: &[LLVMValueRef],
+    ) -> Vec<LLVMValueRef> {
+        if indexes.len() == 0 {
+            assert!(proxy.len() == 0);
+            return Vec::new();
+        }
+        debug_assert!(proxy.len() + 1 == indexes.len());
+        let mut result = Vec::new();
+        result.push(indexes[0]);
+        for position in 0..proxy.len() {
+            match proxy[position].1 {
+                ProxyMode::Keep => result.push(indexes[position + 1]),
+                ProxyMode::Collapse => result.push(self.u32_const(0)),
+                ProxyMode::Discard => (),
+            }
+        }
+        result
+    }
+
     fn store_value(&mut self, value: &i::Value, content: LLVMValueRef, const_indexes: &[u32]) {
         let mut indexes = Vec::new();
         if const_indexes.len() > 0 {
@@ -62,6 +97,7 @@ impl<'a> Converter<'a> {
         content: LLVMValueRef,
         indexes: &mut [LLVMValueRef],
     ) {
+        let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
@@ -69,8 +105,6 @@ impl<'a> Converter<'a> {
                     .get(&id)
                     .expect("A variable was not given a pointer.");
                 if indexes.len() > 0 {
-                    // +1 because we need an initial index to dereference the pointer with.
-                    assert!(value.dimensions.len() + 1 == indexes.len());
                     ptr = unsafe {
                         LLVMBuildGEP(
                             self.builder,
@@ -92,6 +126,7 @@ impl<'a> Converter<'a> {
     }
 
     fn load_value_dyn(&mut self, value: &i::Value, indexes: &mut [LLVMValueRef]) -> LLVMValueRef {
+        let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
@@ -99,7 +134,6 @@ impl<'a> Converter<'a> {
                     .get(&id)
                     .expect("A variable was not given a pointer.");
                 if indexes.len() > 0 {
-                    assert!(value.dimensions.len() + 1 == indexes.len());
                     ptr = unsafe {
                         LLVMBuildGEP(
                             self.builder,
@@ -109,8 +143,6 @@ impl<'a> Converter<'a> {
                             UNNAMED,
                         )
                     };
-                } else {
-                    assert!(value.dimensions.len() == 0);
                 }
                 unsafe { LLVMBuildLoad(self.builder, ptr, UNNAMED) }
             }
@@ -147,7 +179,7 @@ impl<'a> Converter<'a> {
     }
 
     fn load_value(&mut self, value: &i::Value, const_indexes: &[u32]) -> LLVMValueRef {
-        assert!(value.dimensions.len() == const_indexes.len());
+        let const_indexes = Self::apply_proxy_to_const_indexes(&value.dimensions, const_indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
@@ -180,7 +212,7 @@ impl<'a> Converter<'a> {
                 let mut data = data.clone();
                 for index in const_indexes {
                     if let i::KnownData::Array(mut values) = data {
-                        data = values.remove(*index as usize);
+                        data = values.remove(index as usize);
                     } else {
                         unreachable!("Illegal indexes should be caught earlier.");
                     }
@@ -502,7 +534,6 @@ impl<'a> Converter<'a> {
                     from_indexes,
                     to,
                 } => self.convert_load(from, from_indexes, to),
-                _ => unimplemented!("{:?}", instruction),
             }
         }
 
