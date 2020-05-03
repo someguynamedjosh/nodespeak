@@ -28,28 +28,42 @@ impl<'a> Converter<'a> {
     }
 
     fn store_value(&mut self, value: &i::Value, content: LLVMValueRef, const_indexes: &[u32]) {
-        assert!(value.dimensions.len() == const_indexes.len());
+        let mut indexes = Vec::new();
+        if const_indexes.len() > 0 {
+            indexes.push(self.u32_const(0));
+            for index in const_indexes {
+                indexes.push(self.u32_const(*index));
+            }
+        }
+        self.store_value_dyn(value, content, &mut indexes[..]);
+    }
+
+    fn store_value_dyn(
+        &mut self,
+        value: &i::Value,
+        content: LLVMValueRef,
+        indexes: &mut [LLVMValueRef],
+    ) {
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
                     .value_pointers
                     .get(&id)
                     .expect("A variable was not given a pointer.");
-                if const_indexes.len() > 0 {
-                    let mut indices = Vec::new();
-                    indices.push(self.u32_const(0));
-                    const_indexes
-                        .iter()
-                        .for_each(|e| indices.push(self.u32_const(*e)));
+                if indexes.len() > 0 {
+                    // +1 because we need an initial index to dereference the pointer with.
+                    assert!(value.dimensions.len() + 1 == indexes.len());
                     ptr = unsafe {
                         LLVMBuildGEP(
                             self.builder,
                             ptr,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
+                            indexes.as_mut_ptr(),
+                            indexes.len() as u32,
                             UNNAMED,
                         )
                     };
+                } else {
+                    assert!(value.dimensions.len() == 0);
                 }
                 unsafe {
                     LLVMBuildStore(self.builder, content, ptr);
@@ -200,6 +214,24 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn convert_store(&mut self, from: &i::Value, to: &i::Value, to_indexes: &Vec<i::Value>) {
+        let dimensions = from.dimensions.iter().map(|(len, _)| *len).collect();
+        let mut dyn_indexes: Vec<_> = to_indexes
+            .iter()
+            .map(|value| self.load_value(value, &[]))
+            .collect();
+        dyn_indexes.insert(0, self.u32_const(0));
+        for position in shared::NDIndexIter::new(dimensions) {
+            let coord = Self::usize_vec_to_u32(position);
+            let mut to_indexes = dyn_indexes.clone();
+            for static_index in &coord {
+                to_indexes.push(self.u32_const(*static_index));
+            }
+            let item = self.load_value(from, &coord[..]);
+            self.store_value_dyn(to, item, &mut to_indexes[..]);
+        }
+    }
+
     fn convert_label(&mut self, id: &i::LabelId) {
         unsafe {
             if !self.current_block_terminated {
@@ -331,6 +363,11 @@ impl<'a> Converter<'a> {
                     false_target,
                 } => self.convert_branch(condition, true_target, false_target),
                 i::Instruction::Jump { label } => self.convert_jump(label),
+                i::Instruction::Store {
+                    from,
+                    to,
+                    to_indexes,
+                } => self.convert_store(from, to, to_indexes),
                 _ => unimplemented!("{:?}", instruction),
             }
         }
