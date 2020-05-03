@@ -10,6 +10,7 @@ no-vague=["no-resolved"]
 no-resolved=["no-trivial"]
 no-trivial=["no-llvmir"]
 no-llvmir=[]
+dump-llvmir=[]
 
 [dependencies]
 colored = "1.8"

@@ -6,6 +6,8 @@ extern crate pest_derive;
 use terminal_size;
 
 pub mod ast;
+#[cfg(not(feature = "no-llvmir"))]
+pub mod llvm;
 pub mod problem;
 #[cfg(not(feature = "no-resolved"))]
 pub mod resolved;
@@ -24,10 +26,7 @@ impl<'a> SourceSet<'a> {
     #[cfg(feature = "no-vague")]
     pub fn new<'s>() -> SourceSet<'s> {
         SourceSet {
-            sources: vec![(
-                "placeholder".to_owned(),
-                "placeholder"
-            )],
+            sources: vec![("placeholder".to_owned(), "placeholder")],
         }
     }
 
@@ -52,34 +51,42 @@ impl<'a> SourceSet<'a> {
     }
 }
 
-fn parse_impl<'a>(
+fn to_ast_impl<'a>(
     sources: &SourceSet<'a>,
 ) -> Result<ast::structure::Program<'a>, problem::CompileProblem> {
     ast::ingest(sources.borrow_sources()[1].1)
 }
 
 #[cfg(not(feature = "no-vague"))]
-fn structure_impl(
+fn to_vague_impl(
     sources: &SourceSet,
 ) -> Result<vague::structure::Program, problem::CompileProblem> {
-    let mut parsed = parse_impl(sources)?;
+    let mut parsed = to_ast_impl(sources)?;
     vague::ingest(&mut parsed)
 }
 
 #[cfg(not(feature = "no-resolved"))]
-fn resolve_impl(
+fn to_resolved_impl(
     sources: &SourceSet,
 ) -> Result<resolved::structure::Program, problem::CompileProblem> {
-    let mut program = structure_impl(sources)?;
+    let mut program = to_vague_impl(sources)?;
     resolved::ingest(&mut program)
 }
 
 #[cfg(not(feature = "no-trivial"))]
-fn trivialize_impl(
+fn to_trivial_impl(
     sources: &SourceSet,
 ) -> Result<trivial::structure::Program, problem::CompileProblem> {
-    let resolved = resolve_impl(sources)?;
+    let resolved = to_resolved_impl(sources)?;
     trivial::ingest(&resolved)
+}
+
+#[cfg(not(feature = "no-llvmir"))]
+fn to_llvmir_impl(
+    sources: &SourceSet,
+) -> Result<llvm::structure::Program, problem::CompileProblem> {
+    let trivial = to_trivial_impl(sources)?;
+    Ok(llvm::ingest(&trivial))
 }
 
 fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> String + 'a {
@@ -89,23 +96,28 @@ fn error_map<'a>(sources: &'a SourceSet) -> impl Fn(problem::CompileProblem) -> 
     }
 }
 
-pub fn parse<'a>(sources: &SourceSet<'a>) -> Result<ast::structure::Program<'a>, String> {
-    parse_impl(sources).map_err(error_map(sources))
+pub fn to_ast<'a>(sources: &SourceSet<'a>) -> Result<ast::structure::Program<'a>, String> {
+    to_ast_impl(sources).map_err(error_map(sources))
 }
 
 #[cfg(not(feature = "no-vague"))]
-pub fn structure(sources: &SourceSet) -> Result<vague::structure::Program, String> {
-    structure_impl(sources).map_err(error_map(sources))
+pub fn to_vague(sources: &SourceSet) -> Result<vague::structure::Program, String> {
+    to_vague_impl(sources).map_err(error_map(sources))
 }
 
 #[cfg(not(feature = "no-resolved"))]
-pub fn resolve(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
-    resolve_impl(sources).map_err(error_map(sources))
+pub fn to_resolved(sources: &SourceSet) -> Result<resolved::structure::Program, String> {
+    to_resolved_impl(sources).map_err(error_map(sources))
 }
 
 #[cfg(not(feature = "no-trivial"))]
-pub fn trivialize(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
-    trivialize_impl(sources).map_err(error_map(sources))
+pub fn to_trivial(sources: &SourceSet) -> Result<trivial::structure::Program, String> {
+    to_trivial_impl(sources).map_err(error_map(sources))
+}
+
+#[cfg(not(feature = "no-llvmir"))]
+pub fn to_llvmir(sources: &SourceSet) -> Result<llvm::structure::Program, String> {
+    to_llvmir_impl(sources).map_err(error_map(sources))
 }
 
 // pub fn interpret(

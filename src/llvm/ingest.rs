@@ -1,5 +1,6 @@
-use super::structure as i;
+use crate::llvm::structure as o;
 use crate::shared::{self, ProxyMode};
+use crate::trivial::structure as i;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::transforms as llvmt;
@@ -506,7 +507,7 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn convert(mut self) {
+    fn convert(&mut self) {
         self.create_param_pointers();
         self.create_variable_pointers();
         self.create_blocks_for_labels();
@@ -541,18 +542,21 @@ impl<'a> Converter<'a> {
             LLVMBuildRetVoid(self.builder);
             LLVMDisposeBuilder(self.builder);
 
-            // Dump human-readable IR to stdout
-            println!("\nUnoptimized:");
-            LLVMDumpModule(self.module);
+            #[cfg(feature = "dump-llvmir")]
+            {
+                // Dump human-readable IR to stdout
+                println!("\nUnoptimized:");
+                LLVMDumpModule(self.module);
+            }
         }
 
         println!("Starting optimization.");
         self.optimize();
 
+        #[cfg(feature = "dump-llvmir")]
         unsafe {
             println!("\nOptimized:");
             LLVMDumpModule(self.module);
-            LLVMContextDispose(self.context);
         }
     }
 }
@@ -568,7 +572,7 @@ fn llvm_type(context: LLVMContextRef, trivial_type: &i::DataType) -> LLVMTypeRef
     }
 }
 
-pub fn make_llvm(source: &i::Program) {
+pub fn ingest(source: &i::Program) -> o::Program {
     unsafe {
         let context = LLVMContextCreate();
         let module = LLVMModuleCreateWithNameInContext(b"nsprog\0".as_ptr() as *const _, context);
@@ -610,7 +614,7 @@ pub fn make_llvm(source: &i::Program) {
         let input_pointer = LLVMGetParam(main_fn, 0);
         let output_pointer = LLVMGetParam(main_fn, 1);
 
-        let converter = Converter {
+        let mut converter = Converter {
             source,
             context,
             module,
@@ -624,6 +628,11 @@ pub fn make_llvm(source: &i::Program) {
             current_block_terminated: false,
         };
 
-        converter.convert()
+        converter.convert();
+
+        let Converter {
+            context, module, ..
+        } = converter;
+        o::Program::new(context, module)
     }
 }
