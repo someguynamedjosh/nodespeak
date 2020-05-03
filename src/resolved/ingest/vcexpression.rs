@@ -100,13 +100,26 @@ impl<'a> ScopeResolver<'a> {
                     }
                 } else {
                     let mut all_indexes = Vec::new();
-                    for literal_index in indexes {
+                    for literal_index in &indexes {
                         all_indexes.push(o::VPExpression::Literal(
-                            o::KnownData::Int(literal_index as i64),
+                            o::KnownData::Int(*literal_index as i64),
                             FilePosition::placeholder(),
                         ));
                     }
-                    unimplemented!()
+                    for index in unknown_indexes {
+                        all_indexes.push(index.clone());
+                    }
+                    let resolved_var = if let Some((Some(id), _)) = self.get_var_info(var) {
+                        *id
+                    } else {
+                        panic!("TODO: Nice error, cannot write to variable at run time.");
+                    };
+                    ResolvedVCExpression::Modified {
+                        vce: o::VCExpression::index(resolved_var, all_indexes, position.clone()),
+                        typ: etype,
+                        base: var,
+                        indexes,
+                    }
                 }
             }
         })

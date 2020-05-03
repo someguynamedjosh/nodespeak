@@ -83,16 +83,15 @@ impl<'a> ScopeResolver<'a> {
         expr: &i::VPExpression,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_expr = self.resolve_vp_expression(expr)?;
-        if resolved_expr.borrow_data_type() != &DataType::Void {
+        if let ResolvedVPExpression::Interpreted(data, ..) = resolved_expr {
+            if data != i::KnownData::Void {
+                panic!("TODO: Nice error, vpe as statement yields an unused value.");
+            } else {
+                Ok(ResolvedStatement::Interpreted)
+            }
+        } else {
             panic!("TODO: Nice error, vpe as statement yields an unused value.");
         }
-        unimplemented!()
-        // match resolved_expr {
-        //     ResolvedVPExpression::Interpreted(..) => Ok(ResolvedStatement::Interpreted),
-        //     ResolvedVPExpression::Modified(new_expr, ..) => Ok(ResolvedStatement::Modified(
-        //         o::Statement::RawVPExpression(Box::new(new_expr)),
-        //     )),
-        // }
     }
 
     pub(super) fn resolve_statement(

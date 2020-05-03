@@ -268,7 +268,8 @@ impl VagueIngester {
             i::Rule::output_variable_statement => self.convert_output_variable_statement(child)?,
             i::Rule::assign_statement => self.convert_assign_statement(child)?,
             i::Rule::macro_call => {
-                self.convert_macro_call(child, false)?;
+                let expr = self.convert_macro_call(child, false)?;
+                self.add_statement(o::Statement::RawVPExpression(Box::new(expr)));
             }
             i::Rule::var_dec => {
                 self.convert_var_dec(child)?;
