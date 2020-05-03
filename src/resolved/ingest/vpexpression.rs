@@ -85,7 +85,7 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let mut int_dims = Vec::new();
-        for dim in dimensions {
+        for dim in dimensions.iter().rev() {
             let resolved = self.resolve_vp_expression(dim)?;
             let rpos = resolved.clone_position();
             if let ResolvedVPExpression::Interpreted(data, ..) = resolved {
