@@ -1,4 +1,4 @@
-image: rust:1.37
+image: alpine
 
 stages:
   - check
@@ -10,8 +10,10 @@ stages:
 
 check:
   stage: check
+  # LLVM takes longer to build / install than Rust. Use a LLVM image then put Rust on top of it.
+  image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
-    - cargo build
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - cargo test
   only: 
     - master
@@ -19,7 +21,10 @@ check:
   
 build:
   stage: build 
-  script: cargo build --release
+  image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
+  script: 
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - cargo build --release
   only: 
   - master
   - merge_requests
@@ -42,7 +47,6 @@ document:
 
 check_artifacts:
   stage: check_artifacts
-  image: alpine
   dependencies: 
   - build
   - document
@@ -54,7 +58,6 @@ check_artifacts:
 
 publish:
   stage: publish
-  image: alpine
   dependencies: 
   - build
   - document
@@ -70,7 +73,6 @@ publish:
 
 pages:
   stage: pages 
-  image: alpine
   dependencies:
   - publish
   script:
