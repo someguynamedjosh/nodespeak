@@ -25,8 +25,21 @@ impl DataType {
             Self::Bool => Some(o::DataType::Bool),
             Self::Int => Some(o::DataType::Int),
             Self::Float => Some(o::DataType::Float),
-            _ => None
+            _ => None,
         }
+    }
+
+    fn collect_dims_impl(&self, dims: &mut Vec<usize>) {
+        if let Self::Array(size, btype) = self {
+            dims.push(*size);
+            btype.collect_dims_impl(dims);
+        }
+    }
+
+    pub fn collect_dims(&self) -> Vec<usize> {
+        let mut dims = Vec::new();
+        self.collect_dims_impl(&mut dims);
+        dims
     }
 }
 

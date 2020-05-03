@@ -2,7 +2,6 @@ use super::{problems, DataType, ResolvedVPExpression, ScopeResolver};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
-use std::borrow::Borrow;
 
 impl<'a> ScopeResolver<'a> {
     fn resolve_vp_variable(
@@ -10,22 +9,23 @@ impl<'a> ScopeResolver<'a> {
         var_id: i::VariableId,
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
-        if let Some(value) = self.borrow_temporary_value(var_id) {
-            Ok(ResolvedVPExpression::Interpreted(
-                value.clone(),
+        let value = self.borrow_temporary_value(var_id);
+        if let Ok(kvalue) = value.to_known_data() {
+            let typ = self.resolve_data_type_partially(kvalue.get_data_type());
+            return Ok(ResolvedVPExpression::Interpreted(
+                kvalue,
                 position.clone(),
-                self.resolve_data_type_partially(value.get_data_type()),
-            ))
-        } else {
-            let (resolved_id, dtype) = self.get_var_info(var_id).expect(
-                "Variable used before defined, should have been caught by the previous phase.",
-            );
-            let resolved_id = resolved_id.expect("TODO: Nice error, cannot use var at run time.");
-            Ok(ResolvedVPExpression::Modified(
-                o::VPExpression::Variable(resolved_id, position.clone()),
-                dtype.clone(),
-            ))
+                typ,
+            ));
         }
+        let (resolved_id, dtype) = self
+            .get_var_info(var_id)
+            .expect("Variable used before defined, should have been caught by the previous phase.");
+        let resolved_id = resolved_id.expect("TODO: Nice error, cannot use var at run time.");
+        Ok(ResolvedVPExpression::Modified(
+            o::VPExpression::Variable(resolved_id, position.clone()),
+            dtype.clone(),
+        ))
     }
 
     fn resolve_build_array_type(

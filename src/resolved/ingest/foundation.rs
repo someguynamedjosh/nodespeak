@@ -1,4 +1,4 @@
-use super::{problems, DataType};
+use super::{problems, DataType, PossiblyKnownData};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -10,7 +10,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let outputs = program[entry_point].borrow_outputs().clone();
     let old_outputs = outputs.clone();
     let mut resolver = ScopeResolver::new(program);
-    let new_entry_point = resolver.resolve_scope(entry_point)?;
+    let new_entry_point = resolver.entry_point(entry_point)?;
     let inputs: Vec<_> = inputs
         .into_iter()
         .map(|id| {
@@ -45,13 +45,14 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
         }
     }
     for output in old_outputs {
-        if let Some(data) = resolver.borrow_temporary_value(output) {
+        let data = resolver.borrow_temporary_value(output);
+        if let Ok(kdata) = data.to_known_data() {
             let resolved_id = resolver
                 .get_var_info(output)
                 .expect("Var used before defined, should be caught in vague phase")
                 .0
                 .expect("TODO: Nice error, output could not be used at runtime");
-            let resolved_data = ScopeResolver::resolve_known_data(data)
+            let resolved_data = ScopeResolver::resolve_known_data(&kdata)
                 .expect("TODO: Nice error, data cannot be used at run time.");
             let p = FilePosition::placeholder();
             resolver.target[new_entry_point].add_statement(o::Statement::Assign {
@@ -91,7 +92,7 @@ pub(super) struct ScopeResolver<'a> {
     // different values depending on the types used for the inputs and outputs
     // of the macro.
     stack: Vec<ResolverTable>,
-    temp_values: HashMap<i::VariableId, i::KnownData>,
+    temp_values: HashMap<i::VariableId, PossiblyKnownData>,
 }
 
 impl<'a> ScopeResolver<'a> {
@@ -141,6 +142,7 @@ impl<'a> ScopeResolver<'a> {
         self.table.variables.get(&source)
     }
 
+    // TODO: Make auto vars work.
     pub(super) fn add_unresolved_auto_var(&mut self, var: i::VariableId) {
         self.table.unresolved_auto_vars.insert(var);
     }
@@ -153,26 +155,116 @@ impl<'a> ScopeResolver<'a> {
         self.table.unresolved_auto_vars.remove(&var);
     }
 
-    pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: i::KnownData) {
+    pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {
         self.temp_values.insert(var, value);
     }
 
-    pub(super) fn clear_temporary_value(&mut self, var: i::VariableId) {
-        self.temp_values.remove(&var);
+    pub(super) fn set_temporary_item(
+        &mut self,
+        var: i::VariableId,
+        indexes: &[usize],
+        data: PossiblyKnownData,
+    ) {
+        let value = self.borrow_temporary_value_mut(var);
+        let mut item = value;
+        for index in indexes {
+            if let PossiblyKnownData::Array(items) = item {
+                debug_assert!(
+                    *index < items.len(),
+                    "Bad index, should be handled elsewhere."
+                );
+                item = &mut items[*index];
+            } else {
+                unreachable!("Bad index, should be handled elsewhere.");
+            }
+        }
+        *item = data;
     }
 
-    pub(super) fn borrow_temporary_value(&self, var: i::VariableId) -> Option<&i::KnownData> {
-        self.temp_values.get(&var)
+    pub(super) fn reset_temporary_value(&mut self, var: i::VariableId) {
+        let dims = if let Some((_, typ)) = self.get_var_info(var) {
+            typ.collect_dims()
+        } else {
+            unreachable!("Variable used before declared, should be handled elsewhere.");
+        };
+        self.temp_values
+            .insert(var, PossiblyKnownData::unknown_array(&dims[..]));
+    }
+
+    pub(super) fn reset_temporary_range(&mut self, var: i::VariableId, indexes: &[usize]) {
+        let dims = if let Some((_, typ)) = self.get_var_info(var) {
+            typ.collect_dims()
+        } else {
+            unreachable!("Variable used before declared, should be handled elsewhere.");
+        };
+        let range = self.borrow_temporary_item_mut(var, indexes);
+        *range = PossiblyKnownData::unknown_array(&dims[indexes.len()..]);
+    }
+
+    pub(super) fn borrow_temporary_value(&mut self, var: i::VariableId) -> &PossiblyKnownData {
+        if !self.temp_values.contains_key(&var) {
+            self.reset_temporary_value(var)
+        }
+        self.temp_values.get(&var).unwrap() // We just populated the value.
+    }
+
+    pub(super) fn borrow_temporary_value_mut(
+        &mut self,
+        var: i::VariableId,
+    ) -> &mut PossiblyKnownData {
+        if !self.temp_values.contains_key(&var) {
+            self.reset_temporary_value(var)
+        }
+        self.temp_values.get_mut(&var).unwrap() // We just populated the value.
+    }
+
+    pub(super) fn borrow_temporary_item(
+        &mut self,
+        var: i::VariableId,
+        indexes: &[usize],
+    ) -> &PossiblyKnownData {
+        self.borrow_temporary_item_mut(var, indexes)
+    }
+
+    pub(super) fn borrow_temporary_item_mut(
+        &mut self,
+        var: i::VariableId,
+        indexes: &[usize],
+    ) -> &mut PossiblyKnownData {
+        let mut item = self.borrow_temporary_value_mut(var);
+        for index in indexes {
+            if let PossiblyKnownData::Array(items) = item {
+                debug_assert!(
+                    *index < items.len(),
+                    "Bad index, should have been handled earlier."
+                );
+                item = &mut items[*index];
+            } else {
+                unreachable!("Bad index, should have been handled earlier.");
+            }
+        }
+        item
     }
 
     pub(super) fn int_literal(value: i64, position: FilePosition) -> o::VPExpression {
         o::VPExpression::Literal(o::KnownData::Int(value), position)
     }
 
+    fn entry_point(&mut self, root_scope: i::ScopeId) -> Result<o::ScopeId, CompileProblem> {
+        let old_body = self.source[root_scope].borrow_body().clone();
+        for statement in old_body {
+            if let ResolvedStatement::Modified(new) = self.resolve_statement(&statement)? {
+                self.target[self.current_scope].add_statement(new);
+            }
+        }
+        Ok(self.current_scope)
+    }
+
     pub(super) fn resolve_scope(
         &mut self,
         source: i::ScopeId,
     ) -> Result<o::ScopeId, CompileProblem> {
+        self.push_table();
         let old_current_scope = self.current_scope;
         self.current_scope = self.target.create_scope();
         let old_body = self.source[source].borrow_body().clone();
@@ -183,6 +275,7 @@ impl<'a> ScopeResolver<'a> {
         }
         let result = Result::Ok(self.current_scope);
         self.current_scope = old_current_scope;
+        self.pop_table();
         result
     }
 }
@@ -229,23 +322,35 @@ impl ResolvedVPExpression {
 #[derive(Clone, Debug)]
 pub(super) enum ResolvedVCExpression {
     /// We are not sure what variable / element the VCE is targeting.
-    Modified(o::VCExpression, DataType),
+    Modified {
+        vce: o::VCExpression,
+        typ: DataType,
+        // These are used to set unknown values for anything this expression might be targeting.
+        // The indexes array contains any indexes that are known at compile time.
+        base: i::VariableId,
+        indexes: Vec<usize>,
+    },
     /// We know exactly what variable / element the VCE is targeting.
-    Specific(i::VariableId, FilePosition, DataType),
+    Specific {
+        var: i::VariableId,
+        indexes: Vec<usize>,
+        pos: FilePosition,
+        typ: DataType,
+    },
 }
 
 impl ResolvedVCExpression {
     pub(super) fn borrow_data_type(&self) -> &DataType {
         match self {
-            Self::Modified(_, dtype) => dtype,
-            Self::Specific(_, _, dtype) => dtype,
+            Self::Modified { typ, .. } => typ,
+            Self::Specific { typ, .. } => typ,
         }
     }
 
     pub(super) fn clone_position(&self) -> FilePosition {
         match self {
-            Self::Modified(expr, _) => expr.position.clone(),
-            Self::Specific(_, pos, _) => pos.clone(),
+            Self::Modified { vce, .. } => vce.position.clone(),
+            Self::Specific { pos, .. } => pos.clone(),
         }
     }
 
@@ -256,13 +361,24 @@ impl ResolvedVCExpression {
         resolver: &ScopeResolver,
     ) -> Result<o::VCExpression, CompileProblem> {
         match self {
-            Self::Modified(expr, ..) => Ok(expr),
-            Self::Specific(in_id, pos, ..) => {
-                let (var_id, _var_type) = resolver.get_var_info(in_id).expect(
+            Self::Modified { vce, .. } => Ok(vce),
+            Self::Specific {
+                var, indexes, pos, ..
+            } => {
+                let (var_id, _var_type) = resolver.get_var_info(var).expect(
                     "Variable used before defined, should have been caught in vague phase.",
                 );
                 let var_id = var_id.expect("TODO: nice error, variable not available at runtime.");
-                Ok(o::VCExpression::variable(var_id, pos))
+                let indexes = indexes
+                    .iter()
+                    .map(|i| {
+                        o::VPExpression::Literal(
+                            o::KnownData::Int(*i as i64),
+                            FilePosition::placeholder(),
+                        )
+                    })
+                    .collect();
+                Ok(o::VCExpression::index(var_id, indexes, pos))
             }
         }
     }

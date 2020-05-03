@@ -1,6 +1,6 @@
 use super::{
-    problems, util, DataType, ScopeResolver, ResolvedStatement, ResolvedVCExpression,
-    ResolvedVPExpression,
+    DataType, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression, ResolvedVPExpression,
+    ScopeResolver,
 };
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
@@ -31,7 +31,8 @@ impl<'a> ScopeResolver<'a> {
         };
         self.set_var_info(old_var_id, resolved_id, data_type);
         if let Some(data) = self.source[old_var_id].borrow_initial_value() {
-            self.set_temporary_value(old_var_id, data.clone());
+            let pkd = PossiblyKnownData::from_known_data(data);
+            self.set_temporary_value(old_var_id, pkd);
         }
 
         Ok(ResolvedStatement::Interpreted)
@@ -50,17 +51,24 @@ impl<'a> ScopeResolver<'a> {
             panic!("TODO: Nice error, bad assignment.");
         }
         if let (
-            ResolvedVCExpression::Specific(target_id, ..),
+            ResolvedVCExpression::Specific { var, indexes, .. },
             ResolvedVPExpression::Interpreted(value_data, ..),
         ) = (&lhs, &rhs)
         {
-            self.set_temporary_value(*target_id, value_data.clone());
+            self.set_temporary_item(
+                *var,
+                indexes,
+                PossiblyKnownData::from_known_data(value_data),
+            );
             Ok(ResolvedStatement::Interpreted)
         } else {
-            if let ResolvedVCExpression::Specific(target_id, ..) = lhs {
-                self.clear_temporary_value(target_id);
-            } else {
-                unimplemented!("Can't clear a range of temporary values yet.");
+            match &lhs {
+                ResolvedVCExpression::Specific { var, indexes, .. }
+                | ResolvedVCExpression::Modified {
+                    base: var, indexes, ..
+                } => {
+                    self.reset_temporary_range(*var, indexes);
+                }
             }
             Ok(ResolvedStatement::Modified(o::Statement::Assign {
                 target: Box::new(lhs.as_vc_expression(self)?),
