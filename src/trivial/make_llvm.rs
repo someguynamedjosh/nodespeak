@@ -27,6 +27,24 @@ impl<'a> Converter<'a> {
         unsafe { LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0) }
     }
 
+    fn i32_const(&self, value: i32) -> LLVMValueRef {
+        unsafe { LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 1) }
+    }
+
+    fn f32_const(&self, value: f32) -> LLVMValueRef {
+        unsafe { LLVMConstReal(LLVMFloatTypeInContext(self.context), value as f64) }
+    }
+
+    fn b1_const(&self, value: bool) -> LLVMValueRef {
+        unsafe {
+            LLVMConstInt(
+                LLVMInt1TypeInContext(self.context),
+                if value { 1 } else { 0 },
+                0,
+            )
+        }
+    }
+
     fn store_value(&mut self, value: &i::Value, content: LLVMValueRef, const_indexes: &[u32]) {
         let mut indexes = Vec::new();
         if const_indexes.len() > 0 {
@@ -73,6 +91,61 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn load_value_dyn(&mut self, value: &i::Value, indexes: &mut [LLVMValueRef]) -> LLVMValueRef {
+        match &value.base {
+            i::ValueBase::Variable(id) => {
+                let mut ptr = *self
+                    .value_pointers
+                    .get(&id)
+                    .expect("A variable was not given a pointer.");
+                if indexes.len() > 0 {
+                    assert!(value.dimensions.len() + 1 == indexes.len());
+                    ptr = unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            ptr,
+                            indexes.as_mut_ptr(),
+                            indexes.len() as u32,
+                            UNNAMED,
+                        )
+                    };
+                } else {
+                    assert!(value.dimensions.len() == 0);
+                }
+                unsafe { LLVMBuildLoad(self.builder, ptr, UNNAMED) }
+            }
+            i::ValueBase::Literal(data) => {
+                // Last we left it, we were trying to figure out how to index stuff or something
+                // like basically figure out what to do to return the requested value of the
+                // known data.
+                if let i::KnownData::Array(..) = &data {
+                    let runtime_value = self.create_temp_value_holding_data(&data);
+                    let required_dims = value.get_type(&self.source).collect_dimensions();
+                    // +1 for pointer dereference.
+                    assert!(required_dims.len() + 1 == indexes.len());
+                    unsafe {
+                        let value_ptr = LLVMBuildGEP(
+                            self.builder,
+                            runtime_value,
+                            indexes.as_mut_ptr(),
+                            indexes.len() as u32,
+                            UNNAMED,
+                        );
+                        LLVMBuildLoad(self.builder, value_ptr, UNNAMED)
+                    }
+                } else {
+                    assert!(indexes.len() == 0, "Cannot index scalar data.");
+                    match data {
+                        i::KnownData::Array(..) => unreachable!("Handled above."),
+                        i::KnownData::Bool(value) => self.b1_const(*value),
+                        i::KnownData::Int(value) => self.i32_const(*value as i32),
+                        i::KnownData::Float(value) => self.f32_const(*value as f32),
+                    }
+                }
+            }
+        }
+    }
+
     fn load_value(&mut self, value: &i::Value, const_indexes: &[u32]) -> LLVMValueRef {
         assert!(value.dimensions.len() == const_indexes.len());
         match &value.base {
@@ -114,22 +187,62 @@ impl<'a> Converter<'a> {
                 }
                 match data {
                     i::KnownData::Array(..) => unimplemented!(),
-                    i::KnownData::Bool(value) => unsafe {
-                        LLVMConstInt(
-                            LLVMInt1TypeInContext(self.context),
-                            if value { 1 } else { 0 },
-                            0,
-                        )
-                    },
-                    i::KnownData::Int(value) => unsafe {
-                        LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0)
-                    },
-                    i::KnownData::Float(value) => unsafe {
-                        LLVMConstReal(LLVMFloatTypeInContext(self.context), value as f64)
-                    },
+                    i::KnownData::Bool(value) => self.b1_const(value),
+                    i::KnownData::Int(value) => self.i32_const(value as i32),
+                    i::KnownData::Float(value) => self.f32_const(value as f32),
                 }
             }
         }
+    }
+
+    fn store_data_in_ptr(&self, ptr: LLVMValueRef, data: &i::KnownData, current_indexes: &[usize]) {
+        if let i::KnownData::Array(items) = data {
+            debug_assert!(items.len() > 0);
+            let mut new_indexes = Vec::with_capacity(current_indexes.len() + 1);
+            for ci in current_indexes {
+                new_indexes.push(*ci);
+            }
+            new_indexes.push(0);
+            for item in items {
+                self.store_data_in_ptr(ptr, item, &new_indexes[..]);
+                let last = new_indexes.len() - 1;
+                new_indexes[last] += 1;
+            }
+        } else {
+            let mut ptr = ptr;
+            if current_indexes.len() > 0 {
+                let mut literal_indexes: Vec<_> = current_indexes
+                    .iter()
+                    .map(|i| self.u32_const(*i as u32))
+                    .collect();
+                ptr = unsafe {
+                    LLVMBuildGEP(
+                        self.builder,
+                        ptr,
+                        literal_indexes.as_mut_ptr(),
+                        literal_indexes.len() as u32,
+                        UNNAMED,
+                    )
+                };
+            }
+            let value = match data {
+                i::KnownData::Bool(value) => self.b1_const(*value),
+                i::KnownData::Int(value) => self.i32_const(*value as i32),
+                i::KnownData::Float(value) => self.f32_const(*value as f32),
+                i::KnownData::Array(..) => unreachable!("Handled above."),
+            };
+            unsafe {
+                LLVMBuildStore(self.builder, value, ptr);
+            }
+        }
+    }
+
+    fn create_temp_value_holding_data(&self, data: &i::KnownData) -> LLVMValueRef {
+        let dtype = data.get_type();
+        let vtype = llvm_type(self.context, &dtype);
+        let value_ptr = unsafe { LLVMBuildAlloca(self.builder, vtype, UNNAMED) };
+        self.store_data_in_ptr(value_ptr, data, &[]);
+        value_ptr
     }
 
     fn get_block_for_label(&self, id: &i::LabelId) -> LLVMBasicBlockRef {
@@ -227,6 +340,24 @@ impl<'a> Converter<'a> {
             }
             let item = self.load_value(from, &coord[..]);
             self.store_value_dyn(to, item, &mut to_indexes[..]);
+        }
+    }
+
+    fn convert_load(&mut self, from: &i::Value, from_indexes: &Vec<i::Value>, to: &i::Value) {
+        let dimensions = to.dimensions.iter().map(|(len, _)| *len).collect();
+        let mut dyn_indexes: Vec<_> = from_indexes
+            .iter()
+            .map(|value| self.load_value(value, &[]))
+            .collect();
+        dyn_indexes.insert(0, self.u32_const(0));
+        for position in shared::NDIndexIter::new(dimensions) {
+            let coord = Self::usize_vec_to_u32(position);
+            let mut from_indexes = dyn_indexes.clone();
+            for static_index in &coord {
+                from_indexes.push(self.u32_const(*static_index));
+            }
+            let item = self.load_value_dyn(from, &mut from_indexes[..]);
+            self.store_value(to, item, &coord[..]);
         }
     }
 
@@ -366,6 +497,11 @@ impl<'a> Converter<'a> {
                     to,
                     to_indexes,
                 } => self.convert_store(from, to, to_indexes),
+                i::Instruction::Load {
+                    from,
+                    from_indexes,
+                    to,
+                } => self.convert_load(from, from_indexes, to),
                 _ => unimplemented!("{:?}", instruction),
             }
         }
