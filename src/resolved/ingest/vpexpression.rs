@@ -1,4 +1,6 @@
-use super::{problems, DataType, ResolvedVPExpression, ScopeResolver};
+use super::{
+    problems, DataType, PossiblyKnownData, ResolvedStatement, ResolvedVPExpression, ScopeResolver,
+};
 use crate::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -26,6 +28,54 @@ impl<'a> ScopeResolver<'a> {
             o::VPExpression::Variable(resolved_id, position.clone()),
             dtype.clone(),
         ))
+    }
+
+    fn resolve_collect(
+        &mut self,
+        items: &Vec<i::VPExpression>,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        debug_assert!(items.len() > 0);
+        let mut resolved_items = Vec::new();
+        for item in items {
+            resolved_items.push(self.resolve_vp_expression(item)?);
+        }
+        let typ = resolved_items[0].borrow_data_type();
+        let mut all_known = true;
+        for item in &resolved_items {
+            if item.borrow_data_type() != typ {
+                panic!("TODO: Nice error, items in collect are not compatible.");
+            }
+            if let ResolvedVPExpression::Modified(..) = item {
+                all_known = false;
+            }
+        }
+
+        let atype = DataType::Array(resolved_items.len(), Box::new(typ.clone()));
+        Ok(if all_known {
+            let mut data_items = Vec::new();
+            for item in resolved_items {
+                if let ResolvedVPExpression::Interpreted(data, ..) = item {
+                    data_items.push(data);
+                } else {
+                    unreachable!("Already checked that all items are known.");
+                }
+            }
+            ResolvedVPExpression::Interpreted(
+                i::KnownData::Array(data_items),
+                position.clone(),
+                atype,
+            )
+        } else {
+            let mut vp_exprs = Vec::new();
+            for item in resolved_items {
+                vp_exprs.push(item.as_vp_expression()?)
+            }
+            ResolvedVPExpression::Modified(
+                o::VPExpression::Collect(vp_exprs, position.clone()),
+                atype,
+            )
+        })
     }
 
     fn resolve_build_array_type(
@@ -190,6 +240,40 @@ impl<'a> ScopeResolver<'a> {
         }
     }
 
+    fn resolve_unary_operation(
+        &mut self,
+        op: i::UnaryOperator,
+        rhs: &i::VPExpression,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        let res_rhs = self.resolve_vp_expression(rhs)?;
+        Ok(
+            if let ResolvedVPExpression::Interpreted(data, pos, typ) = res_rhs {
+                ResolvedVPExpression::Interpreted(
+                    Self::compute_unary_operation(op, &data),
+                    pos,
+                    typ,
+                )
+            } else {
+                let res_op = match op {
+                    i::UnaryOperator::BNot => o::UnaryOperator::BNot,
+                    i::UnaryOperator::Negate => o::UnaryOperator::Negate,
+                    i::UnaryOperator::Not => o::UnaryOperator::Not,
+                    i::UnaryOperator::Reciprocal => o::UnaryOperator::Reciprocal,
+                };
+                let dtype = res_rhs.borrow_data_type().clone();
+                ResolvedVPExpression::Modified(
+                    o::VPExpression::UnaryOperation(
+                        res_op,
+                        Box::new(res_rhs.as_vp_expression()?),
+                        position.clone(),
+                    ),
+                    dtype,
+                )
+            },
+        )
+    }
+
     fn resolve_binary_operation(
         &mut self,
         lhs: &i::VPExpression,
@@ -256,6 +340,120 @@ impl<'a> ScopeResolver<'a> {
         Ok(result)
     }
 
+    fn resolve_macro_call(
+        &mut self,
+        mcro: &i::VPExpression,
+        inputs: &Vec<i::VPExpression>,
+        outputs: &Vec<i::FuncCallOutput>,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        // Find out what macro we are calling.
+        let rmacro = self.resolve_vp_expression(mcro)?;
+        let macro_data = if let ResolvedVPExpression::Interpreted(data, ..) = rmacro {
+            if let i::KnownData::Macro(data) = data {
+                data
+            } else {
+                panic!("TODO: Nice error, not macro.");
+            }
+        } else {
+            panic!("TODO: Nice error, vague macro.");
+        };
+        let body_scope = macro_data.get_body();
+        let rscope = self.target.create_scope();
+        let old_scope = self.current_scope;
+        self.current_scope = rscope;
+        self.push_table();
+
+        // Copy each input value to a new variable. If we know what the input value is at compile
+        // time, then just set its temporary value without creating an actual variable for it.
+        let macro_inputs = self.source[body_scope].borrow_inputs().clone();
+        if inputs.len() != macro_inputs.len() {
+            panic!("TODO: Nice error, wrong number of inputs.");
+        }
+        for index in 0..macro_inputs.len() {
+            let rinput = self.resolve_vp_expression(&inputs[index])?;
+            let input_id = macro_inputs[index];
+            if let ResolvedVPExpression::Interpreted(data, _, dtype) = rinput {
+                self.set_var_info(input_id, None, dtype);
+                self.set_temporary_value(input_id, PossiblyKnownData::from_known_data(&data));
+            } else if let ResolvedVPExpression::Modified(rinput, dtype) = rinput {
+                let pos = rinput.clone_position();
+                // It is impossible to get a dynamic expression that returns compile time only data.
+                let odtype = dtype.resolve().unwrap();
+                let input_in_body = o::Variable::new(pos.clone(), odtype);
+                let input_in_body_id = self.target.adopt_variable(input_in_body);
+                self.set_var_info(macro_inputs[index], Some(input_in_body_id), dtype);
+                self.target[self.current_scope].add_statement(o::Statement::Assign {
+                    target: Box::new(o::VCExpression::variable(input_in_body_id, pos.clone())),
+                    value: Box::new(rinput),
+                    position: pos.clone(),
+                });
+            }
+        }
+
+        // Resolve all the statements into the new body.
+        for statement in self.source[body_scope].borrow_body().clone() {
+            if let ResolvedStatement::Modified(statement) = self.resolve_statement(&statement)? {
+                self.target[rscope].add_statement(statement);
+            }
+        }
+
+        // Copy all the output values to the VCEs given in the macro call.
+        let mut inline_return = None;
+        let macro_outputs = self.source[body_scope].borrow_outputs().clone();
+        if outputs.len() != macro_outputs.len() {
+            panic!("TODO: Nice error, wrong number of outputs.");
+        }
+        for index in 0..macro_outputs.len() {
+            match &outputs[index] {
+                i::FuncCallOutput::InlineReturn(..) => {
+                    debug_assert!(inline_return.is_none());
+                    inline_return = Some(macro_outputs[index]);
+                }
+                i::FuncCallOutput::VCExpression(vce) => {
+                    let pos = vce.clone_position();
+                    // This will handle all the icky optiization stuff for us.
+                    let rs = self.resolve_assign_statement(
+                        &vce,
+                        &i::VPExpression::Variable(macro_outputs[index], pos.clone()),
+                        &pos,
+                    )?;
+                    if let ResolvedStatement::Modified(news) = rs {
+                        self.target[self.current_scope].add_statement(news);
+                    }
+                }
+            }
+        }
+
+        let result = if let Some(output_var) = inline_return {
+            // Undefined output should be caught by earlier phase.
+            let dtype = self.get_var_info(output_var).unwrap().1.clone();
+            let pkd = self.borrow_temporary_value(output_var);
+            if let Ok(known_data) = pkd.to_known_data() {
+                ResolvedVPExpression::Interpreted(known_data, position.clone(), dtype)
+            } else {
+                // A variable cannot carry an indeterminate value while being compile-time only.
+                let var_id = self.get_var_info(output_var).unwrap().0.unwrap();
+                ResolvedVPExpression::Modified(
+                    o::VPExpression::Variable(var_id, position.clone()),
+                    dtype,
+                )
+            }
+        } else {
+            ResolvedVPExpression::Interpreted(i::KnownData::Void, position.clone(), DataType::Void)
+        };
+
+        self.pop_table();
+        self.current_scope = old_scope;
+        // Add a statement to call the body we just made.
+        self.target[self.current_scope].add_statement(o::Statement::MacroCall {
+            mcro: rscope,
+            position: position.clone(),
+        });
+
+        Ok(result)
+    }
+
     pub(super) fn resolve_vp_expression(
         &mut self,
         input: &i::VPExpression,
@@ -267,14 +465,16 @@ impl<'a> ScopeResolver<'a> {
                 self.resolve_data_type_partially(value.get_data_type()),
             ),
             i::VPExpression::Variable(id, position) => self.resolve_vp_variable(*id, position)?,
-            i::VPExpression::Collect(..) => unimplemented!(),
+            i::VPExpression::Collect(items, position) => self.resolve_collect(items, position)?,
             i::VPExpression::BuildArrayType {
                 dimensions,
                 base,
                 position,
             } => self.resolve_build_array_type(dimensions, base, position)?,
 
-            i::VPExpression::UnaryOperation(..) => unimplemented!(),
+            i::VPExpression::UnaryOperation(op, a, position) => {
+                self.resolve_unary_operation(*op, a, position)?
+            }
             i::VPExpression::BinaryOperation(lhs, operator, rhs, position) => {
                 self.resolve_binary_operation(lhs, *operator, rhs, position)?
             }
@@ -283,7 +483,12 @@ impl<'a> ScopeResolver<'a> {
                 indexes,
                 position,
             } => self.resolve_vp_index(base, indexes, position)?,
-            i::VPExpression::MacroCall { .. } => unimplemented!(),
+            i::VPExpression::MacroCall {
+                mcro,
+                inputs,
+                outputs,
+                position,
+            } => self.resolve_macro_call(mcro, inputs, outputs, position)?,
         })
     }
 }

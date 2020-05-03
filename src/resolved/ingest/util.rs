@@ -7,6 +7,47 @@ use crate::vague::structure as i;
 use std::convert::TryInto;
 
 impl<'a> ScopeResolver<'a> {
+    pub(super) fn compute_unary_operation(
+        operator: i::UnaryOperator,
+        data: &i::KnownData,
+    ) -> i::KnownData {
+        if let i::KnownData::Array(items) = data {
+            i::KnownData::Array(
+                items
+                    .iter()
+                    .map(|item| Self::compute_unary_operation(operator, item))
+                    .collect(),
+            )
+        } else {
+            Self::compute_unary_operation_impl(operator, data)
+        }
+    }
+
+    fn compute_unary_operation_impl(
+        operator: i::UnaryOperator,
+        data: &i::KnownData,
+    ) -> i::KnownData {
+        match operator {
+            i::UnaryOperator::Not => match data {
+                i::KnownData::Bool(value) => i::KnownData::Bool(!*value),
+                _ => unreachable!(),
+            },
+            i::UnaryOperator::BNot => match data {
+                i::KnownData::Int(value) => i::KnownData::Int(!*value),
+                _ => unreachable!(),
+            },
+            i::UnaryOperator::Negate => match data {
+                i::KnownData::Int(value) => i::KnownData::Int(-*value),
+                i::KnownData::Float(value) => i::KnownData::Float(-*value),
+                _ => unreachable!(),
+            },
+            i::UnaryOperator::Reciprocal => match data {
+                i::KnownData::Float(value) => i::KnownData::Float(1.0 / *value),
+                _ => unreachable!(),
+            },
+        }
+    }
+
     /// Expression must be a binary operator expression (add, equals, etc.) and A and B must be valid
     /// inputs for that expression. They cannot have different base types.
     /// TODO: Implement arrays, and arrays of different sizes.
@@ -197,9 +238,15 @@ impl<'a> ScopeResolver<'a> {
             }
         // BCT rule 5
         } else if let DataType::Array(alen, abase) = a {
-            Ok(DataType::Array(*alen, Box::new(Self::biggest_type(abase, b)?)))
+            Ok(DataType::Array(
+                *alen,
+                Box::new(Self::biggest_type(abase, b)?),
+            ))
         } else if let DataType::Array(blen, bbase) = b {
-            Ok(DataType::Array(*blen, Box::new(Self::biggest_type(a, bbase)?)))
+            Ok(DataType::Array(
+                *blen,
+                Box::new(Self::biggest_type(a, bbase)?),
+            ))
         } else {
             Err(())
         }

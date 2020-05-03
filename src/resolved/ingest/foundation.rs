@@ -259,25 +259,6 @@ impl<'a> ScopeResolver<'a> {
         }
         Ok(self.current_scope)
     }
-
-    pub(super) fn resolve_scope(
-        &mut self,
-        source: i::ScopeId,
-    ) -> Result<o::ScopeId, CompileProblem> {
-        self.push_table();
-        let old_current_scope = self.current_scope;
-        self.current_scope = self.target.create_scope();
-        let old_body = self.source[source].borrow_body().clone();
-        for statement in old_body {
-            if let ResolvedStatement::Modified(new) = self.resolve_statement(&statement)? {
-                self.target[self.current_scope].add_statement(new);
-            }
-        }
-        let result = Result::Ok(self.current_scope);
-        self.current_scope = old_current_scope;
-        self.pop_table();
-        result
-    }
 }
 
 #[derive(Clone, Debug)]
