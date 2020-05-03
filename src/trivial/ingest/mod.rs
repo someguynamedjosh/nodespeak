@@ -74,7 +74,14 @@ impl<'a> Trivializer<'a> {
             i::KnownData::Int(value) => o::KnownData::Int(*value),
             i::KnownData::Float(value) => o::KnownData::Float(*value),
             i::KnownData::Bool(value) => o::KnownData::Bool(*value),
-            _ => panic!("TODO: nice error, encountered ct-only data type after resolving."),
+            i::KnownData::Array(items) => {
+                let mut titems = Vec::with_capacity(items.len());
+                for item in items {
+                    titems.push(Self::trivialize_known_data(item)?);
+                }
+                o::KnownData::Array(titems)
+            }
+            _ => panic!("TODO: nice error, encountered ct-only data type after resolving"),
         })
     }
 

@@ -46,8 +46,11 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedStatement, CompileProblem> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
-        if lhs.borrow_data_type() != rhs.borrow_data_type() {
-            // TODO: Better logic for when this applies.
+        let ok = match Self::biggest_type(lhs.borrow_data_type(), rhs.borrow_data_type()) {
+            Ok(bct) => &bct == lhs.borrow_data_type(),
+            Err(..) => false,
+        };
+        if !ok {
             panic!("TODO: Nice error, bad assignment.");
         }
         if let (
@@ -60,7 +63,6 @@ impl<'a> ScopeResolver<'a> {
                 indexes,
                 PossiblyKnownData::from_known_data(value_data),
             );
-            Ok(ResolvedStatement::Interpreted)
         } else {
             match &lhs {
                 ResolvedVCExpression::Specific { var, indexes, .. }
@@ -70,11 +72,18 @@ impl<'a> ScopeResolver<'a> {
                     self.reset_temporary_range(*var, indexes);
                 }
             }
+        }
+        if lhs.borrow_data_type().resolve().is_some() {
+            // Always return a modified expression. This way, even if we really know what the result
+            // of the expression is at compile time, we can still ensure that if something about 
+            // this does end up being needed specifically at run time then it will be there.
             Ok(ResolvedStatement::Modified(o::Statement::Assign {
                 target: Box::new(lhs.as_vc_expression(self)?),
                 value: Box::new(rhs.as_vp_expression()?),
                 position: position.clone(),
             }))
+        } else {
+            Ok(ResolvedStatement::Interpreted)
         }
     }
 

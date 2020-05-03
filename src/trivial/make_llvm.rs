@@ -122,11 +122,9 @@ impl<'a> Converter<'a> {
                         )
                     },
                     i::KnownData::Int(value) => unsafe {
-                        assert!(const_indexes.len() == 0);
                         LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0)
                     },
                     i::KnownData::Float(value) => unsafe {
-                        assert!(const_indexes.len() == 0);
                         LLVMConstReal(LLVMFloatTypeInContext(self.context), value as f64)
                     },
                 }
