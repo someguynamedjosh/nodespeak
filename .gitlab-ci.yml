@@ -13,7 +13,7 @@ check:
   image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
     - apt update
-    - apt -y install curl
+    - apt -y install curl build-essential
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source $HOME/.cargo/env
     - export LLVM_SYS_100_PREFIX="/tmp/llvm-100-install_O_D_A"
@@ -27,7 +27,7 @@ build:
   image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
     - apt update
-    - apt -y install curl
+    - apt -y install curl build-essential
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source $HOME/.cargo/env
     - export LLVM_SYS_100_PREFIX="/tmp/llvm-100-install_O_D_A"
