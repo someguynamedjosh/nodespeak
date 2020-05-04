@@ -12,6 +12,8 @@ check:
   stage: check
   image: rust:1.37
   script: 
+    - apt-get update
+    - apt-get -y install build-essential
     - cargo install llvmenv
     - llvmenv build-entry 7.0.0
     - cargo test
