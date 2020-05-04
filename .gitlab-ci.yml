@@ -13,7 +13,7 @@ check:
   image: rust:1.37
   script: 
     - apt-get update
-    - apt-get -y install build-essential cmake
+    - apt-get -y install build-essential cmake make g++
     - cargo install llvmenv
     - llvmenv build-entry 7.0.0
     - cargo test
