@@ -15,7 +15,7 @@ dump-llvmir=[]
 [dependencies]
 colored = "1.8"
 libc = "0.2"
-llvm-sys = "100"
+llvm-sys = "70"
 num_enum = "0.4"
 pest = "2.1"
 pest_derive = "2.1"
