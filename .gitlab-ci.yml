@@ -13,14 +13,12 @@ check:
   # LLVM takes longer to build / install than Rust. Use a LLVM image then put Rust on top of it.
   image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
-    - ls /
-    - ls /lib
-    - ls /root
-    - ls /home/*
+    - ls /include
     - apt-get update
     - apt-get -y install curl build-essential
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source $HOME/.cargo/env
+    - export LLVM_SYS_100_PREFIX="/"
     - cargo test
   only: 
     - master
@@ -34,6 +32,7 @@ build:
     - apt-get -y install curl build-essential
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
     - source $HOME/.cargo/env
+    - export LLVM_SYS_100_PREFIX="/"
     - cargo build --release
   only: 
   - master
