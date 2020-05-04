@@ -16,6 +16,7 @@ check:
     - apt-get update
     - apt-get -y install curl
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $HOME/.cargo/env
     - cargo test
   only: 
     - master
@@ -28,6 +29,7 @@ build:
     - apt-get update
     - apt-get -y install curl
     - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $HOME/.cargo/env
     - cargo build --release
   only: 
   - master
