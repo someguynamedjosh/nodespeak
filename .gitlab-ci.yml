@@ -10,15 +10,13 @@ stages:
 
 check:
   stage: check
-  image: rust:1.37
+  image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
-    - apt-get update
-    - apt-get -y install build-essential cmake make g++
-    - which make
-    - which cmake
-    - which g++
-    - cargo install llvmenv
-    - llvmenv build-entry 7.0.0
+    - apt update
+    - apt -y install curl
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $HOME/.cargo/env
+    - export LLVM_SYS_100_PREFIX="/tmp/llvm-100-install_O_D_A"
     - cargo test
   only: 
     - master
@@ -26,10 +24,13 @@ check:
   
 build:
   stage: build 
-  image: rust:1.37
+  image: klee/llvm:100_O_D_A_ubuntu_bionic-20200112
   script: 
-    - cargo install llvmenv
-    - llvmenv build-entry 7.0.0
+    - apt update
+    - apt -y install curl
+    - curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - source $HOME/.cargo/env
+    - export LLVM_SYS_100_PREFIX="/tmp/llvm-100-install_O_D_A"
     - cargo build --release
   only: 
   - master
