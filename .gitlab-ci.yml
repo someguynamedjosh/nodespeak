@@ -14,6 +14,9 @@ check:
   script: 
     - apt-get update
     - apt-get -y install build-essential cmake make g++
+    - which make
+    - which cmake
+    - which g++
     - cargo install llvmenv
     - llvmenv build-entry 7.0.0
     - cargo test
