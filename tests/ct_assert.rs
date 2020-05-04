@@ -9,9 +9,9 @@ fn ct_asserts() {
     for file in fs::read_dir(test_file_directory).expect("Could not find test directory.") {
         let file = file.expect("Could not list test directory.");
         let code = fs::read_to_string(file.path()).expect("Could not read from file.");
-        let source_set =
-            nodespeak::SourceSet::from_raw_string(&format!("{:?}", file.path()), &code);
-        match nodespeak::resolve(&source_set) {
+        let mut source_set = nodespeak::SourceSet::new();
+        source_set.add_item(format!("{:?}", file.path()), code);
+        match nodespeak::to_resolved(&source_set) {
             Result::Ok(_program) => (),
             Result::Err(err) => {
                 eprintln!("{}", err);
