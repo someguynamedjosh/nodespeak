@@ -180,14 +180,6 @@ impl VagueIngester {
         let counter_id = self
             .target
             .adopt_and_define_symbol(body_scope, counter_name, counter);
-        self.add_statement(o::Statement::CreationPoint {
-            position: counter_pos,
-            var: counter_id,
-            var_type: Box::new(o::VPExpression::Literal(
-                o::KnownData::DataType(o::DataType::Int),
-                FilePosition::placeholder(),
-            )),
-        });
         let old_current_scope = self.current_scope;
         self.current_scope = body_scope;
         self.convert_code_block(children.next().expect("illegal grammar"))?;

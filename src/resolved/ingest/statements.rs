@@ -75,7 +75,7 @@ impl<'a> ScopeResolver<'a> {
         }
         if lhs.borrow_data_type().resolve().is_some() {
             // Always return a modified expression. This way, even if we really know what the result
-            // of the expression is at compile time, we can still ensure that if something about 
+            // of the expression is at compile time, we can still ensure that if something about
             // this does end up being needed specifically at run time then it will be there.
             Ok(ResolvedStatement::Modified(o::Statement::Assign {
                 target: Box::new(lhs.as_vc_expression(self)?),
@@ -146,7 +146,7 @@ impl<'a> ScopeResolver<'a> {
             // We get here if we don't know what the condition is, or if we know what the condition
             // is but we can't do any optimizations about it.
             let rbody = self.resolve_clause_body(*body)?;
-            rclauses.push(( rcond.as_vp_expression()?, rbody ));
+            rclauses.push((rcond.as_vp_expression()?, rbody));
         }
         let else_clause = if let Some(body) = else_clause {
             if rclauses.len() == 0 {
@@ -163,6 +163,93 @@ impl<'a> ScopeResolver<'a> {
         Ok(ResolvedStatement::Modified(o::Statement::Branch {
             clauses: rclauses,
             else_clause,
+            position: position.clone(),
+        }))
+    }
+
+    fn resolve_for_loop(
+        &mut self,
+        counter: i::VariableId,
+        start: &i::VPExpression,
+        end: &i::VPExpression,
+        body: i::ScopeId,
+        position: &FilePosition,
+    ) -> Result<ResolvedStatement, CompileProblem> {
+        // Consider this:
+        // Int val = 123; for i = 0 to 10 { other = val; val = val + i; }
+        // If we just resolved the scope once, we would write "other = val" because val is known to
+        // be 123 at that point. But since it is assigned to later on, we don't actually know that
+        // val will be 123. But since it happens after we have already resolved the previous
+        // statement, we can't retroactively change it. So instead, we resolve everything in the
+        // for loop once, using enter_branch_body() at the start. Once that is complete,
+        // exit_branch_body() will mark any variables that could have possibly been assigned as
+        // Unknown. We can then go in and resolve the loop body for a second time which will yield
+        // the correct code. This second resolving will not have any side effects because any
+        // modified known values will be set back to unknown by exit_branch_body(), so known values
+        // are either unchanged or invalidated by the first resolving and never actually changed.
+
+        let counter_pos = self.source[counter].get_definition().clone();
+        let rcounter = o::Variable::new(counter_pos, o::DataType::Int);
+        let rcounter = self.target.adopt_variable(rcounter);
+        self.set_var_info(counter, Some(rcounter), DataType::Int);
+        let body = self.source[body].borrow_body().clone();
+        let old_scope = self.current_scope;
+        let rstart = self.resolve_vp_expression(start)?;
+        let rend = self.resolve_vp_expression(end)?;
+        if rstart.borrow_data_type() != &DataType::Int {
+            panic!("TODO: Nice error, loop start not integer.");
+        }
+        if rend.borrow_data_type() != &DataType::Int {
+            panic!("TODO: Nice error, loop end not integer.");
+        }
+        if let (
+            ResolvedVPExpression::Interpreted(start, ..),
+            ResolvedVPExpression::Interpreted(end, ..),
+        ) = (&rstart, &rend)
+        {
+            // We just checked that they're ints.
+            let start = start.require_int();
+            let end = end.require_int();
+            for i in start..end {
+                self.set_temporary_value(counter, PossiblyKnownData::Int(i));
+                for statement in &body {
+                    let res = self.resolve_statement(statement)?;
+                    if let ResolvedStatement::Modified(rstatement) = res {
+                        self.target[self.current_scope].add_statement(rstatement);
+                    }
+                }
+            }
+            return Ok(ResolvedStatement::Interpreted);
+        }
+
+        let throwaway_scope = self.target.create_scope();
+        self.current_scope = throwaway_scope;
+        self.enter_branch_body();
+        for statement in &body {
+            // Don't bother adding it to the scope, it's junk code.
+            self.resolve_statement(statement)?;
+        }
+        self.exit_branch_body();
+
+        let real_scope = self.target.create_scope();
+        self.current_scope = real_scope;
+        // No enter branch body this time. Everything that gets assigned to with a fixed value will
+        // legitimately have that value by the end of the loop. Since the previous section of code
+        // just marked everything assigned during the loop as unknown, any known value as a result
+        // of this next loop is the product of data that does not depend on the state of the loop.
+        for statement in &body {
+            let res = self.resolve_statement(statement)?;
+            if let ResolvedStatement::Modified(rstatement) = res {
+                self.target[self.current_scope].add_statement(rstatement);
+            }
+        }
+        self.current_scope = old_scope;
+
+        Ok(ResolvedStatement::Modified(o::Statement::ForLoop {
+            counter: rcounter,
+            start: Box::new(rstart.as_vp_expression()?),
+            end: Box::new(rend.as_vp_expression()?),
+            body: real_scope,
             position: position.clone(),
         }))
     }
@@ -200,8 +287,18 @@ impl<'a> ScopeResolver<'a> {
                 value,
                 position,
             } => self.resolve_assign_statement(target, value, position),
-            i::Statement::Branch { clauses, else_clause, position } => self.resolve_branch(clauses, else_clause, position),
-            i::Statement::ForLoop { .. } => unimplemented!(),
+            i::Statement::Branch {
+                clauses,
+                else_clause,
+                position,
+            } => self.resolve_branch(clauses, else_clause, position),
+            i::Statement::ForLoop {
+                counter,
+                start,
+                end,
+                body,
+                position,
+            } => self.resolve_for_loop(*counter, start, end, *body, position),
             i::Statement::RawVPExpression(expr) => self.resolve_raw_vp_expression(expr),
         }
     }
