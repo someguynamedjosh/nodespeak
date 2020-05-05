@@ -44,24 +44,6 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
             panic!("TODO: Nice error, input not available at run time.")
         }
     }
-    for output in old_outputs {
-        let data = resolver.borrow_temporary_value(output);
-        if let Ok(kdata) = data.to_known_data() {
-            let resolved_id = resolver
-                .get_var_info(output)
-                .expect("Var used before defined, should be caught in vague phase")
-                .0
-                .expect("TODO: Nice error, output could not be used at runtime");
-            let resolved_data = ScopeResolver::resolve_known_data(&kdata)
-                .expect("TODO: Nice error, data cannot be used at run time.");
-            let p = FilePosition::placeholder();
-            resolver.target[new_entry_point].add_statement(o::Statement::Assign {
-                target: Box::new(o::VCExpression::variable(resolved_id, p.clone())),
-                value: Box::new(o::VPExpression::Literal(resolved_data, p.clone())),
-                position: p.clone(),
-            });
-        }
-    }
     resolver.target.set_entry_point(new_entry_point);
     Result::Ok(resolver.target)
 }
@@ -93,6 +75,10 @@ pub(super) struct ScopeResolver<'a> {
     // of the macro.
     stack: Vec<ResolverTable>,
     temp_values: HashMap<i::VariableId, PossiblyKnownData>,
+    // Variables that should be marked as unknown once we leave the current branch body because
+    // we don't know if the branch body will occur.
+    dirty_values: HashSet<i::VariableId>,
+    dirty_values_stack: Vec<HashSet<i::VariableId>>,
 }
 
 impl<'a> ScopeResolver<'a> {
@@ -106,6 +92,8 @@ impl<'a> ScopeResolver<'a> {
             table: ResolverTable::new(),
             stack: Vec::new(),
             temp_values: HashMap::new(),
+            dirty_values: HashSet::new(),
+            dirty_values_stack: Vec::new(),
         }
     }
 
@@ -120,6 +108,29 @@ impl<'a> ScopeResolver<'a> {
             .stack
             .pop()
             .expect("Encountered extra unexpected stack pop");
+    }
+
+    /// Any variables that are modified during this period will be marked as dirty. When
+    /// leave_branch_body is called, all dirty variables will be marked as unknown because we do not
+    /// know at compile time if the branch body will be executed. This also keeps track of
+    /// everything in a stack, so it can be called multiple times for nested branch bodies. Each
+    /// corresponding call of leave_branch_body will only reset values marked dirty during the
+    /// corresponding branch body.
+    pub(super) fn enter_branch_body(&mut self) {
+        self.dirty_values_stack.push(self.dirty_values.clone());
+        self.dirty_values.clear();
+    }
+
+    /// Marks dirty values as unknown. See enter_branch_body.
+    pub(super) fn exit_branch_body(&mut self) {
+        let var_ids = self.dirty_values.iter().cloned().collect::<Vec<_>>();
+        for var_id in var_ids.into_iter() {
+            self.reset_temporary_value(var_id);
+        }
+        self.dirty_values = self
+            .dirty_values_stack
+            .pop()
+            .expect("Too many calls to exit_branch_body, missing a call to enter_branch_body.");
     }
 
     pub(super) fn set_var_info(
@@ -157,6 +168,7 @@ impl<'a> ScopeResolver<'a> {
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {
         self.temp_values.insert(var, value);
+        self.dirty_values.insert(var);
     }
 
     pub(super) fn set_temporary_item(
@@ -182,6 +194,7 @@ impl<'a> ScopeResolver<'a> {
     }
 
     pub(super) fn reset_temporary_value(&mut self, var: i::VariableId) {
+        self.dirty_values.insert(var);
         let dims = if let Some((_, typ)) = self.get_var_info(var) {
             typ.collect_dims()
         } else {
@@ -212,6 +225,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         var: i::VariableId,
     ) -> &mut PossiblyKnownData {
+        self.dirty_values.insert(var);
         if !self.temp_values.contains_key(&var) {
             self.reset_temporary_value(var)
         }

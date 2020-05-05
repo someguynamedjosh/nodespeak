@@ -152,7 +152,7 @@ impl<'a> Trivializer<'a> {
         a.inflate(&bct_dims[..]);
         b.inflate(&bct_dims[..]);
         let out_typ = Self::trivialize_data_type(out_typ);
-        let mut base = out_typ.clone();
+        let mut base = a.get_type(&self.target);
         while let o::DataType::Array(_, etype) = base {
             base = *etype;
         }

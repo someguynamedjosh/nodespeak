@@ -296,6 +296,18 @@ impl<'a> ScopeResolver<'a> {
                 res_rhs.borrow_data_type(),
             ));
         };
+        let bct = match operator {
+            i::BinaryOperator::LessThan
+            | i::BinaryOperator::LessThanOrEqual
+            | i::BinaryOperator::GreaterThan
+            | i::BinaryOperator::GreaterThanOrEqual
+            | i::BinaryOperator::Equal
+            | i::BinaryOperator::NotEqual => {
+                let bct_dims = bct.collect_dims();
+                DataType::make_array(&bct_dims[..], DataType::Bool)
+            }
+            _ => bct,
+        };
         if let (
             ResolvedVPExpression::Interpreted(lhs_data, ..),
             ResolvedVPExpression::Interpreted(rhs_data, ..),

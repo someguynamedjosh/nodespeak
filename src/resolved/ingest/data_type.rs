@@ -17,6 +17,14 @@ pub enum DataType {
 }
 
 impl DataType {
+    pub fn make_array(dims: &[usize], base: Self) -> Self {
+        if dims.len() > 0 {
+            Self::Array(dims[0], Box::new(Self::make_array(&dims[1..], base)))
+        } else {
+            base
+        }
+    }
+
     pub fn resolve(&self) -> Option<o::DataType> {
         match self {
             Self::Array(len, base) => base
