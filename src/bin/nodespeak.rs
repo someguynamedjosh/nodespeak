@@ -3,7 +3,6 @@ extern crate text_io;
 
 use std::env;
 use std::process;
-use std::time::Instant;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,16 +15,20 @@ fn main() {
         process::exit(64);
     }
 
-    let mut source_set = nodespeak::SourceSet::new();
-    if let Err(_err) = source_set.add_item_from_file(args[2].clone()) {
-        eprintln!("Could not read from {}", &args[2]);
+    let mut compiler = nodespeak::Compiler::new();
+    if let Some((width, _)) = terminal_size::terminal_size() {
+        compiler.set_error_width(width.0 as usize);
+    }
+    let main_source_name = &args[2];
+    if let Err(err) = compiler.add_source_from_file(main_source_name.to_owned()) {
+        eprintln!("Could not read from {}:", main_source_name);
+        eprintln!("{:?}", err);
         process::exit(74);
     }
 
     println!("\nStarting...");
-    let compile_start = Instant::now();
     match args[1].as_ref() {
-        "ast" => match nodespeak::to_ast(&source_set) {
+        "ast" => match compiler.compile_to_ast(main_source_name) {
             Result::Ok(program) => println!("{:#?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -33,7 +36,7 @@ fn main() {
             }
         },
         #[cfg(not(feature = "no-vague"))]
-        "vague" => match nodespeak::to_vague(&source_set) {
+        "vague" => match compiler.compile_to_vague(main_source_name) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -41,7 +44,7 @@ fn main() {
             }
         },
         #[cfg(not(feature = "no-resolved"))]
-        "resolved" => match nodespeak::to_resolved(&source_set) {
+        "resolved" => match compiler.compile_to_resolved(main_source_name) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -49,7 +52,7 @@ fn main() {
             }
         },
         #[cfg(not(feature = "no-trivial"))]
-        "trivial" => match nodespeak::to_trivial(&source_set) {
+        "trivial" => match compiler.compile_to_trivial(main_source_name) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
@@ -57,14 +60,13 @@ fn main() {
             }
         },
         #[cfg(not(feature = "no-llvmir"))]
-        "llvmir" => match nodespeak::to_llvmir(&source_set) {
+        "llvmir" => match compiler.compile_to_llvmir(main_source_name) {
             Result::Ok(program) => println!("{:?}", program),
             Result::Err(err) => {
                 eprintln!("{}", err);
                 process::exit(101);
             }
         },
-        "execute" => unimplemented!(),
         _ => {
             eprintln!("Invalid mode '{}', expected compile or a phase.", args[1]);
             eprintln!("compile: compiles the specified file and outputs the result.");
@@ -73,8 +75,6 @@ fn main() {
             process::exit(64);
         }
     }
-    println!(
-        "Task completed sucessfully ({}ms.)\n",
-        compile_start.elapsed().as_millis()
-    );
+    println!("Task completed sucessfully.");
+    println!("{}", compiler.borrow_performance_counters());
 }

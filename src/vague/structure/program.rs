@@ -1,4 +1,4 @@
-use crate::problem::FilePosition;
+use crate::high_level::problem::FilePosition;
 use crate::vague::structure::{self, Builtins, Scope, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};

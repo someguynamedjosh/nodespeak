@@ -1,4 +1,4 @@
-use crate::SourceSet;
+use crate::Compiler;
 use colored::*;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
@@ -93,19 +93,19 @@ impl FilePosition {
     }
 }
 
-pub(super) enum ProblemType {
+pub(crate) enum ProblemType {
     Error,
     Hint,
 }
 
-pub(super) struct ProblemDescriptor {
+pub(crate) struct ProblemDescriptor {
     position: FilePosition,
     ptype: ProblemType,
     caption: String,
 }
 
 impl ProblemDescriptor {
-    pub(super) fn new(
+    pub(crate) fn new(
         position: FilePosition,
         ptype: ProblemType,
         caption: &str,
@@ -121,8 +121,6 @@ impl ProblemDescriptor {
 pub struct CompileProblem {
     descriptors: Vec<ProblemDescriptor>,
 }
-
-const FALLBACK_ERROR_WIDTH: usize = 60;
 
 fn wrap_text(input: &str, width: usize, offset: usize) -> String {
     let mut output = "".to_owned();
@@ -169,11 +167,11 @@ struct GrabResult {
 }
 
 impl CompileProblem {
-    pub(super) fn from_descriptors(descriptors: Vec<ProblemDescriptor>) -> CompileProblem {
+    pub(crate) fn from_descriptors(descriptors: Vec<ProblemDescriptor>) -> CompileProblem {
         CompileProblem { descriptors }
     }
 
-    pub(super) fn add_descriptor(&mut self, descriptor: ProblemDescriptor) {
+    pub(crate) fn add_descriptor(&mut self, descriptor: ProblemDescriptor) {
         self.descriptors.push(descriptor)
     }
 
@@ -220,8 +218,7 @@ impl CompileProblem {
     }
 
     // This whole thing is a mess but it doesn't need to run fast.
-    pub fn format(&self, width: Option<usize>, sources: &SourceSet) -> String {
-        let width = width.unwrap_or(FALLBACK_ERROR_WIDTH);
+    pub fn format(&self, width: usize, compiler: &Compiler) -> String {
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
             output.push_str(&match descriptor.ptype {
@@ -233,8 +230,8 @@ impl CompileProblem {
             output.push_str("\n");
 
             let position = &descriptor.position;
-            let source_name = &sources.borrow_sources()[position.file].0;
-            let grabbed = Self::grab_text(&sources.borrow_sources()[position.file].1, position);
+            let source_name = &compiler.borrow_source(position.file).0;
+            let grabbed = Self::grab_text(&compiler.borrow_source(position.file).1, position);
             let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());

@@ -1,4 +1,4 @@
-use crate::problem::FilePosition;
+use crate::high_level::problem::FilePosition;
 use crate::vague::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 

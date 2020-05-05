@@ -1,5 +1,5 @@
 use super::DataType;
-use crate::problem::*;
+use crate::high_level::problem::*;
 use ProblemType::Error;
 use ProblemType::Hint;
 

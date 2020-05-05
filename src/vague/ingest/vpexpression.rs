@@ -1,7 +1,7 @@
 use super::problems;
 use super::VagueIngester;
 use crate::ast::structure as i;
-use crate::problem::{CompileProblem, FilePosition};
+use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
 
 #[derive(Clone)]

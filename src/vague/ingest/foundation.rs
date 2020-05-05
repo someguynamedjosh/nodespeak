@@ -1,6 +1,6 @@
 use super::problems;
 use crate::ast::structure as i;
-use crate::problem::{CompileProblem, FilePosition};
+use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
 
 pub(super) struct VagueIngester {

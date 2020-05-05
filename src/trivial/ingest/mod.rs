@@ -1,4 +1,4 @@
-use crate::problem::CompileProblem;
+use crate::high_level::problem::CompileProblem;
 use crate::resolved::structure as i;
 use crate::shared as s;
 use crate::trivial::structure as o;

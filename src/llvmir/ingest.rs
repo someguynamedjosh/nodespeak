@@ -1,4 +1,4 @@
-use crate::llvm::structure as o;
+use crate::llvmir::structure as o;
 use crate::shared::{self, ProxyMode};
 use crate::trivial::structure as i;
 use llvm_sys::core::*;

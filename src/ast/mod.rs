@@ -1,5 +1,4 @@
-use crate::problem::CompileProblem;
-use crate::problem::FilePosition;
+use crate::high_level::problem::{CompileProblem, FilePosition};
 
 use pest::error::ErrorVariant;
 use pest::Parser;
@@ -81,7 +80,7 @@ pub mod structure {
 }
 
 pub(self) mod problems {
-    use crate::problem::{CompileProblem, FilePosition, ProblemDescriptor, ProblemType};
+    use crate::high_level::problem::{CompileProblem, FilePosition, ProblemDescriptor, ProblemType};
 
     pub fn bad_syntax(pos: FilePosition, message: String) -> CompileProblem {
         CompileProblem::from_descriptors(vec![ProblemDescriptor::new(

@@ -1,5 +1,5 @@
 use super::{DataType, ScopeResolver};
-use crate::problem::CompileProblem;
+use crate::high_level::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::shared as s;
 use crate::vague::structure as i;

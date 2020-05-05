@@ -1,5 +1,5 @@
 use super::{DataType, MacroData, KnownData};
-use crate::problem::FilePosition;
+use crate::high_level::problem::FilePosition;
 
 use std::fmt::{self, Debug, Formatter};
 

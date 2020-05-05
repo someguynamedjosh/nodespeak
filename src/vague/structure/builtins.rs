@@ -1,4 +1,4 @@
-use crate::problem::FilePosition;
+use crate::high_level::problem::FilePosition;
 use crate::vague::structure::{
     DataType, KnownData, Program, Statement, VPExpression, Variable, VariableId,
 };
