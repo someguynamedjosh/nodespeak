@@ -63,6 +63,10 @@ pub mod structure {
             Rule::if_statement => "if statement",
             Rule::for_loop_statement => "for loop",
 
+            Rule::raw_string => "string segment",
+            Rule::escape_sequence => "string escape sequence",
+            Rule::string => "string literal",
+
             Rule::input_variable_statement => "input declaration statement",
             Rule::output_variable_statement => "output declaration statement",
             Rule::assign_statement => "assignment statement",
@@ -70,6 +74,7 @@ pub mod structure {
             Rule::var_dec_statement => "variable declaration as statement",
             Rule::return_statement => "return statement",
             Rule::assert_statement => "assert statement",
+            Rule::include_statement => "include statement",
             Rule::statement => "statement",
 
             Rule::code_block => "code block",
@@ -93,10 +98,10 @@ pub(self) mod problems {
     }
 }
 
-pub fn ingest(text: &str) -> Result<structure::Program, CompileProblem> {
+pub fn ingest(text: &str, file_id: usize) -> Result<structure::Program, CompileProblem> {
     NodespeakParser::parse(Rule::root, text).map_err(|parse_err| {
         problems::bad_syntax(
-            FilePosition::from_input_location(parse_err.location),
+            FilePosition::from_input_location(parse_err.location, file_id),
             match parse_err.variant {
                 ErrorVariant::ParsingError {
                     positives,

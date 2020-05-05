@@ -4,11 +4,11 @@ use crate::ast::structure as i;
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
 
-impl VagueIngester {
-    pub(super) fn convert_macro_signature<'a>(
+impl<'a> VagueIngester<'a> {
+    pub(super) fn convert_macro_signature<'n>(
         &mut self,
-        node: i::Node<'a>,
-    ) -> Result<(Vec<o::VariableId>, Vec<i::Node<'a>>), CompileProblem> {
+        node: i::Node<'n>,
+    ) -> Result<(Vec<o::VariableId>, Vec<i::Node<'n>>), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_signature);
         let mut children = node.into_inner();
         let inputs_node = children.next().expect("illegal grammar");
@@ -21,7 +21,7 @@ impl VagueIngester {
             .map(|child| {
                 debug_assert!(child.as_rule() == i::Rule::identifier);
                 let name = child.as_str();
-                let var = o::Variable::variable(FilePosition::from_pair(&child), None);
+                let var = o::Variable::variable(self.make_position(&child), None);
                 self.target
                     .adopt_and_define_symbol(self.current_scope, name, var)
             })
@@ -31,12 +31,12 @@ impl VagueIngester {
 
     pub(super) fn convert_macro_definition(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_definition);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let macro_name_node = children.next().expect("illegal grammar");
         let signature_node = children.next().expect("illegal grammar");
         let header_pos = {
-            let mut pos = FilePosition::from_pair(&macro_name_node);
+            let mut pos = self.make_position(&macro_name_node);
             pos.include(&signature_node);
             pos
         };
@@ -57,7 +57,7 @@ impl VagueIngester {
             if let Some(id) = self.lookup_identifier_without_error(name) {
                 self.target[self.current_scope].add_output(id);
             } else {
-                let pos = FilePosition::from_pair(&node);
+                let pos = self.make_position(&node);
                 return Err(problems::missing_output_definition(pos, macro_name, &name));
             };
         }
@@ -79,10 +79,12 @@ impl VagueIngester {
     }
 
     pub(super) fn convert_code_block(&mut self, node: i::Node) -> Result<(), CompileProblem> {
+        self.enter_scope();
         debug_assert!(node.as_rule() == i::Rule::code_block);
         for child in node.into_inner() {
             self.convert_statement(child)?;
         }
+        self.exit_scope();
         Ok(())
     }
 
@@ -91,6 +93,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::ScopeId, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::code_block);
+        self.enter_scope();
         let new_scope = self.target.create_child_scope(self.current_scope);
         let old_scope = self.current_scope;
         self.current_scope = new_scope;
@@ -98,12 +101,13 @@ impl VagueIngester {
             self.convert_statement(child)?;
         }
         self.current_scope = old_scope;
+        self.exit_scope();
         Ok(new_scope)
     }
 
     pub(super) fn convert_return_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::return_statement);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         if self.current_scope == self.target.get_entry_point() {
             Err(problems::return_from_root(position))
         } else {
@@ -114,7 +118,7 @@ impl VagueIngester {
 
     pub(super) fn convert_assert_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::assert_statement);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let condition_node = children.next().expect("illegal grammar");
         let condition = self.convert_vpe(condition_node)?;
@@ -124,7 +128,7 @@ impl VagueIngester {
 
     pub(super) fn convert_if_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::if_statement);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let primary_condition = self.convert_vpe(children.next().expect("illegal grammar"))?;
         let primary_body_node = children.next().expect("illegal grammar");
@@ -168,10 +172,10 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::for_loop_statement);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let counter_node = children.next().expect("illegal grammar");
-        let counter_pos = FilePosition::from_pair(&counter_node);
+        let counter_pos = self.make_position(&counter_node);
         let counter_name = counter_node.as_str();
         let start = self.convert_vpe(children.next().expect("illegal grammar"))?;
         let end = self.convert_vpe(children.next().expect("illegal grammar"))?;
@@ -200,12 +204,12 @@ impl VagueIngester {
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::input_variable_statement);
         if self.current_scope != self.target.get_entry_point() {
-            return Err(problems::io_inside_macro(FilePosition::from_pair(&node)));
+            return Err(problems::io_inside_macro(self.make_position(&node)));
         }
         let mut children = node.into_inner();
         let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
         for child in children {
-            let pos = FilePosition::from_pair(&child);
+            let pos = self.make_position(&child);
             let name = child.as_str();
             let var_id = self.create_variable(data_type.clone(), name, pos);
             self.target[self.current_scope].add_input(var_id);
@@ -219,12 +223,12 @@ impl VagueIngester {
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::output_variable_statement);
         if self.current_scope != self.target.get_entry_point() {
-            return Err(problems::io_inside_macro(FilePosition::from_pair(&node)));
+            return Err(problems::io_inside_macro(self.make_position(&node)));
         }
         let mut children = node.into_inner();
         let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
         for child in children {
-            let pos = FilePosition::from_pair(&child);
+            let pos = self.make_position(&child);
             let name = child.as_str();
             let var_id = self.create_variable(data_type.clone(), name, pos);
             self.target[self.current_scope].add_output(var_id);
@@ -234,7 +238,7 @@ impl VagueIngester {
 
     pub(super) fn convert_assign_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::assign_statement);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let vce = self.convert_vce(children.next().expect("illegal grammar"))?;
         let vpe = self.convert_vpe(children.next().expect("illegal grammar"))?;
@@ -243,6 +247,53 @@ impl VagueIngester {
             value: Box::new(vpe),
             position,
         });
+        Ok(())
+    }
+
+    fn convert_string_literal(&mut self, node: i::Node) -> String {
+        debug_assert!(node.as_rule() == i::Rule::string);
+        let text = node.as_str();
+        snailquote::unescape(text).expect("illegal grammar")
+    }
+
+    fn convert_include_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::include_statement);
+        let position = self.make_position(&node);
+        let mut children = node.into_inner();
+        let filename_node = children.next().expect("illegal grammar");
+        let filename = self.convert_string_literal(filename_node);
+        if let Some(file_index) = self.source_set.find_source(&filename) {
+            if self.aux_scope_data.included_files.contains(&file_index) {
+                // Don't include the file a second time.
+                return Ok(());
+            }
+            self.aux_scope_data.included_files.insert(file_index);
+            let (_name, content) = self.source_set.borrow_source(file_index);
+            let timer = std::time::Instant::now();
+            let mut ast = match crate::ast::ingest(content, file_index) {
+                Ok(ast) => ast,
+                Err(mut problem) => {
+                    problems::hint_encountered_while_including(&mut problem, position);
+                    return Err(problem);
+                }
+            };
+
+            self.perf_counters.ast.time += timer.elapsed().as_millis();
+            self.perf_counters.ast.num_invocations += 1;
+
+            let old_file_id = self.current_file_id;
+            self.current_file_id = file_index;
+            if let Err(mut problem) = self.execute(&mut ast) {
+                problems::hint_encountered_while_including(&mut problem, position);
+                return Err(problem);
+            }
+            self.current_file_id = old_file_id;
+        } else {
+            panic!(
+                "TODO: Nice error, could not find source file named {}.",
+                filename
+            );
+        }
         Ok(())
     }
 
@@ -266,6 +317,7 @@ impl VagueIngester {
             i::Rule::var_dec => {
                 self.convert_var_dec(child)?;
             }
+            i::Rule::include_statement => self.convert_include_statement(child)?,
             _ => unreachable!("illegal grammar"),
         }
         Ok(())

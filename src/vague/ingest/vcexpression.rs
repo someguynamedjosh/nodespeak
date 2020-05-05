@@ -3,13 +3,13 @@ use crate::ast::structure as i;
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
 
-impl VagueIngester {
+impl<'a> VagueIngester<'a> {
     pub(super) fn convert_vc_index(
         &mut self,
         node: i::Node,
     ) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vc_index);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let base_node = children.next().expect("illegal grammar");
         let base = self.convert_vc_identifier(base_node)?;
@@ -30,7 +30,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::var_dec);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
 
         let var_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
@@ -44,7 +44,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vc_identifier);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let child = node.into_inner().next().expect("illegal grammar");
         let var_id = self.lookup_identifier(&child)?;
         if self.target[var_id].is_read_only() {

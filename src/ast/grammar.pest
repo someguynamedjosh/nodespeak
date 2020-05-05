@@ -88,6 +88,11 @@ if_statement = { "if" ~ vpe ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
 // For loop statements.
 for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ code_block }
 
+// Strings (wip)
+raw_string = @{ (!("\\" | "\"") ~ ANY)+ }
+escape_sequence = @{ "\\n" | "\\t" | "\\r" | "\\\\" | "\\\"" | "\\'" }
+string = @{"\"" ~ (raw_string | escape_sequence)* ~ "\"" }
+
 // Statements.
 input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
 output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
@@ -96,9 +101,10 @@ macro_call_statement = _{ macro_call ~ ";" }
 var_dec_statement = _{ var_dec ~ ";" }
 return_statement = { "return" ~ ";" }
 assert_statement = { "assert" ~ vpe ~ ";" }
+include_statement = { "include" ~ string ~ ";" }
 
 statement = { 
-    macro_definition | code_block | return_statement | assert_statement
+    macro_definition | code_block | return_statement | assert_statement | include_statement
     | if_statement | for_loop_statement
     | input_variable_statement | output_variable_statement 
     | assign_statement | macro_call_statement | var_dec_statement

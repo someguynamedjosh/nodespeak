@@ -118,3 +118,14 @@ pub fn write_to_read_only_variable(var_pos: FilePosition, var_name: &str) -> Com
         ),
     )])
 }
+
+pub fn hint_encountered_while_including(
+    existing_error: &mut CompileProblem,
+    include_pos: FilePosition,
+) {
+    existing_error.add_descriptor(ProblemDescriptor::new(
+        include_pos,
+        Hint,
+        "Encountered while including this file.",
+    ));
+}

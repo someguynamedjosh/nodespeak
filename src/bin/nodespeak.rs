@@ -26,6 +26,15 @@ fn main() {
         process::exit(74);
     }
 
+    for arg_index in 3..args.len() {
+        let source_name = &args[arg_index];
+        if let Err(err) = compiler.add_source_from_file(source_name.to_owned()) {
+            eprintln!("Could not read from {}:", source_name);
+            eprintln!("{:?}", err);
+            process::exit(74);
+        }
+    }
+
     println!("\nStarting...");
     match args[1].as_ref() {
         "ast" => match compiler.compile_to_ast(main_source_name) {

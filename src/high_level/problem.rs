@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::high_level::compiler::SourceSet;
 use colored::*;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
@@ -23,17 +23,16 @@ impl PartialEq for FilePosition {
 }
 
 impl FilePosition {
-    pub fn from_pair<R: RuleType>(pair: &Pair<R>) -> FilePosition {
+    pub fn from_pair<R: RuleType>(pair: &Pair<R>, file: usize) -> FilePosition {
         let span = pair.as_span();
         FilePosition {
             start_pos: span.start(),
             end_pos: span.end(),
-            // TODO: Modify this once we accept multiple files.
-            file: 1,
+            file,
         }
     }
 
-    pub fn from_input_location(location: InputLocation) -> FilePosition {
+    pub fn from_input_location(location: InputLocation, file: usize) -> FilePosition {
         let (start_pos, end_pos) = match location {
             InputLocation::Span(poss) => poss,
             InputLocation::Pos(start) => (start, start + 1),
@@ -41,18 +40,7 @@ impl FilePosition {
         FilePosition {
             start_pos,
             end_pos,
-            // TODO: Modify this once we accept multiple files.
-            file: 1,
-        }
-    }
-
-    pub fn start_at<R: RuleType>(pair: &Pair<R>) -> FilePosition {
-        let span = pair.as_span();
-        FilePosition {
-            start_pos: span.start(),
-            end_pos: span.start(),
-            // TODO: Modify this once we accept multiple files.
-            file: 1,
+            file,
         }
     }
 
@@ -218,7 +206,7 @@ impl CompileProblem {
     }
 
     // This whole thing is a mess but it doesn't need to run fast.
-    pub fn format(&self, width: usize, compiler: &Compiler) -> String {
+    pub fn format(&self, width: usize, source_set: &SourceSet) -> String {
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
             output.push_str(&match descriptor.ptype {
@@ -230,8 +218,8 @@ impl CompileProblem {
             output.push_str("\n");
 
             let position = &descriptor.position;
-            let source_name = &compiler.borrow_source(position.file).0;
-            let grabbed = Self::grab_text(&compiler.borrow_source(position.file).1, position);
+            let source_name = &source_set.borrow_source(position.file).0;
+            let grabbed = Self::grab_text(&source_set.borrow_source(position.file).1, position);
             let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
             output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());

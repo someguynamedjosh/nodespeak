@@ -152,13 +152,13 @@ fn parse_bin_int(input: &str) -> i64 {
         .expect("Grammar requires valid binary int.")
 }
 
-impl VagueIngester {
+impl<'a> VagueIngester<'a> {
     pub(super) fn convert_literal(
         &mut self,
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::literal);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let child = node.into_inner().next().expect("illegal grammar");
 
         let value = match child.as_rule() {
@@ -195,7 +195,7 @@ impl VagueIngester {
             let output = match child.as_rule() {
                 i::Rule::vce => o::FuncCallOutput::VCExpression(Box::new(self.convert_vce(child)?)),
                 i::Rule::inline_output => {
-                    o::FuncCallOutput::InlineReturn(FilePosition::from_pair(&child))
+                    o::FuncCallOutput::InlineReturn(self.make_position(&child))
                 }
                 _ => unreachable!("illegal grammar"),
             };
@@ -210,7 +210,7 @@ impl VagueIngester {
         require_inline_output: bool,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_call);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
         let name_node = children.next().expect("illegal grammar");
         let input_list_node = children.next().expect("illegal grammar");
@@ -218,7 +218,7 @@ impl VagueIngester {
 
         let input_list = self.convert_macro_call_input_list(input_list_node)?;
         let output_list = if let Some(output_list_node) = maybe_output_list_node {
-            let output_list_position = FilePosition::from_pair(&output_list_node);
+            let output_list_position = self.make_position(&output_list_node);
             let output_list = self.convert_macro_call_output_list(output_list_node)?;
             let num_inline_outputs = output_list.iter().fold(0, |counter, item| {
                 if let o::FuncCallOutput::InlineReturn(..) = item {
@@ -250,7 +250,7 @@ impl VagueIngester {
         Ok(o::VPExpression::MacroCall {
             mcro: Box::new(o::VPExpression::Variable(
                 self.lookup_identifier(&name_node)?,
-                FilePosition::from_pair(&name_node),
+                self.make_position(&name_node),
             )),
             inputs: input_list,
             outputs: output_list,
@@ -263,7 +263,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vp_var);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let child = node.into_inner().next().expect("illegal grammar");
         let var_id = self.lookup_identifier(&child)?;
         Ok(o::VPExpression::Variable(var_id, position))
@@ -274,7 +274,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::build_array);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut values = Vec::new();
         for child in node.into_inner() {
             values.push(self.convert_vpe(child)?);
@@ -303,7 +303,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::negate);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let child = node.into_inner().next().expect("illegal grammar");
         let base = match child.as_rule() {
             i::Rule::vpe_part_1 => self.convert_vpe_part_1(child)?,
@@ -322,7 +322,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::build_array_type);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
 
         let mut dimensions = Vec::new();
         for child in node.into_inner() {
@@ -347,7 +347,7 @@ impl VagueIngester {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vp_index);
-        let position = FilePosition::from_pair(&node);
+        let position = self.make_position(&node);
         let mut children = node.into_inner();
 
         let base_node = children.next().expect("illegal grammar");

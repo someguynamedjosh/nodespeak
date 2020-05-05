@@ -1,14 +1,30 @@
 use super::problems;
 use crate::ast::structure as i;
+use crate::high_level::compiler::{PerformanceCounters, SourceSet};
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::vague::structure as o;
+use std::collections::HashSet;
 
-pub(super) struct VagueIngester {
-    pub(super) target: o::Program,
-    pub(super) current_scope: o::ScopeId,
+#[derive(Clone, Default)]
+pub(super) struct AuxScopeData {
+    pub(super) included_files: HashSet<usize>,
 }
 
-impl VagueIngester {
+pub(super) struct VagueIngester<'a> {
+    pub(super) target: o::Program,
+    pub(super) current_scope: o::ScopeId,
+    pub(super) current_file_id: usize,
+    pub(super) source_set: &'a SourceSet,
+    pub(super) perf_counters: &'a mut PerformanceCounters,
+    pub(super) aux_scope_data: AuxScopeData,
+    aux_scope_stack: Vec<AuxScopeData>,
+}
+
+impl<'a> VagueIngester<'a> {
+    pub(super) fn make_position(&self, node: &i::Node) -> FilePosition {
+        FilePosition::from_pair(node, self.current_file_id)
+    }
+
     pub(super) fn lookup_identifier(
         &self,
         node: &i::Node,
@@ -17,7 +33,7 @@ impl VagueIngester {
         match self.target.lookup_symbol(self.current_scope, node.as_str()) {
             Option::Some(entity) => Result::Ok(entity),
             Option::None => {
-                let position = FilePosition::from_pair(node);
+                let position = self.make_position(node);
                 Result::Err(problems::no_entity_with_name(position))
             }
         }
@@ -49,7 +65,18 @@ impl VagueIngester {
         var_id
     }
 
-    fn execute(&mut self, source: &mut i::Program) -> Result<(), CompileProblem> {
+    pub(super) fn enter_scope(&mut self) {
+        self.aux_scope_stack.push(self.aux_scope_data.clone());
+    }
+
+    pub(super) fn exit_scope(&mut self) {
+        self.aux_scope_data = self
+            .aux_scope_stack
+            .pop()
+            .expect("exit_scope called without a matching enter_scope.");
+    }
+
+    pub(super) fn execute(&mut self, source: &mut i::Program) -> Result<(), CompileProblem> {
         let root_node = source.next().expect("illegal grammar");
         debug_assert!(root_node.as_rule() == i::Rule::root);
         for child in root_node.into_inner() {
@@ -62,12 +89,21 @@ impl VagueIngester {
     }
 }
 
-pub fn ingest(source: &mut i::Program) -> Result<o::Program, CompileProblem> {
+pub fn ingest(
+    source: &mut i::Program,
+    source_set: &SourceSet,
+    perf_counters: &mut PerformanceCounters,
+) -> Result<o::Program, CompileProblem> {
     let target = o::Program::new();
     let init_scope = target.get_entry_point();
     let mut ingester = VagueIngester {
         target,
         current_scope: init_scope,
+        current_file_id: 1, // 0 is for fake builtin code.
+        source_set,
+        perf_counters,
+        aux_scope_data: Default::default(),
+        aux_scope_stack: Vec::new(),
     };
     ingester.execute(source)?;
     Ok(ingester.target)

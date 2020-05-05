@@ -13,8 +13,8 @@ DataType Void;
 
 #[derive(Default)]
 pub struct PerformanceCounter {
-    time: u128,
-    num_invocations: u32,
+    pub time: u128,
+    pub num_invocations: u32,
 }
 
 impl Display for PerformanceCounter {
@@ -29,7 +29,7 @@ impl Display for PerformanceCounter {
 
 #[derive(Default)]
 pub struct PerformanceCounters {
-    ast: PerformanceCounter,
+    pub(crate) ast: PerformanceCounter,
     vague: PerformanceCounter,
     resolved: PerformanceCounter,
     trivial: PerformanceCounter,
@@ -47,30 +47,22 @@ impl Display for PerformanceCounters {
     }
 }
 
-pub struct Compiler {
+pub struct SourceSet {
     sources: Vec<(String, String)>,
     source_indices: HashMap<String, usize>,
-    performance_counters: PerformanceCounters,
-    error_width: usize,
 }
 
-impl Compiler {
-    pub fn new() -> Self {
+impl SourceSet {
+    fn new() -> Self {
         let mut new = Self {
             sources: Vec::new(),
             source_indices: HashMap::new(),
-            performance_counters: Default::default(),
-            error_width: 80,
         };
         new.add_source(
             "(internal code) builtins".to_owned(),
             FAKE_BUILTIN_SOURCE.to_owned(),
         );
         new
-    }
-
-    pub fn set_error_width(&mut self, width: usize) {
-        self.error_width = width;
     }
 
     pub fn add_source(&mut self, name: String, content: String) {
@@ -84,10 +76,6 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn borrow_performance_counters(&self) -> &PerformanceCounters {
-        &self.performance_counters
-    }
-
     pub(crate) fn find_source(&self, name: &str) -> Option<usize> {
         self.source_indices.get(name).cloned()
     }
@@ -96,90 +84,69 @@ impl Compiler {
         &self.sources[index]
     }
 
-    pub(crate) fn parse_ast_and_count_performance<'a, 's>(
-        &'s mut self,
-        source: &'a str,
-    ) -> Result<crate::ast::structure::Program<'a>, CompileProblem> {
-        let start_time = Instant::now();
-        let result = crate::ast::ingest(source);
-        self.performance_counters.ast.time += start_time.elapsed().as_millis();
-        self.performance_counters.ast.num_invocations += 1;
-        result
+    fn find_source_err(&self, name: &str) -> Result<&str, String> {
+        if let Some(index) = self.find_source(name) {
+            Ok(&self.borrow_source(index).1)
+        } else {
+            Err(format!("Failed to find a source named {}", name))
+        }
+    }
+}
+
+pub struct Compiler {
+    source_set: SourceSet,
+    performance_counters: PerformanceCounters,
+    error_width: usize,
+}
+
+impl Compiler {
+    pub fn new() -> Self {
+        Self {
+            source_set: SourceSet::new(),
+            performance_counters: Default::default(),
+            error_width: 80,
+        }
     }
 
-    fn impl_ast<'a>(
-        pc: &mut PerformanceCounters,
-        source: &'a str,
-    ) -> Result<crate::ast::structure::Program<'a>, CompileProblem> {
-        let timer = Instant::now();
-        let result = crate::ast::ingest(source);
-        pc.ast.time += timer.elapsed().as_millis();
-        pc.ast.num_invocations += 1;
-        result
+    pub fn set_error_width(&mut self, width: usize) {
+        self.error_width = width;
     }
 
-    fn impl_vague(
-        pc: &mut PerformanceCounters,
-        source: &str,
-    ) -> Result<crate::vague::structure::Program, CompileProblem> {
-        let mut source = Self::impl_ast(pc, source)?;
-        let timer = Instant::now();
-        let result = crate::vague::ingest(&mut source);
-        pc.vague.time += timer.elapsed().as_millis();
-        pc.vague.num_invocations += 1;
-        result
+    pub fn add_source(&mut self, name: String, content: String) {
+        self.source_set.add_source(name, content)
     }
 
-    fn impl_resolved(
-        pc: &mut PerformanceCounters,
-        source: &str,
-    ) -> Result<crate::resolved::structure::Program, CompileProblem> {
-        let mut source = Self::impl_vague(pc, source)?;
-        let timer = Instant::now();
-        let result = crate::resolved::ingest(&mut source);
-        pc.resolved.time += timer.elapsed().as_millis();
-        pc.resolved.num_invocations += 1;
-        result
+    pub fn add_source_from_file(&mut self, file_path: String) -> std::io::Result<()> {
+        self.source_set.add_source_from_file(file_path)
     }
 
-    fn impl_trivial(
-        pc: &mut PerformanceCounters,
-        source: &str,
-    ) -> Result<crate::trivial::structure::Program, CompileProblem> {
-        let source = Self::impl_resolved(pc, source)?;
-        let timer = Instant::now();
-        let result = crate::trivial::ingest(&source);
-        pc.trivial.time += timer.elapsed().as_millis();
-        pc.trivial.num_invocations += 1;
-        result
-    }
-
-    fn impl_llvmir(
-        pc: &mut PerformanceCounters,
-        source: &str,
-    ) -> Result<crate::llvmir::structure::Program, CompileProblem> {
-        let source = Self::impl_trivial(pc, source)?;
-        let timer = Instant::now();
-        let result = crate::llvmir::ingest(&source);
-        pc.llvmir.time += timer.elapsed().as_millis();
-        pc.llvmir.num_invocations += 1;
-        Ok(result)
+    pub fn borrow_performance_counters(&self) -> &PerformanceCounters {
+        &self.performance_counters
     }
 
     fn format_error<T>(&self, result: Result<T, CompileProblem>) -> Result<T, String> {
-        result.map_err(|e| e.format(self.error_width, self))
+        result.map_err(|e| e.format(self.error_width, &self.source_set))
+    }
+
+    pub fn compile_to_ast_impl<'a>(
+        pc: &mut PerformanceCounters,
+        source: &'a str,
+        file_id: usize,
+    ) -> Result<crate::ast::structure::Program<'a>, CompileProblem> {
+        let timer = Instant::now();
+        let result = crate::ast::ingest(source, file_id);
+        pc.ast.time += timer.elapsed().as_millis();
+        pc.ast.num_invocations += 1;
+        result
     }
 
     pub fn compile_to_ast<'a>(
         &'a mut self,
         source_name: &str,
     ) -> Result<crate::ast::structure::Program<'a>, String> {
-        let source = if let Some(index) = self.find_source(source_name) {
-            &self.sources[index].1
-        } else {
-            return Err(format!("Could not find a source named {}.", source_name));
-        };
-        let result = Self::impl_ast(&mut self.performance_counters, source);
+        let source = self.source_set.find_source_err(source_name)?;
+        let source_id = self.source_set.find_source(source_name).unwrap(); // yeah its hacky
+        let result = Self::compile_to_ast_impl(&mut self.performance_counters, source, source_id);
         self.format_error(result)
     }
 
@@ -187,12 +154,19 @@ impl Compiler {
         &mut self,
         source_name: &str,
     ) -> Result<crate::vague::structure::Program, String> {
-        let source = if let Some(index) = self.find_source(source_name) {
-            &self.sources[index].1
-        } else {
-            return Err(format!("Could not find a source named {}.", source_name));
-        };
-        let result = Self::impl_vague(&mut self.performance_counters, source);
+        let source = self.source_set.find_source_err(source_name)?;
+        let source_id = self.source_set.find_source(source_name).unwrap(); // woo yay its 2am
+        let result = Self::compile_to_ast_impl(&mut self.performance_counters, source, source_id);
+        let mut source = self.format_error(result)?;
+
+        let timer = Instant::now();
+        let result = crate::vague::ingest(
+            &mut source,
+            &self.source_set,
+            &mut self.performance_counters,
+        );
+        self.performance_counters.vague.time += timer.elapsed().as_millis();
+        self.performance_counters.vague.num_invocations += 1;
         self.format_error(result)
     }
 
@@ -200,12 +174,11 @@ impl Compiler {
         &mut self,
         source_name: &str,
     ) -> Result<crate::resolved::structure::Program, String> {
-        let source = if let Some(index) = self.find_source(source_name) {
-            &self.sources[index].1
-        } else {
-            return Err(format!("Could not find a source named {}.", source_name));
-        };
-        let result = Self::impl_resolved(&mut self.performance_counters, source);
+        let mut source = self.compile_to_vague(source_name)?;
+        let timer = Instant::now();
+        let result = crate::resolved::ingest(&mut source);
+        self.performance_counters.resolved.time += timer.elapsed().as_millis();
+        self.performance_counters.resolved.num_invocations += 1;
         self.format_error(result)
     }
 
@@ -213,12 +186,11 @@ impl Compiler {
         &mut self,
         source_name: &str,
     ) -> Result<crate::trivial::structure::Program, String> {
-        let source = if let Some(index) = self.find_source(source_name) {
-            &self.sources[index].1
-        } else {
-            return Err(format!("Could not find a source named {}.", source_name));
-        };
-        let result = Self::impl_trivial(&mut self.performance_counters, source);
+        let mut source = self.compile_to_resolved(source_name)?;
+        let timer = Instant::now();
+        let result = crate::trivial::ingest(&mut source);
+        self.performance_counters.trivial.time += timer.elapsed().as_millis();
+        self.performance_counters.trivial.num_invocations += 1;
         self.format_error(result)
     }
 
@@ -226,13 +198,12 @@ impl Compiler {
         &mut self,
         source_name: &str,
     ) -> Result<crate::llvmir::structure::Program, String> {
-        let source = if let Some(index) = self.find_source(source_name) {
-            &self.sources[index].1
-        } else {
-            return Err(format!("Could not find a source named {}.", source_name));
-        };
-        let result = Self::impl_llvmir(&mut self.performance_counters, source);
-        self.format_error(result)
+        let mut source = self.compile_to_trivial(source_name)?;
+        let timer = Instant::now();
+        let result = crate::llvmir::ingest(&mut source);
+        self.performance_counters.llvmir.time += timer.elapsed().as_millis();
+        self.performance_counters.llvmir.num_invocations += 1;
+        Ok(result)
     }
 
     pub fn compile(
