@@ -1,5 +1,0 @@
-Int correct = 12;
-int incorrect = 12;
-
-assert correct == 12;
-assert nonexistant == 12;

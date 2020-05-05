@@ -13,41 +13,33 @@ pub struct Builtins {
     pub void_type: VariableId,
 }
 
-pub const FAKE_BUILTIN_SOURCE: &str = r#"
-DataType Auto;
-DataType Bool;
-DataType Int;
-DataType Float;
-DataType Void;
-"#;
-
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) -> Builtins {
     let scope = program.get_entry_point();
 
     let automatic_type = program.adopt_and_define_symbol(
         scope,
-        "Auto",
+        "AUTO",
         Variable::data_type(FilePosition::placeholder(), DataType::Automatic),
     );
     let bool_type = program.adopt_and_define_symbol(
         scope,
-        "Bool",
+        "BOOL",
         Variable::data_type(FilePosition::placeholder(), DataType::Bool),
     );
     let int_type = program.adopt_and_define_symbol(
         scope,
-        "Int",
+        "INT",
         Variable::data_type(FilePosition::placeholder(), DataType::Int),
     );
     let float_type = program.adopt_and_define_symbol(
         scope,
-        "Float",
+        "FLOAT",
         Variable::data_type(FilePosition::placeholder(), DataType::Float),
     );
     let void_type = program.adopt_and_define_symbol(
         scope,
-        "Void",
+        "VOID",
         Variable::data_type(FilePosition::placeholder(), DataType::Void),
     );
 

@@ -1,7 +1,0 @@
-Int BUFFER_SIZE = 8;
-
-input [BUFFER_SIZE]Float data;
-input Float amplification_factor;
-output [BUFFER_SIZE]Float result;
-
-result = data * amplification_factor;

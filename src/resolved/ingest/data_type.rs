@@ -54,13 +54,13 @@ impl DataType {
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            DataType::Bool => write!(formatter, "Bool"),
-            DataType::Int => write!(formatter, "Int"),
-            DataType::Float => write!(formatter, "Float"),
-            DataType::Macro => write!(formatter, "Macro"),
-            DataType::DataType => write!(formatter, "DataType"),
-            DataType::Void => write!(formatter, "Void"),
-            DataType::Automatic => write!(formatter, "Automatic"),
+            DataType::Bool => write!(formatter, "BOOL"),
+            DataType::Int => write!(formatter, "INT"),
+            DataType::Float => write!(formatter, "FLOAT"),
+            DataType::Macro => write!(formatter, "MACRO"),
+            DataType::DataType => write!(formatter, "DATA_TYPE"),
+            DataType::Void => write!(formatter, "VOID"),
+            DataType::Automatic => write!(formatter, "AUTOM"),
             DataType::Array(len, etype) => write!(formatter, "[{}]{:?}", len, etype),
         }
     }

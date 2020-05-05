@@ -4,11 +4,11 @@ use std::fmt::{self, Display, Formatter};
 use std::time::Instant;
 
 pub const FAKE_BUILTIN_SOURCE: &str = r#"
-DataType Auto;
-DataType Bool;
-DataType Int;
-DataType Float;
-DataType Void;
+DATA_TYPE AUTO;
+DATA_TYPE BOOL;
+DATA_TYPE INT;
+DATA_TYPE FLOAT;
+DATA_TYPE VOID;
 "#;
 
 #[derive(Default)]

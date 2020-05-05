@@ -11,9 +11,9 @@ pub enum DataType {
 impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            DataType::Bool => write!(formatter, "Bool"),
-            DataType::Int => write!(formatter, "Int"),
-            DataType::Float => write!(formatter, "Float"),
+            DataType::Bool => write!(formatter, "BOOL"),
+            DataType::Int => write!(formatter, "INT"),
+            DataType::Float => write!(formatter, "FLOAT"),
             DataType::Array(length, element_type) => {
                 write!(formatter, "[{}]{:?}", length, element_type)
             }
