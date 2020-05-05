@@ -91,7 +91,7 @@ impl PossiblyKnownData {
                 }
                 Ok(o::KnownData::Array(ritems))
             }
-            _ => Err(())
+            _ => Err(()),
         }
     }
 

@@ -58,7 +58,7 @@ fn parse_literal(source: Pair<Rule>) -> KnownData {
                 .collect();
             if children.len() == 0 {
                 panic!("TODO: Nice error, an array cannot have no children.");
-            } else  {
+            } else {
                 KnownData::Array(children)
             }
         }

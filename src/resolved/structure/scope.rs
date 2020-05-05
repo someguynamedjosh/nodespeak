@@ -1,4 +1,4 @@
-use crate::resolved::structure::{Statement, ScopeId, VariableId};
+use crate::resolved::structure::{ScopeId, Statement, VariableId};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
@@ -17,9 +17,7 @@ impl Debug for Scope {
 
 impl Scope {
     pub fn new() -> Scope {
-        Scope {
-            body: Vec::new(),
-        }
+        Scope { body: Vec::new() }
     }
 
     pub fn add_statement(&mut self, statement: Statement) {

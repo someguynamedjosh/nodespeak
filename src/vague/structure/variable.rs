@@ -1,4 +1,4 @@
-use super::{DataType, MacroData, KnownData};
+use super::{DataType, KnownData, MacroData};
 use crate::high_level::problem::FilePosition;
 
 use std::fmt::{self, Debug, Formatter};
@@ -29,10 +29,7 @@ impl Variable {
         }
     }
 
-    pub fn variable(
-        definition: FilePosition,
-        initial_value: Option<KnownData>,
-    ) -> Variable {
+    pub fn variable(definition: FilePosition, initial_value: Option<KnownData>) -> Variable {
         Self::new_impl(definition, initial_value, false)
     }
 
@@ -48,17 +45,11 @@ impl Variable {
     }
 
     pub fn data_type(definition: FilePosition, value: DataType) -> Variable {
-        Self::constant(
-            definition,
-            KnownData::DataType(value),
-        )
+        Self::constant(definition, KnownData::DataType(value))
     }
 
     pub fn automatic(definition: FilePosition) -> Variable {
-        Variable::variable(
-            definition,
-            Option::None,
-        )
+        Variable::variable(definition, Option::None)
     }
 
     pub fn void(definition: FilePosition) -> Variable {

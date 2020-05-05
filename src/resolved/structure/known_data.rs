@@ -1,4 +1,4 @@
-use super::{DataType};
+use super::DataType;
 use crate::high_level::problem::FilePosition;
 use crate::resolved::structure::ScopeId;
 

@@ -1,4 +1,4 @@
-use crate::vague::structure::{Statement, ScopeId, VariableId};
+use crate::vague::structure::{ScopeId, Statement, VariableId};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 

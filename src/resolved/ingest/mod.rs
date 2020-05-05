@@ -9,6 +9,6 @@ mod vcexpression;
 mod vpexpression;
 
 pub(self) use data_type::*;
-pub(self) use possibly_known_data::*;
 pub use foundation::ingest;
 pub(self) use foundation::*;
+pub(self) use possibly_known_data::*;

@@ -4,4 +4,5 @@ mod statements;
 mod vcexpression;
 mod vpexpression;
 
-pub use foundation::ingest;pub(self) use foundation::*;
+pub use foundation::ingest;
+pub(self) use foundation::*;

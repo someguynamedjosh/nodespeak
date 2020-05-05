@@ -1,4 +1,4 @@
-use super::{DataType};
+use super::DataType;
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]

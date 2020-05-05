@@ -170,10 +170,7 @@ pub fn array_index_too_big(
     ])
 }
 
-pub fn array_base_not_data_type(
-    base: FilePosition,
-    typ: &DataType,
-) -> CompileProblem {
+pub fn array_base_not_data_type(base: FilePosition, typ: &DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         base,
         Error,

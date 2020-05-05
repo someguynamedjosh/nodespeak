@@ -93,7 +93,7 @@ impl Debug for Instruction {
                     write!(formatter, "[{:?}]", index)?;
                 }
                 write!(formatter, " -> {:?}", to)
-            },
+            }
             Instruction::Store {
                 from,
                 to,
@@ -104,7 +104,7 @@ impl Debug for Instruction {
                     write!(formatter, "[{:?}]", index)?;
                 }
                 write!(formatter, "")
-            },
+            }
 
             Instruction::BinaryOperation { op, a, b, x } => write!(
                 formatter,

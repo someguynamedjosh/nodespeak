@@ -103,7 +103,10 @@ impl Program {
 
     pub fn execute_data<T: Sized, U: Sized>(&self, input_data: &mut T, output_data: &mut U) {
         self.assert_size(mem::size_of::<T>(), mem::size_of::<U>());
-        (self.function)(input_data as *mut T as *mut u8, output_data as *mut U as *mut u8);
+        (self.function)(
+            input_data as *mut T as *mut u8,
+            output_data as *mut U as *mut u8,
+        );
     }
 
     pub fn execute_raw(&self, input_data: &mut [u8], output_data: &mut [u8]) {

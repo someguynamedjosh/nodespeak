@@ -16,4 +16,4 @@ pub mod util;
 #[cfg(not(feature = "no-vague"))]
 pub mod vague;
 
-pub use high_level::compiler::{Compiler};
+pub use high_level::compiler::Compiler;

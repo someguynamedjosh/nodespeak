@@ -80,7 +80,9 @@ pub mod structure {
 }
 
 pub(self) mod problems {
-    use crate::high_level::problem::{CompileProblem, FilePosition, ProblemDescriptor, ProblemType};
+    use crate::high_level::problem::{
+        CompileProblem, FilePosition, ProblemDescriptor, ProblemType,
+    };
 
     pub fn bad_syntax(pos: FilePosition, message: String) -> CompileProblem {
         CompileProblem::from_descriptors(vec![ProblemDescriptor::new(

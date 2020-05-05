@@ -4,5 +4,4 @@ use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::borrow::Borrow;
 
-impl<'a> ScopeResolver<'a> {
-}
+impl<'a> ScopeResolver<'a> {}
