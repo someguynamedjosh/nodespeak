@@ -79,6 +79,21 @@ impl FilePosition {
         self.start_pos = cmp::min(self.start_pos, other.start_pos);
         self.end_pos = cmp::max(self.end_pos, other.end_pos);
     }
+
+    pub fn create_line_column_ref(&self, sources: &SourceSet) -> String {
+        let filename = &sources.borrow_source(self.file).0;
+        // Everything that comes before the start of this position in the file.
+        let before_text = &sources.borrow_source(self.file).1[0..self.start_pos];
+
+        let mut line = 1;
+        let mut last_newline_pos = 0;
+        while let Some(value) = (&before_text[last_newline_pos..]).find("\n") {
+            line += 1;
+            last_newline_pos += value + 1;
+        }
+        let column = before_text.len() - last_newline_pos + 1;
+        format!("{}:{}:{}", filename, line, column)
+    }
 }
 
 pub(crate) enum ProblemType {

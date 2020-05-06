@@ -1,4 +1,5 @@
-use crate::high_level::problem::CompileProblem;
+use crate::high_level::compiler::SourceSet;
+use crate::high_level::problem::{FilePosition, CompileProblem};
 use crate::resolved::structure as i;
 use crate::shared as s;
 use crate::trivial::structure as o;
@@ -7,22 +8,24 @@ use std::collections::HashMap;
 
 mod problems;
 
-pub fn ingest(program: &i::Program) -> Result<o::Program, CompileProblem> {
-    let mut trivializer = Trivializer::new(program);
+pub fn ingest(program: &i::Program, sources: &SourceSet) -> Result<o::Program, CompileProblem> {
+    let mut trivializer = Trivializer::new(program, sources);
     trivializer.entry_point()?;
     Result::Ok(trivializer.target)
 }
 
 struct Trivializer<'a> {
     source: &'a i::Program,
+    source_set: &'a SourceSet,
     target: o::Program,
     variable_map: HashMap<i::VariableId, o::VariableId>,
 }
 
 impl<'a> Trivializer<'a> {
-    fn new(source: &i::Program) -> Trivializer {
+    fn new<'n>(source: &'n i::Program, source_set: &'n SourceSet) -> Trivializer<'n> {
         Trivializer {
             source,
+            source_set,
             target: o::Program::new(),
             variable_map: HashMap::new(),
         }
@@ -271,6 +274,7 @@ impl<'a> Trivializer<'a> {
     fn trivialize_assert(
         &mut self,
         condition: &i::VPExpression,
+        position: &FilePosition,
     ) -> Result<(), CompileProblem> {
         let tcondition = self.trivialize_vp_expression(condition)?;
         let abort_label = self.target.create_label();
@@ -280,10 +284,16 @@ impl<'a> Trivializer<'a> {
             true_target: skip_label,
             false_target: abort_label,
         });
-        self.target.add_instruction(o::Instruction::Label(abort_label));
-        let error_code = self.target.add_error(format!("TODO: description."));
-        self.target.add_instruction(o::Instruction::Abort(error_code));
-        self.target.add_instruction(o::Instruction::Label(skip_label));
+        self.target
+            .add_instruction(o::Instruction::Label(abort_label));
+        let location = position.create_line_column_ref(self.source_set);
+        let error_code = self
+            .target
+            .add_error(format!("Assert failed at {}", location));
+        self.target
+            .add_instruction(o::Instruction::Abort(error_code));
+        self.target
+            .add_instruction(o::Instruction::Label(skip_label));
         Ok(())
     }
 
@@ -299,7 +309,6 @@ impl<'a> Trivializer<'a> {
         tvalue.inflate(&base_type.collect_dimensions());
         let (new_indexes, _result_type) = self.trivialize_indexes(&target.indexes, base_type)?;
         let base = o::Value::variable(base, &self.target);
-
 
         if target.indexes.len() > 0 {
             self.target.add_instruction(o::Instruction::Store {
@@ -489,7 +498,9 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_statement(&mut self, statement: &i::Statement) -> Result<(), CompileProblem> {
         Ok(match statement {
-            i::Statement::Assert(condition, ..) => self.trivialize_assert(condition)?,
+            i::Statement::Assert(condition, position) => {
+                self.trivialize_assert(condition, position)?
+            }
             i::Statement::Assign { target, value, .. } => {
                 self.trivialize_assignment(statement, target, value)?;
             }

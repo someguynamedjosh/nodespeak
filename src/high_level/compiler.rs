@@ -191,7 +191,7 @@ impl Compiler {
     ) -> Result<crate::trivial::structure::Program, String> {
         let mut source = self.compile_to_resolved(source_name)?;
         let timer = Instant::now();
-        let result = crate::trivial::ingest(&mut source);
+        let result = crate::trivial::ingest(&mut source, &self.source_set);
         self.performance_counters.trivial.time += timer.elapsed().as_millis();
         self.performance_counters.trivial.num_invocations += 1;
         self.format_error(result)
