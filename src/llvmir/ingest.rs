@@ -9,11 +9,75 @@ use std::collections::{HashMap, HashSet};
 
 const UNNAMED: *const libc::c_char = b"\0".as_ptr() as *const libc::c_char;
 
+struct Intrinsics {
+    sqrt_f32: LLVMValueRef,
+    powi_i32: LLVMValueRef,
+    sin_f32: LLVMValueRef,
+    cos_f32: LLVMValueRef,
+    pow_f32: LLVMValueRef,
+    exp_f32: LLVMValueRef,
+    exp2_f32: LLVMValueRef,
+    log_f32: LLVMValueRef,
+    log10_f32: LLVMValueRef,
+    log2_f32: LLVMValueRef,
+    fabs_f32: LLVMValueRef,
+    floor_f32: LLVMValueRef,
+    ceil_f32: LLVMValueRef,
+    trunc_f32: LLVMValueRef,
+}
+
+impl Intrinsics {
+    fn new(module: LLVMModuleRef, context: LLVMContextRef) -> Self {
+        let make = |name_nullterm: &[u8]| -> LLVMValueRef {
+            unsafe {
+                let float_type = LLVMFloatTypeInContext(context);
+                let mut arg_types = [float_type];
+                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 1, 0);
+                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
+            }
+        };
+        let make_f32_f32_f32 = |name_nullterm: &[u8]| -> LLVMValueRef {
+            unsafe {
+                let float_type = LLVMFloatTypeInContext(context);
+                let mut arg_types = [float_type, float_type];
+                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 1, 0);
+                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
+            }
+        };
+        let make_i32_i32_i32 = |name_nullterm: &[u8]| -> LLVMValueRef {
+            unsafe {
+                let int_type = LLVMInt32TypeInContext(context);
+                let mut arg_types = [int_type, int_type];
+                let fn_type = LLVMFunctionType(int_type, arg_types.as_mut_ptr(), 1, 0);
+                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
+            }
+        };
+
+        Self {
+            sqrt_f32: make(b"llvm.sqrt.f32\0"),
+            sin_f32: make(b"llvm.sin.f32\0"),
+            cos_f32: make(b"llvm.cos.f32\0"),
+            pow_f32: make_f32_f32_f32(b"llvm.pow.f32\0"),
+            powi_i32: make_i32_i32_i32(b"llvm.powi.i32\0"),
+            exp_f32: make(b"llvm.exp.f32\0"),
+            exp2_f32: make(b"llvm.exp2.f32\0"),
+            log_f32: make(b"llvm.log.f32\0"),
+            log10_f32: make(b"llvm.log10.f32\0"),
+            log2_f32: make(b"llvm.log2.f32\0"),
+            fabs_f32: make(b"llvm.fabs.f32\0"),
+            floor_f32: make(b"llvm.floor.f32\0"),
+            ceil_f32: make(b"llvm.ceil.f32\0"),
+            trunc_f32: make(b"llvm.trunc.f32\0"),
+        }
+    }
+}
+
 struct Converter<'a> {
     source: &'a i::Program,
     context: LLVMContextRef,
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
+    intrinsics: Intrinsics,
     main_fn: LLVMValueRef,
 
     value_pointers: HashMap<i::VariableId, LLVMValueRef>,
@@ -286,6 +350,59 @@ impl<'a> Converter<'a> {
         vec.into_iter().map(|i| i as u32).collect()
     }
 
+    fn convert_unary_expression(&mut self, op: &i::UnaryOperator, a: &i::Value, x: &i::Value) {
+        let dimensions = x.dimensions.iter().map(|(len, _)| *len).collect();
+        for position in shared::NDIndexIter::new(dimensions) {
+            let coord = Self::usize_vec_to_u32(position);
+            let ar = self.load_value(a, &coord[..]);
+
+            let xr = self.do_unary_op(op, ar);
+            self.store_value(x, xr, &coord[..]);
+        }
+    }
+
+    fn build_call(&mut self, fn_ref: LLVMValueRef, args: &mut [LLVMValueRef]) -> LLVMValueRef {
+        unsafe {
+            LLVMBuildCall(
+                self.builder,
+                fn_ref,
+                args.as_mut_ptr(),
+                args.len() as u32,
+                UNNAMED,
+            )
+        }
+    }
+
+    fn do_unary_op(&mut self, op: &i::UnaryOperator, ar: LLVMValueRef) -> LLVMValueRef {
+        match op {
+            i::UnaryOperator::BNot => unsafe {
+                LLVMBuildXor(self.builder, ar, self.u32_const(0xFFFFFFFF), UNNAMED)
+            },
+            i::UnaryOperator::FAbs => self.build_call(self.intrinsics.fabs_f32, &mut [ar]),
+            i::UnaryOperator::FCeil => self.build_call(self.intrinsics.ceil_f32, &mut [ar]),
+            i::UnaryOperator::FCos => self.build_call(self.intrinsics.cos_f32, &mut [ar]),
+            i::UnaryOperator::FExp => self.build_call(self.intrinsics.exp_f32, &mut [ar]),
+            i::UnaryOperator::FExp2 => self.build_call(self.intrinsics.exp2_f32, &mut [ar]),
+            i::UnaryOperator::FFloor => self.build_call(self.intrinsics.floor_f32, &mut [ar]),
+            i::UnaryOperator::FLog => self.build_call(self.intrinsics.log_f32, &mut [ar]),
+            i::UnaryOperator::FLog10 => self.build_call(self.intrinsics.log10_f32, &mut [ar]),
+            i::UnaryOperator::FLog2 => self.build_call(self.intrinsics.log2_f32, &mut [ar]),
+            i::UnaryOperator::FSin => self.build_call(self.intrinsics.sin_f32, &mut [ar]),
+            i::UnaryOperator::FSqrt => self.build_call(self.intrinsics.sqrt_f32, &mut [ar]),
+            i::UnaryOperator::FTrunc => self.build_call(self.intrinsics.trunc_f32, &mut [ar]),
+            i::UnaryOperator::IAbs => unimplemented!(),
+            i::UnaryOperator::NegF => unsafe {
+                LLVMBuildFSub(self.builder, self.f32_const(0.0), ar, UNNAMED)
+            },
+            i::UnaryOperator::NegI => unsafe {
+                LLVMBuildSub(self.builder, self.i32_const(0), ar, UNNAMED)
+            },
+            i::UnaryOperator::Not => unsafe {
+                LLVMBuildXor(self.builder, ar, self.b1_const(true), UNNAMED)
+            },
+        }
+    }
+
     fn convert_binary_expression(
         &mut self,
         op: &i::BinaryOperator,
@@ -517,6 +634,9 @@ impl<'a> Converter<'a> {
                 i::Instruction::BinaryOperation { op, a, b, x } => {
                     self.convert_binary_expression(op, a, b, x)
                 }
+                i::Instruction::UnaryOperation { op, a, x } => {
+                    self.convert_unary_expression(op, a, x)
+                }
                 i::Instruction::Move { from, to } => self.convert_move(from, to),
                 i::Instruction::Label(id) => self.convert_label(id),
                 i::Instruction::Branch {
@@ -614,11 +734,14 @@ pub fn ingest(source: &i::Program) -> o::Program {
         let input_pointer = LLVMGetParam(main_fn, 0);
         let output_pointer = LLVMGetParam(main_fn, 1);
 
+        let intrinsics = Intrinsics::new(module, context);
+
         let mut converter = Converter {
             source,
             context,
             module,
             builder,
+            intrinsics,
             main_fn,
 
             value_pointers: HashMap::new(),

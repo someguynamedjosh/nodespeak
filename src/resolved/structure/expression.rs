@@ -8,6 +8,19 @@ pub enum UnaryOperator {
     Not,
     BNot,
     Reciprocal,
+
+    Sine,
+    Cosine,
+    SquareRoot,
+    Exp,
+    Exp2,
+    Log,
+    Log10,
+    Log2,
+    Absolute,
+    Floor,
+    Ceiling,
+    Truncate,
 }
 
 impl Debug for UnaryOperator {
@@ -17,6 +30,18 @@ impl Debug for UnaryOperator {
             UnaryOperator::Not => write!(formatter, "not"),
             UnaryOperator::BNot => write!(formatter, "bnot"),
             UnaryOperator::Reciprocal => write!(formatter, "reciprocal of"),
+            UnaryOperator::Sine => write!(formatter, "sine of"),
+            UnaryOperator::Cosine => write!(formatter, "cosine of"),
+            UnaryOperator::SquareRoot => write!(formatter, "square root of"),
+            UnaryOperator::Exp => write!(formatter, "e to the power of"),
+            UnaryOperator::Exp2 => write!(formatter, "2 to the power of"),
+            UnaryOperator::Log => write!(formatter, "log base e of"),
+            UnaryOperator::Log2 => write!(formatter, "log base 2 of"),
+            UnaryOperator::Log10 => write!(formatter, "log base 10 of"),
+            UnaryOperator::Absolute => write!(formatter, "abs"),
+            UnaryOperator::Floor => write!(formatter, "floor"),
+            UnaryOperator::Ceiling => write!(formatter, "ceil"),
+            UnaryOperator::Truncate => write!(formatter, "truncate"),
         }
     }
 }

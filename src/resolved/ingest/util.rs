@@ -45,6 +45,22 @@ impl<'a> ScopeResolver<'a> {
                 i::KnownData::Float(value) => i::KnownData::Float(1.0 / *value),
                 _ => unreachable!(),
             },
+            i::UnaryOperator::Sine => i::KnownData::Float(data.require_float().sin()),
+            i::UnaryOperator::Cosine => i::KnownData::Float(data.require_float().sin()),
+            i::UnaryOperator::SquareRoot => i::KnownData::Float(data.require_float().sqrt()),
+            i::UnaryOperator::Exp => i::KnownData::Float(data.require_float().exp()),
+            i::UnaryOperator::Exp2 => i::KnownData::Float(data.require_float().exp2()),
+            i::UnaryOperator::Log => i::KnownData::Float(data.require_float().ln()),
+            i::UnaryOperator::Log10 => i::KnownData::Float(data.require_float().log10()),
+            i::UnaryOperator::Log2 => i::KnownData::Float(data.require_float().log2()),
+            i::UnaryOperator::Absolute => match data {
+                i::KnownData::Int(value) => i::KnownData::Int(value.abs()),
+                i::KnownData::Float(value) => i::KnownData::Float(value.abs()),
+                _ => unreachable!()
+            }
+            i::UnaryOperator::Floor => i::KnownData::Float(data.require_float().floor()),
+            i::UnaryOperator::Ceiling => i::KnownData::Float(data.require_float().ceil()),
+            i::UnaryOperator::Truncate => i::KnownData::Float(data.require_float().trunc()),
         }
     }
 

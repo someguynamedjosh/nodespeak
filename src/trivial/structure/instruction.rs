@@ -25,6 +25,26 @@ impl Condition {
     }
 }
 
+pub enum UnaryOperator {
+    NegI,
+    NegF,
+    Not,
+    BNot,
+    FSin,
+    FCos,
+    FSqrt,
+    FExp,
+    FExp2,
+    FLog,
+    FLog10,
+    FLog2,
+    FAbs,
+    IAbs,
+    FFloor,
+    FCeil,
+    FTrunc,
+}
+
 pub enum BinaryOperator {
     AddI,
     SubI,
@@ -61,6 +81,11 @@ pub enum Instruction {
         to_indexes: Vec<Value>,
     },
 
+    UnaryOperation {
+        op: UnaryOperator,
+        a: Value,
+        x: Value,
+    },
     BinaryOperation {
         op: BinaryOperator,
         a: Value,
@@ -106,6 +131,31 @@ impl Debug for Instruction {
                 write!(formatter, "")
             }
 
+            Instruction::UnaryOperation { op, a, x } => write!(
+                formatter,
+                "{} {:?} -> {:?}",
+                match op {
+                    UnaryOperator::BNot => "bnot",
+                    UnaryOperator::FAbs => "fabs",
+                    UnaryOperator::FCeil => "fceil",
+                    UnaryOperator::FCos => "fcos",
+                    UnaryOperator::FExp => "fexp",
+                    UnaryOperator::FExp2 => "fexp2",
+                    UnaryOperator::FFloor => "ffloor",
+                    UnaryOperator::FLog => "flog",
+                    UnaryOperator::FLog10 => "flog10",
+                    UnaryOperator::FLog2 => "flog2",
+                    UnaryOperator::FSin => "fsin", 
+                    UnaryOperator::FSqrt => "fsqrt",
+                    UnaryOperator::FTrunc => "ftrunc",
+                    UnaryOperator::IAbs => "iabs",
+                    UnaryOperator::NegF => "negf",
+                    UnaryOperator::NegI => "negi",
+                    UnaryOperator::Not => "not"
+                },
+                a,
+                x,
+            ),
             Instruction::BinaryOperation { op, a, b, x } => write!(
                 formatter,
                 "{} {:?}, {:?} -> {:?}",

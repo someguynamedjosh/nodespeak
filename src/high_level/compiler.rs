@@ -150,6 +150,7 @@ impl Compiler {
         self.format_error(result)
     }
 
+    #[cfg(not(feature = "no-vague"))]
     pub fn compile_to_vague(
         &mut self,
         source_name: &str,
@@ -170,6 +171,7 @@ impl Compiler {
         self.format_error(result)
     }
 
+    #[cfg(not(feature = "no-resolved"))]
     pub fn compile_to_resolved(
         &mut self,
         source_name: &str,
@@ -182,6 +184,7 @@ impl Compiler {
         self.format_error(result)
     }
 
+    #[cfg(not(feature = "no-trivial"))]
     pub fn compile_to_trivial(
         &mut self,
         source_name: &str,
@@ -194,6 +197,7 @@ impl Compiler {
         self.format_error(result)
     }
 
+    #[cfg(not(feature = "no-llvmir"))]
     pub fn compile_to_llvmir(
         &mut self,
         source_name: &str,
@@ -206,6 +210,7 @@ impl Compiler {
         Ok(result)
     }
 
+    #[cfg(not(feature = "no-llvmir"))]
     pub fn compile(
         &mut self,
         source_name: &str,

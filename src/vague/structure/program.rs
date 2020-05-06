@@ -1,5 +1,5 @@
 use crate::high_level::problem::FilePosition;
-use crate::vague::structure::{self, Builtins, Scope, Variable};
+use crate::vague::structure::{self, Scope, Variable};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Index, IndexMut};
 
@@ -30,7 +30,6 @@ pub struct Program {
     scopes: Vec<Scope>,
     entry_point: ScopeId,
     variables: Vec<Variable>,
-    builtins: Option<Builtins>,
 }
 
 impl Debug for Program {
@@ -91,9 +90,8 @@ impl Program {
             scopes: vec![Scope::new()],
             entry_point: ScopeId(0),
             variables: Vec::new(),
-            builtins: Option::None,
         };
-        prog.builtins = Option::Some(structure::add_builtins(&mut prog));
+        structure::add_builtins(&mut prog);
         prog
     }
 
@@ -134,10 +132,6 @@ impl Program {
 
     pub fn set_entry_point(&mut self, new_entry_point: ScopeId) {
         self.entry_point = new_entry_point;
-    }
-
-    pub fn get_builtins(&self) -> &Builtins {
-        self.builtins.as_ref().unwrap()
     }
 
     pub fn adopt_and_define_symbol(

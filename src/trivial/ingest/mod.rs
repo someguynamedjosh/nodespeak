@@ -139,6 +139,53 @@ impl<'a> Trivializer<'a> {
         })
     }
 
+    fn trivialize_unary_expression(
+        &mut self,
+        operator: i::UnaryOperator,
+        right: &i::VPExpression,
+    ) -> Result<o::Value, CompileProblem> {
+        let a = self.trivialize_vp_expression(right)?;
+        let out_typ = a.get_type(&self.target);
+        let mut base = out_typ.clone();
+        while let o::DataType::Array(_, etype) = base {
+            base = *etype;
+        }
+        let x_var = self.target.adopt_variable(o::Variable::new(out_typ));
+        let x = o::Value::variable(x_var, &self.target);
+        let toperator = match operator {
+            i::UnaryOperator::Absolute => match base {
+                o::DataType::F32 => o::UnaryOperator::FAbs,
+                o::DataType::I32 => o::UnaryOperator::IAbs,
+                _ => unreachable!(),
+            },
+            i::UnaryOperator::BNot => o::UnaryOperator::BNot,
+            i::UnaryOperator::Ceiling => o::UnaryOperator::FCeil,
+            i::UnaryOperator::Cosine => o::UnaryOperator::FCos,
+            i::UnaryOperator::Exp => o::UnaryOperator::FExp,
+            i::UnaryOperator::Exp2 => o::UnaryOperator::FExp2,
+            i::UnaryOperator::Floor => o::UnaryOperator::FFloor,
+            i::UnaryOperator::Log => o::UnaryOperator::FLog,
+            i::UnaryOperator::Log10 => o::UnaryOperator::FLog10,
+            i::UnaryOperator::Log2 => o::UnaryOperator::FLog2,
+            i::UnaryOperator::Negate => match base {
+                o::DataType::I32 => o::UnaryOperator::NegI,
+                o::DataType::F32 => o::UnaryOperator::NegF,
+                _ => unreachable!(),
+            },
+            i::UnaryOperator::Not => o::UnaryOperator::Not,
+            i::UnaryOperator::Reciprocal => unimplemented!(),
+            i::UnaryOperator::Sine => o::UnaryOperator::FSin,
+            i::UnaryOperator::SquareRoot => o::UnaryOperator::FSqrt,
+            i::UnaryOperator::Truncate => o::UnaryOperator::FTrunc,
+        };
+        self.target.add_instruction(o::Instruction::UnaryOperation {
+            a,
+            x: x.clone(),
+            op: toperator,
+        });
+        Ok(x)
+    }
+
     fn trivialize_binary_expression(
         &mut self,
         left: &i::VPExpression,
@@ -437,7 +484,9 @@ impl<'a> Trivializer<'a> {
             }
             i::VPExpression::Index { base, indexes, .. } => self.trivialize_index(base, indexes)?,
 
-            i::VPExpression::UnaryOperation(..) => unimplemented!(),
+            i::VPExpression::UnaryOperation(op, rhs, ..) => {
+                self.trivialize_unary_expression(*op, rhs)?
+            }
             i::VPExpression::BinaryOperation {
                 lhs, op, rhs, typ, ..
             } => self.trivialize_binary_expression(lhs, *op, rhs, typ)?,

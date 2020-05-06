@@ -247,6 +247,7 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let res_rhs = self.resolve_vp_expression(rhs)?;
+        // TODO: Check that the operand has a data type compatible with the operator.
         Ok(
             if let ResolvedVPExpression::Interpreted(data, pos, typ) = res_rhs {
                 ResolvedVPExpression::Interpreted(
@@ -260,6 +261,18 @@ impl<'a> ScopeResolver<'a> {
                     i::UnaryOperator::Negate => o::UnaryOperator::Negate,
                     i::UnaryOperator::Not => o::UnaryOperator::Not,
                     i::UnaryOperator::Reciprocal => o::UnaryOperator::Reciprocal,
+                    i::UnaryOperator::Sine => o::UnaryOperator::Sine,
+                    i::UnaryOperator::Cosine => o::UnaryOperator::Cosine,
+                    i::UnaryOperator::SquareRoot => o::UnaryOperator::SquareRoot,
+                    i::UnaryOperator::Exp => o::UnaryOperator::Exp,
+                    i::UnaryOperator::Exp2 => o::UnaryOperator::Exp2,
+                    i::UnaryOperator::Log => o::UnaryOperator::Log,
+                    i::UnaryOperator::Log10 => o::UnaryOperator::Log10,
+                    i::UnaryOperator::Log2 => o::UnaryOperator::Log2,
+                    i::UnaryOperator::Absolute => o::UnaryOperator::Absolute,
+                    i::UnaryOperator::Floor => o::UnaryOperator::Floor,
+                    i::UnaryOperator::Ceiling => o::UnaryOperator::Ceiling,
+                    i::UnaryOperator::Truncate => o::UnaryOperator::Truncate,
                 };
                 let dtype = res_rhs.borrow_data_type().clone();
                 ResolvedVPExpression::Modified(
@@ -281,6 +294,7 @@ impl<'a> ScopeResolver<'a> {
         rhs: &i::VPExpression,
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
+        // TODO: Check that the operand has a data type compatible with the operator.
         let res_lhs = self.resolve_vp_expression(lhs)?;
         let res_rhs = self.resolve_vp_expression(rhs)?;
         let bct = if let Ok(bct) =
