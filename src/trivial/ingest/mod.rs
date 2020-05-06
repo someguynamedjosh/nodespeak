@@ -113,32 +113,6 @@ impl<'a> Trivializer<'a> {
         })
     }
 
-    fn apply_proxy_to_known_data(
-        proxy: &[(usize, s::ProxyMode)],
-        data: &i::KnownData,
-    ) -> Result<o::KnownData, CompileProblem> {
-        let int_dimensions: Vec<_> = proxy.iter().map(|(length, ..)| *length).collect();
-        Ok(if proxy.len() == 0 {
-            Self::trivialize_known_data(data)?
-        } else if let i::KnownData::Array(vec) = data {
-            let proxy_elements = vec
-                .iter()
-                .map(|element| Self::apply_proxy_to_known_data(&proxy[1..], element))
-                .collect::<Result<Vec<_>, _>>()?;
-            if proxy[0].1 == s::ProxyMode::Collapse && proxy_elements.len() == 1 {
-                o::KnownData::build_array(&[proxy[0].0], proxy_elements[0].clone())
-            } else if proxy[0].1 == s::ProxyMode::Discard {
-                o::KnownData::build_array(&[proxy[0].0], o::KnownData::Array(proxy_elements))
-            } else if proxy[0].1 == s::ProxyMode::Keep {
-                o::KnownData::Array(proxy_elements)
-            } else {
-                panic!("TODO: Nice error, invalid proxy for data.");
-            }
-        } else {
-            o::KnownData::build_array(&int_dimensions[..], Self::trivialize_known_data(data)?)
-        })
-    }
-
     fn trivialize_unary_expression(
         &mut self,
         operator: i::UnaryOperator,
@@ -301,12 +275,13 @@ impl<'a> Trivializer<'a> {
         target: &i::VCExpression,
         value: &i::VPExpression,
     ) -> Result<(), CompileProblem> {
-        let tvalue = self.trivialize_vp_expression(value.borrow())?;
-
         let base = self.trivialize_variable(target.base)?;
         let base_type = self.target[base].borrow_type().clone();
+        let mut tvalue = self.trivialize_vp_expression(value.borrow())?;
+        tvalue.inflate(&base_type.collect_dimensions());
         let (new_indexes, _result_type) = self.trivialize_indexes(&target.indexes, base_type)?;
         let base = o::Value::variable(base, &self.target);
+
 
         if target.indexes.len() > 0 {
             self.target.add_instruction(o::Instruction::Store {

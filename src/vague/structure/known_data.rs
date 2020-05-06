@@ -112,6 +112,16 @@ impl KnownData {
         }
     }
 
+    pub fn index(&self, indexes: &[usize]) -> &KnownData {
+        if indexes.len() == 0 {
+            self
+        } else if let Self::Array(items) = self {
+            items[indexes[0]].index(&indexes[1..])
+        } else {
+            panic!("Cannot index non-array data. (Too many indexes?)")
+        }
+    }
+
     pub fn require_bool(&self) -> bool {
         match self {
             KnownData::Bool(value) => *value,

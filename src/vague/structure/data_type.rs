@@ -1,12 +1,8 @@
-use crate::vague::structure::VariableId;
-
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq)]
 pub enum DataType {
     Automatic,
-    Dynamic(VariableId),
-    LoadTemplateParameter(VariableId),
     Bool,
     Int,
     Float,
@@ -35,11 +31,6 @@ impl DataType {
             | Self::Void
             | Self::DataType
             | Self::Macro => self == other,
-            // TODO?: better equivalency for this.
-            Self::Dynamic(..) | Self::LoadTemplateParameter(..) => match other {
-                Self::Dynamic(..) | Self::LoadTemplateParameter(..) => true,
-                _ => false,
-            },
             Self::Array(my_size, my_etype) => {
                 if let Self::Array(size, etype) = other {
                     my_size == size && my_etype.equivalent(etype)
@@ -55,8 +46,6 @@ impl Debug for DataType {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::Automatic => write!(formatter, "AUTO"),
-            Self::Dynamic(_var) => write!(formatter, "Unresolved"),
-            Self::LoadTemplateParameter(_var) => write!(formatter, "Unresolved"),
             Self::Bool => write!(formatter, "BOOL"),
             Self::Int => write!(formatter, "INT"),
             Self::Float => write!(formatter, "FLOAT"),

@@ -87,8 +87,6 @@ impl<'a> ScopeResolver<'a> {
     pub fn resolve_data_type_partially(&mut self, source: i::DataType) -> DataType {
         match source {
             i::DataType::Automatic => DataType::Automatic,
-            i::DataType::Dynamic(..) => unimplemented!("TODO: Dynamic types."),
-            i::DataType::LoadTemplateParameter(..) => unimplemented!("TODO: Template parameters."),
             i::DataType::Bool => DataType::Bool,
             i::DataType::Int => DataType::Int,
             i::DataType::Float => DataType::Float,

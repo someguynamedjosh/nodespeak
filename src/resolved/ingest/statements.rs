@@ -29,6 +29,9 @@ impl<'a> ScopeResolver<'a> {
         } else {
             None
         };
+        if data_type.is_automatic() {
+            self.add_unresolved_auto_var(old_var_id);
+        }
         self.set_var_info(old_var_id, resolved_id, data_type);
         if let Some(data) = self.source[old_var_id].borrow_initial_value() {
             let mut pkd = PossiblyKnownData::from_known_data(data);
@@ -73,16 +76,52 @@ impl<'a> ScopeResolver<'a> {
             }
         }
         if let (
-            ResolvedVCExpression::Specific { var, indexes, .. },
-            ResolvedVPExpression::Interpreted(value_data, ..),
+            ResolvedVCExpression::Specific {
+                var,
+                indexes,
+                typ: lhs_type,
+                ..
+            },
+            ResolvedVPExpression::Interpreted(value_data, _, rhs_type),
         ) = (&lhs, &rhs)
         {
-            // TODO: Handle proxy stuff.
-            self.set_temporary_item(
-                *var,
-                indexes,
-                PossiblyKnownData::from_known_data(value_data),
-            );
+            // lhs[indexes..][shared_indexes..][extra_indexes..] = rhs[shared_indexes..]
+            // shared indexes are the indexes that are the same between lhs and rhs
+            // extra indexes are extra dimensinos the lhs has. If there are none, then everything
+            // becomes much simpler: lhs[indexes..] = rhs, which is what the later if statement
+            // is for.
+            let lhs_dims = lhs_type.collect_dims();
+            let rhs_dims = rhs_type.collect_dims();
+            let num_shared_dims = rhs_dims.len();
+            let num_extra_dims = lhs_dims.len() - num_shared_dims;
+            let extra_dims = Vec::from(&lhs_dims[num_shared_dims..]);
+
+            if extra_dims.len() == 0 {
+                self.set_temporary_item(
+                    *var,
+                    &indexes[..],
+                    PossiblyKnownData::from_known_data(value_data),
+                );
+            } else {
+                let mut lhs_indexes = vec![0; indexes.len() + num_shared_dims + num_extra_dims];
+                for (index, value) in indexes.iter().enumerate() {
+                    lhs_indexes[index] = *value;
+                }
+                let num_indexes = indexes.len();
+                for shared_indexes in crate::util::nd_index_iter(rhs_dims) {
+                    for (offset, value) in shared_indexes.iter().enumerate() {
+                        lhs_indexes[num_indexes + offset] = *value;
+                    }
+                    let rhs_item = value_data.index(&shared_indexes[..]);
+                    let rhs_pkd = PossiblyKnownData::from_known_data(rhs_item);
+                    for extra_indexes in crate::util::nd_index_iter(extra_dims.clone()) {
+                        for (offset, value) in extra_indexes.iter().enumerate() {
+                            lhs_indexes[num_indexes + num_shared_dims + offset] = *value;
+                        }
+                        self.set_temporary_item(*var, &lhs_indexes[..], rhs_pkd.clone());
+                    }
+                }
+            }
         } else {
             match &lhs {
                 ResolvedVCExpression::Specific { var, indexes, .. }

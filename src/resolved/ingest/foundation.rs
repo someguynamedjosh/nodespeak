@@ -162,13 +162,8 @@ impl<'a> ScopeResolver<'a> {
         self.table.variables.get(&source)
     }
 
-    // TODO: Make auto vars work.
     pub(super) fn add_unresolved_auto_var(&mut self, var: i::VariableId) {
         self.table.unresolved_auto_vars.insert(var);
-    }
-
-    pub(super) fn is_unresolved_auto_var(&mut self, var: i::VariableId) -> bool {
-        self.table.unresolved_auto_vars.contains(&var)
     }
 
     pub(super) fn resolve_auto_var(
