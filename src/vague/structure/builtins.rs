@@ -34,8 +34,7 @@ fn add_unary_op_macro(
     let out_var = Variable::variable(FilePosition::placeholder(), None);
     let out_var_id = program.adopt_and_define_symbol(body, out_name, out_var);
     program[body].add_output(out_var_id);
-    // TODO: Make it automatic once automatic types are working.
-    let out_type = KnownData::DataType(DataType::Float);
+    let out_type = KnownData::DataType(DataType::Automatic);
     let out_type = VPExpression::Literal(out_type, FilePosition::placeholder());
     program[body].add_statement(Statement::CreationPoint {
         var: out_var_id,
