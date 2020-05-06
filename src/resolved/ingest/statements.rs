@@ -1,6 +1,6 @@
 use super::{
-    DataType, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression, ResolvedVPExpression,
-    ScopeResolver,
+    problems, DataType, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression,
+    ResolvedVPExpression, ScopeResolver,
 };
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
@@ -14,14 +14,20 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_dtype = self.resolve_vp_expression(dtype)?;
+        if resolved_dtype.borrow_data_type() != &DataType::DataType {
+            return Err(problems::not_data_type(
+                dtype.clone_position(),
+                resolved_dtype.borrow_data_type(),
+            ));
+        }
         let data_type = if let ResolvedVPExpression::Interpreted(data, ..) = resolved_dtype {
             if let i::KnownData::DataType(in_type) = data {
                 self.resolve_data_type_partially(in_type)
             } else {
-                panic!("TODO: Nice error, value is not a data type")
+                unreachable!("Already checked that the value is a data type.");
             }
         } else {
-            panic!("TODO: Nice error, expression was not computable at compile time")
+            unreachable!("DATA_TYPE is ct-only, it cannot be a modified expression.");
         };
         let resolved_id = if let Some(data_type) = data_type.resolve() {
             let resolved_var = o::Variable::new(position.clone(), data_type);
@@ -72,7 +78,13 @@ impl<'a> ScopeResolver<'a> {
                 Err(..) => false,
             };
             if !ok {
-                panic!("TODO: Nice error, bad assignment.");
+                return Err(problems::mismatched_assign(
+                    position.clone(),
+                    target.clone_position(),
+                    lhs.borrow_data_type(),
+                    value.clone_position(),
+                    rhs.borrow_data_type(),
+                ));
             }
         }
         if let (
@@ -186,7 +198,11 @@ impl<'a> ScopeResolver<'a> {
         for (condition, body) in clauses {
             let rcond = self.resolve_vp_expression(condition)?;
             if rcond.borrow_data_type() != &DataType::Bool {
-                panic!("TODO: Nice error, condition is not boolean.");
+                return Err(problems::vpe_wrong_type(
+                    position.clone(),
+                    &DataType::Bool,
+                    rcond.borrow_data_type(),
+                ));
             }
             if let ResolvedVPExpression::Interpreted(value, ..) = &rcond {
                 // This is safe because we just checked that it is a bool.
@@ -256,10 +272,18 @@ impl<'a> ScopeResolver<'a> {
         let rstart = self.resolve_vp_expression(start)?;
         let rend = self.resolve_vp_expression(end)?;
         if rstart.borrow_data_type() != &DataType::Int {
-            panic!("TODO: Nice error, loop start not integer.");
+            return Err(problems::vpe_wrong_type(
+                position.clone(),
+                &DataType::Int,
+                rstart.borrow_data_type(),
+            ));
         }
         if rend.borrow_data_type() != &DataType::Int {
-            panic!("TODO: Nice error, loop end not integer.");
+            return Err(problems::vpe_wrong_type(
+                position.clone(),
+                &DataType::Int,
+                rend.borrow_data_type(),
+            ));
         }
         if let (
             ResolvedVPExpression::Interpreted(start, ..),
@@ -318,14 +342,17 @@ impl<'a> ScopeResolver<'a> {
         expr: &i::VPExpression,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_expr = self.resolve_vp_expression(expr)?;
-        if let ResolvedVPExpression::Interpreted(data, ..) = resolved_expr {
+        if let ResolvedVPExpression::Interpreted(data, _, dtype) = resolved_expr {
             if data != i::KnownData::Void {
-                panic!("TODO: Nice error, vpe as statement yields an unused value.");
+                return Err(problems::dangling_value(expr.clone_position(), &dtype));
             } else {
                 Ok(ResolvedStatement::Interpreted)
             }
         } else {
-            panic!("TODO: Nice error, vpe as statement yields an unused value.");
+            return Err(problems::dangling_value(
+                expr.clone_position(),
+                resolved_expr.borrow_data_type(),
+            ));
         }
     }
 

@@ -37,20 +37,30 @@ impl<'a> ScopeResolver<'a> {
                 etype = eetype;
                 *len
             } else {
-                panic!("TODO: Nice error, cannot index non-array type.");
+                return Err(problems::too_many_indexes(
+                    position.clone(),
+                    indexes.len(),
+                    all_indexes.len(),
+                    base.clone_position(),
+                    rbase.borrow_data_type(),
+                ));
             };
             let rindex = self.resolve_vp_expression(index)?;
             if rindex.borrow_data_type() != &DataType::Int {
-                panic!("TODO: Nice error, index must be int.");
+                return Err(problems::array_index_not_int(
+                    rindex.clone_position(),
+                    rindex.borrow_data_type(),
+                    position.clone(),
+                ));
             }
-            if let ResolvedVPExpression::Interpreted(data, ..) = &rindex {
+            if let ResolvedVPExpression::Interpreted(data, pos, ..) = &rindex {
                 let val = data.require_int(); // We already checked that it should be an int.
                 if val < 0 {
-                    panic!("TODO: Nice error, array index less than zero.");
+                    return Err(problems::array_index_less_than_zero(pos.clone(), val, position.clone()));
                 }
                 let val = val as usize;
                 if val >= arr_len {
-                    panic!("TODO: Nice error, array index too big.");
+                    return Err(problems::array_index_too_big(pos.clone(), val, arr_len, position.clone()));
                 }
                 // If they are unequal, that means at some point we didn't know what one of the
                 // earlier indexes was, so we should not add on any more known indexes because it's
@@ -87,7 +97,7 @@ impl<'a> ScopeResolver<'a> {
                 var,
                 mut indexes,
                 pos,
-                ..
+                typ,
             } => {
                 let unknown_indexes = &all_indexes[known_indexes.len()..];
                 indexes.append(&mut known_indexes);
@@ -112,7 +122,7 @@ impl<'a> ScopeResolver<'a> {
                     let resolved_var = if let Some((Some(id), _)) = self.get_var_info(var) {
                         *id
                     } else {
-                        panic!("TODO: Nice error, cannot write to variable at run time.");
+                        return Err(problems::rt_indexes_on_ct_variable(position.clone(), &typ));
                     };
                     ResolvedVCExpression::Modified {
                         vce: o::VCExpression::index(resolved_var, all_indexes, position.clone()),

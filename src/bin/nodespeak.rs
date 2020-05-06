@@ -17,7 +17,7 @@ fn main() {
 
     let mut compiler = nodespeak::Compiler::new();
     if let Some((width, _)) = terminal_size::terminal_size() {
-        compiler.set_error_width(width.0 as usize);
+        compiler.set_error_width(width.0 as usize - 1);
     }
     let main_source_name = &args[2];
     if let Err(err) = compiler.add_source_from_file(main_source_name.to_owned()) {

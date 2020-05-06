@@ -57,34 +57,30 @@ pub fn wrong_number_of_outputs(
     ])
 }
 
-pub fn vague_macro(macro_call_pos: FilePosition, expr_pos: FilePosition) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![
-        ProblemDescriptor::new(
-            macro_call_pos,
-            Error,
-            concat!(
-                "Vague Macro\nCannot determine what macro is ",
-                "being called here:"
-            ),
-        ),
-        ProblemDescriptor::new(
-            expr_pos,
-            Hint,
-            concat!(
-                "The highlighted expression must have a value that can be determined at compile ",
-                "time, but it relies on values that will only be known at run time:"
-            ),
-        ),
-    ])
-}
-
-pub fn not_macro(expr_pos: FilePosition) -> CompileProblem {
+pub fn not_macro(expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         expr_pos,
         Error,
-        concat!(
-            "Incorrect Type\nThe highlighted expression should resolve to a macro because it ",
-            "is being used in a macro call. However, it resolves to a different data type.",
+        &format!(
+            concat!(
+                "Incorrect Type\nThe highlighted expression should resolve to a macro because it ",
+                "is being used in a macro call. However, it resolves to a {:?} instead.",
+            ),
+            typ
+        ),
+    )])
+}
+
+pub fn not_data_type(expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        expr_pos,
+        Error,
+        &format!(
+            concat!(
+                "Incorrect Type\nThe highlighted expression should resolve to a data type because ",
+                "it is being used to declare a variable. However, it resolves to a {:?} instead.",
+            ),
+            typ
         ),
     )])
 }
@@ -146,8 +142,8 @@ pub fn array_index_less_than_zero(
 
 pub fn array_index_too_big(
     index: FilePosition,
-    value: i64,
-    arr_size: i64,
+    value: usize,
+    arr_size: usize,
     expression: FilePosition,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
@@ -180,17 +176,6 @@ pub fn array_base_not_data_type(base: FilePosition, typ: &DataType) -> CompilePr
                 "got a {:?} instead."
             ),
             typ,
-        ),
-    )])
-}
-
-pub fn array_base_not_resolved(base: FilePosition) -> CompileProblem {
-    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
-        base,
-        Error,
-        concat!(
-            "Dynamic Array Base\nCannot determine what the value of the highlighted expression is ",
-            "at compile time."
         ),
     )])
 }
@@ -229,6 +214,32 @@ pub fn array_size_not_resolved(size: FilePosition) -> CompileProblem {
             "expression can only be evaluated at runtime:"
         ),
     )])
+}
+
+pub fn bad_array_literal(
+    bad_item_pos: FilePosition,
+    bad_item_type: &DataType,
+    first_item_pos: FilePosition,
+    first_item_type: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            bad_item_pos,
+            Error,
+            &format!(
+                "Bad Array Literal\nThe highlighted item has an unexpected data type of {:?}.",
+                bad_item_type,
+            ),
+        ),
+        ProblemDescriptor::new(
+            first_item_pos,
+            Hint,
+            &format!(
+                "The first item in the array literal is of data type {:?}:",
+                first_item_type
+            ),
+        ),
+    ])
 }
 
 pub fn no_bct(
@@ -304,6 +315,21 @@ pub fn value_not_run_time_compatible(value_pos: FilePosition, dtype: &DataType) 
     )])
 }
 
+pub fn rt_indexes_on_ct_variable(expr_pos: FilePosition, dtype: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        expr_pos,
+        Error,
+        &format!(
+            concat!(
+                "Runtime Index On Compiletime Variable\nThe highlighted expression has indexes ",
+                "which will only be known at run time. However, it refers to a value of type ",
+                "{:?}, which can only be used at compile time."
+            ),
+            dtype
+        ),
+    )])
+}
+
 pub fn too_many_indexes(
     expr_pos: FilePosition,
     num_indexes: usize,
@@ -332,4 +358,74 @@ pub fn too_many_indexes(
             ),
         ),
     ])
+}
+
+pub fn vpe_wrong_type(
+    vpe_pos: FilePosition,
+    expected: &DataType,
+    found: &DataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        vpe_pos,
+        Error,
+        &format!(
+            "Wrong Data Type\nExpected a {:?}, found a {:?}.",
+            expected, found
+        ),
+    )])
+}
+
+pub fn unresolved_auto_var(var_pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        var_pos,
+        Error,
+        concat!(
+            "Unresolved Auto Var\nThe highlighted variable was declared with an automatic data ",
+            "type. It has not been assigned any value before this point so its data type cannot ",
+            "be determined. Assigning the variable a value somewhere earlier in the program will ",
+            "fix this error."
+        ),
+    )])
+}
+
+pub fn dangling_value(bad_expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        bad_expr_pos,
+        Error,
+        &format!(
+            concat!(
+                "Dangling Value\nThe highlighted expression yields a value of type {:?}, but it ",
+                "is not stored in any variable."
+            ),
+            typ
+        ),
+    )])
+}
+
+pub fn compile_time_input(input_decl_pos: FilePosition, typ: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        input_decl_pos,
+        Error,
+        &format!(
+            concat!(
+                "Compile Time Input\nThe highlighted input was given the data type {:?}, which ",
+                "can only be used at compile time."
+            ),
+            typ
+        ),
+    )])
+}
+
+pub fn compile_time_output(output_decl_pos: FilePosition, typ: &DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        output_decl_pos,
+        Error,
+        &format!(
+            concat!(
+                "Compile Time Output\nThe highlighted output was given the data type {:?}, which ",
+                "can only be used at compile time."
+            ),
+            typ
+        ),
+    )])
 }

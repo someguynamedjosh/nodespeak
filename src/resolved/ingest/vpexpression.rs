@@ -24,11 +24,16 @@ impl<'a> ScopeResolver<'a> {
             .get_var_info(var_id)
             .expect("Variable used before defined, should have been caught by the previous phase.");
         if dtype.is_automatic() {
-            panic!(
-                "TODO: Nice error, data type of automatic variable has not been determined yet."
-            );
+            return Err(problems::unresolved_auto_var(position.clone()));
         }
-        let resolved_id = resolved_id.expect("TODO: Nice error, cannot use var at run time.");
+        let resolved_id = if let Some(value) = resolved_id {
+            *value
+        } else {
+            return Err(problems::value_not_run_time_compatible(
+                position.clone(),
+                &dtype,
+            ));
+        };
         Ok(ResolvedVPExpression::Modified(
             o::VPExpression::Variable(resolved_id, position.clone()),
             dtype.clone(),
@@ -49,7 +54,12 @@ impl<'a> ScopeResolver<'a> {
         let mut all_known = true;
         for item in &resolved_items {
             if item.borrow_data_type() != typ {
-                panic!("TODO: Nice error, items in collect are not compatible.");
+                return Err(problems::bad_array_literal(
+                    item.clone_position(),
+                    item.borrow_data_type(),
+                    resolved_items[0].clone_position(),
+                    resolved_items[0].borrow_data_type(),
+                ));
             }
             if let ResolvedVPExpression::Modified(..) = item {
                 all_known = false;
@@ -136,16 +146,28 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         resolved_base: ResolvedVPExpression,
         index: &i::VPExpression,
+        full_expression: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let resolved_index = self.resolve_vp_expression(index)?;
         let (array_length, etype) =
             if let DataType::Array(len, dtype) = resolved_base.borrow_data_type() {
                 (*len, *(dtype.clone()))
             } else {
-                panic!("TODO: Nice error, cannot index non-array.")
+                // TODO: Nicer error for this.
+                return Err(problems::too_many_indexes(
+                    resolved_base.clone_position(),
+                    1,
+                    0,
+                    resolved_base.clone_position(),
+                    resolved_base.borrow_data_type(),
+                ));
             };
         if resolved_index.borrow_data_type() != &DataType::Int {
-            panic!("TODO: Nice error, array index not integer.")
+            return Err(problems::array_index_not_int(
+                index.clone_position(),
+                resolved_index.borrow_data_type(),
+                full_expression.clone(),
+            ));
         }
 
         match resolved_index {
@@ -155,10 +177,19 @@ impl<'a> ScopeResolver<'a> {
                 let value = data.require_int();
                 // Check that the index is in bounds.
                 if value < 0 {
-                    panic!("TODO: Nice error, index less than zero.");
+                    return Err(problems::array_index_less_than_zero(
+                        index.clone_position(),
+                        value,
+                        full_expression.clone(),
+                    ));
                 }
                 if value as usize >= array_length {
-                    panic!("TODO: Nice error, index too big.");
+                    return Err(problems::array_index_too_big(
+                        index.clone_position(),
+                        value as usize,
+                        array_length,
+                        full_expression.clone(),
+                    ));
                 }
                 Ok(match resolved_base {
                     // If the base is also compile-time constant, return a new constant value.
@@ -208,10 +239,15 @@ impl<'a> ScopeResolver<'a> {
                     // If the base is a compile-time constant, make it a literal and return a new
                     // expression.
                     ResolvedVPExpression::Interpreted(base_data, base_pos, base_type) => {
-                        let base_expr = o::VPExpression::Literal(
-                            Self::resolve_known_data(&base_data).expect("TODO: Nice error."),
-                            base_pos,
-                        );
+                        let base_data = if let Ok(value) = Self::resolve_known_data(&base_data) {
+                            value
+                        } else {
+                            return Err(problems::rt_indexes_on_ct_variable(
+                                full_expression.clone(),
+                                &base_type,
+                            ));
+                        };
+                        let base_expr = o::VPExpression::Literal(base_data, base_pos);
                         o::VPExpression::Index {
                             base: Box::new(base_expr),
                             indexes: vec![index_expr],
@@ -345,10 +381,9 @@ impl<'a> ScopeResolver<'a> {
                     lhs: Box::new(res_lhs.as_vp_expression()?),
                     op: Self::resolve_operator(operator),
                     rhs: Box::new(res_rhs.as_vp_expression()?),
-                    typ: bct
-                        .clone()
-                        .resolve()
-                        .expect("TODO: Nice error, data not available at compile time."),
+                    typ: bct.clone().resolve().expect(
+                        "Resolving lhs or rhs should have failed if the result is ct-only.",
+                    ),
                     position: position.clone(),
                 },
                 bct,
@@ -366,7 +401,7 @@ impl<'a> ScopeResolver<'a> {
         let resolved_base = self.resolve_vp_expression(base)?;
         let mut result = resolved_base;
         for index in indexes {
-            result = self.resolve_vp_index_impl(result, index)?;
+            result = self.resolve_vp_index_impl(result, index, position)?;
         }
         Ok(result)
     }
@@ -380,14 +415,20 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         // Find out what macro we are calling.
         let rmacro = self.resolve_vp_expression(mcro)?;
+        if rmacro.borrow_data_type() != &DataType::Macro {
+            return Err(problems::not_macro(
+                rmacro.clone_position(),
+                rmacro.borrow_data_type(),
+            ));
+        }
         let macro_data = if let ResolvedVPExpression::Interpreted(data, ..) = rmacro {
             if let i::KnownData::Macro(data) = data {
                 data
             } else {
-                panic!("TODO: Nice error, not macro.");
+                unreachable!("Already checked that data is a macro.");
             }
         } else {
-            panic!("TODO: Nice error, vague macro.");
+            unreachable!("Data cannot be both a macro and run-time only.");
         };
         let body_scope = macro_data.get_body();
         let rscope = self.target.create_scope();
@@ -399,7 +440,12 @@ impl<'a> ScopeResolver<'a> {
         // time, then just set its temporary value without creating an actual variable for it.
         let macro_inputs = self.source[body_scope].borrow_inputs().clone();
         if inputs.len() != macro_inputs.len() {
-            panic!("TODO: Nice error, wrong number of inputs.");
+            return Err(problems::wrong_number_of_inputs(
+                position.clone(),
+                macro_data.get_header().clone(),
+                inputs.len(),
+                macro_inputs.len(),
+            ));
         }
         for index in 0..macro_inputs.len() {
             let rinput = self.resolve_vp_expression(&inputs[index])?;
@@ -433,7 +479,12 @@ impl<'a> ScopeResolver<'a> {
         let mut inline_return = None;
         let macro_outputs = self.source[body_scope].borrow_outputs().clone();
         if outputs.len() != macro_outputs.len() {
-            panic!("TODO: Nice error, wrong number of outputs.");
+            return Err(problems::wrong_number_of_outputs(
+                position.clone(),
+                macro_data.get_header().clone(),
+                outputs.len(),
+                macro_outputs.len(),
+            ));
         }
         for index in 0..macro_outputs.len() {
             match &outputs[index] {

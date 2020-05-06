@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
     let inputs = program[entry_point].borrow_inputs().clone();
+    let old_inputs = inputs.clone();
     let outputs = program[entry_point].borrow_outputs().clone();
     let old_outputs = outputs.clone();
     let mut resolver = ScopeResolver::new(program);
@@ -17,7 +18,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
             resolver
                 .get_var_info(id)
                 .expect("undefined input, should be caught in vague phase.")
-                .0
+                .clone()
         })
         .collect();
     let outputs: Vec<_> = outputs
@@ -26,22 +27,24 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
             resolver
                 .get_var_info(id)
                 .expect("undefined input, should be caught in vague phase.")
-                .0
+                .clone()
         })
         .collect();
 
-    for input in inputs {
-        if let Option::Some(var_id) = input {
+    for (index, (id, dtype)) in inputs.into_iter().enumerate() {
+        if let Option::Some(var_id) = id {
             resolver.target.add_input(var_id);
         } else {
-            panic!("TODO: Nice error, input not available at run time.")
+            let pos = resolver.source[old_inputs[index]].get_definition().clone();
+            return Err(problems::compile_time_input(pos, &dtype));
         }
     }
-    for output in outputs {
-        if let Option::Some(var_id) = output {
+    for (index, (id, dtype)) in outputs.into_iter().enumerate() {
+        if let Option::Some(var_id) = id {
             resolver.target.add_output(var_id);
         } else {
-            panic!("TODO: Nice error, input not available at run time.")
+            let pos = resolver.source[old_outputs[index]].get_definition().clone();
+            return Err(problems::compile_time_output(pos, &dtype));
         }
     }
     resolver.target.set_entry_point(new_entry_point);
@@ -385,7 +388,9 @@ impl ResolvedVCExpression {
                 let (var_id, _var_type) = resolver.get_var_info(var).expect(
                     "Variable used before defined, should have been caught in vague phase.",
                 );
-                let var_id = var_id.expect("TODO: nice error, variable not available at runtime.");
+                let var_id = var_id.expect(
+                    "Cannot assign to a ct-only var at runtime. Should be checked by the caller.",
+                );
                 let indexes = indexes
                     .iter()
                     .map(|i| {

@@ -119,6 +119,21 @@ pub fn write_to_read_only_variable(var_pos: FilePosition, var_name: &str) -> Com
     )])
 }
 
+pub fn nonexistant_include(include_pos: FilePosition, file_name: &str) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        include_pos,
+        Error,
+        &format!(
+            concat!(
+                "Nonexistant Include\nCould not find a file named \"{}\". Check the spelling and ",
+                "ensure that the compiler knows that the file exists through Compiler::add_source ",
+                "or another similarly named method.",
+            ),
+           file_name 
+        ),
+    )])
+}
+
 pub fn hint_encountered_while_including(
     existing_error: &mut CompileProblem,
     include_pos: FilePosition,

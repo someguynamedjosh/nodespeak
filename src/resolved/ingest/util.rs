@@ -83,7 +83,7 @@ impl<'a> ScopeResolver<'a> {
                 } else if b_size == 1 {
                     (true, false)
                 } else {
-                    panic!("TODO: nice error, invalid inflation.");
+                    unreachable!("Invalid inflation should be handled earlier.");
                 };
 
                 let result_size = a_size.max(b_size);

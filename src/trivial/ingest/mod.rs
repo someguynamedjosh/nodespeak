@@ -81,7 +81,6 @@ impl<'a> Trivializer<'a> {
                 }
                 o::KnownData::Array(titems)
             }
-            _ => panic!("TODO: nice error, encountered ct-only data type after resolving"),
         })
     }
 

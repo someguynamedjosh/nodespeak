@@ -289,10 +289,7 @@ impl<'a> VagueIngester<'a> {
             }
             self.current_file_id = old_file_id;
         } else {
-            panic!(
-                "TODO: Nice error, could not find source file named {}.",
-                filename
-            );
+            return Err(problems::nonexistant_include(position, &filename));
         }
         Ok(())
     }
