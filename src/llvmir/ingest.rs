@@ -538,6 +538,13 @@ impl<'a> Converter<'a> {
         self.current_block_terminated = true;
     }
 
+    fn convert_abort(&mut self, error_code: u32) {
+        unsafe {
+            LLVMBuildRet(self.builder, self.u32_const(error_code));
+        }
+        self.current_block_terminated = true;
+    }
+
     fn convert_jump(&mut self, label: &i::LabelId) {
         unsafe {
             LLVMBuildBr(self.builder, self.get_block_for_label(label));
@@ -631,6 +638,7 @@ impl<'a> Converter<'a> {
 
         for instruction in self.source.borrow_instructions().clone() {
             match instruction {
+                i::Instruction::Abort(error_code) => self.convert_abort(*error_code),
                 i::Instruction::BinaryOperation { op, a, b, x } => {
                     self.convert_binary_expression(op, a, b, x)
                 }
@@ -659,7 +667,7 @@ impl<'a> Converter<'a> {
         }
 
         unsafe {
-            LLVMBuildRetVoid(self.builder);
+            LLVMBuildRet(self.builder, self.u32_const(0));
             LLVMDisposeBuilder(self.builder);
 
             #[cfg(feature = "dump-llvmir")]
@@ -724,9 +732,9 @@ pub fn ingest(source: &i::Program) -> o::Program {
         );
         let output_pointer_type = LLVMPointerType(output_data_type, 0);
 
-        let voidt = LLVMVoidTypeInContext(context);
+        let i32t = LLVMInt32TypeInContext(context);
         let mut argts = [input_pointer_type, output_pointer_type];
-        let function_type = LLVMFunctionType(voidt, argts.as_mut_ptr(), argts.len() as u32, 0);
+        let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
         let main_fn = LLVMAddFunction(module, b"main\0".as_ptr() as *const _, function_type);
         let entry_block =
             LLVMAppendBasicBlockInContext(context, main_fn, b"entry\0".as_ptr() as *const _);
@@ -756,6 +764,12 @@ pub fn ingest(source: &i::Program) -> o::Program {
         let Converter {
             context, module, ..
         } = converter;
-        o::Program::new(context, module, input_data_type, output_data_type)
+        o::Program::new(
+            context,
+            module,
+            input_data_type,
+            output_data_type,
+            source.borrow_error_descriptions().clone(),
+        )
     }
 }

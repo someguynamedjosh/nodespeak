@@ -268,6 +268,25 @@ impl<'a> Trivializer<'a> {
         Result::Ok(x2)
     }
 
+    fn trivialize_assert(
+        &mut self,
+        condition: &i::VPExpression,
+    ) -> Result<(), CompileProblem> {
+        let tcondition = self.trivialize_vp_expression(condition)?;
+        let abort_label = self.target.create_label();
+        let skip_label = self.target.create_label();
+        self.target.add_instruction(o::Instruction::Branch {
+            condition: tcondition,
+            true_target: skip_label,
+            false_target: abort_label,
+        });
+        self.target.add_instruction(o::Instruction::Label(abort_label));
+        let error_code = self.target.add_error(format!("TODO: description."));
+        self.target.add_instruction(o::Instruction::Abort(error_code));
+        self.target.add_instruction(o::Instruction::Label(skip_label));
+        Ok(())
+    }
+
     fn trivialize_assignment(
         &mut self,
         statement: &i::Statement,
@@ -470,7 +489,7 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_statement(&mut self, statement: &i::Statement) -> Result<(), CompileProblem> {
         Ok(match statement {
-            i::Statement::Assert(..) => unimplemented!(),
+            i::Statement::Assert(condition, ..) => self.trivialize_assert(condition)?,
             i::Statement::Assign { target, value, .. } => {
                 self.trivialize_assignment(statement, target, value)?;
             }

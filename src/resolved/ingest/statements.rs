@@ -50,6 +50,35 @@ impl<'a> ScopeResolver<'a> {
         Ok(ResolvedStatement::Interpreted)
     }
 
+    fn resolve_assert(
+        &mut self,
+        condition: &i::VPExpression,
+        position: &FilePosition,
+    ) -> Result<ResolvedStatement, CompileProblem> {
+        let rcondition = self.resolve_vp_expression(condition)?;
+        if rcondition.borrow_data_type() != &DataType::Bool {
+            return Err(problems::vpe_wrong_type(
+                rcondition.clone_position(),
+                &DataType::Bool,
+                rcondition.borrow_data_type(),
+            ));
+        }
+        if let ResolvedVPExpression::Interpreted(data, ..) = &rcondition {
+            // Safe because we already checked it's a bool.
+            let value = data.require_bool();
+            if value {
+                Ok(ResolvedStatement::Interpreted)
+            } else {
+                Err(problems::guaranteed_assert(position.clone()))
+            }
+        } else {
+            Ok(ResolvedStatement::Modified(o::Statement::Assert(
+                Box::new(rcondition.as_vp_expression()?),
+                position.clone(),
+            )))
+        }
+    }
+
     pub(super) fn resolve_assign_statement(
         &mut self,
         target: &i::VCExpression,
@@ -366,7 +395,7 @@ impl<'a> ScopeResolver<'a> {
                 var_type,
                 position,
             } => self.resolve_creation_point(*var, var_type, position),
-            i::Statement::Assert(..) => unimplemented!(),
+            i::Statement::Assert(value, position) => self.resolve_assert(value, position),
             i::Statement::Return(..) => unimplemented!(),
             i::Statement::Assign {
                 target,

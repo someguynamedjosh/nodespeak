@@ -8,20 +8,25 @@ use std::ptr;
 
 pub struct Program {
     execution_engine: LLVMExecutionEngineRef,
-    function: extern "C" fn(*mut u8, *mut u8),
+    function: extern "C" fn(*mut u8, *mut u8) -> u32,
     context: LLVMContextRef,
     module: LLVMModuleRef,
     in_size: usize,
     out_size: usize,
+    error_descriptions: Vec<String>,
 }
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        writeln!(formatter, "error codes:")?;
+        for (code, description) in self.error_descriptions.iter().enumerate() {
+            writeln!(formatter, "  {}: {}", code, description)?;
+        }
         unsafe {
             let content = LLVMPrintModuleToString(self.module);
             write!(
                 formatter,
-                "{}",
+                "LLVM IR Code:{}",
                 std::ffi::CStr::from_ptr(content).to_string_lossy()
             )?;
             LLVMDisposeMessage(content);
@@ -47,6 +52,7 @@ impl Program {
         module: LLVMModuleRef,
         in_type: LLVMTypeRef,
         out_type: LLVMTypeRef,
+        error_descriptions: Vec<String>,
     ) -> Self {
         let execution_engine = unsafe {
             let mut ee_ref = MaybeUninit::uninit();
@@ -83,6 +89,7 @@ impl Program {
             module,
             in_size,
             out_size,
+            error_descriptions,
         }
     }
 
@@ -101,16 +108,36 @@ impl Program {
         );
     }
 
-    pub fn execute_data<T: Sized, U: Sized>(&self, input_data: &mut T, output_data: &mut U) {
+    fn parse_error_code(&self, error_code: u32) -> Result<(), &str> {
+        if error_code == 0 {
+            Ok(())
+        } else if (error_code as usize) < self.error_descriptions.len() && error_code > 0 {
+            Err(&self.error_descriptions[error_code as usize])
+        } else {
+            Err("Invalid non-success error code")
+        }
+    }
+
+    pub unsafe fn execute_data<T: Sized, U: Sized>(
+        &self,
+        input_data: &mut T,
+        output_data: &mut U,
+    ) -> Result<(), &str> {
         self.assert_size(mem::size_of::<T>(), mem::size_of::<U>());
-        (self.function)(
+        let error_code = (self.function)(
             input_data as *mut T as *mut u8,
             output_data as *mut U as *mut u8,
         );
+        self.parse_error_code(error_code)
     }
 
-    pub fn execute_raw(&self, input_data: &mut [u8], output_data: &mut [u8]) {
+    pub unsafe fn execute_raw(
+        &self,
+        input_data: &mut [u8],
+        output_data: &mut [u8],
+    ) -> Result<(), &str> {
         self.assert_size(input_data.len(), output_data.len());
-        (self.function)(input_data.as_mut_ptr(), output_data.as_mut_ptr());
+        let error_code = (self.function)(input_data.as_mut_ptr(), output_data.as_mut_ptr());
+        self.parse_error_code(error_code)
     }
 }

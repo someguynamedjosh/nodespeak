@@ -32,6 +32,7 @@ pub struct Program {
     variables: Vec<Variable>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
+    errors: Vec<String>,
     num_labels: usize,
 }
 
@@ -41,15 +42,21 @@ impl Debug for Program {
         for (index, variable) in self.variables.iter().enumerate() {
             writeln!(formatter, "  tv{}: {:?}", index, variable)?;
         }
-        writeln!(formatter, "inputs:")?;
+        write!(formatter, "inputs:")?;
         for variable in self.inputs.iter() {
-            writeln!(formatter, "  {:?}", variable)?;
+            write!(formatter, " {:?}", variable)?;
         }
-        writeln!(formatter, "outputs:")?;
+        writeln!(formatter)?;
+        write!(formatter, "outputs:")?;
         for variable in self.outputs.iter() {
-            writeln!(formatter, "  {:?}", variable)?;
+            write!(formatter, " {:?}", variable)?;
         }
+        writeln!(formatter)?;
         writeln!(formatter, "{} labels", self.num_labels)?;
+        writeln!(formatter, "error codes:")?;
+        for (code, description) in self.errors.iter().enumerate() {
+            writeln!(formatter, "  {}: {}", code, description)?;
+        }
         writeln!(formatter, "instructions:")?;
         for instruction in self.instructions.iter() {
             writeln!(formatter, "  {:?}", instruction)?;
@@ -79,6 +86,7 @@ impl Program {
             variables: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
+            errors: vec!["Success".to_owned()],
             num_labels: 0,
         }
     }
@@ -132,5 +140,15 @@ impl Program {
 
     pub fn get_num_labels(&self) -> usize {
         self.num_labels
+    }
+
+    pub fn add_error(&mut self, description: String) -> u32 {
+        let code = self.errors.len() as u32;
+        self.errors.push(description);
+        code
+    }
+
+    pub fn borrow_error_descriptions(&self) -> &Vec<String> {
+        &self.errors
     }
 }

@@ -102,6 +102,7 @@ pub enum Instruction {
         true_target: LabelId,
         false_target: LabelId,
     },
+    Abort(u32),
 }
 
 impl Debug for Instruction {
@@ -195,6 +196,7 @@ impl Debug for Instruction {
                 "if {:?} jump to {:?} else {:?}",
                 condition, true_target, false_target
             ),
+            Instruction::Abort(error_code) => write!(formatter, "abort {}", error_code),
         }
     }
 }
