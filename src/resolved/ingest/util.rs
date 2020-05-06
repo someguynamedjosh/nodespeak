@@ -66,7 +66,6 @@ impl<'a> ScopeResolver<'a> {
 
     /// Expression must be a binary operator expression (add, equals, etc.) and A and B must be valid
     /// inputs for that expression. They cannot have different base types.
-    /// TODO: Implement arrays, and arrays of different sizes.
     pub(super) fn compute_binary_operation(
         a: &i::KnownData,
         operator: i::BinaryOperator,

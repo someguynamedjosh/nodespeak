@@ -48,7 +48,18 @@ impl KnownData {
     }
 
     pub fn collect(items: Vec<KnownData>) -> KnownData {
-        // TODO: Ensure that each data type is compatible.
+        debug_assert!(items.len() > 0);
+        debug_assert!({
+            let dtype = items[0].get_data_type();
+            let mut valid = true;
+            for item in &items {
+                if item.get_data_type() != dtype {
+                    valid = false;
+                    break;
+                }
+            }
+            valid
+        });
         KnownData::Array(items)
     }
 

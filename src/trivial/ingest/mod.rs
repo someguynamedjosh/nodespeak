@@ -407,8 +407,7 @@ impl<'a> Trivializer<'a> {
             let index_value = self.trivialize_vp_expression(index)?;
             let indext = index_value.get_type(&self.target);
             if indext != o::DataType::I32 {
-                // TODO: Check if this is guaranteed to be handled in the previous phase.
-                panic!("TODO: Nice error, index is not int scalar.");
+                unreachable!("Ilegal index type should be handled by previous phase.");
             }
             tindexes.push(index_value);
             element_type = if let o::DataType::Array(_, etype) = element_type {
