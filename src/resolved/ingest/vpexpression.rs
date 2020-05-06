@@ -393,7 +393,7 @@ impl<'a> ScopeResolver<'a> {
         let rscope = self.target.create_scope();
         let old_scope = self.current_scope;
         self.current_scope = rscope;
-        self.push_table();
+        self.push_temp_table(macro_data.borrow_context().clone());
 
         // Copy each input value to a new variable. If we know what the input value is at compile
         // time, then just set its temporary value without creating an actual variable for it.

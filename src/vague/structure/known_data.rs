@@ -8,6 +8,9 @@ use std::fmt::{self, Debug, Formatter};
 pub struct MacroData {
     body: ScopeId,
     header: FilePosition,
+    // Yeah, this is really ugly and hacky. But unfortunately I don't see a better way to allow
+    // storing the scope a macro was defined in without creating even more of a headache.
+    context: crate::resolved::ResolverTable,
 }
 
 impl PartialEq for MacroData {
@@ -18,7 +21,11 @@ impl PartialEq for MacroData {
 
 impl MacroData {
     pub fn new(body: ScopeId, header: FilePosition) -> MacroData {
-        MacroData { body, header }
+        MacroData {
+            body,
+            header,
+            context: crate::resolved::ResolverTable::new(),
+        }
     }
 
     pub fn set_header(&mut self, new_header: FilePosition) {
@@ -31,6 +38,14 @@ impl MacroData {
 
     pub fn get_body(&self) -> ScopeId {
         self.body
+    }
+
+    pub(crate) fn set_context(&mut self, context: crate::resolved::ResolverTable) {
+        self.context = context;
+    }
+
+    pub(crate) fn borrow_context(&self) -> &crate::resolved::ResolverTable {
+        &self.context
     }
 }
 

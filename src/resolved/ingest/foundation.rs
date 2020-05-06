@@ -49,13 +49,13 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 }
 
 #[derive(Clone, Debug)]
-struct ResolverTable {
+pub(crate) struct ResolverTable {
     variables: HashMap<i::VariableId, (Option<o::VariableId>, DataType)>,
     unresolved_auto_vars: HashSet<i::VariableId>,
 }
 
 impl ResolverTable {
-    fn new() -> ResolverTable {
+    pub(crate) fn new() -> ResolverTable {
         ResolverTable {
             variables: HashMap::new(),
             unresolved_auto_vars: HashSet::new(),
@@ -108,6 +108,15 @@ impl<'a> ScopeResolver<'a> {
             .stack
             .pop()
             .expect("Encountered extra unexpected stack pop");
+    }
+
+    pub(super) fn borrow_table(&self) -> &ResolverTable {
+        &self.table
+    }
+
+    pub(super) fn push_temp_table(&mut self, table: ResolverTable) {
+        let old_table = std::mem::replace(&mut self.table, table);
+        self.stack.push(old_table);
     }
 
     /// Any variables that are modified during this period will be marked as dirty. When
@@ -215,6 +224,7 @@ impl<'a> ScopeResolver<'a> {
         let dims = if let Some((_, typ)) = self.get_var_info(var) {
             typ.collect_dims()
         } else {
+            eprintln!("{:?}", var);
             unreachable!("Variable used before declared, should be handled elsewhere.");
         };
         self.temp_values

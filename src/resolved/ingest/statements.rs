@@ -31,7 +31,10 @@ impl<'a> ScopeResolver<'a> {
         };
         self.set_var_info(old_var_id, resolved_id, data_type);
         if let Some(data) = self.source[old_var_id].borrow_initial_value() {
-            let pkd = PossiblyKnownData::from_known_data(data);
+            let mut pkd = PossiblyKnownData::from_known_data(data);
+            if let PossiblyKnownData::Macro(mdata) = &mut pkd {
+                mdata.set_context(self.borrow_table().clone());
+            }
             self.set_temporary_value(old_var_id, pkd);
         }
 
@@ -74,6 +77,7 @@ impl<'a> ScopeResolver<'a> {
             ResolvedVPExpression::Interpreted(value_data, ..),
         ) = (&lhs, &rhs)
         {
+            // TODO: Handle proxy stuff.
             self.set_temporary_item(
                 *var,
                 indexes,

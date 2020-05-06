@@ -12,3 +12,4 @@ pub(self) use data_type::*;
 pub use foundation::ingest;
 pub(self) use foundation::*;
 pub(self) use possibly_known_data::*;
+pub(crate) use foundation::ResolverTable;
