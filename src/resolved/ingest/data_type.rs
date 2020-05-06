@@ -49,6 +49,23 @@ impl DataType {
         self.collect_dims_impl(&mut dims);
         dims
     }
+
+    pub fn is_automatic(&self) -> bool {
+        match self {
+            Self::Automatic => true,
+            Self::Array(_, etype) => etype.is_automatic(),
+            _ => false,
+        }
+    }
+
+    pub fn with_different_base(&self, new_base: DataType) -> Self {
+        match self {
+            Self::Array(size, etyp) => {
+                Self::Array(*size, Box::new(etyp.with_different_base(new_base)))
+            }
+            _ => new_base,
+        }
+    }
 }
 
 impl Debug for DataType {
@@ -60,7 +77,7 @@ impl Debug for DataType {
             DataType::Macro => write!(formatter, "MACRO"),
             DataType::DataType => write!(formatter, "DATA_TYPE"),
             DataType::Void => write!(formatter, "VOID"),
-            DataType::Automatic => write!(formatter, "AUTOM"),
+            DataType::Automatic => write!(formatter, "AUTO"),
             DataType::Array(len, etype) => write!(formatter, "[{}]{:?}", len, etype),
         }
     }

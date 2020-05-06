@@ -46,12 +46,28 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedStatement, CompileProblem> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
-        let ok = match Self::biggest_type(lhs.borrow_data_type(), rhs.borrow_data_type()) {
-            Ok(bct) => &bct == lhs.borrow_data_type(),
-            Err(..) => false,
-        };
-        if !ok {
-            panic!("TODO: Nice error, bad assignment.");
+        let mut resolved_out_type = None;
+        if lhs.borrow_data_type().is_automatic() {
+            let old_auto_type = &self.get_var_info(lhs.get_base()).unwrap().1;
+            let actual_type = old_auto_type.with_different_base(rhs.borrow_data_type().clone());
+            let resolved_var = if let Some(rtype) = actual_type.resolve() {
+                resolved_out_type = Some(rtype.clone());
+                let def_pos = self.source[lhs.get_base()].get_definition().clone();
+                let var = o::Variable::new(def_pos, rtype);
+                Some(self.target.adopt_variable(var))
+            } else {
+                None
+            };
+            self.resolve_auto_var(lhs.get_base(), resolved_var, actual_type);
+        } else {
+            resolved_out_type = lhs.borrow_data_type().resolve();
+            let ok = match Self::biggest_type(lhs.borrow_data_type(), rhs.borrow_data_type()) {
+                Ok(bct) => &bct == lhs.borrow_data_type(),
+                Err(..) => false,
+            };
+            if !ok {
+                panic!("TODO: Nice error, bad assignment.");
+            }
         }
         if let (
             ResolvedVCExpression::Specific { var, indexes, .. },
@@ -73,7 +89,7 @@ impl<'a> ScopeResolver<'a> {
                 }
             }
         }
-        if lhs.borrow_data_type().resolve().is_some() {
+        if resolved_out_type.is_some() {
             // Always return a modified expression. This way, even if we really know what the result
             // of the expression is at compile time, we can still ensure that if something about
             // this does end up being needed specifically at run time then it will be there.

@@ -162,8 +162,25 @@ impl<'a> ScopeResolver<'a> {
         self.table.unresolved_auto_vars.contains(&var)
     }
 
-    pub(super) fn mark_auto_var_resolved(&mut self, var: i::VariableId) {
+    pub(super) fn resolve_auto_var(
+        &mut self,
+        var: i::VariableId,
+        resolved_var: Option<o::VariableId>,
+        dtype: DataType,
+    ) {
         self.table.unresolved_auto_vars.remove(&var);
+        // Go back and resolve the var in any tables in the stack too in case we entered a scope
+        // after the variable was first declared.
+        for stack_index in (0..self.stack.len()).rev() {
+            if !self.stack[stack_index].unresolved_auto_vars.contains(&var) {
+                break;
+            }
+            self.stack[stack_index].unresolved_auto_vars.remove(&var);
+            self.stack[stack_index]
+                .variables
+                .insert(var, (resolved_var, dtype.clone()));
+        }
+        self.table.variables.insert(var, (resolved_var, dtype));
     }
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {
@@ -375,6 +392,13 @@ impl ResolvedVCExpression {
                     .collect();
                 Ok(o::VCExpression::index(var_id, indexes, pos))
             }
+        }
+    }
+
+    pub(super) fn get_base(&self) -> i::VariableId {
+        match self {
+            Self::Modified { base, .. } => *base,
+            Self::Specific { var, .. } => *var,
         }
     }
 }

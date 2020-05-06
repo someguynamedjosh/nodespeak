@@ -23,6 +23,11 @@ impl<'a> ScopeResolver<'a> {
         let (resolved_id, dtype) = self
             .get_var_info(var_id)
             .expect("Variable used before defined, should have been caught by the previous phase.");
+        if dtype.is_automatic() {
+            panic!(
+                "TODO: Nice error, data type of automatic variable has not been determined yet."
+            );
+        }
         let resolved_id = resolved_id.expect("TODO: Nice error, cannot use var at run time.");
         Ok(ResolvedVPExpression::Modified(
             o::VPExpression::Variable(resolved_id, position.clone()),
