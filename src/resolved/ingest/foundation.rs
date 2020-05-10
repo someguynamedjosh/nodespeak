@@ -111,6 +111,7 @@ impl<'a> ScopeResolver<'a> {
             .stack
             .pop()
             .expect("Encountered extra unexpected stack pop");
+        println!("===> POP");
     }
 
     pub(super) fn borrow_table(&self) -> &ResolverTable {
@@ -120,6 +121,22 @@ impl<'a> ScopeResolver<'a> {
     pub(super) fn push_temp_table(&mut self, table: ResolverTable) {
         let old_table = std::mem::replace(&mut self.table, table);
         self.stack.push(old_table);
+    }
+
+    // Adds all the entries in the second-to-top table to the top table. This is used by function
+    // calls when processing the outputs. This is because they need to access both stuff that only
+    // exist in the temporary table and stuff that exists in the rest of the program.
+    pub(super) fn fuse_top_table(&mut self) {
+        assert!(self.stack.len() > 0);
+        let top = self.stack.len() - 1;
+        let top_table = &self.stack[top];
+        self.table.variables.extend(
+            top_table
+                .variables
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
+        self.table.unresolved_auto_vars.union(&top_table.unresolved_auto_vars);
     }
 
     /// Any variables that are modified during this period will be marked as dirty. When

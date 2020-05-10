@@ -430,6 +430,12 @@ impl<'a> ScopeResolver<'a> {
         } else {
             unreachable!("Data cannot be both a macro and run-time only.");
         };
+        // Do this before we push the macro's scope so that it happens in the context of the macro
+        // call, not the macro body.
+        let mut rinputs = Vec::new();
+        for input in inputs {
+            rinputs.push(self.resolve_vp_expression(input)?);
+        }
         let body_scope = macro_data.get_body();
         let rscope = self.target.create_scope();
         let old_scope = self.current_scope;
@@ -439,16 +445,15 @@ impl<'a> ScopeResolver<'a> {
         // Copy each input value to a new variable. If we know what the input value is at compile
         // time, then just set its temporary value without creating an actual variable for it.
         let macro_inputs = self.source[body_scope].borrow_inputs().clone();
-        if inputs.len() != macro_inputs.len() {
+        if rinputs.len() != macro_inputs.len() {
             return Err(problems::wrong_number_of_inputs(
                 position.clone(),
                 macro_data.get_header().clone(),
-                inputs.len(),
+                rinputs.len(),
                 macro_inputs.len(),
             ));
         }
-        for index in 0..macro_inputs.len() {
-            let rinput = self.resolve_vp_expression(&inputs[index])?;
+        for (index, rinput) in rinputs.into_iter().enumerate() {
             let input_id = macro_inputs[index];
             if let ResolvedVPExpression::Interpreted(data, _, dtype) = rinput {
                 self.set_var_info(input_id, None, dtype);
@@ -475,6 +480,9 @@ impl<'a> ScopeResolver<'a> {
             }
         }
 
+        // This is necessary so that we can access information about both the variables in the macro
+        // body and variables in the context that the macro call was in.
+        self.fuse_top_table();
         // Copy all the output values to the VCEs given in the macro call.
         let mut inline_return = None;
         let macro_outputs = self.source[body_scope].borrow_outputs().clone();
