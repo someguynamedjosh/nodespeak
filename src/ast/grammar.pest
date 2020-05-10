@@ -24,7 +24,7 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 // Value Producing Expressions
 vp_var = { identifier }
 
-build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ "]" }
+build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ "]" }
 
 vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
 
@@ -57,19 +57,19 @@ vce = { vc_index | var_dec | vc_identifier }
 
 // Macro calls
 
-macro_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ")" }
+macro_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ ")" }
 inline_output = { "inline" }
 macro_call_output = _{ vce | inline_output }
-macro_call_output_list = { ":" ~ "(" ~ (macro_call_output~ ("," ~ macro_call_output)*)? ~ ")" }
+macro_call_output_list = { ":" ~ "(" ~ (macro_call_output~ ("," ~ macro_call_output)*)? ~ ","? ~ ")" }
 macro_call = { identifier ~ macro_call_input_list ~ macro_call_output_list? }
 
 // Macro definitions (techincally part of statements.)
 
 macro_inputs = { "(" ~ (
-    identifier ~ ("," ~ identifier )*
+    identifier ~ ("," ~ identifier )* ~ ","?
 )? ~ ")" }
 macro_outputs = { ":" ~ "(" ~ (
-    identifier ~ ("," ~ identifier)*
+    identifier ~ ("," ~ identifier)* ~ ","?
 )? ~ ")" }
 single_macro_output = { ":" ~ identifier }
 
@@ -94,8 +94,8 @@ escape_sequence = @{ "\\n" | "\\t" | "\\r" | "\\\\" | "\\\"" | "\\'" }
 string = @{"\"" ~ (raw_string | escape_sequence)* ~ "\"" }
 
 // Statements.
-input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
-output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ";" }
+input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
+output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
 assign_statement = { vce ~ "=" ~ vpe ~ ";" }
 macro_call_statement = _{ macro_call ~ ";" }
 var_dec_statement = _{ var_dec ~ ";" }
