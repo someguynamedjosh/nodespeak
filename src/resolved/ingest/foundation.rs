@@ -111,7 +111,6 @@ impl<'a> ScopeResolver<'a> {
             .stack
             .pop()
             .expect("Encountered extra unexpected stack pop");
-        println!("===> POP");
     }
 
     pub(super) fn borrow_table(&self) -> &ResolverTable {

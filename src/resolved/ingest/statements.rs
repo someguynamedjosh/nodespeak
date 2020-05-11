@@ -38,7 +38,6 @@ impl<'a> ScopeResolver<'a> {
         if data_type.is_automatic() {
             self.add_unresolved_auto_var(old_var_id);
         }
-        println!("{:?} {:?} {:?}", old_var_id, resolved_id, data_type);
         self.set_var_info(old_var_id, resolved_id, data_type);
         if let Some(data) = self.source[old_var_id].borrow_initial_value() {
             let mut pkd = PossiblyKnownData::from_known_data(data);

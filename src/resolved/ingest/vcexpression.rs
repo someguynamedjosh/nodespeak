@@ -10,7 +10,6 @@ impl<'a> ScopeResolver<'a> {
         var_id: i::VariableId,
         position: &FilePosition,
     ) -> Result<ResolvedVCExpression, CompileProblem> {
-        println!("{:?}", var_id);
         let (_, var_type) = self
             .get_var_info(var_id)
             .expect("Variable used before declaration, vague step should have caught this.");

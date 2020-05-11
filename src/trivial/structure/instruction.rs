@@ -114,7 +114,7 @@ impl Debug for Instruction {
                 to,
                 from_indexes,
             } => {
-                write!(formatter, "load {:?}", from)?;
+                write!(formatter, "load ({:?})", from)?;
                 for index in from_indexes {
                     write!(formatter, "[{:?}]", index)?;
                 }
@@ -125,7 +125,7 @@ impl Debug for Instruction {
                 to,
                 to_indexes,
             } => {
-                write!(formatter, "store {:?} -> {:?}", from, to)?;
+                write!(formatter, "store {:?} -> ({:?})", from, to)?;
                 for index in to_indexes {
                     write!(formatter, "[{:?}]", index)?;
                 }

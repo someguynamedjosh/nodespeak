@@ -305,9 +305,9 @@ impl<'a> Trivializer<'a> {
     ) -> Result<(), CompileProblem> {
         let base = self.trivialize_variable(target.base)?;
         let base_type = self.target[base].borrow_type().clone();
+        let (new_indexes, base_type) = self.trivialize_indexes(&target.indexes, base_type)?;
         let mut tvalue = self.trivialize_vp_expression(value.borrow())?;
         tvalue.inflate(&base_type.collect_dimensions());
-        let (new_indexes, _result_type) = self.trivialize_indexes(&target.indexes, base_type)?;
         let base = o::Value::variable(base, &self.target);
 
         if target.indexes.len() > 0 {
