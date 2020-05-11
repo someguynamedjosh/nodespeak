@@ -465,6 +465,7 @@ impl<'a> ScopeResolver<'a> {
                 let input_in_body = o::Variable::new(pos.clone(), odtype);
                 let input_in_body_id = self.target.adopt_variable(input_in_body);
                 self.set_var_info(macro_inputs[index], Some(input_in_body_id), dtype);
+                self.reset_temporary_value(input_id);
                 self.target[self.current_scope].add_statement(o::Statement::Assign {
                     target: Box::new(o::VCExpression::variable(input_in_body_id, pos.clone())),
                     value: Box::new(rinput),
