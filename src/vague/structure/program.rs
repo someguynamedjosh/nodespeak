@@ -28,12 +28,14 @@ impl Debug for VariableId {
 /// Represents an entire program written in the Nodespeak language.
 pub struct Program {
     scopes: Vec<Scope>,
+    builtins_scope: ScopeId,
     entry_point: ScopeId,
     variables: Vec<Variable>,
 }
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "builtins defined at: {:?}", self.builtins_scope)?;
         write!(formatter, "entry point: {:?}", self.entry_point)?;
         for (index, scope) in self.scopes.iter().enumerate() {
             write!(formatter, "\ncontents of {:?}:\n", ScopeId(index))?;
@@ -87,25 +89,34 @@ impl IndexMut<VariableId> for Program {
 impl Program {
     pub fn new() -> Program {
         let mut prog = Program {
-            scopes: vec![Scope::new()],
-            entry_point: ScopeId(0),
+            scopes: vec![
+                Scope::new(),
+                Scope::from_parent(ScopeId(0), false),
+            ],
+            builtins_scope: ScopeId(0),
+            entry_point: ScopeId(1),
             variables: Vec::new(),
         };
         structure::add_builtins(&mut prog);
         prog
     }
 
-    /// Creates a new scope that has no parent.
     pub fn create_scope(&mut self) -> ScopeId {
         let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::new());
+        self.scopes.push(Scope::from_parent(self.builtins_scope, false));
+        id
+    }
+
+    pub fn create_static_scope(&mut self) -> ScopeId {
+        let id = ScopeId(self.scopes.len());
+        self.scopes.push(Scope::from_parent(self.builtins_scope, true));
         id
     }
 
     pub fn create_child_scope(&mut self, parent: ScopeId) -> ScopeId {
         assert!(parent.0 < self.scopes.len());
         let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::from_parent(parent));
+        self.scopes.push(Scope::from_parent(parent, false));
         id
     }
 
@@ -132,6 +143,10 @@ impl Program {
 
     pub fn set_entry_point(&mut self, new_entry_point: ScopeId) {
         self.entry_point = new_entry_point;
+    }
+
+    pub fn get_builtins_scope(&self) -> ScopeId {
+        self.builtins_scope
     }
 
     pub fn adopt_and_define_symbol(

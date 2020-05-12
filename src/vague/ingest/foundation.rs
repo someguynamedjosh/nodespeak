@@ -47,22 +47,30 @@ impl<'a> VagueIngester<'a> {
         self.target[self.current_scope].add_statement(statement);
     }
 
+    pub(super) fn create_variable_in_scope(
+        &mut self,
+        scope: o::ScopeId,
+        data_type: o::VPExpression,
+        name: &str,
+        decl_pos: FilePosition,
+    ) -> o::VariableId {
+        let var = o::Variable::variable(decl_pos.clone(), None);
+        let var_id = self.target.adopt_and_define_symbol(scope, name, var);
+        self.target[scope].add_statement(o::Statement::CreationPoint {
+            var: var_id,
+            var_type: Box::new(data_type),
+            position: decl_pos,
+        });
+        var_id
+    }
+
     pub(super) fn create_variable(
         &mut self,
         data_type: o::VPExpression,
         name: &str,
         decl_pos: FilePosition,
     ) -> o::VariableId {
-        let var = o::Variable::variable(decl_pos.clone(), None);
-        let var_id = self
-            .target
-            .adopt_and_define_symbol(self.current_scope, name, var);
-        self.add_statement(o::Statement::CreationPoint {
-            var: var_id,
-            var_type: Box::new(data_type),
-            position: decl_pos,
-        });
-        var_id
+        self.create_variable_in_scope(self.current_scope, data_type, name, decl_pos)
     }
 
     pub(super) fn enter_scope(&mut self) {

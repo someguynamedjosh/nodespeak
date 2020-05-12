@@ -236,6 +236,42 @@ impl<'a> VagueIngester<'a> {
         Ok(())
     }
 
+    pub(super) fn convert_static_variable_statement(
+        &mut self,
+        node: i::Node,
+    ) -> Result<(), CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::static_variable_statement);
+        if self.current_scope != self.target.get_entry_point() {
+            return Err(problems::io_inside_macro(self.make_position(&node)));
+        }
+        let mut exported_vars = Vec::new();
+        for child in node.into_inner() {
+            if child.as_rule() == i::Rule::identifier {
+                let pos = FilePosition::from_pair(&child, self.current_file_id);
+                let name = child.as_str().to_owned();
+                exported_vars.push((name, pos));
+            } else if child.as_rule() == i::Rule::code_block {
+                let old_scope = self.current_scope;
+                self.current_scope = self.target.create_static_scope();
+                self.convert_code_block(child)?;
+                for (name, pos) in exported_vars {
+                    if let Some(id) = self.lookup_identifier_without_error(&name) {
+                        self.target[old_scope].define_symbol(&name, id);
+                        self.target[self.current_scope].add_output(id);
+                    } else {
+                        return Err(problems::missing_export_definition(pos, &name));
+                    }
+                }
+                // TODO: Extract created variables.
+                self.current_scope = old_scope;
+                return Ok(());
+            } else {
+                unreachable!("illegal grammar");
+            }
+        }
+        unreachable!("illegal grammar");
+    }
+
     pub(super) fn convert_assign_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::assign_statement);
         let position = self.make_position(&node);
@@ -306,6 +342,7 @@ impl<'a> VagueIngester<'a> {
             i::Rule::for_loop_statement => self.convert_for_loop_statement(child)?,
             i::Rule::input_variable_statement => self.convert_input_variable_statement(child)?,
             i::Rule::output_variable_statement => self.convert_output_variable_statement(child)?,
+            i::Rule::static_variable_statement => self.convert_static_variable_statement(child)?,
             i::Rule::assign_statement => self.convert_assign_statement(child)?,
             i::Rule::macro_call => {
                 let expr = self.convert_macro_call(child, false)?;

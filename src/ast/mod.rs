@@ -67,8 +67,9 @@ pub mod structure {
             Rule::escape_sequence => "string escape sequence",
             Rule::string => "string literal",
 
-            Rule::input_variable_statement => "input declaration statement",
-            Rule::output_variable_statement => "output declaration statement",
+            Rule::input_variable_statement => "input declaration",
+            Rule::output_variable_statement => "output declaration",
+            Rule::static_variable_statement => "static variable declaration",
             Rule::assign_statement => "assignment statement",
             Rule::macro_call_statement => "macro call as statement",
             Rule::var_dec_statement => "variable declaration as statement",

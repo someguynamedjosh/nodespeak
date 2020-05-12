@@ -96,6 +96,7 @@ string = @{"\"" ~ (raw_string | escape_sequence)* ~ "\"" }
 // Statements.
 input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
 output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
+static_variable_statement = { "static" ~ (identifier ~ ("," ~ identifier)*)? ~ code_block }
 assign_statement = { vce ~ "=" ~ vpe ~ ";" }
 macro_call_statement = _{ macro_call ~ ";" }
 var_dec_statement = _{ var_dec ~ ";" }
@@ -105,8 +106,8 @@ include_statement = { "include" ~ string ~ ";" }
 
 statement = { 
     macro_definition | code_block | return_statement | assert_statement | include_statement
-    | if_statement | for_loop_statement
-    | input_variable_statement | output_variable_statement 
+    | if_statement | for_loop_statement 
+    | input_variable_statement | output_variable_statement | static_variable_statement 
     | assign_statement | macro_call_statement | var_dec_statement
 }
 

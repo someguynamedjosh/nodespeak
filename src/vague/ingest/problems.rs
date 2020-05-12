@@ -44,6 +44,23 @@ pub fn missing_output_definition(
     )])
 }
 
+pub fn missing_export_definition(
+    pos: FilePosition,
+    exported_var_name: &str,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        pos,
+        Error,
+        &format!(
+            concat!(
+                "Missing Exported Variable Definition\nA static block exports a variable named ",
+                "{}, but there is no variable declared with that name inside the static block."
+            ),
+            exported_var_name,
+        ),
+    )])
+}
+
 pub fn too_many_inline_returns(
     macro_call_pos: FilePosition,
     output_list_pos: FilePosition,

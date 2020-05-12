@@ -4,7 +4,7 @@ use crate::vague::structure::{
 };
 
 fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
-    let scope = program.get_entry_point();
+    let scope = program.get_builtins_scope();
     let var = Variable::data_type(FilePosition::placeholder(), dtype);
     let var_id = program.adopt_and_define_symbol(scope, name, var);
     let data_type_literal = Box::new(VPExpression::Literal(
@@ -25,7 +25,7 @@ fn add_unary_op_macro(
     in_name: &str,
     out_name: &str,
 ) {
-    let root = program.get_entry_point();
+    let root = program.get_builtins_scope();
     let body = program.create_child_scope(root);
 
     let in_var = Variable::variable(FilePosition::placeholder(), None);
