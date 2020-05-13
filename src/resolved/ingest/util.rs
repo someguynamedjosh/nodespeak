@@ -9,8 +9,9 @@ use std::convert::TryInto;
 impl<'a> ScopeResolver<'a> {
     pub(super) fn resolve_data_type(dtype: &i::DataType) -> Option<o::DataType> {
         match dtype {
-            i::DataType::Array(len, base) => Self::resolve_data_type(base)
-                .map(|base| o::DataType::Array(*len, Box::new(base))),
+            i::DataType::Array(len, base) => {
+                Self::resolve_data_type(base).map(|base| o::DataType::Array(*len, Box::new(base)))
+            }
             i::DataType::Bool => Some(o::DataType::Bool),
             i::DataType::Int => Some(o::DataType::Int),
             i::DataType::Float => Some(o::DataType::Float),

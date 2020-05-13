@@ -148,7 +148,7 @@ impl Debug for Instruction {
                     UnaryOperator::FLog => "flog",
                     UnaryOperator::FLog10 => "flog10",
                     UnaryOperator::FLog2 => "flog2",
-                    UnaryOperator::FSin => "fsin", 
+                    UnaryOperator::FSin => "fsin",
                     UnaryOperator::FSqrt => "fsqrt",
                     UnaryOperator::FTrunc => "ftrunc",
                     UnaryOperator::IAbs => "iabs",

@@ -380,9 +380,7 @@ impl<'a> ScopeResolver<'a> {
             | i::BinaryOperator::GreaterThan
             | i::BinaryOperator::GreaterThanOrEqual
             | i::BinaryOperator::Equal
-            | i::BinaryOperator::NotEqual => {
-                bct.with_different_base(i::DataType::Bool)
-            }
+            | i::BinaryOperator::NotEqual => bct.with_different_base(i::DataType::Bool),
             _ => bct,
         };
         if let (

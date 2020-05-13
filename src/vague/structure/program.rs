@@ -89,10 +89,7 @@ impl IndexMut<VariableId> for Program {
 impl Program {
     pub fn new() -> Program {
         let mut prog = Program {
-            scopes: vec![
-                Scope::new(),
-                Scope::from_parent(ScopeId(0)),
-            ],
+            scopes: vec![Scope::new(), Scope::from_parent(ScopeId(0))],
             builtins_scope: ScopeId(0),
             entry_point: ScopeId(1),
             variables: Vec::new(),

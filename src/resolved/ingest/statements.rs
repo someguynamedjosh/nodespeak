@@ -1,6 +1,6 @@
 use super::{
-    problems, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression,
-    ResolvedVPExpression, ScopeResolver,
+    problems, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression, ResolvedVPExpression,
+    ScopeResolver,
 };
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
@@ -382,7 +382,7 @@ impl<'a> ScopeResolver<'a> {
         // what happens when we return back to the run time scope.
         self.push_table();
         for statement in self.source[body].borrow_body().clone() {
-            if let ResolvedStatement::Modified(new) =  self.resolve_statement(&statement)? {
+            if let ResolvedStatement::Modified(new) = self.resolve_statement(&statement)? {
                 self.target[self.current_scope].add_statement(new);
             }
         }
@@ -458,7 +458,7 @@ impl<'a> ScopeResolver<'a> {
             i::Statement::StaticInit {
                 body,
                 exports,
-                position
+                position,
             } => self.resolve_static_init(*body, exports, position),
             i::Statement::RawVPExpression(expr) => self.resolve_raw_vp_expression(expr),
         }

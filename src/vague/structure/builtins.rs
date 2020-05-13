@@ -1,6 +1,7 @@
 use crate::high_level::problem::FilePosition;
 use crate::vague::structure::{
-    DataType, KnownData, Program, Statement, UnaryOperator, VCExpression, VPExpression, Variable, MacroData,
+    DataType, KnownData, MacroData, Program, Statement, UnaryOperator, VCExpression, VPExpression,
+    Variable,
 };
 
 fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
@@ -79,7 +80,13 @@ pub fn add_builtins(program: &mut Program) {
     add_unary_op_macro(program, UnaryOperator::Itof, "Itof", "int", "float");
     add_unary_op_macro(program, UnaryOperator::Sine, "Sin", "radians", "ratio");
     add_unary_op_macro(program, UnaryOperator::Cosine, "Cos", "radians", "ratio");
-    add_unary_op_macro(program, UnaryOperator::SquareRoot, "Sqrt", "value", "result");
+    add_unary_op_macro(
+        program,
+        UnaryOperator::SquareRoot,
+        "Sqrt",
+        "value",
+        "result",
+    );
     add_unary_op_macro(program, UnaryOperator::Exp, "Exp", "power", "result");
     add_unary_op_macro(program, UnaryOperator::Exp2, "Exp2", "power", "result");
     add_unary_op_macro(program, UnaryOperator::Log, "Log", "value", "power");

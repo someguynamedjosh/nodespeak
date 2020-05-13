@@ -56,11 +56,20 @@ impl<'a> ScopeResolver<'a> {
             if let ResolvedVPExpression::Interpreted(data, pos, ..) = &rindex {
                 let val = data.require_int(); // We already checked that it should be an int.
                 if val < 0 {
-                    return Err(problems::array_index_less_than_zero(pos.clone(), val, position.clone()));
+                    return Err(problems::array_index_less_than_zero(
+                        pos.clone(),
+                        val,
+                        position.clone(),
+                    ));
                 }
                 let val = val as usize;
                 if val >= arr_len {
-                    return Err(problems::array_index_too_big(pos.clone(), val, arr_len, position.clone()));
+                    return Err(problems::array_index_too_big(
+                        pos.clone(),
+                        val,
+                        arr_len,
+                        position.clone(),
+                    ));
                 }
                 // If they are unequal, that means at some point we didn't know what one of the
                 // earlier indexes was, so we should not add on any more known indexes because it's

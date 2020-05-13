@@ -44,10 +44,7 @@ pub fn missing_output_definition(
     )])
 }
 
-pub fn missing_export_definition(
-    pos: FilePosition,
-    exported_var_name: &str,
-) -> CompileProblem {
+pub fn missing_export_definition(pos: FilePosition, exported_var_name: &str) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         pos,
         Error,
@@ -146,7 +143,7 @@ pub fn nonexistant_include(include_pos: FilePosition, file_name: &str) -> Compil
                 "ensure that the compiler knows that the file exists through Compiler::add_source ",
                 "or another similarly named method.",
             ),
-           file_name 
+            file_name
         ),
     )])
 }
