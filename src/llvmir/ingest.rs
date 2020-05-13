@@ -835,7 +835,6 @@ impl<'a> Converter<'a> {
             }
         }
 
-        println!("Starting optimization.");
         self.optimize();
 
         #[cfg(feature = "dump-llvmir")]
