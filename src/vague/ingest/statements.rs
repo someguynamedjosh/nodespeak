@@ -236,6 +236,8 @@ impl<'a> VagueIngester<'a> {
         Ok(())
     }
 
+    // TODO: This will result in multiple static variables being created if a function is called
+    // multiple times. Or maybe don't fix it? Maybe make it a feature?
     pub(super) fn convert_static_variable_statement(
         &mut self,
         node: i::Node,

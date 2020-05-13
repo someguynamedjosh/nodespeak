@@ -84,6 +84,10 @@ impl<'a> Trivializer<'a> {
         }
     }
 
+    fn create_label(&mut self) -> o::LabelId {
+        self.target.create_label(self.trivializing_static_init)
+    }
+
     fn bct_dimensions(type1: &o::DataType, type2: &o::DataType) -> Vec<usize> {
         let t1dims = type1.collect_dimensions();
         let t2dims = type2.collect_dimensions();
@@ -353,8 +357,8 @@ impl<'a> Trivializer<'a> {
         position: &FilePosition,
     ) -> Result<(), CompileProblem> {
         let tcondition = self.trivialize_vp_expression(condition)?;
-        let abort_label = self.target.create_label();
-        let skip_label = self.target.create_label();
+        let abort_label = self.create_label();
+        let skip_label = self.create_label();
         self.add_instruction(o::Instruction::Branch {
             condition: tcondition,
             true_target: skip_label,
@@ -404,11 +408,11 @@ impl<'a> Trivializer<'a> {
         else_clause: &Option<i::ScopeId>,
     ) -> Result<(), CompileProblem> {
         debug_assert!(clauses.len() > 0);
-        let end_label = self.target.create_label();
+        let end_label = self.create_label();
         for (condition_expr, body) in clauses.iter() {
             let condition = self.trivialize_vp_expression(condition_expr)?;
-            let body_label = self.target.create_label();
-            let next_condition_label = self.target.create_label();
+            let body_label = self.create_label();
+            let next_condition_label = self.create_label();
             self.add_instruction(o::Instruction::Branch {
                 condition,
                 true_target: body_label,
@@ -437,7 +441,7 @@ impl<'a> Trivializer<'a> {
         end: &i::VPExpression,
         body: i::ScopeId,
     ) -> Result<(), CompileProblem> {
-        let (start_label, end_label) = (self.target.create_label(), self.target.create_label());
+        let (start_label, end_label) = (self.create_label(), self.create_label());
         let tcount = o::Value::variable(self.trivialize_variable(counter)?, &self.target);
         let tstart = self.trivialize_vp_expression(start)?;
         let tend = self.trivialize_vp_expression(end)?;

@@ -13,6 +13,11 @@ impl Debug for VariableId {
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+struct Label {
+    occurs_in_static_body: bool,
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct LabelId(usize);
 
 impl LabelId {
@@ -35,7 +40,7 @@ pub struct Program {
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     errors: Vec<String>,
-    num_labels: usize,
+    labels: Vec<Label>,
 }
 
 impl Debug for Program {
@@ -59,7 +64,7 @@ impl Debug for Program {
             write!(formatter, " {:?}", variable)?;
         }
         writeln!(formatter)?;
-        writeln!(formatter, "{} labels", self.num_labels)?;
+        writeln!(formatter, "{} labels", self.labels.len())?;
         writeln!(formatter, "error codes:")?;
         for (code, description) in self.errors.iter().enumerate() {
             writeln!(formatter, "  {}: {}", code, description)?;
@@ -100,7 +105,7 @@ impl Program {
             inputs: Vec::new(),
             outputs: Vec::new(),
             errors: vec!["Success".to_owned()],
-            num_labels: 0,
+            labels: Vec::new(),
         }
     }
 
@@ -138,13 +143,21 @@ impl Program {
         (0..self.variables.len()).map(|i| VariableId(i))
     }
 
-    pub fn create_label(&mut self) -> LabelId {
-        self.num_labels += 1;
-        LabelId(self.num_labels - 1)
+    pub fn create_label(&mut self, occurs_in_static_body: bool) -> LabelId {
+        let id = LabelId(self.labels.len());
+        self.labels.push(Label {
+            occurs_in_static_body
+        });
+        id
     }
 
-    pub fn get_num_labels(&self) -> usize {
-        self.num_labels
+    pub fn is_label_in_static_body(&self, label: LabelId) -> bool {
+        assert!(label.0 < self.labels.len());
+        self.labels[label.0].occurs_in_static_body
+    }
+
+    pub fn iterate_all_labels(&self) -> impl Iterator<Item = LabelId> {
+        (0..self.labels.len()).map(|i| LabelId(i))
     }
 
     pub fn add_error(&mut self, description: String) -> u32 {

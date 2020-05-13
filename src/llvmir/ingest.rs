@@ -666,16 +666,27 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn create_blocks_for_labels(&mut self, function: LLVMValueRef) {
-        for label_index in 0..self.source.get_num_labels() {
+    fn create_blocks_for_labels(&mut self, function: LLVMValueRef, static_body: bool) {
+        for label in self.source.iterate_all_labels(){
+            if self.source.is_label_in_static_body(label) != static_body {
+                continue;
+            }
             self.label_blocks.push(unsafe {
                 LLVMAppendBasicBlockInContext(
                     self.context,
                     function,
-                    format!("l{}\0", label_index).as_ptr() as *const _,
+                    format!("{:?}\0", label).as_ptr() as *const _,
                 )
             });
         }
+    }
+
+    fn create_blocks_for_main_body_labels(&mut self, function: LLVMValueRef) {
+        self.create_blocks_for_labels(function, false);
+    }
+
+    fn create_blocks_for_static_body_labels(&mut self, function: LLVMValueRef) {
+        self.create_blocks_for_labels(function, true);
     }
 
     fn reset(&mut self) {
@@ -766,7 +777,7 @@ impl<'a> Converter<'a> {
                 static_pointer,
                 output_pointer,
             );
-            self.create_blocks_for_labels(main_fn);
+            self.create_blocks_for_main_body_labels(main_fn);
 
             // Convert instructions.
             for instruction in self.source.borrow_instructions().clone() {
@@ -800,7 +811,7 @@ impl<'a> Converter<'a> {
             // Self-related setup for main function.
             self.reset();
             self.create_variable_pointers_for_static_body(static_pointer);
-            self.create_blocks_for_labels(static_init_fn);
+            self.create_blocks_for_static_body_labels(static_init_fn);
 
             // Convert instructions.
             for instruction in self.source.borrow_static_init_instructions().clone() {
@@ -903,7 +914,7 @@ pub fn ingest(source: &i::Program) -> o::Program {
             intrinsics,
 
             value_pointers: HashMap::new(),
-            label_blocks: Vec::with_capacity(source.get_num_labels()),
+            label_blocks: Vec::with_capacity(source.iterate_all_labels().count()),
             current_block_terminated: false,
         };
 
