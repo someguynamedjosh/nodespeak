@@ -75,6 +75,8 @@ pub fn add_builtins(program: &mut Program) {
     add_data_type(program, "DATA_TYPE", DataType::DataType);
     add_data_type(program, "MACRO", DataType::Macro);
 
+    add_unary_op_macro(program, UnaryOperator::Ftoi, "Ftoi", "float", "int");
+    add_unary_op_macro(program, UnaryOperator::Itof, "Itof", "int", "float");
     add_unary_op_macro(program, UnaryOperator::Sine, "Sin", "radians", "ratio");
     add_unary_op_macro(program, UnaryOperator::Cosine, "Cos", "radians", "ratio");
     add_unary_op_macro(program, UnaryOperator::SquareRoot, "Sqrt", "value", "result");

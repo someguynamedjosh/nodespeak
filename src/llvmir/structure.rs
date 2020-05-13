@@ -108,7 +108,7 @@ impl Program {
         }
     }
 
-    fn assert_size(&self, in_size: usize, static_size: usize, out_size: usize) {
+    fn assert_size(&self, in_size: usize, out_size: usize, static_size: usize) {
         assert!(
             self.in_size == in_size,
             "Expected {}, got {}.",
@@ -116,16 +116,16 @@ impl Program {
             in_size
         );
         assert!(
-            self.static_size == static_size,
-            "Expected {}, got {}.",
-            self.static_size,
-            static_size
-        );
-        assert!(
             self.out_size == out_size,
             "Expected {}, got {}.",
             self.out_size,
             out_size
+        );
+        assert!(
+            self.static_size == static_size,
+            "Expected {}, got {}.",
+            self.static_size,
+            static_size
         );
     }
 

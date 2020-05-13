@@ -228,6 +228,8 @@ impl<'a> Trivializer<'a> {
             i::UnaryOperator::Sine => o::UnaryOperator::FSin,
             i::UnaryOperator::SquareRoot => o::UnaryOperator::FSqrt,
             i::UnaryOperator::Truncate => o::UnaryOperator::FTrunc,
+            i::UnaryOperator::Ftoi => o::UnaryOperator::Ftoi,
+            i::UnaryOperator::Itof => o::UnaryOperator::Itof,
         };
         self.add_instruction(o::Instruction::UnaryOperation {
             a,

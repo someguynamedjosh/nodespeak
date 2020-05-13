@@ -1,4 +1,4 @@
-use super::{DataType, ScopeResolver};
+use super::ScopeResolver;
 use crate::high_level::problem::CompileProblem;
 use crate::resolved::structure as o;
 use crate::shared as s;
@@ -7,6 +7,17 @@ use crate::vague::structure as i;
 use std::convert::TryInto;
 
 impl<'a> ScopeResolver<'a> {
+    pub(super) fn resolve_data_type(dtype: &i::DataType) -> Option<o::DataType> {
+        match dtype {
+            i::DataType::Array(len, base) => Self::resolve_data_type(base)
+                .map(|base| o::DataType::Array(*len, Box::new(base))),
+            i::DataType::Bool => Some(o::DataType::Bool),
+            i::DataType::Int => Some(o::DataType::Int),
+            i::DataType::Float => Some(o::DataType::Float),
+            _ => None,
+        }
+    }
+
     pub(super) fn compute_unary_operation(
         operator: i::UnaryOperator,
         data: &i::KnownData,
@@ -56,11 +67,14 @@ impl<'a> ScopeResolver<'a> {
             i::UnaryOperator::Absolute => match data {
                 i::KnownData::Int(value) => i::KnownData::Int(value.abs()),
                 i::KnownData::Float(value) => i::KnownData::Float(value.abs()),
-                _ => unreachable!()
-            }
+                _ => unreachable!(),
+            },
             i::UnaryOperator::Floor => i::KnownData::Float(data.require_float().floor()),
             i::UnaryOperator::Ceiling => i::KnownData::Float(data.require_float().ceil()),
             i::UnaryOperator::Truncate => i::KnownData::Float(data.require_float().trunc()),
+
+            i::UnaryOperator::Ftoi => i::KnownData::Int(data.require_float() as i64),
+            i::UnaryOperator::Itof => i::KnownData::Float(data.require_int() as f64),
         }
     }
 
@@ -220,31 +234,31 @@ impl<'a> ScopeResolver<'a> {
     }
 
     /// Returns Result::Err if there is no biggest type.
-    pub(super) fn biggest_type(a: &DataType, b: &DataType) -> Result<DataType, ()> {
+    pub(super) fn biggest_type(a: &i::DataType, b: &i::DataType) -> Result<i::DataType, ()> {
         // BCT rule 1
-        if a == &DataType::Automatic {
+        if a == &i::DataType::Automatic {
             Ok(b.clone())
-        } else if b == &DataType::Automatic {
+        } else if b == &i::DataType::Automatic {
             Ok(a.clone())
         // BCT rule 2
         } else if a == b {
             Ok(a.clone())
         // BCT rules 3 & 4
-        } else if let (DataType::Array(alen, abase), DataType::Array(blen, bbase)) = (a, b) {
+        } else if let (i::DataType::Array(alen, abase), i::DataType::Array(blen, bbase)) = (a, b) {
             // BCT rule 3
             if alen == blen {
-                Ok(DataType::Array(
+                Ok(i::DataType::Array(
                     *alen,
                     Box::new(Self::biggest_type(abase, bbase)?),
                 ))
             // BCT rule 4
             } else if *alen == 1 {
-                Ok(DataType::Array(
+                Ok(i::DataType::Array(
                     *blen,
                     Box::new(Self::biggest_type(abase, bbase)?),
                 ))
             } else if *blen == 1 {
-                Ok(DataType::Array(
+                Ok(i::DataType::Array(
                     *alen,
                     Box::new(Self::biggest_type(abase, bbase)?),
                 ))
@@ -252,13 +266,13 @@ impl<'a> ScopeResolver<'a> {
                 Err(())
             }
         // BCT rule 5
-        } else if let DataType::Array(alen, abase) = a {
-            Ok(DataType::Array(
+        } else if let i::DataType::Array(alen, abase) = a {
+            Ok(i::DataType::Array(
                 *alen,
                 Box::new(Self::biggest_type(abase, b)?),
             ))
-        } else if let DataType::Array(blen, bbase) = b {
-            Ok(DataType::Array(
+        } else if let i::DataType::Array(blen, bbase) = b {
+            Ok(i::DataType::Array(
                 *blen,
                 Box::new(Self::biggest_type(a, bbase)?),
             ))

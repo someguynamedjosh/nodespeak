@@ -21,6 +21,9 @@ pub enum UnaryOperator {
     Floor,
     Ceiling,
     Truncate,
+
+    Ftoi,
+    Itof
 }
 
 impl Debug for UnaryOperator {
@@ -42,6 +45,8 @@ impl Debug for UnaryOperator {
             UnaryOperator::Floor => write!(formatter, "floor"),
             UnaryOperator::Ceiling => write!(formatter, "ceil"),
             UnaryOperator::Truncate => write!(formatter, "truncate"),
+            UnaryOperator::Ftoi => write!(formatter, "float to int"),
+            UnaryOperator::Itof => write!(formatter, "int to float"),
         }
     }
 }

@@ -43,6 +43,8 @@ pub enum UnaryOperator {
     FFloor,
     FCeil,
     FTrunc,
+    Ftoi,
+    Itof,
 }
 
 pub enum BinaryOperator {
@@ -152,7 +154,9 @@ impl Debug for Instruction {
                     UnaryOperator::IAbs => "iabs",
                     UnaryOperator::NegF => "negf",
                     UnaryOperator::NegI => "negi",
-                    UnaryOperator::Not => "not"
+                    UnaryOperator::Not => "not",
+                    UnaryOperator::Ftoi => "ftoi",
+                    UnaryOperator::Itof => "itof",
                 },
                 a,
                 x,

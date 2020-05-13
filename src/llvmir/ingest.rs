@@ -401,6 +401,12 @@ impl<'a> Converter<'a> {
             i::UnaryOperator::Not => unsafe {
                 LLVMBuildXor(self.builder, ar, self.b1_const(true), UNNAMED)
             },
+            i::UnaryOperator::Ftoi => unsafe {
+                LLVMBuildFPToSI(self.builder, ar, LLVMInt32TypeInContext(self.context), UNNAMED)
+            },
+            i::UnaryOperator::Itof => unsafe {
+                LLVMBuildSIToFP(self.builder, ar, LLVMFloatTypeInContext(self.context), UNNAMED)
+            },
         }
     }
 

@@ -1,4 +1,4 @@
-use super::{problems, DataType, PossiblyKnownData};
+use super::{problems, PossiblyKnownData};
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -52,7 +52,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ResolverTable {
-    variables: HashMap<i::VariableId, (Option<o::VariableId>, DataType)>,
+    variables: HashMap<i::VariableId, (Option<o::VariableId>, i::DataType)>,
     unresolved_auto_vars: HashSet<i::VariableId>,
 }
 
@@ -166,7 +166,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         var: i::VariableId,
         resolved_var: Option<o::VariableId>,
-        dtype: DataType,
+        dtype: i::DataType,
     ) {
         assert!(
             !self.table.variables.contains_key(&var),
@@ -178,7 +178,7 @@ impl<'a> ScopeResolver<'a> {
     pub(super) fn get_var_info(
         &self,
         source: i::VariableId,
-    ) -> Option<&(Option<o::VariableId>, DataType)> {
+    ) -> Option<&(Option<o::VariableId>, i::DataType)> {
         self.table.variables.get(&source)
     }
 
@@ -190,7 +190,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         var: i::VariableId,
         resolved_var: Option<o::VariableId>,
-        dtype: DataType,
+        dtype: i::DataType,
     ) {
         self.table.unresolved_auto_vars.remove(&var);
         // Go back and resolve the var in any tables in the stack too in case we entered a scope
@@ -327,13 +327,13 @@ impl<'a> ScopeResolver<'a> {
 #[derive(Clone, Debug)]
 pub(super) enum ResolvedVPExpression {
     /// A simpler or resolved version of the expression was found.
-    Modified(o::VPExpression, DataType),
+    Modified(o::VPExpression, i::DataType),
     /// The entire value of the expression has a determinate value.
-    Interpreted(i::KnownData, FilePosition, DataType),
+    Interpreted(i::KnownData, FilePosition, i::DataType),
 }
 
 impl ResolvedVPExpression {
-    pub(super) fn borrow_data_type(&self) -> &DataType {
+    pub(super) fn borrow_data_type(&self) -> &i::DataType {
         match self {
             Self::Modified(_, dtype) => dtype,
             Self::Interpreted(_, _, dtype) => dtype,
@@ -368,7 +368,7 @@ pub(super) enum ResolvedVCExpression {
     /// We are not sure what variable / element the VCE is targeting.
     Modified {
         vce: o::VCExpression,
-        typ: DataType,
+        typ: i::DataType,
         // These are used to set unknown values for anything this expression might be targeting.
         // The indexes array contains any indexes that are known at compile time.
         base: i::VariableId,
@@ -379,12 +379,12 @@ pub(super) enum ResolvedVCExpression {
         var: i::VariableId,
         indexes: Vec<usize>,
         pos: FilePosition,
-        typ: DataType,
+        typ: i::DataType,
     },
 }
 
 impl ResolvedVCExpression {
-    pub(super) fn borrow_data_type(&self) -> &DataType {
+    pub(super) fn borrow_data_type(&self) -> &i::DataType {
         match self {
             Self::Modified { typ, .. } => typ,
             Self::Specific { typ, .. } => typ,

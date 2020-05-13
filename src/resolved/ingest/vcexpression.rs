@@ -1,4 +1,4 @@
-use super::{problems, util, DataType, ResolvedVCExpression, ResolvedVPExpression, ScopeResolver};
+use super::{problems, util, ResolvedVCExpression, ResolvedVPExpression, ScopeResolver};
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
@@ -33,7 +33,7 @@ impl<'a> ScopeResolver<'a> {
         let mut all_indexes = Vec::new();
         let mut etype = rbase.borrow_data_type();
         for index in indexes {
-            let arr_len = if let DataType::Array(len, eetype) = etype {
+            let arr_len = if let i::DataType::Array(len, eetype) = etype {
                 etype = eetype;
                 *len
             } else {
@@ -46,7 +46,7 @@ impl<'a> ScopeResolver<'a> {
                 ));
             };
             let rindex = self.resolve_vp_expression(index)?;
-            if rindex.borrow_data_type() != &DataType::Int {
+            if rindex.borrow_data_type() != &i::DataType::Int {
                 return Err(problems::array_index_not_int(
                     rindex.clone_position(),
                     rindex.borrow_data_type(),

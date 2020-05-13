@@ -1,5 +1,5 @@
-use super::DataType;
 use crate::high_level::problem::*;
+use crate::vague::structure as i;
 use ProblemType::Error;
 use ProblemType::Hint;
 
@@ -57,7 +57,7 @@ pub fn wrong_number_of_outputs(
     ])
 }
 
-pub fn not_macro(expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn not_macro(expr_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         expr_pos,
         Error,
@@ -71,7 +71,7 @@ pub fn not_macro(expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
     )])
 }
 
-pub fn not_data_type(expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn not_data_type(expr_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         expr_pos,
         Error,
@@ -95,7 +95,7 @@ pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {
 
 pub fn array_index_not_int(
     index: FilePosition,
-    index_type: &DataType,
+    index_type: &i::DataType,
     expression: FilePosition,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
@@ -166,7 +166,7 @@ pub fn array_index_too_big(
     ])
 }
 
-pub fn array_base_not_data_type(base: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn array_base_not_data_type(base: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         base,
         Error,
@@ -191,10 +191,7 @@ pub fn array_size_less_than_one(size: FilePosition, value: i64) -> CompileProble
     )])
 }
 
-pub fn array_size_not_int(
-    size: FilePosition,
-    size_type: &crate::vague::structure::DataType,
-) -> CompileProblem {
+pub fn array_size_not_int(size: FilePosition, size_type: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         size,
         Error,
@@ -218,9 +215,9 @@ pub fn array_size_not_resolved(size: FilePosition) -> CompileProblem {
 
 pub fn bad_array_literal(
     bad_item_pos: FilePosition,
-    bad_item_type: &DataType,
+    bad_item_type: &i::DataType,
     first_item_pos: FilePosition,
-    first_item_type: &DataType,
+    first_item_type: &i::DataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
@@ -245,9 +242,9 @@ pub fn bad_array_literal(
 pub fn no_bct(
     expression: FilePosition,
     op1: FilePosition,
-    op1_type: &DataType,
+    op1_type: &i::DataType,
     op2: FilePosition,
-    op2_type: &DataType,
+    op2_type: &i::DataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
@@ -274,9 +271,9 @@ pub fn no_bct(
 pub fn mismatched_assign(
     expression: FilePosition,
     lhs: FilePosition,
-    lhs_type: &DataType,
+    lhs_type: &i::DataType,
     rhs: FilePosition,
-    rhs_type: &DataType,
+    rhs_type: &i::DataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
@@ -300,7 +297,10 @@ pub fn mismatched_assign(
     ])
 }
 
-pub fn value_not_run_time_compatible(value_pos: FilePosition, dtype: &DataType) -> CompileProblem {
+pub fn value_not_run_time_compatible(
+    value_pos: FilePosition,
+    dtype: &i::DataType,
+) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         value_pos,
         Error,
@@ -315,7 +315,7 @@ pub fn value_not_run_time_compatible(value_pos: FilePosition, dtype: &DataType) 
     )])
 }
 
-pub fn rt_indexes_on_ct_variable(expr_pos: FilePosition, dtype: &DataType) -> CompileProblem {
+pub fn rt_indexes_on_ct_variable(expr_pos: FilePosition, dtype: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         expr_pos,
         Error,
@@ -335,7 +335,7 @@ pub fn too_many_indexes(
     num_indexes: usize,
     max_indexes: usize,
     base_pos: FilePosition,
-    base_type: &DataType,
+    base_type: &i::DataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(
@@ -362,8 +362,8 @@ pub fn too_many_indexes(
 
 pub fn vpe_wrong_type(
     vpe_pos: FilePosition,
-    expected: &DataType,
-    found: &DataType,
+    expected: &i::DataType,
+    found: &i::DataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         vpe_pos,
@@ -388,7 +388,7 @@ pub fn unresolved_auto_var(var_pos: FilePosition) -> CompileProblem {
     )])
 }
 
-pub fn dangling_value(bad_expr_pos: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn dangling_value(bad_expr_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         bad_expr_pos,
         Error,
@@ -402,7 +402,7 @@ pub fn dangling_value(bad_expr_pos: FilePosition, typ: &DataType) -> CompileProb
     )])
 }
 
-pub fn compile_time_input(input_decl_pos: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn compile_time_input(input_decl_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         input_decl_pos,
         Error,
@@ -416,7 +416,7 @@ pub fn compile_time_input(input_decl_pos: FilePosition, typ: &DataType) -> Compi
     )])
 }
 
-pub fn compile_time_output(output_decl_pos: FilePosition, typ: &DataType) -> CompileProblem {
+pub fn compile_time_output(output_decl_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         output_decl_pos,
         Error,

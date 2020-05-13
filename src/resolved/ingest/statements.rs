@@ -1,5 +1,5 @@
 use super::{
-    problems, DataType, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression,
+    problems, PossiblyKnownData, ResolvedStatement, ResolvedVCExpression,
     ResolvedVPExpression, ScopeResolver,
 };
 use crate::high_level::problem::{CompileProblem, FilePosition};
@@ -14,7 +14,7 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_dtype = self.resolve_vp_expression(dtype)?;
-        if resolved_dtype.borrow_data_type() != &DataType::DataType {
+        if resolved_dtype.borrow_data_type() != &i::DataType::DataType {
             return Err(problems::not_data_type(
                 dtype.clone_position(),
                 resolved_dtype.borrow_data_type(),
@@ -22,14 +22,14 @@ impl<'a> ScopeResolver<'a> {
         }
         let data_type = if let ResolvedVPExpression::Interpreted(data, ..) = resolved_dtype {
             if let i::KnownData::DataType(in_type) = data {
-                self.resolve_data_type_partially(in_type)
+                in_type
             } else {
                 unreachable!("Already checked that the value is a data type.");
             }
         } else {
             unreachable!("DATA_TYPE is ct-only, it cannot be a modified expression.");
         };
-        let resolved_id = if let Some(data_type) = data_type.resolve() {
+        let resolved_id = if let Some(data_type) = Self::resolve_data_type(&data_type) {
             let resolved_var = o::Variable::new(position.clone(), data_type);
             Some(self.target.adopt_variable(resolved_var))
         } else {
@@ -56,10 +56,10 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let rcondition = self.resolve_vp_expression(condition)?;
-        if rcondition.borrow_data_type() != &DataType::Bool {
+        if rcondition.borrow_data_type() != &i::DataType::Bool {
             return Err(problems::vpe_wrong_type(
                 rcondition.clone_position(),
-                &DataType::Bool,
+                &i::DataType::Bool,
                 rcondition.borrow_data_type(),
             ));
         }
@@ -91,7 +91,7 @@ impl<'a> ScopeResolver<'a> {
         if lhs.borrow_data_type().is_automatic() {
             let old_auto_type = &self.get_var_info(lhs.get_base()).unwrap().1;
             let actual_type = old_auto_type.with_different_base(rhs.borrow_data_type().clone());
-            let resolved_var = if let Some(rtype) = actual_type.resolve() {
+            let resolved_var = if let Some(rtype) = Self::resolve_data_type(&actual_type) {
                 resolved_out_type = Some(rtype.clone());
                 let def_pos = self.source[lhs.get_base()].get_definition().clone();
                 let var = o::Variable::new(def_pos, rtype);
@@ -101,7 +101,7 @@ impl<'a> ScopeResolver<'a> {
             };
             self.resolve_auto_var(lhs.get_base(), resolved_var, actual_type);
         } else {
-            resolved_out_type = lhs.borrow_data_type().resolve();
+            resolved_out_type = Self::resolve_data_type(lhs.borrow_data_type());
             let ok = match Self::biggest_type(lhs.borrow_data_type(), rhs.borrow_data_type()) {
                 Ok(bct) => &bct == lhs.borrow_data_type(),
                 Err(..) => false,
@@ -230,10 +230,10 @@ impl<'a> ScopeResolver<'a> {
         let mut rclauses = Vec::new();
         for (condition, body) in clauses {
             let rcond = self.resolve_vp_expression(condition)?;
-            if rcond.borrow_data_type() != &DataType::Bool {
+            if rcond.borrow_data_type() != &i::DataType::Bool {
                 return Err(problems::vpe_wrong_type(
                     position.clone(),
-                    &DataType::Bool,
+                    &i::DataType::Bool,
                     rcond.borrow_data_type(),
                 ));
             }
@@ -299,22 +299,22 @@ impl<'a> ScopeResolver<'a> {
         let counter_pos = self.source[counter].get_definition().clone();
         let rcounter = o::Variable::new(counter_pos, o::DataType::Int);
         let rcounter = self.target.adopt_variable(rcounter);
-        self.set_var_info(counter, Some(rcounter), DataType::Int);
+        self.set_var_info(counter, Some(rcounter), i::DataType::Int);
         let body = self.source[body].borrow_body().clone();
         let old_scope = self.current_scope;
         let rstart = self.resolve_vp_expression(start)?;
         let rend = self.resolve_vp_expression(end)?;
-        if rstart.borrow_data_type() != &DataType::Int {
+        if rstart.borrow_data_type() != &i::DataType::Int {
             return Err(problems::vpe_wrong_type(
                 position.clone(),
-                &DataType::Int,
+                &i::DataType::Int,
                 rstart.borrow_data_type(),
             ));
         }
-        if rend.borrow_data_type() != &DataType::Int {
+        if rend.borrow_data_type() != &i::DataType::Int {
             return Err(problems::vpe_wrong_type(
                 position.clone(),
-                &DataType::Int,
+                &i::DataType::Int,
                 rend.borrow_data_type(),
             ));
         }

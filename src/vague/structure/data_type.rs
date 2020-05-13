@@ -13,14 +13,6 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn is_automatic(&self) -> bool {
-        match self {
-            Self::Automatic => true,
-            Self::Array(_, element_type) => element_type.is_automatic(),
-            _ => false,
-        }
-    }
-
     pub fn equivalent(&self, other: &Self) -> bool {
         match self {
             // If it's a basic type, just check if it is equal to the other one.
@@ -38,6 +30,44 @@ impl DataType {
                     false
                 }
             }
+        }
+    }
+
+    pub fn make_array(dims: &[usize], base: Self) -> Self {
+        if dims.len() > 0 {
+            Self::Array(dims[0], Box::new(Self::make_array(&dims[1..], base)))
+        } else {
+            base
+        }
+    }
+
+    fn collect_dims_impl(&self, dims: &mut Vec<usize>) {
+        if let Self::Array(size, btype) = self {
+            dims.push(*size);
+            btype.collect_dims_impl(dims);
+        }
+    }
+
+    pub fn collect_dims(&self) -> Vec<usize> {
+        let mut dims = Vec::new();
+        self.collect_dims_impl(&mut dims);
+        dims
+    }
+
+    pub fn is_automatic(&self) -> bool {
+        match self {
+            Self::Automatic => true,
+            Self::Array(_, etype) => etype.is_automatic(),
+            _ => false,
+        }
+    }
+
+    pub fn with_different_base(&self, new_base: DataType) -> Self {
+        match self {
+            Self::Array(size, etyp) => {
+                Self::Array(*size, Box::new(etyp.with_different_base(new_base)))
+            }
+            _ => new_base,
         }
     }
 }
