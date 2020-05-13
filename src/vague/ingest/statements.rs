@@ -241,9 +241,6 @@ impl<'a> VagueIngester<'a> {
         node: i::Node,
     ) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::static_variable_statement);
-        if self.current_scope != self.target.get_entry_point() {
-            return Err(problems::io_inside_macro(self.make_position(&node)));
-        }
         let mut exported_vars = Vec::new();
         for child in node.into_inner() {
             if child.as_rule() == i::Rule::identifier {
