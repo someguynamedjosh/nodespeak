@@ -280,6 +280,7 @@ pub enum Statement {
         position: FilePosition,
     },
     ForLoop {
+        allow_unroll: bool,
         counter: VariableId,
         start: Box<VPExpression>,
         end: Box<VPExpression>,
@@ -319,6 +320,7 @@ impl Debug for Statement {
                 write!(formatter, "")
             }
             Self::ForLoop {
+                allow_unroll,
                 counter,
                 start,
                 end,
@@ -326,8 +328,12 @@ impl Debug for Statement {
                 ..
             } => write!(
                 formatter,
-                "for {:?} = {:?} to {:?} {{ {:?} }}",
-                counter, start, end, body
+                "for {:?} = {:?} to {:?}{} {{ {:?} }}",
+                counter,
+                start,
+                end,
+                if *allow_unroll { "" } else { " no_unroll" },
+                body
             ),
             Self::StaticInit { body, exports, .. } => write!(
                 formatter,

@@ -1,0 +1,4 @@
+Make sure everything has appropriate errors.
+Add type checking for unary and binary operators.
+Think of a better panic message to replace "illegal grammar", maybe "bad ast"?
+Check that all the error messages make sense.

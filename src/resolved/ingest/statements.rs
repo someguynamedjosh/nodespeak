@@ -277,6 +277,7 @@ impl<'a> ScopeResolver<'a> {
 
     fn resolve_for_loop(
         &mut self,
+        allow_unroll: bool,
         counter: i::VariableId,
         start: &i::VPExpression,
         end: &i::VPExpression,
@@ -321,7 +322,8 @@ impl<'a> ScopeResolver<'a> {
         if let (
             ResolvedVPExpression::Interpreted(start, ..),
             ResolvedVPExpression::Interpreted(end, ..),
-        ) = (&rstart, &rend)
+            true,
+        ) = (&rstart, &rend, allow_unroll)
         {
             // We just checked that they're ints.
             let start = start.require_int();
@@ -449,12 +451,13 @@ impl<'a> ScopeResolver<'a> {
                 position,
             } => self.resolve_branch(clauses, else_clause, position),
             i::Statement::ForLoop {
+                allow_unroll,
                 counter,
                 start,
                 end,
                 body,
                 position,
-            } => self.resolve_for_loop(*counter, start, end, *body, position),
+            } => self.resolve_for_loop(*allow_unroll, *counter, start, end, *body, position),
             i::Statement::StaticInit {
                 body,
                 exports,

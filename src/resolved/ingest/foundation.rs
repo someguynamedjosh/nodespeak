@@ -154,7 +154,12 @@ impl<'a> ScopeResolver<'a> {
     pub(super) fn exit_branch_body(&mut self) {
         let var_ids = self.dirty_values.iter().cloned().collect::<Vec<_>>();
         for var_id in var_ids.into_iter() {
-            self.reset_temporary_value(var_id);
+            // Some of these might be None because they might have been modified inside a function
+            // or something like that. We don't have to worry about them because they're gone now
+            // so they can't hold a known value anyway.
+            if self.get_var_info(var_id).is_some() {
+                self.reset_temporary_value(var_id);
+            }
         }
         self.dirty_values = self
             .dirty_values_stack
@@ -173,6 +178,7 @@ impl<'a> ScopeResolver<'a> {
             "Cannot have multiple sets of info for a single variable."
         );
         self.table.variables.insert(var, (resolved_var, dtype));
+        self.reset_temporary_value(var);
     }
 
     pub(super) fn get_var_info(

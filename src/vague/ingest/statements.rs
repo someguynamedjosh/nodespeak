@@ -186,9 +186,17 @@ impl<'a> VagueIngester<'a> {
             .adopt_and_define_symbol(body_scope, counter_name, counter);
         let old_current_scope = self.current_scope;
         self.current_scope = body_scope;
-        self.convert_code_block(children.next().expect("illegal grammar"))?;
+
+        let possibly_body = children.next().expect("illegal grammar");
+        let (body, allow_unroll) = if possibly_body.as_rule() == i::Rule::no_unroll_keyword {
+            (children.next().expect("illegal grammar"), false)
+        } else {
+            (possibly_body, true)
+        };
+        self.convert_code_block(body)?;
         self.current_scope = old_current_scope;
         self.add_statement(o::Statement::ForLoop {
+            allow_unroll,
             counter: counter_id,
             start: Box::new(start),
             end: Box::new(end),
