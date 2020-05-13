@@ -1,10 +1,10 @@
 use crate::high_level::compiler::SourceSet;
-use crate::high_level::problem::{FilePosition, CompileProblem};
+use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as i;
 use crate::shared as s;
 use crate::trivial::structure as o;
 use std::borrow::Borrow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 mod problems;
 
@@ -19,6 +19,8 @@ struct Trivializer<'a> {
     source_set: &'a SourceSet,
     target: o::Program,
     variable_map: HashMap<i::VariableId, o::VariableId>,
+    illegal_vars: HashSet<i::VariableId>,
+    trivializing_static_init: bool,
 }
 
 impl<'a> Trivializer<'a> {
@@ -28,25 +30,58 @@ impl<'a> Trivializer<'a> {
             source_set,
             target: o::Program::new(),
             variable_map: HashMap::new(),
+            illegal_vars: HashSet::new(),
+            trivializing_static_init: true,
         }
     }
 
     fn entry_point(&mut self) -> Result<(), CompileProblem> {
-        let source_entry_point = self.source.get_entry_point();
+        let source_static_vars = self.source.borrow_static_vars();
+        for static_var in source_static_vars {
+            self.trivialize_variable_custom_location(*static_var, o::StorageLocation::Static)?;
+        }
+        // We want to keep the static init and main body separated, they should not share any
+        // variable IDs except for the static variables.
+        let old_var_map = self.variable_map.clone();
         let source_inputs = self.source.borrow_inputs();
         for input in source_inputs {
-            let trivialized = self.trivialize_variable(*input)?;
-            self.target.add_input(trivialized);
+            self.trivialize_variable_custom_location(*input, o::StorageLocation::Input)?;
         }
         let source_outputs = self.source.borrow_outputs();
         for output in source_outputs {
-            let trivialized = self.trivialize_variable(*output)?;
-            self.target.add_output(trivialized);
+            self.trivialize_variable_custom_location(*output, o::StorageLocation::Output)?;
         }
+        let source_entry_point = self.source.get_entry_point();
+        self.trivializing_static_init = false;
         for statement in self.source[source_entry_point].borrow_body().clone() {
             self.trivialize_statement(&statement)?;
         }
+
+        // Every var used in the main body, including static vars.
+        let main_and_static_vars: HashSet<_> = self.variable_map.keys().cloned().collect();
+        self.variable_map = old_var_map;
+        // All static vars.
+        let static_vars: HashSet<_> = self.variable_map.keys().cloned().collect();
+        // If we encounter a variable in the static init body that is in this list, it is illegal
+        // because it only exists in the main body.
+        self.illegal_vars = main_and_static_vars
+            .difference(&static_vars)
+            .cloned()
+            .collect();
+        let source_static_init = self.source.get_static_init();
+        self.trivializing_static_init = true;
+        for statement in self.source[source_static_init].borrow_body().clone() {
+            self.trivialize_statement(&statement)?;
+        }
         Result::Ok(())
+    }
+
+    fn add_instruction(&mut self, instruction: o::Instruction) {
+        if self.trivializing_static_init {
+            self.target.add_static_init_instruction(instruction);
+        } else {
+            self.target.add_instruction(instruction);
+        }
     }
 
     fn bct_dimensions(type1: &o::DataType, type2: &o::DataType) -> Vec<usize> {
@@ -98,21 +133,61 @@ impl<'a> Trivializer<'a> {
         }
     }
 
-    fn trivialize_variable(
+    fn default_storage_location(&self) -> o::StorageLocation {
+        if self.trivializing_static_init {
+            o::StorageLocation::StaticBody
+        } else {
+            o::StorageLocation::MainBody
+        }
+    }
+
+    fn create_variable_custom_location(
+        &mut self,
+        typ: o::DataType,
+        loc: o::StorageLocation,
+    ) -> o::VariableId {
+        let var = o::Variable::new(typ, loc);
+        self.target.adopt_variable(var)
+    }
+
+    fn create_variable(&mut self, typ: o::DataType) -> o::VariableId {
+        self.create_variable_custom_location(typ, self.default_storage_location())
+    }
+
+    fn trivialize_variable_custom_location(
         &mut self,
         variable: i::VariableId,
+        location: o::StorageLocation,
     ) -> Result<o::VariableId, CompileProblem> {
+        // We don't have to worry about checking for static body vars in the main body because
+        // syntax doesn't allow accessing static body vars from the main body:
+        // INT this_is_what_the_check_is_for = some_runtime_only_value;
+        // static fine {
+        //     INT not_a_problem = 12;
+        //     INT fine = not_a_problem;
+        //     assert this_is_what_the_check_is_for == 3333;
+        // }
+        // assert fine == 12;
+        if self.trivializing_static_init && self.illegal_vars.contains(&variable) {
+            panic!("TODO: Nice error, a variable from the main body was used in static init.");
+        }
         Result::Ok(match self.variable_map.get(&variable) {
             Some(trivialized) => *trivialized,
             None => {
                 let data_type = self.source[variable].borrow_data_type();
                 let typ = Self::trivialize_data_type(data_type);
-                let trivial_variable = o::Variable::new(typ);
-                let id = self.target.adopt_variable(trivial_variable);
+                let id = self.create_variable_custom_location(typ, location);
                 self.variable_map.insert(variable, id);
                 id
             }
         })
+    }
+
+    fn trivialize_variable(
+        &mut self,
+        variable: i::VariableId,
+    ) -> Result<o::VariableId, CompileProblem> {
+        self.trivialize_variable_custom_location(variable, self.default_storage_location())
     }
 
     fn trivialize_unary_expression(
@@ -126,7 +201,7 @@ impl<'a> Trivializer<'a> {
         while let o::DataType::Array(_, etype) = base {
             base = *etype;
         }
-        let x_var = self.target.adopt_variable(o::Variable::new(out_typ));
+        let x_var = self.create_variable(out_typ);
         let x = o::Value::variable(x_var, &self.target);
         let toperator = match operator {
             i::UnaryOperator::Absolute => match base {
@@ -154,7 +229,7 @@ impl<'a> Trivializer<'a> {
             i::UnaryOperator::SquareRoot => o::UnaryOperator::FSqrt,
             i::UnaryOperator::Truncate => o::UnaryOperator::FTrunc,
         };
-        self.target.add_instruction(o::Instruction::UnaryOperation {
+        self.add_instruction(o::Instruction::UnaryOperation {
             a,
             x: x.clone(),
             op: toperator,
@@ -179,7 +254,7 @@ impl<'a> Trivializer<'a> {
         while let o::DataType::Array(_, etype) = base {
             base = *etype;
         }
-        let x_var = self.target.adopt_variable(o::Variable::new(out_typ));
+        let x_var = self.create_variable(out_typ);
         let x = o::Value::variable(x_var, &self.target);
         let x2 = x.clone();
         let toperator = match operator {
@@ -260,13 +335,12 @@ impl<'a> Trivializer<'a> {
             i::BinaryOperator::BXor => unimplemented!(),
         };
 
-        self.target
-            .add_instruction(o::Instruction::BinaryOperation {
-                op: toperator,
-                a,
-                b,
-                x,
-            });
+        self.add_instruction(o::Instruction::BinaryOperation {
+            op: toperator,
+            a,
+            b,
+            x,
+        });
 
         Result::Ok(x2)
     }
@@ -279,21 +353,18 @@ impl<'a> Trivializer<'a> {
         let tcondition = self.trivialize_vp_expression(condition)?;
         let abort_label = self.target.create_label();
         let skip_label = self.target.create_label();
-        self.target.add_instruction(o::Instruction::Branch {
+        self.add_instruction(o::Instruction::Branch {
             condition: tcondition,
             true_target: skip_label,
             false_target: abort_label,
         });
-        self.target
-            .add_instruction(o::Instruction::Label(abort_label));
+        self.add_instruction(o::Instruction::Label(abort_label));
         let location = position.create_line_column_ref(self.source_set);
         let error_code = self
             .target
             .add_error(format!("Assert failed at {}", location));
-        self.target
-            .add_instruction(o::Instruction::Abort(error_code));
-        self.target
-            .add_instruction(o::Instruction::Label(skip_label));
+        self.add_instruction(o::Instruction::Abort(error_code));
+        self.add_instruction(o::Instruction::Label(skip_label));
         Ok(())
     }
 
@@ -311,13 +382,13 @@ impl<'a> Trivializer<'a> {
         let base = o::Value::variable(base, &self.target);
 
         if target.indexes.len() > 0 {
-            self.target.add_instruction(o::Instruction::Store {
+            self.add_instruction(o::Instruction::Store {
                 from: tvalue,
                 to: base,
                 to_indexes: new_indexes,
             });
         } else {
-            self.target.add_instruction(o::Instruction::Move {
+            self.add_instruction(o::Instruction::Move {
                 from: tvalue,
                 to: base,
             });
@@ -336,28 +407,24 @@ impl<'a> Trivializer<'a> {
             let condition = self.trivialize_vp_expression(condition_expr)?;
             let body_label = self.target.create_label();
             let next_condition_label = self.target.create_label();
-            self.target.add_instruction(o::Instruction::Branch {
+            self.add_instruction(o::Instruction::Branch {
                 condition,
                 true_target: body_label,
                 false_target: next_condition_label,
             });
-            self.target
-                .add_instruction(o::Instruction::Label(body_label));
+            self.add_instruction(o::Instruction::Label(body_label));
             for statement in self.source[*body].borrow_body().clone() {
                 self.trivialize_statement(&statement)?;
             }
-            self.target
-                .add_instruction(o::Instruction::Jump { label: end_label });
-            self.target
-                .add_instruction(o::Instruction::Label(next_condition_label));
+            self.add_instruction(o::Instruction::Jump { label: end_label });
+            self.add_instruction(o::Instruction::Label(next_condition_label));
         }
         if let Some(body) = /* once told me */ else_clause {
             for statement in self.source[*body].borrow_body().clone() {
                 self.trivialize_statement(&statement)?;
             }
         }
-        self.target
-            .add_instruction(o::Instruction::Label(end_label));
+        self.add_instruction(o::Instruction::Label(end_label));
         Ok(())
     }
 
@@ -372,54 +439,47 @@ impl<'a> Trivializer<'a> {
         let tcount = o::Value::variable(self.trivialize_variable(counter)?, &self.target);
         let tstart = self.trivialize_vp_expression(start)?;
         let tend = self.trivialize_vp_expression(end)?;
-        self.target.add_instruction(o::Instruction::Move {
+        self.add_instruction(o::Instruction::Move {
             from: tstart,
             to: tcount.clone(),
         });
-        let condition_var = self
-            .target
-            .adopt_variable(o::Variable::new(o::DataType::B1));
+        let condition_var = self.create_variable(o::DataType::B1);
         let condition_var = o::Value::variable(condition_var, &self.target);
-        self.target
-            .add_instruction(o::Instruction::BinaryOperation {
-                a: tcount.clone(),
-                b: tend.clone(),
-                x: condition_var.clone(),
-                op: o::BinaryOperator::CompI(o::Condition::LessThan),
-            });
-        self.target.add_instruction(o::Instruction::Branch {
+        self.add_instruction(o::Instruction::BinaryOperation {
+            a: tcount.clone(),
+            b: tend.clone(),
+            x: condition_var.clone(),
+            op: o::BinaryOperator::CompI(o::Condition::LessThan),
+        });
+        self.add_instruction(o::Instruction::Branch {
             condition: condition_var.clone(),
             true_target: end_label,
             false_target: start_label,
         });
 
-        self.target
-            .add_instruction(o::Instruction::Label(start_label));
+        self.add_instruction(o::Instruction::Label(start_label));
         for statement in self.source[body].borrow_body().clone() {
             self.trivialize_statement(&statement)?;
         }
 
-        self.target
-            .add_instruction(o::Instruction::BinaryOperation {
-                a: tcount.clone(),
-                b: o::Value::literal(o::KnownData::Int(1)),
-                x: tcount.clone(),
-                op: o::BinaryOperator::AddI,
-            });
-        self.target
-            .add_instruction(o::Instruction::BinaryOperation {
-                a: tcount.clone(),
-                b: tend,
-                x: condition_var.clone(),
-                op: o::BinaryOperator::CompI(o::Condition::LessThan),
-            });
-        self.target.add_instruction(o::Instruction::Branch {
+        self.add_instruction(o::Instruction::BinaryOperation {
+            a: tcount.clone(),
+            b: o::Value::literal(o::KnownData::Int(1)),
+            x: tcount.clone(),
+            op: o::BinaryOperator::AddI,
+        });
+        self.add_instruction(o::Instruction::BinaryOperation {
+            a: tcount.clone(),
+            b: tend,
+            x: condition_var.clone(),
+            op: o::BinaryOperator::CompI(o::Condition::LessThan),
+        });
+        self.add_instruction(o::Instruction::Branch {
             condition: condition_var.clone(),
             true_target: end_label,
             false_target: start_label,
         });
-        self.target
-            .add_instruction(o::Instruction::Label(end_label));
+        self.add_instruction(o::Instruction::Label(end_label));
         Ok(())
     }
 
@@ -455,16 +515,14 @@ impl<'a> Trivializer<'a> {
         let (new_indexes, result_type) =
             self.trivialize_indexes(indexes, base_value.get_type(&self.target))?;
 
-        let output_holder = self
-            .target
-            .adopt_variable(o::Variable::new(result_type.clone()));
+        let output_holder = self.create_variable(result_type.clone());
         let mut output_value = o::Value::variable(output_holder, &self.target);
         output_value.dimensions = result_type
             .collect_dimensions()
             .iter()
             .map(|dim| (*dim, s::ProxyMode::Keep))
             .collect();
-        self.target.add_instruction(o::Instruction::Load {
+        self.add_instruction(o::Instruction::Load {
             from: base_value,
             to: output_value.clone(),
             from_indexes: new_indexes,

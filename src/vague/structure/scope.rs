@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
 pub struct Scope {
-    static_: bool,
     symbols: HashMap<String, VariableId>,
     intermediates: Vec<VariableId>,
     body: Vec<Statement>,
@@ -14,9 +13,6 @@ pub struct Scope {
 
 impl Debug for Scope {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        if self.static_ {
-            writeln!(formatter, "<<STATIC>>")?;
-        }
         match self.parent {
             Option::Some(value) => write!(formatter, "parent: {:?}", value)?,
             Option::None => write!(formatter, "parent: None")?,
@@ -45,7 +41,6 @@ impl Debug for Scope {
 impl Scope {
     pub fn new() -> Scope {
         Scope {
-            static_: false,
             symbols: HashMap::new(),
             intermediates: Vec::new(),
             body: Vec::new(),
@@ -55,9 +50,8 @@ impl Scope {
         }
     }
 
-    pub fn from_parent(parent: ScopeId, static_: bool) -> Scope {
+    pub fn from_parent(parent: ScopeId) -> Scope {
         Scope {
-            static_,
             symbols: HashMap::new(),
             intermediates: Vec::new(),
             body: Vec::new(),
@@ -65,10 +59,6 @@ impl Scope {
             outputs: Vec::new(),
             parent: Option::Some(parent),
         }
-    }
-
-    pub fn is_static(&self) -> bool {
-        self.static_
     }
 
     pub fn get_parent(&self) -> Option<ScopeId> {

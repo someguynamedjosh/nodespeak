@@ -281,6 +281,11 @@ pub enum Statement {
         body: ScopeId,
         position: FilePosition,
     },
+    StaticInit {
+        body: ScopeId,
+        exports: Vec<VariableId>,
+        position: FilePosition,
+    },
     RawVPExpression(Box<VPExpression>),
 }
 
@@ -319,6 +324,9 @@ impl Debug for Statement {
                 "for {:?} = {:?} to {:?} {{ {:?} }}",
                 counter, start, end, body
             ),
+            Self::StaticInit { body, exports, .. } => {
+                write!(formatter, "static init at {:?}, exports {:?};", body, exports)
+            }
             Self::RawVPExpression(expr) => write!(formatter, "{:?}", expr),
         }
     }
@@ -333,6 +341,7 @@ impl Statement {
             | Self::Assign { position, .. }
             | Self::Branch { position, .. }
             | Self::ForLoop { position, .. } => position.clone(),
+            | Self::StaticInit { position, .. } => position.clone(),
             Self::RawVPExpression(expr) => expr.clone_position(),
         }
     }

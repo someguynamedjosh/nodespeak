@@ -11,7 +11,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let outputs = program[entry_point].borrow_outputs().clone();
     let old_outputs = outputs.clone();
     let mut resolver = ScopeResolver::new(program);
-    let new_entry_point = resolver.entry_point(entry_point)?;
+    resolver.entry_point(entry_point)?;
     let inputs: Vec<_> = inputs
         .into_iter()
         .map(|id| {
@@ -47,7 +47,6 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
             return Err(problems::compile_time_output(pos, &dtype));
         }
     }
-    resolver.target.set_entry_point(new_entry_point);
     Result::Ok(resolver.target)
 }
 
@@ -135,7 +134,9 @@ impl<'a> ScopeResolver<'a> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone())),
         );
-        self.table.unresolved_auto_vars.union(&top_table.unresolved_auto_vars);
+        self.table
+            .unresolved_auto_vars
+            .union(&top_table.unresolved_auto_vars);
     }
 
     /// Any variables that are modified during this period will be marked as dirty. When
@@ -306,6 +307,13 @@ impl<'a> ScopeResolver<'a> {
     }
 
     fn entry_point(&mut self, root_scope: i::ScopeId) -> Result<o::ScopeId, CompileProblem> {
+        let builtin_scope = self.source.get_builtins_scope();
+        for statement in self.source[builtin_scope].borrow_body().clone() {
+            if let ResolvedStatement::Modified(..) = self.resolve_statement(&statement)? {
+                unreachable!("Builtin code should not have any part evaluated at run time.");
+            }
+        }
+        self.current_scope = self.target.get_entry_point();
         let old_body = self.source[root_scope].borrow_body().clone();
         for statement in old_body {
             if let ResolvedStatement::Modified(new) = self.resolve_statement(&statement)? {

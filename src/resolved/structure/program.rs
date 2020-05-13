@@ -27,15 +27,21 @@ impl Debug for VariableId {
 /// Represents an entire program written in the Nodespeak language.
 pub struct Program {
     scopes: Vec<Scope>,
+    static_init: ScopeId,
     entry_point: ScopeId,
     variables: Vec<Variable>,
+    static_vars: Vec<VariableId>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
 }
 
 impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "entry point: {:?}", self.entry_point)?;
+        write!(formatter, "static initialization: {:?}", self.static_init)?;
+        for (index, static_var) in self.static_vars.iter().enumerate() {
+            write!(formatter, "\nstatic var {}: {:?}", index, static_var)?;
+        }
+        write!(formatter, "\nentry point: {:?}", self.entry_point)?;
         for (index, input) in self.inputs.iter().enumerate() {
             write!(formatter, "\ninput {}: {:?}", index, input)?;
         }
@@ -93,9 +99,11 @@ impl IndexMut<VariableId> for Program {
 impl Program {
     pub fn new() -> Program {
         Program {
-            scopes: vec![Scope::new()],
-            entry_point: ScopeId(0),
+            scopes: vec![Scope::new(), Scope::new()],
+            static_init: ScopeId(0),
+            entry_point: ScopeId(1),
             variables: Vec::new(),
+            static_vars: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
         }
@@ -123,12 +131,20 @@ impl Program {
         self.variables[variable.0].set_data_type(data_type);
     }
 
+    pub fn get_static_init(&self) -> ScopeId {
+        self.static_init
+    }
+
     pub fn get_entry_point(&self) -> ScopeId {
         self.entry_point
     }
 
-    pub fn set_entry_point(&mut self, new_entry_point: ScopeId) {
-        self.entry_point = new_entry_point;
+    pub fn borrow_static_vars(&self) -> &[VariableId] {
+        &self.static_vars[..]
+    }
+
+    pub fn add_static_var(&mut self, static_var: VariableId) {
+        self.static_vars.push(static_var);
     }
 
     pub fn borrow_inputs(&self) -> &[VariableId] {

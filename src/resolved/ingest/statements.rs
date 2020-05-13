@@ -370,6 +370,43 @@ impl<'a> ScopeResolver<'a> {
         }))
     }
 
+    fn resolve_static_init(
+        &mut self,
+        body: i::ScopeId,
+        exports: &Vec<i::VariableId>,
+        position: &FilePosition,
+    ) -> Result<ResolvedStatement, CompileProblem> {
+        let old_scope = self.current_scope;
+        self.current_scope = self.target.get_static_init();
+        // Changes to the table can be made inside the static block. We don't want that to effect
+        // what happens when we return back to the run time scope.
+        self.push_table();
+        for statement in self.source[body].borrow_body().clone() {
+            if let ResolvedStatement::Modified(new) =  self.resolve_statement(&statement)? {
+                self.target[self.current_scope].add_statement(new);
+            }
+        }
+        let mut exported_var_info = Vec::new();
+        for export in exports {
+            let info = self.get_var_info(*export);
+            if let Some((Some(id), typ)) = info {
+                exported_var_info.push((*export, *id, typ.clone()));
+                self.target.add_static_var(*id);
+            } else {
+                panic!("TODO: Nice error, cannot export ct-only variable.");
+            }
+        }
+        self.pop_table();
+        self.current_scope = old_scope;
+        for (id, rid, typ) in exported_var_info {
+            self.set_var_info(id, Some(rid), typ);
+            // I don't know if this is necessary but I don't want to solve any bugs involving it
+            // not being here.
+            self.reset_temporary_value(id);
+        }
+        Ok(ResolvedStatement::Interpreted)
+    }
+
     fn resolve_raw_vp_expression(
         &mut self,
         expr: &i::VPExpression,
@@ -418,6 +455,11 @@ impl<'a> ScopeResolver<'a> {
                 body,
                 position,
             } => self.resolve_for_loop(*counter, start, end, *body, position),
+            i::Statement::StaticInit {
+                body,
+                exports,
+                position
+            } => self.resolve_static_init(*body, exports, position),
             i::Statement::RawVPExpression(expr) => self.resolve_raw_vp_expression(expr),
         }
     }

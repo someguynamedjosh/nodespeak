@@ -91,7 +91,7 @@ impl Program {
         let mut prog = Program {
             scopes: vec![
                 Scope::new(),
-                Scope::from_parent(ScopeId(0), false),
+                Scope::from_parent(ScopeId(0)),
             ],
             builtins_scope: ScopeId(0),
             entry_point: ScopeId(1),
@@ -103,21 +103,19 @@ impl Program {
 
     pub fn create_scope(&mut self) -> ScopeId {
         let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::from_parent(self.builtins_scope, false));
-        id
-    }
-
-    pub fn create_static_scope(&mut self) -> ScopeId {
-        let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::from_parent(self.builtins_scope, true));
+        self.scopes.push(Scope::from_parent(self.builtins_scope));
         id
     }
 
     pub fn create_child_scope(&mut self, parent: ScopeId) -> ScopeId {
         assert!(parent.0 < self.scopes.len());
         let id = ScopeId(self.scopes.len());
-        self.scopes.push(Scope::from_parent(parent, false));
+        self.scopes.push(Scope::from_parent(parent));
         id
+    }
+
+    pub fn borrow_all_scopes(&self) -> &Vec<Scope> {
+        &self.scopes
     }
 
     // ===SYMBOLS/VARIABLES=========================================================================

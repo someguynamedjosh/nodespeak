@@ -74,15 +74,16 @@ impl Intrinsics {
 
 struct Converter<'a> {
     source: &'a i::Program,
+    input_pointer_type: LLVMTypeRef,
+    output_pointer_type: LLVMTypeRef,
+    static_pointer_type: LLVMTypeRef,
+
     context: LLVMContextRef,
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
     intrinsics: Intrinsics,
-    main_fn: LLVMValueRef,
 
     value_pointers: HashMap<i::VariableId, LLVMValueRef>,
-    input_pointer: LLVMValueRef,
-    output_pointer: LLVMValueRef,
     label_blocks: Vec<LLVMBasicBlockRef>,
     current_block_terminated: bool,
 }
@@ -552,58 +553,119 @@ impl<'a> Converter<'a> {
         self.current_block_terminated = true;
     }
 
-    fn create_param_pointers(&mut self) {
-        for (index, input) in self.source.borrow_inputs().iter().enumerate() {
-            let mut indices = [self.u32_const(0), self.u32_const(index as u32)];
-            let input_ptr = unsafe {
-                LLVMBuildGEP(
-                    self.builder,
-                    self.input_pointer,
-                    indices.as_mut_ptr(),
-                    indices.len() as u32,
-                    UNNAMED,
-                )
-            };
-            self.value_pointers.insert(*input, input_ptr);
-        }
-        for (index, output) in self.source.borrow_outputs().iter().enumerate() {
-            let mut indices = [self.u32_const(0), self.u32_const(index as u32)];
-            let output_ptr = unsafe {
-                LLVMBuildGEP(
-                    self.builder,
-                    self.output_pointer,
-                    indices.as_mut_ptr(),
-                    indices.len() as u32,
-                    UNNAMED,
-                )
-            };
-            self.value_pointers.insert(*output, output_ptr);
-        }
-    }
-
-    fn create_variable_pointers(&mut self) {
-        let (ins, outs) = (self.source.borrow_inputs(), self.source.borrow_outputs());
-        let param_set: HashSet<_> = ins.iter().chain(outs.iter()).collect();
+    fn create_variable_pointers_for_main_body(
+        &mut self,
+        input_pointer: LLVMValueRef,
+        static_pointer: LLVMValueRef,
+        output_pointer: LLVMValueRef,
+    ) {
+        let mut input_index = 0;
+        let mut output_index = 0;
+        let mut static_index = 0;
         for var_id in self.source.iterate_all_variables() {
-            if param_set.contains(&var_id) {
-                continue;
-            }
             let llvmt = llvm_type(self.context, self.source[var_id].borrow_type());
-            let var_ptr = unsafe { LLVMBuildAlloca(self.builder, llvmt, UNNAMED) };
-            self.value_pointers.insert(var_id, var_ptr);
+            let ptr = match self.source[var_id].get_location() {
+                i::StorageLocation::Input => {
+                    let mut indices = [self.u32_const(0), self.u32_const(input_index as u32)];
+                    input_index += 1;
+                    unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            input_pointer,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    }
+                }
+                i::StorageLocation::Output => {
+                    let mut indices = [self.u32_const(0), self.u32_const(output_index as u32)];
+                    output_index += 1;
+                    unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            output_pointer,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    }
+                }
+                i::StorageLocation::Static => {
+                    let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
+                    static_index += 1;
+                    unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            static_pointer,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    }
+                }
+                i::StorageLocation::StaticBody => {
+                    continue;
+                }
+                i::StorageLocation::MainBody => unsafe {
+                    LLVMBuildAlloca(self.builder, llvmt, UNNAMED)
+                },
+            };
+            self.value_pointers.insert(var_id, ptr);
         }
     }
 
-    fn create_blocks_for_labels(&mut self) {
+    fn create_variable_pointers_for_static_body(&mut self, static_pointer: LLVMValueRef) {
+        let mut static_index = 0;
+        for var_id in self.source.iterate_all_variables() {
+            let llvmt = llvm_type(self.context, self.source[var_id].borrow_type());
+            let ptr = match self.source[var_id].get_location() {
+                i::StorageLocation::Input => {
+                    continue;
+                }
+                i::StorageLocation::Output => {
+                    continue;
+                }
+                i::StorageLocation::Static => {
+                    let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
+                    static_index += 1;
+                    unsafe {
+                        LLVMBuildGEP(
+                            self.builder,
+                            static_pointer,
+                            indices.as_mut_ptr(),
+                            indices.len() as u32,
+                            UNNAMED,
+                        )
+                    }
+                }
+                i::StorageLocation::StaticBody => unsafe {
+                    LLVMBuildAlloca(self.builder, llvmt, UNNAMED)
+                },
+                i::StorageLocation::MainBody => {
+                    continue;
+                }
+            };
+            self.value_pointers.insert(var_id, ptr);
+        }
+    }
+
+    fn create_blocks_for_labels(&mut self, function: LLVMValueRef) {
         for label_index in 0..self.source.get_num_labels() {
             self.label_blocks.push(unsafe {
                 LLVMAppendBasicBlockInContext(
                     self.context,
-                    self.main_fn,
+                    function,
                     format!("l{}\0", label_index).as_ptr() as *const _,
                 )
             });
         }
+    }
+
+    fn reset(&mut self) {
+        self.label_blocks.clear();
+        self.value_pointers.clear();
+        self.current_block_terminated = false;
     }
 
     fn optimize(&mut self) {
@@ -631,43 +693,111 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn convert(&mut self) {
-        self.create_param_pointers();
-        self.create_variable_pointers();
-        self.create_blocks_for_labels();
+    fn convert_instruction(&mut self, instruction: &i::Instruction) {
+        match instruction {
+            i::Instruction::Abort(error_code) => self.convert_abort(*error_code),
+            i::Instruction::BinaryOperation { op, a, b, x } => {
+                self.convert_binary_expression(op, a, b, x)
+            }
+            i::Instruction::UnaryOperation { op, a, x } => self.convert_unary_expression(op, a, x),
+            i::Instruction::Move { from, to } => self.convert_move(from, to),
+            i::Instruction::Label(id) => self.convert_label(id),
+            i::Instruction::Branch {
+                condition,
+                true_target,
+                false_target,
+            } => self.convert_branch(condition, true_target, false_target),
+            i::Instruction::Jump { label } => self.convert_jump(label),
+            i::Instruction::Store {
+                from,
+                to,
+                to_indexes,
+            } => self.convert_store(from, to, to_indexes),
+            i::Instruction::Load {
+                from,
+                from_indexes,
+                to,
+            } => self.convert_load(from, from_indexes, to),
+        }
+    }
 
-        for instruction in self.source.borrow_instructions().clone() {
-            match instruction {
-                i::Instruction::Abort(error_code) => self.convert_abort(*error_code),
-                i::Instruction::BinaryOperation { op, a, b, x } => {
-                    self.convert_binary_expression(op, a, b, x)
-                }
-                i::Instruction::UnaryOperation { op, a, x } => {
-                    self.convert_unary_expression(op, a, x)
-                }
-                i::Instruction::Move { from, to } => self.convert_move(from, to),
-                i::Instruction::Label(id) => self.convert_label(id),
-                i::Instruction::Branch {
-                    condition,
-                    true_target,
-                    false_target,
-                } => self.convert_branch(condition, true_target, false_target),
-                i::Instruction::Jump { label } => self.convert_jump(label),
-                i::Instruction::Store {
-                    from,
-                    to,
-                    to_indexes,
-                } => self.convert_store(from, to, to_indexes),
-                i::Instruction::Load {
-                    from,
-                    from_indexes,
-                    to,
-                } => self.convert_load(from, from_indexes, to),
+    fn convert(&mut self) {
+        unsafe {
+            // LLVM related setup for main function.
+            let i32t = LLVMInt32TypeInContext(self.context);
+            let mut argts = [
+                self.input_pointer_type,
+                self.static_pointer_type,
+                self.output_pointer_type,
+            ];
+            let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
+            let main_fn =
+                LLVMAddFunction(self.module, b"main\0".as_ptr() as *const _, function_type);
+            let entry_block = LLVMAppendBasicBlockInContext(
+                self.context,
+                main_fn,
+                b"entry\0".as_ptr() as *const _,
+            );
+            LLVMPositionBuilderAtEnd(self.builder, entry_block);
+            let input_pointer = LLVMGetParam(main_fn, 0);
+            let static_pointer = LLVMGetParam(main_fn, 1);
+            let output_pointer = LLVMGetParam(main_fn, 2);
+
+            // Self-related setup for main function.
+            self.reset();
+            self.create_variable_pointers_for_main_body(
+                input_pointer,
+                static_pointer,
+                output_pointer,
+            );
+            self.create_blocks_for_labels(main_fn);
+
+            // Convert instructions.
+            for instruction in self.source.borrow_instructions().clone() {
+                self.convert_instruction(instruction);
+            }
+
+            // Add OK return if missing.
+            if !self.current_block_terminated {
+                LLVMBuildRet(self.builder, self.u32_const(0));
             }
         }
 
         unsafe {
-            LLVMBuildRet(self.builder, self.u32_const(0));
+            // LLVM related setup for static init function.
+            let i32t = LLVMInt32TypeInContext(self.context);
+            let mut argts = [self.static_pointer_type];
+            let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
+            let static_init_fn = LLVMAddFunction(
+                self.module,
+                b"static_init\0".as_ptr() as *const _,
+                function_type,
+            );
+            let entry_block = LLVMAppendBasicBlockInContext(
+                self.context,
+                static_init_fn,
+                b"entry\0".as_ptr() as *const _,
+            );
+            LLVMPositionBuilderAtEnd(self.builder, entry_block);
+            let static_pointer = LLVMGetParam(static_init_fn, 0);
+
+            // Self-related setup for main function.
+            self.reset();
+            self.create_variable_pointers_for_static_body(static_pointer);
+            self.create_blocks_for_labels(static_init_fn);
+
+            // Convert instructions.
+            for instruction in self.source.borrow_static_init_instructions().clone() {
+                self.convert_instruction(instruction);
+            }
+
+            // Add OK return if missing.
+            if !self.current_block_terminated {
+                LLVMBuildRet(self.builder, self.u32_const(0));
+            }
+        }
+
+        unsafe {
             LLVMDisposeBuilder(self.builder);
 
             #[cfg(feature = "dump-llvmir")]
@@ -707,54 +837,56 @@ pub fn ingest(source: &i::Program) -> o::Program {
         let builder = LLVMCreateBuilderInContext(context);
 
         let mut input_types = Vec::new();
-        for input in source.borrow_inputs() {
-            let var = source.borrow_variable(*input);
-            input_types.push(llvm_type(context, var.borrow_type()));
+        let mut output_types = Vec::new();
+        let mut static_types = Vec::new();
+        for var in source.iterate_all_variables() {
+            let ltype = llvm_type(context, source[var].borrow_type());
+            match source[var].get_location() {
+                i::StorageLocation::Input => input_types.push(ltype),
+                i::StorageLocation::Output => output_types.push(ltype),
+                i::StorageLocation::Static => static_types.push(ltype),
+                _ => (),
+            }
         }
+
+        // The input and output data types should be packed so that their layout can be more
+        // easily predicted by the host program.
         let input_data_type = LLVMStructTypeInContext(
             context,
             input_types.as_mut_ptr(),
             input_types.len() as u32,
-            0,
+            1,
         );
         let input_pointer_type = LLVMPointerType(input_data_type, 0);
-
-        let mut output_types = Vec::new();
-        for output in source.borrow_outputs() {
-            let var = source.borrow_variable(*output);
-            output_types.push(llvm_type(context, var.borrow_type()));
-        }
         let output_data_type = LLVMStructTypeInContext(
             context,
             output_types.as_mut_ptr(),
             output_types.len() as u32,
-            0,
+            1,
         );
         let output_pointer_type = LLVMPointerType(output_data_type, 0);
-
-        let i32t = LLVMInt32TypeInContext(context);
-        let mut argts = [input_pointer_type, output_pointer_type];
-        let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
-        let main_fn = LLVMAddFunction(module, b"main\0".as_ptr() as *const _, function_type);
-        let entry_block =
-            LLVMAppendBasicBlockInContext(context, main_fn, b"entry\0".as_ptr() as *const _);
-        LLVMPositionBuilderAtEnd(builder, entry_block);
-        let input_pointer = LLVMGetParam(main_fn, 0);
-        let output_pointer = LLVMGetParam(main_fn, 1);
+        let static_data_type = LLVMStructTypeInContext(
+            context,
+            static_types.as_mut_ptr(),
+            static_types.len() as u32,
+            0,
+        );
+        let static_pointer_type = LLVMPointerType(static_data_type, 0);
 
         let intrinsics = Intrinsics::new(module, context);
 
         let mut converter = Converter {
             source,
+            input_pointer_type,
+            output_pointer_type,
+            static_pointer_type,
+
             context,
             module,
             builder,
             intrinsics,
-            main_fn,
 
             value_pointers: HashMap::new(),
-            input_pointer,
-            output_pointer,
             label_blocks: Vec::with_capacity(source.get_num_labels()),
             current_block_terminated: false,
         };
@@ -769,6 +901,7 @@ pub fn ingest(source: &i::Program) -> o::Program {
             module,
             input_data_type,
             output_data_type,
+            static_data_type,
             source.borrow_error_descriptions().clone(),
         )
     }

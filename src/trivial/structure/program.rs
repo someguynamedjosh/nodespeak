@@ -28,8 +28,10 @@ impl Debug for LabelId {
 }
 
 pub struct Program {
+    static_init: Vec<Instruction>,
     instructions: Vec<Instruction>,
     variables: Vec<Variable>,
+    static_vars: Vec<VariableId>,
     inputs: Vec<VariableId>,
     outputs: Vec<VariableId>,
     errors: Vec<String>,
@@ -42,6 +44,11 @@ impl Debug for Program {
         for (index, variable) in self.variables.iter().enumerate() {
             writeln!(formatter, "  tv{}: {:?}", index, variable)?;
         }
+        write!(formatter, "static vars:")?;
+        for variable in self.static_vars.iter() {
+            write!(formatter, " {:?}", variable)?;
+        }
+        writeln!(formatter)?;
         write!(formatter, "inputs:")?;
         for variable in self.inputs.iter() {
             write!(formatter, " {:?}", variable)?;
@@ -56,6 +63,10 @@ impl Debug for Program {
         writeln!(formatter, "error codes:")?;
         for (code, description) in self.errors.iter().enumerate() {
             writeln!(formatter, "  {}: {}", code, description)?;
+        }
+        writeln!(formatter, "static init:")?;
+        for instruction in self.static_init.iter() {
+            writeln!(formatter, "  {:?}", instruction)?;
         }
         writeln!(formatter, "instructions:")?;
         for instruction in self.instructions.iter() {
@@ -83,7 +94,9 @@ impl Program {
     pub fn new() -> Program {
         Program {
             instructions: Vec::new(),
+            static_init: Vec::new(),
             variables: Vec::new(),
+            static_vars: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
             errors: vec!["Success".to_owned()],
@@ -95,8 +108,16 @@ impl Program {
         self.instructions.push(instruction);
     }
 
+    pub fn add_static_init_instruction(&mut self, instruction: Instruction) {
+        self.static_init.push(instruction);
+    }
+
     pub fn borrow_instructions(&self) -> &Vec<Instruction> {
         &self.instructions
+    }
+
+    pub fn borrow_static_init_instructions(&self) -> &Vec<Instruction> {
+        &self.static_init
     }
 
     pub fn adopt_variable(&mut self, variable: Variable) -> VariableId {
@@ -115,22 +136,6 @@ impl Program {
 
     pub fn iterate_all_variables(&self) -> impl Iterator<Item = VariableId> {
         (0..self.variables.len()).map(|i| VariableId(i))
-    }
-
-    pub fn add_input(&mut self, input: VariableId) {
-        self.inputs.push(input);
-    }
-
-    pub fn add_output(&mut self, output: VariableId) {
-        self.outputs.push(output);
-    }
-
-    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
-        &self.inputs
-    }
-
-    pub fn borrow_outputs(&self) -> &Vec<VariableId> {
-        &self.outputs
     }
 
     pub fn create_label(&mut self) -> LabelId {

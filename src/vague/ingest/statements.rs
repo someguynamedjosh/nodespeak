@@ -251,19 +251,25 @@ impl<'a> VagueIngester<'a> {
                 let name = child.as_str().to_owned();
                 exported_vars.push((name, pos));
             } else if child.as_rule() == i::Rule::code_block {
+                let static_scope = self.target.create_child_scope(self.current_scope);
                 let old_scope = self.current_scope;
-                self.current_scope = self.target.create_static_scope();
+                self.current_scope = static_scope;
                 self.convert_code_block(child)?;
+                let mut exported_ids = Vec::new();
                 for (name, pos) in exported_vars {
                     if let Some(id) = self.lookup_identifier_without_error(&name) {
                         self.target[old_scope].define_symbol(&name, id);
-                        self.target[self.current_scope].add_output(id);
+                        exported_ids.push(id);
                     } else {
                         return Err(problems::missing_export_definition(pos, &name));
                     }
                 }
-                // TODO: Extract created variables.
                 self.current_scope = old_scope;
+                self.add_statement(o::Statement::StaticInit {
+                    body: static_scope,
+                    exports: exported_ids,
+                    position: FilePosition::placeholder(), // TODO: Better position.
+                });
                 return Ok(());
             } else {
                 unreachable!("illegal grammar");
