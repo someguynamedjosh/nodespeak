@@ -268,11 +268,15 @@ impl<'a> ScopeResolver<'a> {
         } else {
             None
         };
-        Ok(ResolvedStatement::Modified(o::Statement::Branch {
-            clauses: rclauses,
-            else_clause,
-            position: position.clone(),
-        }))
+        if rclauses.len() == 0 {
+            Ok(ResolvedStatement::Interpreted)
+        } else {
+            Ok(ResolvedStatement::Modified(o::Statement::Branch {
+                clauses: rclauses,
+                else_clause,
+                position: position.clone(),
+            }))
+        }
     }
 
     fn resolve_for_loop(
