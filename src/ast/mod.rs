@@ -37,6 +37,7 @@ pub mod structure {
                 "value-producing expression"
             }
             Rule::build_array_type => "array type",
+            Rule::optional_index_indicator => "?",
             Rule::vp_index => "index expression",
             Rule::negate => "negate",
             Rule::operator => "binary operator",

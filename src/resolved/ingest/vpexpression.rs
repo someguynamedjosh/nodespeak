@@ -144,6 +144,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         resolved_base: ResolvedVPExpression,
         index: &i::VPExpression,
+        optional: bool,
         full_expression: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let resolved_index = self.resolve_vp_expression(index)?;
@@ -151,14 +152,18 @@ impl<'a> ScopeResolver<'a> {
             if let i::DataType::Array(len, dtype) = resolved_base.borrow_data_type() {
                 (*len, *(dtype.clone()))
             } else {
-                // TODO: Nicer error for this.
-                return Err(problems::too_many_indexes(
-                    resolved_base.clone_position(),
-                    1,
-                    0,
-                    resolved_base.clone_position(),
-                    resolved_base.borrow_data_type(),
-                ));
+                if optional {
+                    return Ok(resolved_base);
+                } else {
+                    // TODO: Nicer error for this.
+                    return Err(problems::too_many_indexes(
+                        resolved_base.clone_position(),
+                        1,
+                        0,
+                        resolved_base.clone_position(),
+                        resolved_base.borrow_data_type(),
+                    ));
+                }
             };
         if resolved_index.borrow_data_type() != &i::DataType::Int {
             return Err(problems::array_index_not_int(
@@ -414,14 +419,14 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_vp_index(
         &mut self,
         base: &i::VPExpression,
-        indexes: &Vec<i::VPExpression>,
+        indexes: &Vec<(i::VPExpression, bool)>, // The bool is whether or not the index is optional.
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         // Resolve the base expression that is being indexed.
         let resolved_base = self.resolve_vp_expression(base)?;
         let mut result = resolved_base;
-        for index in indexes {
-            result = self.resolve_vp_index_impl(result, index, position)?;
+        for (index, optional) in indexes {
+            result = self.resolve_vp_index_impl(result, index, *optional, position)?;
         }
         Ok(result)
     }

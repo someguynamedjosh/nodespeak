@@ -30,7 +30,8 @@ vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
 
 build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
 
-vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ "]")+ }
+optional_index_indicator = { "?" }
+vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
 
 negate = { "-" ~ (vpe_part_1 | vp_index) }
 

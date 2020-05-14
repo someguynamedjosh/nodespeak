@@ -122,7 +122,7 @@ pub enum VPExpression {
     ),
     Index {
         base: Box<VPExpression>,
-        indexes: Vec<VPExpression>,
+        indexes: Vec<(VPExpression, bool)>,
         position: FilePosition,
     },
     MacroCall {
@@ -162,8 +162,13 @@ impl Debug for VPExpression {
             }
             Self::Index { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
-                for index in indexes.iter() {
-                    write!(formatter, "[{:?}]", index)?;
+                for (index, optional) in indexes.iter() {
+                    write!(
+                        formatter,
+                        "[{:?}{}]",
+                        index,
+                        if *optional { "?" } else { "" }
+                    )?;
                 }
                 write!(formatter, "")
             }
