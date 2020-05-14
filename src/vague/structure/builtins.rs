@@ -19,6 +19,22 @@ fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
     });
 }
 
+fn add_constant(program: &mut Program, name: &str, data: KnownData) {
+    let scope = program.get_builtins_scope();
+    let typ = data.get_data_type();
+    let var = Variable::constant(FilePosition::placeholder(), data);
+    let var_id = program.adopt_and_define_symbol(scope, name, var);
+    let data_type_literal = Box::new(VPExpression::Literal(
+        KnownData::DataType(typ),
+        FilePosition::placeholder(),
+    ));
+    program[scope].add_statement(Statement::CreationPoint {
+        var: var_id,
+        var_type: data_type_literal,
+        position: FilePosition::placeholder(),
+    });
+}
+
 fn add_unary_op_macro(
     program: &mut Program,
     operator: UnaryOperator,
@@ -75,6 +91,12 @@ pub fn add_builtins(program: &mut Program) {
     add_data_type(program, "FLOAT", DataType::Float);
     add_data_type(program, "DATA_TYPE", DataType::DataType);
     add_data_type(program, "MACRO", DataType::Macro);
+
+    add_constant(program, "PI", KnownData::Float(std::f64::consts::PI));
+    add_constant(program, "TAU", KnownData::Float(std::f64::consts::PI * 2.0));
+    add_constant(program, "E", KnownData::Float(std::f64::consts::E));
+    add_constant(program, "TRUE", KnownData::Bool(true));
+    add_constant(program, "FALSE", KnownData::Bool(false));
 
     add_unary_op_macro(program, UnaryOperator::Ftoi, "Ftoi", "float", "int");
     add_unary_op_macro(program, UnaryOperator::Itof, "Itof", "int", "float");
