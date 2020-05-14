@@ -66,8 +66,12 @@ impl SourceSet {
     }
 
     pub fn add_source(&mut self, name: String, content: String) {
-        self.source_indices.insert(name.clone(), self.sources.len());
-        self.sources.push((name, content));
+        if let Some(existing_index) = self.source_indices.get(&name) {
+            self.sources[*existing_index].1 = content;
+        } else {
+            self.source_indices.insert(name.clone(), self.sources.len());
+            self.sources.push((name, content));
+        }
     }
 
     pub fn add_source_from_file(&mut self, file_path: String) -> std::io::Result<()> {
