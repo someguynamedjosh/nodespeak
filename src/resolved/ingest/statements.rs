@@ -346,12 +346,14 @@ impl<'a> ScopeResolver<'a> {
 
         let throwaway_scope = self.target.create_scope();
         self.current_scope = throwaway_scope;
+        self.push_table();
         self.enter_branch_body();
         for statement in &body {
             // Don't bother adding it to the scope, it's junk code.
             self.resolve_statement(statement)?;
         }
         self.exit_branch_body();
+        self.pop_table();
 
         let real_scope = self.target.create_scope();
         self.current_scope = real_scope;
