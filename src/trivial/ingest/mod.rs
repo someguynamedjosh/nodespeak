@@ -351,6 +351,29 @@ impl<'a> Trivializer<'a> {
         Result::Ok(x2)
     }
 
+    fn trivialize_collect(
+        &mut self,
+        items: &Vec<i::VPExpression>,
+    ) -> Result<o::Value, CompileProblem> {
+        let mut titems = Vec::new();
+        for item in items {
+            titems.push(self.trivialize_vp_expression(item)?);
+        }
+        assert!(titems.len() > 0);
+        let item_type = titems[0].get_type(&self.target);
+        let array_type = o::DataType::Array(titems.len(), Box::new(item_type));
+        let target_var = self.create_variable(array_type);
+        let target_value = o::Value::variable(target_var, &self.target);
+        for (index, item) in titems.into_iter().enumerate() {
+            self.add_instruction(o::Instruction::Store {
+                from: item,
+                to: target_value.clone(),
+                to_indexes: vec![o::Value::literal(o::KnownData::Int(index as _))],
+            })
+        }
+        Ok(target_value)
+    }
+
     fn trivialize_assert(
         &mut self,
         condition: &i::VPExpression,
@@ -556,7 +579,7 @@ impl<'a> Trivializer<'a> {
                 lhs, op, rhs, typ, ..
             } => self.trivialize_binary_expression(lhs, *op, rhs, typ)?,
 
-            i::VPExpression::Collect(..) => unimplemented!(),
+            i::VPExpression::Collect(items, ..) => self.trivialize_collect(items)?,
         })
     }
 
