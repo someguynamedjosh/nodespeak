@@ -24,6 +24,15 @@ impl DataType {
         self.collect_dimensions_impl(&mut result);
         result
     }
+
+    pub fn with_different_base(&self, new_base: DataType) -> Self {
+        match self {
+            Self::Array(size, etyp) => {
+                Self::Array(*size, Box::new(etyp.with_different_base(new_base)))
+            }
+            _ => new_base,
+        }
+    }
 }
 
 impl Debug for DataType {

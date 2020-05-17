@@ -205,6 +205,12 @@ impl<'a> Trivializer<'a> {
         while let o::DataType::Array(_, etype) = base {
             base = *etype;
         }
+        let out_base = match operator {
+            i::UnaryOperator::Itof => o::DataType::F32,
+            i::UnaryOperator::Ftoi => o::DataType::I32,
+            _ => base.clone()
+        };
+        let out_typ = out_typ.with_different_base(out_base);
         let x_var = self.create_variable(out_typ);
         let x = o::Value::variable(x_var, &self.target);
         let toperator = match operator {
