@@ -29,15 +29,15 @@ build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ "]" }
 vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
 
 build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
-
 optional_index_indicator = { "?" }
 vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
+vpe_part_2 = { build_array_type | vp_index | vpe_part_1 }
 
-negate = { "-" ~ (vpe_part_1 | vp_index) }
+negate = { "-" ~ vpe_part_2 }
+get_property = { vpe_part_2 ~ ":" ~ identifier }
+vpe_part_3 = { negate | get_property | vpe_part_2 }
 
-vpe_part_2 = _{ negate | build_array_type | vp_index | vpe_part_1 }
-
-vpe_part = { vpe_part_2 }
+vpe_part = _{ vpe_part_3 }
 
 // Operator precedence is done after parsing, because Pest uses an algorithm which chokes and
 // slows down drastically if operator precedence is built in to the grammar.

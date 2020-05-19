@@ -284,12 +284,53 @@ impl<'a> ScopeResolver<'a> {
         }
     }
 
+    fn resolve_property_access(
+        &mut self,
+        prop: i::Property,
+        rhs: &i::VPExpression,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        let res_rhs = self.resolve_vp_expression(rhs)?;
+        Ok(match prop {
+            i::Property::Type => ResolvedVPExpression::Interpreted(
+                i::KnownData::DataType(res_rhs.borrow_data_type().clone()),
+                position.clone(),
+                i::DataType::DataType,
+            ),
+            i::Property::Dims => {
+                let dims =
+                    if let ResolvedVPExpression::Interpreted(i::KnownData::DataType(typ), ..) =
+                        res_rhs
+                    {
+                        typ.collect_dims()
+                    } else {
+                        // We don't have to worry about an uninterpreted data type because there's
+                        // no such thing.
+                        res_rhs.borrow_data_type().collect_dims()
+                    };
+                let kdims: Vec<_> = dims
+                    .into_iter()
+                    .map(|dim| i::KnownData::Int(dim as i64))
+                    .collect();
+                let len = kdims.len();
+                ResolvedVPExpression::Interpreted(
+                    i::KnownData::Array(kdims),
+                    position.clone(),
+                    i::DataType::Array(len, Box::new(i::DataType::Int)),
+                )
+            }
+        })
+    }
+
     fn resolve_unary_operation(
         &mut self,
         op: i::UnaryOperator,
         rhs: &i::VPExpression,
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
+        if let i::UnaryOperator::PropertyAccess(prop) = op {
+            return self.resolve_property_access(prop, rhs, position);
+        }
         let res_rhs = self.resolve_vp_expression(rhs)?;
         // TODO: Check that the operand has a data type compatible with the operator.
         let result_type = match op {
@@ -299,6 +340,7 @@ impl<'a> ScopeResolver<'a> {
             i::UnaryOperator::Itof => res_rhs
                 .borrow_data_type()
                 .with_different_base(i::DataType::Float),
+            i::UnaryOperator::PropertyAccess(..) => unreachable!("Handled earlier."),
             i::UnaryOperator::BNot
             | i::UnaryOperator::Negate
             | i::UnaryOperator::Not
@@ -317,7 +359,7 @@ impl<'a> ScopeResolver<'a> {
             | i::UnaryOperator::Truncate => res_rhs.borrow_data_type().clone(),
         };
         Ok(
-            if let ResolvedVPExpression::Interpreted(data, pos, typ) = res_rhs {
+            if let ResolvedVPExpression::Interpreted(data, pos, ..) = res_rhs {
                 ResolvedVPExpression::Interpreted(
                     Self::compute_unary_operation(op, &data),
                     pos,
@@ -325,6 +367,7 @@ impl<'a> ScopeResolver<'a> {
                 )
             } else {
                 let res_op = match op {
+                    i::UnaryOperator::PropertyAccess(..) => unreachable!("Handled earlier."),
                     i::UnaryOperator::BNot => o::UnaryOperator::BNot,
                     i::UnaryOperator::Negate => o::UnaryOperator::Negate,
                     i::UnaryOperator::Not => o::UnaryOperator::Not,

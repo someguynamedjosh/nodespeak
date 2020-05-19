@@ -13,6 +13,14 @@ pub fn no_entity_with_name(pos: FilePosition) -> CompileProblem {
     )])
 }
 
+pub fn bad_property_name(pos: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        pos,
+        Error,
+        "Bad Property Name\nThere is no property with the specified name.",
+    )])
+}
+
 pub fn return_from_root(pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         pos,

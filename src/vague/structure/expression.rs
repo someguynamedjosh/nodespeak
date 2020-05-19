@@ -3,6 +3,31 @@ use crate::vague::structure::{KnownData, ScopeId, VariableId};
 use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
+pub enum Property {
+    Type,
+    Dims,
+}
+
+impl Property {
+    pub fn from_str(s: &str) -> Result<Self, ()> {
+        Ok(match s {
+            "TYPE" => Self::Type,
+            "DIMS" => Self::Dims,
+            _ => return Err(()),
+        })
+    }
+}
+
+impl Debug for Property {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Type => write!(formatter, "TYPE"),
+            Self::Dims => write!(formatter, "DIMS"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Negate,
     Not,
@@ -24,6 +49,8 @@ pub enum UnaryOperator {
 
     Ftoi,
     Itof,
+
+    PropertyAccess(Property),
 }
 
 impl Debug for UnaryOperator {
@@ -47,6 +74,7 @@ impl Debug for UnaryOperator {
             UnaryOperator::Truncate => write!(formatter, "truncate"),
             UnaryOperator::Ftoi => write!(formatter, "float to int"),
             UnaryOperator::Itof => write!(formatter, "int to float"),
+            UnaryOperator::PropertyAccess(property) => write!(formatter, ":{:?}", property),
         }
     }
 }

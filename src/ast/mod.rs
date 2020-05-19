@@ -33,12 +33,13 @@ pub mod structure {
 
             Rule::vp_var => "variable",
             Rule::build_array => "array data",
-            Rule::vpe_part_1 | Rule::vpe_part_2 | Rule::vpe_part | Rule::vpe => {
+            Rule::vpe_part_1 | Rule::vpe_part_2 | Rule::vpe_part_3 | Rule::vpe_part | Rule::vpe => {
                 "value-producing expression"
             }
             Rule::build_array_type => "array type",
             Rule::optional_index_indicator => "?",
             Rule::vp_index => "index expression",
+            Rule::get_property => "property access",
             Rule::negate => "negate",
             Rule::operator => "binary operator",
 

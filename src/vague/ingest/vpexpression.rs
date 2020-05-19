@@ -372,17 +372,46 @@ impl<'a> VagueIngester<'a> {
         })
     }
 
-    pub(super) fn convert_vpe_part(
+    pub(super) fn convert_vpe_part_2(
         &mut self,
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
-        debug_assert!(node.as_rule() == i::Rule::vpe_part);
+        debug_assert!(node.as_rule() == i::Rule::vpe_part_2);
         let child = node.into_inner().next().expect("illegal grammar");
         match child.as_rule() {
-            i::Rule::negate => self.convert_negate(child),
             i::Rule::build_array_type => self.convert_build_array_type(child),
             i::Rule::vp_index => self.convert_vp_index(child),
             i::Rule::vpe_part_1 => self.convert_vpe_part_1(child),
+            _ => unreachable!("illegal grammar"),
+        }
+    }
+
+    fn convert_get_property(&mut self, node: i::Node) -> Result<o::VPExpression, CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::get_property);
+        let pos = FilePosition::from_pair(&node, self.current_file_id);
+        let mut children = node.into_inner();
+        let vpe = self.convert_vpe_part_2(children.next().expect("illegal grammar"))?;
+        let prop_node = children.next().expect("illegal grammar");
+        let prop = o::Property::from_str(prop_node.as_str()).map_err(|_| {
+            problems::bad_property_name(FilePosition::from_pair(&prop_node, self.current_file_id))
+        })?;
+        Ok(o::VPExpression::UnaryOperation(
+            o::UnaryOperator::PropertyAccess(prop),
+            Box::new(vpe),
+            pos,
+        ))
+    }
+
+    pub(super) fn convert_vpe_part_3(
+        &mut self,
+        node: i::Node,
+    ) -> Result<o::VPExpression, CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::vpe_part_3);
+        let child = node.into_inner().next().expect("illegal grammar");
+        match child.as_rule() {
+            i::Rule::negate => self.convert_negate(child),
+            i::Rule::get_property => self.convert_get_property(child),
+            i::Rule::vpe_part_2 => self.convert_vpe_part_2(child),
             _ => unreachable!("illegal grammar"),
         }
     }
@@ -395,8 +424,8 @@ impl<'a> VagueIngester<'a> {
 
         for child in node.into_inner() {
             match child.as_rule() {
-                i::Rule::vpe_part => {
-                    let result = self.convert_vpe_part(child)?;
+                i::Rule::vpe_part_3 => {
+                    let result = self.convert_vpe_part_3(child)?;
                     operand_stack.push(result);
                 }
                 i::Rule::operator => {

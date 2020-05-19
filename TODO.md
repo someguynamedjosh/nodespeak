@@ -6,3 +6,4 @@ When adding a source with an existing name, replace that source instead of addin
 Make it compile correctly with the no-resolved feature
 Nice error for multiple identically named function parameters.
 Fix bug where resolve phase fails when a variable is defined inside a loop.
+Allow syntax like: thing[5]:DIMS[3]

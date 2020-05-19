@@ -76,6 +76,7 @@ impl<'a> ScopeResolver<'a> {
 
             i::UnaryOperator::Ftoi => i::KnownData::Int(data.require_float() as i64),
             i::UnaryOperator::Itof => i::KnownData::Float(data.require_int() as f64),
+            i::UnaryOperator::PropertyAccess(..) => unreachable!("Should be handled elsewhere."),
         }
     }
 
