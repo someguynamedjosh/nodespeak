@@ -314,7 +314,7 @@ impl<'a> ScopeResolver<'a> {
                     .collect();
                 let len = kdims.len();
                 let (value, typ) = if len == 0 {
-                    (i::KnownData::Int(0), i::DataType::Int)
+                    (i::KnownData::Int(1), i::DataType::Int)
                 } else {
                     (
                         i::KnownData::Array(kdims),
