@@ -155,6 +155,9 @@ impl<'a> ScopeResolver<'a> {
                 i::KnownData::Bool(..) => unimplemented!(),
                 i::KnownData::Int(value) => i::KnownData::Int(value + b.require_int()),
                 i::KnownData::Float(value) => i::KnownData::Float(value + b.require_float()),
+                i::KnownData::DataType(dta) => i::KnownData::DataType(
+                    Self::biggest_type(&dta, b.require_data_type()).expect("TODO: Nice error."),
+                ),
                 _ => unreachable!(),
             },
             i::BinaryOperator::Subtract => match a {
@@ -225,11 +228,18 @@ impl<'a> ScopeResolver<'a> {
             i::BinaryOperator::LessThanOrEqual => match a {
                 i::KnownData::Int(value) => i::KnownData::Bool(*value <= b.require_int()),
                 i::KnownData::Float(value) => i::KnownData::Bool(*value <= b.require_float()),
+                i::KnownData::DataType(smaller) => {
+                    let bigger = b.require_data_type().clone();
+                    i::KnownData::Bool(Self::biggest_type(smaller, &bigger) == Ok(bigger))
+                }
                 _ => unreachable!(),
             },
             i::BinaryOperator::GreaterThanOrEqual => match a {
                 i::KnownData::Int(value) => i::KnownData::Bool(*value >= b.require_int()),
                 i::KnownData::Float(value) => i::KnownData::Bool(*value >= b.require_float()),
+                i::KnownData::DataType(typ) => i::KnownData::Bool(
+                    Self::biggest_type(typ, b.require_data_type()) == Ok(typ.clone()),
+                ),
                 _ => unreachable!(),
             },
         }
