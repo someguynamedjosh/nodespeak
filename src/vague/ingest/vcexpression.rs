@@ -11,7 +11,7 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::vc_index);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let base_node = children.next().expect("illegal grammar");
+        let base_node = children.next().expect("bad AST");
         let base = self.convert_vc_identifier(base_node)?;
 
         let mut indexes = Vec::new();
@@ -33,8 +33,8 @@ impl<'a> VagueIngester<'a> {
         let position = self.make_position(&node);
         let mut children = node.into_inner();
 
-        let var_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
-        let name = children.next().expect("illegal grammar").as_str();
+        let var_type = self.convert_vpe(children.next().expect("bad AST"))?;
+        let name = children.next().expect("bad AST").as_str();
         let var_id = self.create_variable(var_type, name, position.clone());
         Ok(o::VCExpression::Variable(var_id, position))
     }
@@ -45,7 +45,7 @@ impl<'a> VagueIngester<'a> {
     ) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vc_identifier);
         let position = self.make_position(&node);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         let var_id = self.lookup_identifier(&child)?;
         if self.target[var_id].is_read_only() {
             return Err(problems::write_to_read_only_variable(
@@ -58,12 +58,12 @@ impl<'a> VagueIngester<'a> {
 
     pub(super) fn convert_vce(&mut self, node: i::Node) -> Result<o::VCExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vce);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::vc_index => self.convert_vc_index(child),
             i::Rule::var_dec => self.convert_var_dec(child),
             i::Rule::vc_identifier => self.convert_vc_identifier(child),
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         }
     }
 }

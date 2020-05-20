@@ -85,7 +85,7 @@ impl<'a> VagueIngester<'a> {
     }
 
     pub(super) fn execute(&mut self, source: &mut i::Program) -> Result<(), CompileProblem> {
-        let root_node = source.next().expect("illegal grammar");
+        let root_node = source.next().expect("bad AST");
         debug_assert!(root_node.as_rule() == i::Rule::root);
         for child in root_node.into_inner() {
             if child.as_rule() == i::Rule::EOI {

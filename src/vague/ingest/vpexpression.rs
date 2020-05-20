@@ -159,7 +159,7 @@ impl<'a> VagueIngester<'a> {
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::literal);
         let position = self.make_position(&node);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
 
         let value = match child.as_rule() {
             i::Rule::bin_int => o::KnownData::Int(parse_bin_int(child.as_str())),
@@ -168,7 +168,7 @@ impl<'a> VagueIngester<'a> {
             i::Rule::hex_int => o::KnownData::Int(parse_hex_int(child.as_str())),
             i::Rule::legacy_oct_int => o::KnownData::Int(parse_legacy_oct_int(child.as_str())),
             i::Rule::float => o::KnownData::Float(parse_float(child.as_str())),
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         };
         Ok(o::VPExpression::Literal(value, position))
     }
@@ -197,7 +197,7 @@ impl<'a> VagueIngester<'a> {
                 i::Rule::inline_output => {
                     o::FuncCallOutput::InlineReturn(self.make_position(&child))
                 }
-                _ => unreachable!("illegal grammar"),
+                _ => unreachable!("bad AST"),
             };
             outputs.push(output);
         }
@@ -212,8 +212,8 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::macro_call);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let name_node = children.next().expect("illegal grammar");
-        let input_list_node = children.next().expect("illegal grammar");
+        let name_node = children.next().expect("bad AST");
+        let input_list_node = children.next().expect("bad AST");
         let maybe_output_list_node = children.next();
 
         let input_list = self.convert_macro_call_input_list(input_list_node)?;
@@ -264,7 +264,7 @@ impl<'a> VagueIngester<'a> {
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vp_var);
         let position = self.make_position(&node);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         let var_id = self.lookup_identifier(&child)?;
         Ok(o::VPExpression::Variable(var_id, position))
     }
@@ -287,14 +287,14 @@ impl<'a> VagueIngester<'a> {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vpe_part_1);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::literal => self.convert_literal(child),
             i::Rule::macro_call => self.convert_macro_call(child, true),
             i::Rule::vp_var => self.convert_vp_var(child),
             i::Rule::vpe => self.convert_vpe(child),
             i::Rule::build_array => self.convert_build_array(child),
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         }
     }
 
@@ -304,7 +304,7 @@ impl<'a> VagueIngester<'a> {
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::negate);
         let position = self.make_position(&node);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         let base = self.convert_vpe_part_2(child)?;
         Ok(o::VPExpression::UnaryOperation(
             o::UnaryOperator::Negate,
@@ -332,10 +332,10 @@ impl<'a> VagueIngester<'a> {
                         position,
                     });
                 }
-                _ => unreachable!("illegal grammar"),
+                _ => unreachable!("bad AST"),
             }
         }
-        unreachable!("illegal grammar")
+        unreachable!("bad AST")
     }
 
     pub(super) fn convert_vp_index(
@@ -346,7 +346,7 @@ impl<'a> VagueIngester<'a> {
         let position = self.make_position(&node);
         let mut children = node.into_inner();
 
-        let base_node = children.next().expect("illegal grammar");
+        let base_node = children.next().expect("bad AST");
         let base = self.convert_vpe_part_1(base_node)?;
         let mut indexes = Vec::new();
         for child in children {
@@ -357,7 +357,7 @@ impl<'a> VagueIngester<'a> {
                 let last = indexes.len() - 1;
                 indexes[last].1 = true;
             } else {
-                unreachable!("illegal grammar");
+                unreachable!("bad AST");
             }
         }
 
@@ -373,12 +373,12 @@ impl<'a> VagueIngester<'a> {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vpe_part_2);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::build_array_type => self.convert_build_array_type(child),
             i::Rule::vp_index => self.convert_vp_index(child),
             i::Rule::vpe_part_1 => self.convert_vpe_part_1(child),
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         }
     }
 
@@ -386,8 +386,8 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::get_property);
         let pos = FilePosition::from_pair(&node, self.current_file_id);
         let mut children = node.into_inner();
-        let vpe = self.convert_vpe_part_2(children.next().expect("illegal grammar"))?;
-        let prop_node = children.next().expect("illegal grammar");
+        let vpe = self.convert_vpe_part_2(children.next().expect("bad AST"))?;
+        let prop_node = children.next().expect("bad AST");
         let prop = o::Property::from_str(prop_node.as_str()).map_err(|_| {
             problems::bad_property_name(FilePosition::from_pair(&prop_node, self.current_file_id))
         })?;
@@ -403,12 +403,12 @@ impl<'a> VagueIngester<'a> {
         node: i::Node,
     ) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::vpe_part_3);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::negate => self.convert_negate(child),
             i::Rule::get_property => self.convert_get_property(child),
             i::Rule::vpe_part_2 => self.convert_vpe_part_2(child),
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         }
     }
 
@@ -451,7 +451,7 @@ impl<'a> VagueIngester<'a> {
                         }
                     }
                 }
-                _ => unreachable!("illegal grammar"),
+                _ => unreachable!("bad AST"),
             }
         }
 

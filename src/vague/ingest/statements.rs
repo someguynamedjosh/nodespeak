@@ -11,7 +11,7 @@ impl<'a> VagueIngester<'a> {
     ) -> Result<(Vec<o::VariableId>, Vec<i::Node<'n>>), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_signature);
         let mut children = node.into_inner();
-        let inputs_node = children.next().expect("illegal grammar");
+        let inputs_node = children.next().expect("bad AST");
         let outputs_node = children.next();
         let outputs = outputs_node
             .map(|node| node.into_inner().collect())
@@ -33,14 +33,14 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::macro_definition);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let macro_name_node = children.next().expect("illegal grammar");
-        let signature_node = children.next().expect("illegal grammar");
+        let macro_name_node = children.next().expect("bad AST");
+        let signature_node = children.next().expect("bad AST");
         let header_pos = {
             let mut pos = self.make_position(&macro_name_node);
             pos.include(&signature_node);
             pos
         };
-        let body_node = children.next().expect("illegal grammar");
+        let body_node = children.next().expect("bad AST");
 
         let body_scope = self.target.create_child_scope(self.current_scope);
         let old_current_scope = self.current_scope;
@@ -120,7 +120,7 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::assert_statement);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let condition_node = children.next().expect("illegal grammar");
+        let condition_node = children.next().expect("bad AST");
         let condition = self.convert_vpe(condition_node)?;
         self.add_statement(o::Statement::Assert(Box::new(condition), position));
         Ok(())
@@ -130,8 +130,8 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::if_statement);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let primary_condition = self.convert_vpe(children.next().expect("illegal grammar"))?;
-        let primary_body_node = children.next().expect("illegal grammar");
+        let primary_condition = self.convert_vpe(children.next().expect("bad AST"))?;
+        let primary_body_node = children.next().expect("bad AST");
         let primary_body = self.convert_code_block_in_new_scope(primary_body_node)?;
 
         let mut clauses = vec![(primary_condition, primary_body)];
@@ -140,22 +140,22 @@ impl<'a> VagueIngester<'a> {
             match child.as_rule() {
                 i::Rule::else_if_clause => {
                     // Else if clauses should only show up before the else clause.
-                    debug_assert!(else_clause.is_none(), "illegal grammar");
+                    debug_assert!(else_clause.is_none(), "bad AST");
                     let mut children = child.into_inner();
-                    let condition_node = children.next().expect("illegal grammar");
+                    let condition_node = children.next().expect("bad AST");
                     let condition = self.convert_vpe(condition_node)?;
-                    let body_node = children.next().expect("illegal grammar");
+                    let body_node = children.next().expect("bad AST");
                     let body = self.convert_code_block_in_new_scope(body_node)?;
                     clauses.push((condition, body));
                 }
                 i::Rule::else_clause => {
-                    debug_assert!(else_clause.is_none(), "illegal grammar");
+                    debug_assert!(else_clause.is_none(), "bad AST");
                     let mut children = child.into_inner();
-                    let body_node = children.next().expect("illegal grammar");
+                    let body_node = children.next().expect("bad AST");
                     let body = self.convert_code_block_in_new_scope(body_node)?;
                     else_clause = Some(body);
                 }
-                _ => unreachable!("illegal grammar"),
+                _ => unreachable!("bad AST"),
             }
         }
 
@@ -174,11 +174,11 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::for_loop_statement);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let counter_node = children.next().expect("illegal grammar");
+        let counter_node = children.next().expect("bad AST");
         let counter_pos = self.make_position(&counter_node);
         let counter_name = counter_node.as_str();
-        let start = self.convert_vpe(children.next().expect("illegal grammar"))?;
-        let end = self.convert_vpe(children.next().expect("illegal grammar"))?;
+        let start = self.convert_vpe(children.next().expect("bad AST"))?;
+        let end = self.convert_vpe(children.next().expect("bad AST"))?;
         let body_scope = self.target.create_child_scope(self.current_scope);
         let counter = o::Variable::variable(counter_pos.clone(), None);
         let counter_id = self
@@ -187,9 +187,9 @@ impl<'a> VagueIngester<'a> {
         let old_current_scope = self.current_scope;
         self.current_scope = body_scope;
 
-        let possibly_body = children.next().expect("illegal grammar");
+        let possibly_body = children.next().expect("bad AST");
         let (body, allow_unroll) = if possibly_body.as_rule() == i::Rule::no_unroll_keyword {
-            (children.next().expect("illegal grammar"), false)
+            (children.next().expect("bad AST"), false)
         } else {
             (possibly_body, true)
         };
@@ -215,7 +215,7 @@ impl<'a> VagueIngester<'a> {
             return Err(problems::io_inside_macro(self.make_position(&node)));
         }
         let mut children = node.into_inner();
-        let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
+        let data_type = self.convert_vpe(children.next().expect("bad AST"))?;
         for child in children {
             let pos = self.make_position(&child);
             let name = child.as_str();
@@ -234,7 +234,7 @@ impl<'a> VagueIngester<'a> {
             return Err(problems::io_inside_macro(self.make_position(&node)));
         }
         let mut children = node.into_inner();
-        let data_type = self.convert_vpe(children.next().expect("illegal grammar"))?;
+        let data_type = self.convert_vpe(children.next().expect("bad AST"))?;
         for child in children {
             let pos = self.make_position(&child);
             let name = child.as_str();
@@ -279,18 +279,18 @@ impl<'a> VagueIngester<'a> {
                 });
                 return Ok(());
             } else {
-                unreachable!("illegal grammar");
+                unreachable!("bad AST");
             }
         }
-        unreachable!("illegal grammar");
+        unreachable!("bad AST");
     }
 
     pub(super) fn convert_assign_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::assign_statement);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let vce = self.convert_vce(children.next().expect("illegal grammar"))?;
-        let vpe = self.convert_vpe(children.next().expect("illegal grammar"))?;
+        let vce = self.convert_vce(children.next().expect("bad AST"))?;
+        let vpe = self.convert_vpe(children.next().expect("bad AST"))?;
         self.add_statement(o::Statement::Assign {
             target: Box::new(vce),
             value: Box::new(vpe),
@@ -302,14 +302,14 @@ impl<'a> VagueIngester<'a> {
     fn convert_string_literal(&mut self, node: i::Node) -> String {
         debug_assert!(node.as_rule() == i::Rule::string);
         let text = node.as_str();
-        snailquote::unescape(text).expect("illegal grammar")
+        snailquote::unescape(text).expect("bad AST")
     }
 
     fn convert_include_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::include_statement);
         let position = self.make_position(&node);
         let mut children = node.into_inner();
-        let filename_node = children.next().expect("illegal grammar");
+        let filename_node = children.next().expect("bad AST");
         let filename = self.convert_string_literal(filename_node);
         if let Some(file_index) = self.source_set.find_source(&filename) {
             if self.aux_scope_data.included_files.contains(&file_index) {
@@ -345,7 +345,7 @@ impl<'a> VagueIngester<'a> {
 
     pub(super) fn convert_statement(&mut self, node: i::Node) -> Result<(), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::statement);
-        let child = node.into_inner().next().expect("illegal grammar");
+        let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::macro_definition => self.convert_macro_definition(child)?,
             i::Rule::code_block => self.convert_code_block(child)?,
@@ -365,7 +365,7 @@ impl<'a> VagueIngester<'a> {
                 self.convert_var_dec(child)?;
             }
             i::Rule::include_statement => self.convert_include_statement(child)?,
-            _ => unreachable!("illegal grammar"),
+            _ => unreachable!("bad AST"),
         }
         Ok(())
     }

@@ -208,7 +208,7 @@ impl<'a> Trivializer<'a> {
         let out_base = match operator {
             i::UnaryOperator::Itof => o::DataType::F32,
             i::UnaryOperator::Ftoi => o::DataType::I32,
-            _ => base.clone()
+            _ => base.clone(),
         };
         let out_typ = out_typ.with_different_base(out_base);
         let x_var = self.create_variable(out_typ);

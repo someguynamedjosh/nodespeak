@@ -667,7 +667,7 @@ impl<'a> Converter<'a> {
     }
 
     fn create_blocks_for_labels(&mut self, function: LLVMValueRef, static_body: bool) {
-        for label in self.source.iterate_all_labels(){
+        for label in self.source.iterate_all_labels() {
             if self.source.is_label_in_static_body(label) != static_body {
                 continue;
             }

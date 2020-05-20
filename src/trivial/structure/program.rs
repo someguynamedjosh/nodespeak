@@ -146,7 +146,7 @@ impl Program {
     pub fn create_label(&mut self, occurs_in_static_body: bool) -> LabelId {
         let id = LabelId(self.labels.len());
         self.labels.push(Label {
-            occurs_in_static_body
+            occurs_in_static_body,
         });
         id
     }
