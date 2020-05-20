@@ -305,11 +305,7 @@ impl<'a> VagueIngester<'a> {
         debug_assert!(node.as_rule() == i::Rule::negate);
         let position = self.make_position(&node);
         let child = node.into_inner().next().expect("illegal grammar");
-        let base = match child.as_rule() {
-            i::Rule::vpe_part_1 => self.convert_vpe_part_1(child)?,
-            i::Rule::vp_index => self.convert_vp_index(child)?,
-            _ => unreachable!("illegal grammar"),
-        };
+        let base = self.convert_vpe_part_2(child)?;
         Ok(o::VPExpression::UnaryOperation(
             o::UnaryOperator::Negate,
             Box::new(base),
