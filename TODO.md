@@ -7,3 +7,4 @@ Make it compile correctly with the no-resolved feature
 Nice error for multiple identically named function parameters.
 Fix bug where resolve phase fails when a variable is defined inside a loop.
 Allow syntax like: thing[5]:DIMS[3]
+Some way to combine arrays of boolean values into a single bool.

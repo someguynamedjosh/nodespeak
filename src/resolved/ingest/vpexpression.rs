@@ -313,11 +313,15 @@ impl<'a> ScopeResolver<'a> {
                     .map(|dim| i::KnownData::Int(dim as i64))
                     .collect();
                 let len = kdims.len();
-                ResolvedVPExpression::Interpreted(
-                    i::KnownData::Array(kdims),
-                    position.clone(),
-                    i::DataType::Array(len, Box::new(i::DataType::Int)),
-                )
+                let (value, typ) = if len == 0 {
+                    (i::KnownData::Int(0), i::DataType::Int)
+                } else {
+                    (
+                        i::KnownData::Array(kdims),
+                        i::DataType::Array(len, Box::new(i::DataType::Int)),
+                    )
+                };
+                ResolvedVPExpression::Interpreted(value, position.clone(), typ)
             }
         })
     }
