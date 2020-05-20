@@ -241,7 +241,7 @@ pub enum VCExpression {
     Variable(VariableId, FilePosition),
     Index {
         base: Box<VCExpression>,
-        indexes: Vec<VPExpression>,
+        indexes: Vec<(VPExpression, bool)>,
         position: FilePosition,
     },
 }
@@ -252,8 +252,13 @@ impl Debug for VCExpression {
             Self::Variable(id, ..) => write!(formatter, "var {:?}", id),
             Self::Index { base, indexes, .. } => {
                 write!(formatter, "({:?})", base)?;
-                for index in indexes {
-                    write!(formatter, "[{:?}]", index)?;
+                for (index, optional) in indexes {
+                    write!(
+                        formatter,
+                        "[{:?}{}]",
+                        index,
+                        if *optional { "?" } else { "" }
+                    )?;
                 }
                 write!(formatter, "")
             }

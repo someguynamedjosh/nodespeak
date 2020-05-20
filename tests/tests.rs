@@ -82,6 +82,30 @@ fn compile_ok() {
 }
 
 #[test]
+fn assert_ok() {
+    for entry in std::fs::read_dir("tests/assert_ok/").unwrap() {
+        let path = if let Ok(entry) = entry {
+            entry.path()
+        } else {
+            continue;
+        };
+        let name = path.to_str().unwrap().to_owned();
+        let mut compiler = nodespeak::Compiler::new();
+        compiler.add_source(name.clone(), std::fs::read_to_string(&name).unwrap());
+        let program = match compiler.compile(&name) {
+            Ok(program) => program,
+            Err(message) => panic!("Failed to compile {}:\n{}", &name, message),
+        };
+        unsafe {
+            let mut static_data = program.create_static_data().unwrap();
+            let mut in_dat = Vec::new();
+            let mut out_dat = Vec::new();
+            program.execute_raw(&mut in_dat[..], &mut out_dat[..], &mut static_data).unwrap();
+        }
+    }
+}
+
+#[test]
 fn compile_err() {
     for entry in std::fs::read_dir("tests/compile_err/").unwrap() {
         let path = if let Ok(entry) = entry {

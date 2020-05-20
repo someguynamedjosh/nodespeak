@@ -53,7 +53,7 @@ vpe = { vpe_part ~ (operator ~ vpe_part)* }
 // Value Consuming Expressions
 var_dec = { vpe ~ identifier }
 vc_identifier = { identifier }
-vc_index = { vc_identifier ~ ("[" ~ vpe ~ "]")+ }
+vc_index = { vc_identifier ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
 vce = { vc_index | var_dec | vc_identifier }
 
 // Macro calls

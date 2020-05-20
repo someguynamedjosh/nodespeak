@@ -16,7 +16,15 @@ impl<'a> VagueIngester<'a> {
 
         let mut indexes = Vec::new();
         for child in children {
-            indexes.push(self.convert_vpe(child)?);
+            if child.as_rule() == i::Rule::vpe {
+                indexes.push((self.convert_vpe(child)?, false));
+            } else if child.as_rule() == i::Rule::optional_index_indicator {
+                // Turns out the previous index is actually optional.
+                let last = indexes.len() - 1;
+                indexes[last].1 = true;
+            } else {
+                unreachable!("bad AST");
+            }
         }
         Ok(o::VCExpression::Index {
             base: Box::new(base),

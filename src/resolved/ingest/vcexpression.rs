@@ -24,7 +24,7 @@ impl<'a> ScopeResolver<'a> {
     fn resolve_vc_index(
         &mut self,
         base: &i::VCExpression,
-        indexes: &Vec<i::VPExpression>,
+        indexes: &Vec<(i::VPExpression, bool)>,
         position: &FilePosition,
     ) -> Result<ResolvedVCExpression, CompileProblem> {
         let rbase = self.resolve_vc_expression(base)?;
@@ -32,10 +32,12 @@ impl<'a> ScopeResolver<'a> {
         let mut known_indexes = Vec::new();
         let mut all_indexes = Vec::new();
         let mut etype = rbase.borrow_data_type();
-        for index in indexes {
+        for (index, optional) in indexes {
             let arr_len = if let i::DataType::Array(len, eetype) = etype {
                 etype = eetype;
                 *len
+            } else if *optional {
+                continue;
             } else {
                 return Err(problems::too_many_indexes(
                     position.clone(),
