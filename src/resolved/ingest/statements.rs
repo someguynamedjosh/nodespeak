@@ -334,12 +334,14 @@ impl<'a> ScopeResolver<'a> {
             let end = end.require_int();
             for i in start..end {
                 self.set_temporary_value(counter, PossiblyKnownData::Int(i));
+                self.push_table();
                 for statement in &body {
                     let res = self.resolve_statement(statement)?;
                     if let ResolvedStatement::Modified(rstatement) = res {
                         self.target[self.current_scope].add_statement(rstatement);
                     }
                 }
+                self.pop_table();
             }
             return Ok(ResolvedStatement::Interpreted);
         }
