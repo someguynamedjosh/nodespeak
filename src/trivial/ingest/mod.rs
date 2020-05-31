@@ -300,7 +300,10 @@ impl<'a> Trivializer<'a> {
                 o::DataType::B1 => unimplemented!(),
                 o::DataType::Array(..) => unreachable!(),
             },
-            i::BinaryOperator::Power => unimplemented!(),
+            i::BinaryOperator::Power => {
+                assert!(base == o::DataType::F32);
+                o::BinaryOperator::PowF
+            }
 
             i::BinaryOperator::Equal => match base {
                 o::DataType::F32 => o::BinaryOperator::CompF(o::Condition::Equal),

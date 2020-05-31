@@ -59,6 +59,7 @@ pub enum BinaryOperator {
     MulF,
     DivF,
     ModF,
+    PowF,
 
     BAnd,
     BOr,
@@ -176,6 +177,7 @@ impl Debug for Instruction {
                     BinaryOperator::MulF => "mulf".to_owned(),
                     BinaryOperator::DivF => "divf".to_owned(),
                     BinaryOperator::ModF => "modf".to_owned(),
+                    BinaryOperator::PowF => "powf".to_owned(),
 
                     BinaryOperator::BAnd => "band".to_owned(),
                     BinaryOperator::BOr => "bor ".to_owned(),

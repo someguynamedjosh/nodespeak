@@ -40,7 +40,7 @@ impl Intrinsics {
             unsafe {
                 let float_type = LLVMFloatTypeInContext(context);
                 let mut arg_types = [float_type, float_type];
-                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 1, 0);
+                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 2, 0);
                 LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
             }
         };
@@ -48,7 +48,7 @@ impl Intrinsics {
             unsafe {
                 let int_type = LLVMInt32TypeInContext(context);
                 let mut arg_types = [int_type, int_type];
-                let fn_type = LLVMFunctionType(int_type, arg_types.as_mut_ptr(), 1, 0);
+                let fn_type = LLVMFunctionType(int_type, arg_types.as_mut_ptr(), 2, 0);
                 LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
             }
         };
@@ -455,6 +455,7 @@ impl<'a> Converter<'a> {
             i::BinaryOperator::MulF => unsafe { LLVMBuildFMul(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::DivF => unsafe { LLVMBuildFDiv(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::ModF => unsafe { LLVMBuildFRem(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::PowF => self.build_call(self.intrinsics.pow_f32, &mut [ar, br]),
             i::BinaryOperator::CompI(condition) => {
                 let predicate = match condition {
                     i::Condition::Equal => LLVMIntPredicate::LLVMIntEQ,
