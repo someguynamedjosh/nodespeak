@@ -34,8 +34,9 @@ vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
 vpe_part_2 = { build_array_type | vp_index | vpe_part_1 }
 
 negate = { "-" ~ vpe_part_2 }
+not = { "!" ~ vpe_part_2 }
 get_property = { vpe_part_2 ~ ":" ~ identifier }
-vpe_part_3 = { negate | get_property | vpe_part_2 }
+vpe_part_3 = { negate | not | get_property | vpe_part_2 }
 
 vpe_part = _{ vpe_part_3 }
 

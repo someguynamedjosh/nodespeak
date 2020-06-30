@@ -41,6 +41,7 @@ pub mod structure {
             Rule::vp_index => "index expression",
             Rule::get_property => "property access",
             Rule::negate => "negate",
+            Rule::not => "not",
             Rule::operator => "binary operator",
 
             Rule::var_dec => "variable declaration",

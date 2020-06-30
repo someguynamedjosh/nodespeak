@@ -313,6 +313,21 @@ impl<'a> VagueIngester<'a> {
         ))
     }
 
+    pub(super) fn convert_not(
+        &mut self,
+        node: i::Node,
+    ) -> Result<o::VPExpression, CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::not);
+        let position = self.make_position(&node);
+        let child = node.into_inner().next().expect("bad AST");
+        let base = self.convert_vpe_part_2(child)?;
+        Ok(o::VPExpression::UnaryOperation(
+            o::UnaryOperator::Not,
+            Box::new(base),
+            position,
+        ))
+    }
+
     pub(super) fn convert_build_array_type(
         &mut self,
         node: i::Node,
@@ -406,6 +421,7 @@ impl<'a> VagueIngester<'a> {
         let child = node.into_inner().next().expect("bad AST");
         match child.as_rule() {
             i::Rule::negate => self.convert_negate(child),
+            i::Rule::not => self.convert_not(child),
             i::Rule::get_property => self.convert_get_property(child),
             i::Rule::vpe_part_2 => self.convert_vpe_part_2(child),
             _ => unreachable!("bad AST"),
