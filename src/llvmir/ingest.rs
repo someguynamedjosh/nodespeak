@@ -313,6 +313,7 @@ impl<'a> Converter<'a> {
                     .iter()
                     .map(|i| self.u32_const(*i as u32))
                     .collect();
+                literal_indexes.insert(0, self.u32_const(0));
                 ptr = unsafe {
                     LLVMBuildGEP(
                         self.builder,
