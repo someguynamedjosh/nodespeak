@@ -64,6 +64,12 @@ pub enum BinaryOperator {
     BAnd,
     BOr,
     BXor,
+    LeftShift,
+    RightShift,
+
+    And,
+    Or,
+    Xor,
     CompI(Condition),
     CompF(Condition),
 }
@@ -182,7 +188,12 @@ impl Debug for Instruction {
                     BinaryOperator::BAnd => "band".to_owned(),
                     BinaryOperator::BOr => "bor ".to_owned(),
                     BinaryOperator::BXor => "bxor".to_owned(),
+                    BinaryOperator::LeftShift => "<<".to_owned(),
+                    BinaryOperator::RightShift => ">>".to_owned(),
 
+                    BinaryOperator::And => "and".to_owned(),
+                    BinaryOperator::Or => "or ".to_owned(),
+                    BinaryOperator::Xor => "xor".to_owned(),
                     BinaryOperator::CompI(cond) => format!("compi {:?}", cond),
                     BinaryOperator::CompF(cond) => format!("compf {:?}", cond),
                 },

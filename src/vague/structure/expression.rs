@@ -94,6 +94,8 @@ pub enum BinaryOperator {
     BAnd,
     BOr,
     BXor,
+    LeftShift,
+    RightShift,
 
     Equal,
     NotEqual,
@@ -119,6 +121,8 @@ impl Debug for BinaryOperator {
             BinaryOperator::BAnd => write!(formatter, "band"),
             BinaryOperator::BOr => write!(formatter, "bor"),
             BinaryOperator::BXor => write!(formatter, "bxor"),
+            BinaryOperator::LeftShift => write!(formatter, "<<"),
+            BinaryOperator::RightShift => write!(formatter, ">>"),
 
             BinaryOperator::Equal => write!(formatter, "=="),
             BinaryOperator::NotEqual => write!(formatter, "!="),

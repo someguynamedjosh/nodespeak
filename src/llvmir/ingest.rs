@@ -482,6 +482,11 @@ impl<'a> Converter<'a> {
             i::BinaryOperator::BAnd => unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::BOr => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::BXor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::And => unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::Or => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::Xor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::LeftShift => unsafe { LLVMBuildShl(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::RightShift => unsafe { LLVMBuildLShr(self.builder, ar, br, UNNAMED) },
         }
     }
 

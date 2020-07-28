@@ -13,6 +13,8 @@ enum Operator {
     Modulo,
     Add,
     Subtract,
+    LeftShift,
+    RightShift,
     Lte,
     Lt,
     Gte,
@@ -30,12 +32,14 @@ enum Operator {
 impl Operator {
     fn precedence(&self) -> u32 {
         match self {
-            Self::Power => 19,
-            Self::Multiply => 18,
-            Self::Divide => 18,
-            Self::Modulo => 18,
-            Self::Add => 17,
-            Self::Subtract => 17,
+            Self::Power => 22,
+            Self::Multiply => 21,
+            Self::Divide => 21,
+            Self::Modulo => 21,
+            Self::Add => 20,
+            Self::Subtract => 20,
+            Self::LeftShift => 18,
+            Self::RightShift => 18,
             Self::Band => 16,
             Self::Bxor => 15,
             Self::Bor => 14,
@@ -67,6 +71,8 @@ impl Operator {
             Self::Modulo => o::BinaryOperator::Modulo,
             Self::Add => o::BinaryOperator::Add,
             Self::Subtract => o::BinaryOperator::Subtract,
+            Self::LeftShift => o::BinaryOperator::LeftShift,
+            Self::RightShift => o::BinaryOperator::RightShift,
             Self::Lte => o::BinaryOperator::LessThanOrEqual,
             Self::Lt => o::BinaryOperator::LessThan,
             Self::Gte => o::BinaryOperator::GreaterThanOrEqual,
@@ -103,6 +109,8 @@ fn op_str_to_operator(op_str: &str) -> Operator {
         "band" => Operator::Band,
         "bxor" => Operator::Bxor,
         "bor" => Operator::Bor,
+        "<<" => Operator::LeftShift,
+        ">>" => Operator::RightShift,
         "and" => Operator::And,
         "xor" => Operator::Xor,
         "or" => Operator::Or,
@@ -313,10 +321,7 @@ impl<'a> VagueIngester<'a> {
         ))
     }
 
-    pub(super) fn convert_not(
-        &mut self,
-        node: i::Node,
-    ) -> Result<o::VPExpression, CompileProblem> {
+    pub(super) fn convert_not(&mut self, node: i::Node) -> Result<o::VPExpression, CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::not);
         let position = self.make_position(&node);
         let child = node.into_inner().next().expect("bad AST");

@@ -342,12 +342,54 @@ impl<'a> Trivializer<'a> {
                 o::DataType::Array(..) => unreachable!(),
             },
 
-            i::BinaryOperator::And => unimplemented!(),
-            i::BinaryOperator::Or => unimplemented!(),
-            i::BinaryOperator::Xor => unimplemented!(),
-            i::BinaryOperator::BAnd => unimplemented!(),
-            i::BinaryOperator::BOr => unimplemented!(),
-            i::BinaryOperator::BXor => unimplemented!(),
+            i::BinaryOperator::BAnd => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::BAnd,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::BOr => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::BOr,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::BXor => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::BXor,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::And => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::And,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::Or => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::Or,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::Xor => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::Xor,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::LeftShift => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::LeftShift,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
+            i::BinaryOperator::RightShift => match base {
+                o::DataType::F32 => unimplemented!(),
+                o::DataType::I32 => o::BinaryOperator::RightShift,
+                o::DataType::B1 => unimplemented!(),
+                o::DataType::Array(..) => unreachable!(),
+            },
         };
 
         self.add_instruction(o::Instruction::BinaryOperation {

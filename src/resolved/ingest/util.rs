@@ -197,6 +197,8 @@ impl<'a> ScopeResolver<'a> {
             i::BinaryOperator::BAnd => i::KnownData::Int(a.require_int() & b.require_int()),
             i::BinaryOperator::BOr => i::KnownData::Int(a.require_int() | b.require_int()),
             i::BinaryOperator::BXor => i::KnownData::Int(a.require_int() ^ b.require_int()),
+            i::BinaryOperator::LeftShift => i::KnownData::Int(a.require_int() << b.require_int()),
+            i::BinaryOperator::RightShift => i::KnownData::Int(a.require_int() >> b.require_int()),
             i::BinaryOperator::Equal => match a {
                 i::KnownData::Bool(value) => i::KnownData::Bool(*value == b.require_bool()),
                 i::KnownData::Int(value) => i::KnownData::Bool(*value == b.require_int()),
@@ -318,6 +320,8 @@ impl<'a> ScopeResolver<'a> {
             i::BinaryOperator::BAnd => o::BinaryOperator::BAnd,
             i::BinaryOperator::BOr => o::BinaryOperator::BOr,
             i::BinaryOperator::BXor => o::BinaryOperator::BXor,
+            i::BinaryOperator::LeftShift => o::BinaryOperator::LeftShift,
+            i::BinaryOperator::RightShift => o::BinaryOperator::RightShift,
             i::BinaryOperator::Divide => o::BinaryOperator::Divide,
             i::BinaryOperator::Equal => o::BinaryOperator::Equal,
             i::BinaryOperator::GreaterThan => o::BinaryOperator::GreaterThan,

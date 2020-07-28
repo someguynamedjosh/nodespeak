@@ -44,6 +44,7 @@ vpe_part = _{ vpe_part_3 }
 // slows down drastically if operator precedence is built in to the grammar.
 operator = { 
     "**" | "*" | "//" | "/" | "%" | "+" | "-"
+    | "<<" | ">>"
     | "<=" | ">=" | "<" | ">" | "==" | "!="
     | "band" | "bnand" | "bor" | "bnor" | "bxor" | "bxnor"
     | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
