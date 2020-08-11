@@ -362,20 +362,20 @@ impl<'a> Trivializer<'a> {
             },
             i::BinaryOperator::And => match base {
                 o::DataType::F32 => unimplemented!(),
-                o::DataType::I32 => o::BinaryOperator::And,
-                o::DataType::B1 => unimplemented!(),
+                o::DataType::I32 => unimplemented!(),
+                o::DataType::B1 => o::BinaryOperator::And,
                 o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Or => match base {
                 o::DataType::F32 => unimplemented!(),
-                o::DataType::I32 => o::BinaryOperator::Or,
-                o::DataType::B1 => unimplemented!(),
+                o::DataType::I32 => unimplemented!(),
+                o::DataType::B1 => o::BinaryOperator::Or,
                 o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::Xor => match base {
                 o::DataType::F32 => unimplemented!(),
-                o::DataType::I32 => o::BinaryOperator::Xor,
-                o::DataType::B1 => unimplemented!(),
+                o::DataType::I32 => unimplemented!(),
+                o::DataType::B1 => o::BinaryOperator::Xor,
                 o::DataType::Array(..) => unreachable!(),
             },
             i::BinaryOperator::LeftShift => match base {
