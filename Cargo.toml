@@ -12,6 +12,7 @@ repository = "https://gitlab.com/Code_Cube/nodespeak-compiler"
 
 [dependencies]
 colored = "1.8"
+itertools = "0.10.3"
 libc = "0.2"
 llvm-sys = "70"
 pest = "2.1"
