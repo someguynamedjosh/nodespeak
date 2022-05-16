@@ -11,12 +11,4 @@ homepage = "https://gitlab.com/Code_Cube/nodespeak-compiler"
 repository = "https://gitlab.com/Code_Cube/nodespeak-compiler"
 
 [dependencies]
-colored = "1.8"
 itertools = "0.10.3"
-libc = "0.2"
-pest = "2.1"
-pest_derive = "2.1"
-readonly = "0.1"
-snailquote = "0.3"
-terminal_size="0.1"
-text_io = "0.1"

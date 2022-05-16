@@ -16,14 +16,6 @@ impl ValuePtr {
     pub fn ptr_clone(&self) -> Self {
         Self(Rc::clone(&self.0))
     }
-
-    pub fn min(of: Vec<ValuePtr>) -> Self {
-        Self(Rc::new(Value::Operation(Operation::Min, of)))
-    }
-
-    pub fn max(of: Vec<ValuePtr>) -> Self {
-        Self(Rc::new(Value::Operation(Operation::Max, of)))
-    }
 }
 
 impl Deref for ValuePtr {
