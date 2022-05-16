@@ -9,11 +9,13 @@ pub enum Type {
         eltype: ValuePtr,
         dims: Vec<ValuePtr>,
     },
-    InRange(ValuePtr, ValuePtr),
-    InSet(Vec<ValuePtr>),
+    InSet{
+        base_type: ValuePtr,
+        allowed_values: Vec<ValuePtr>
+    },
     Function {
         inputs: Vec<ParameterPtr>,
         outputs: Vec<ParameterPtr>,
     },
-    Never,
+    Malformed,
 }

@@ -5,7 +5,7 @@ use crate::{types::Type, util::Rcrc};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    Type(Type),
+    TypeLiteral(Type),
     FloatLiteral(f32),
     IntLiteral(i32),
     BoolLiteral(bool),
@@ -22,9 +22,16 @@ pub struct Parameter {
     pub typee: ValuePtr,
 }
 
-pub type ParameterPtr = Rc<Parameter>;
+#[derive(Clone, Debug)]
+pub struct ParameterPtr(Rc<Parameter>);
 
-#[derive(Clone, Debug, PartialEq)]
+impl PartialEq for ParameterPtr {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Operation {
     Add,
     Sub,
@@ -41,6 +48,4 @@ pub enum Operation {
     Or,
     Xor,
     Not,
-    Min,
-    Max,
 }
