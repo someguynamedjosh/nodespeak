@@ -1,4 +1,4 @@
-use crate::values::{ValuePtr, ParameterPtr};
+use crate::values::{ValuePtr, LocalPtr};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
@@ -14,8 +14,8 @@ pub enum Type {
         allowed_values: Vec<ValuePtr>
     },
     Function {
-        inputs: Vec<ParameterPtr>,
-        outputs: Vec<ParameterPtr>,
+        inputs: Vec<LocalPtr>,
+        outputs: Vec<LocalPtr>,
     },
     Malformed,
 }

@@ -12,3 +12,4 @@ repository = "https://gitlab.com/Code_Cube/nodespeak-compiler"
 
 [dependencies]
 itertools = "0.10.3"
+nom = "7.1.1"

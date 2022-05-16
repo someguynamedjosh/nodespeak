@@ -1,7 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use super::ValuePtr;
-use crate::{types::Type, util::Rcrc};
+use crate::types::Type;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -9,25 +9,45 @@ pub enum Value {
     FloatLiteral(f32),
     IntLiteral(i32),
     BoolLiteral(bool),
-    FunctionParameter(ParameterPtr),
+    Local(LocalPtr),
     Operation(Operation, Vec<ValuePtr>),
+    Assignment {
+        base: ValuePtr,
+        targets: Vec<LocalPtr>,
+    },
+    Function {
+        inputs: Vec<LocalPtr>,
+        outputs: Vec<LocalPtr>,
+        locals: Vec<LocalPtr>,
+        body: Vec<ValuePtr>,
+    },
     FunctionCall(ValuePtr, Vec<ValuePtr>),
     Any,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Parameter {
+pub struct Local {
     pub compile_time_only: bool,
     pub name: String,
     pub typee: ValuePtr,
 }
 
 #[derive(Clone, Debug)]
-pub struct ParameterPtr(Rc<Parameter>);
+pub struct LocalPtr(Rc<Local>);
 
-impl PartialEq for ParameterPtr {
+impl PartialEq for LocalPtr {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl LocalPtr {
+    pub fn new(local: Local) -> Self {
+        Self(Rc::new(local))
+    }
+
+    pub fn ptr_clone(&self) -> Self {
+        Self(Rc::clone(&self.0))
     }
 }
 

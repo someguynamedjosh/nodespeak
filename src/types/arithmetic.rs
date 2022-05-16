@@ -182,7 +182,7 @@ fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValueP
         (&Value::IntLiteral(left), &Value::IntLiteral(right)) if left == right => {
             Some(left_value.ptr_clone())
         }
-        (Value::FunctionParameter(left), Value::FunctionParameter(right)) if left == right => {
+        (Value::Local(left), Value::Local(right)) if left == right => {
             Some(left_value.ptr_clone())
         }
         (left, right) if left == right => Some(left_value.ptr_clone()),
