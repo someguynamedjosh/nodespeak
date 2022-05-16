@@ -2,6 +2,7 @@ use crate::values::{ValuePtr, LocalPtr};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
+    Type,
     Float,
     Int,
     Bool,

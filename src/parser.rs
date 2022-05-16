@@ -9,7 +9,10 @@ use nom::{
     IResult, InputIter, Parser,
 };
 
-use crate::values::{Local, LocalPtr, Value, ValuePtr};
+use crate::{
+    types::Type,
+    values::{Local, LocalPtr, Operation, Value, ValuePtr},
+};
 
 #[derive(Clone, Debug)]
 pub struct Scope {
@@ -51,36 +54,6 @@ pub fn parse_body(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
 
 fn ws(input: &str) -> Result<&str> {
     take_while(|c: char| c.is_whitespace())(input)
-}
-
-fn parse_int_literal(input: &str) -> Result<ValuePtr> {
-    // TODO: Error.
-    let (input, chars) = take_while1(|c| "0123456789_".contains(c))(input)?;
-    let number = chars.parse().unwrap();
-    let value = ValuePtr::new(Value::IntLiteral(number));
-    Ok((input, value))
-}
-
-fn parse_float_literal(input: &str) -> Result<ValuePtr> {
-    // TODO: Error.
-    // TODO: Make this better.
-    let (input, chars) = take_while1(|c| "0123456789_.e+-".contains(c))(input)?;
-    let number = chars.parse().unwrap();
-    let value = ValuePtr::new(Value::FloatLiteral(number));
-    Ok((input, value))
-}
-
-fn parse_bool_literal(input: &str) -> Result<ValuePtr> {
-    let base = tag("TRUE")
-        .map(|_| ValuePtr::new(Value::BoolLiteral(true)))
-        .parse(input);
-    if base.is_ok() {
-        base
-    } else {
-        tag("FALSE")
-            .map(|_| ValuePtr::new(Value::BoolLiteral(false)))
-            .parse(input)
-    }
 }
 
 fn parse_identifier_into_value<'b>(
@@ -359,11 +332,150 @@ fn parse_expression_0<'b>(
             }
         }
         {
+            let result = opt(tag("ANY"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::Any)));
+            }
+        }
+        {
+            let result = opt(tag("Int"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Int))));
+            }
+        }
+        {
+            let result = opt(tag("Float"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Float))));
+            }
+        }
+        {
+            let result = opt(tag("Bool"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Bool))));
+            }
+        }
+        {
+            let result = opt(tag("Type"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Type))));
+            }
+        }
+        {
+            let result = opt(tag("Malformed"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Malformed))));
+            }
+        }
+        {
+            let result = opt(parse_function_call(scope))(input)?;
+            if let (input, Some((name, args))) = result {
+                let value = match name {
+                    "Array" => {
+                        assert!(args.len() >= 2);
+                        let mut args = args.into_iter();
+                        let eltype = args.next().unwrap();
+                        let dims = args.collect();
+                        Value::TypeLiteral(Type::Array { eltype, dims })
+                    }
+                    "InSet" => {
+                        assert!(args.len() > 0);
+                        let mut base_type = ValuePtr::new(Value::Operation(
+                            Operation::Typeof,
+                            vec![args[0].ptr_clone()],
+                        ));
+                        for arg in &args[1..] {
+                            let typeof_this_arg = ValuePtr::new(Value::Operation(
+                                Operation::Typeof,
+                                vec![arg.ptr_clone()],
+                            ));
+                            base_type = ValuePtr::new(Value::Operation(
+                                Operation::Add,
+                                vec![base_type, typeof_this_arg],
+                            ));
+                        }
+                        Value::TypeLiteral(Type::InSet {
+                            base_type,
+                            allowed_values: args,
+                        })
+                    }
+                    _ => {
+                        if let Some(base) = scope.all_locals.get(name) {
+                            Value::FunctionCall(ValuePtr::new(Value::Local(base.ptr_clone())), args)
+                        } else {
+                            return fail(input);
+                        }
+                    }
+                };
+                return Ok((input, ValuePtr::new(value)));
+            }
+        }
+        {
             let result = opt(parse_identifier_into_value(scope))(input)?;
             if let (input, Some(result)) = result {
                 return Ok((input, result));
             }
         }
         fail(input)
+    }
+}
+
+fn parse_comma_expression_list<'b>(
+    scope: &'b mut Scope,
+) -> impl for<'a> FnMut(&'a str) -> Result<Vec<ValuePtr>> + 'b {
+    move |mut input| {
+        let mut elements = Vec::new();
+        loop {
+            let (new_input, element) = parse_basic_expression(scope)(input)?;
+            elements.push(element);
+            let (new_input, comma) = opt(tuple((ws, tag(","), ws)))(new_input)?;
+            input = new_input;
+            if comma.is_none() {
+                break;
+            }
+        }
+        Ok((input, elements))
+    }
+}
+
+fn parse_function_call<'b>(
+    scope: &'b mut Scope,
+) -> impl for<'a> FnMut(&'a str) -> Result<(&'a str, Vec<ValuePtr>)> + 'b {
+    move |input| {
+        let (input, ident) = parse_identifier_text(input)?;
+        let (input, _) = tuple((ws, tag("("), ws))(input)?;
+        let (input, args) = parse_comma_expression_list(scope)(input)?;
+        let (input, _) = tuple((ws, tag(")"), ws))(input)?;
+        Ok((input, (ident, args)))
+    }
+}
+
+fn parse_int_literal(input: &str) -> Result<ValuePtr> {
+    // TODO: Error.
+    let (input, chars) = take_while1(|c| "0123456789_".contains(c))(input)?;
+    let number = chars.parse().unwrap();
+    let value = ValuePtr::new(Value::IntLiteral(number));
+    Ok((input, value))
+}
+
+fn parse_float_literal(input: &str) -> Result<ValuePtr> {
+    // TODO: Error.
+    // TODO: Make this better.
+    let (input, chars) = take_while1(|c| "0123456789_.e+-".contains(c))(input)?;
+    let number = chars.parse().unwrap();
+    let value = ValuePtr::new(Value::FloatLiteral(number));
+    Ok((input, value))
+}
+
+fn parse_bool_literal(input: &str) -> Result<ValuePtr> {
+    let base = tag("TRUE")
+        .map(|_| ValuePtr::new(Value::BoolLiteral(true)))
+        .parse(input);
+    if base.is_ok() {
+        base
+    } else {
+        tag("FALSE")
+            .map(|_| ValuePtr::new(Value::BoolLiteral(false)))
+            .parse(input)
     }
 }

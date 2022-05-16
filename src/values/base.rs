@@ -68,4 +68,5 @@ pub enum Operation {
     Or,
     Xor,
     Not,
+    Typeof
 }

@@ -137,6 +137,8 @@ pub fn calculate_type_arithmetic(op: Operation, values: &[Type]) -> Value {
                         ],
                     );
                 }
+                (Type::Type, Type::Type) => Type::Type,
+                (Type::Type, _) | (_, Type::Type) => Type::Malformed,
             }
         }
         Operation::Not => {
@@ -145,6 +147,7 @@ pub fn calculate_type_arithmetic(op: Operation, values: &[Type]) -> Value {
             let base = values.next().unwrap();
             base.clone()
         }
+        Operation::Typeof => Type::Type,
     };
     Value::TypeLiteral(typ)
 }
@@ -182,9 +185,7 @@ fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValueP
         (&Value::IntLiteral(left), &Value::IntLiteral(right)) if left == right => {
             Some(left_value.ptr_clone())
         }
-        (Value::Local(left), Value::Local(right)) if left == right => {
-            Some(left_value.ptr_clone())
-        }
+        (Value::Local(left), Value::Local(right)) if left == right => Some(left_value.ptr_clone()),
         (left, right) if left == right => Some(left_value.ptr_clone()),
         _ => None,
     }
