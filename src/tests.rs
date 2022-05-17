@@ -12,7 +12,7 @@ fn basic_parsing() {
         input a;
         output b = a;
     };
-    test(1);
+    test(add(1, 2));
 "#;
     let result = parse_root(file);
     if let Ok((_, (scope, statements))) = result {

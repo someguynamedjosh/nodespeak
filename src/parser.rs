@@ -418,6 +418,22 @@ fn parse_expression_0<'b>(
                             allowed_values: args,
                         })
                     }
+                    "add" => Value::Operation(Operation::Add, args),
+                    "sub" => Value::Operation(Operation::Sub, args),
+                    "mul" => Value::Operation(Operation::Mul, args),
+                    "div" => Value::Operation(Operation::Div, args),
+                    "rem" => Value::Operation(Operation::Rem, args),
+                    "gt" => Value::Operation(Operation::Gt, args),
+                    "lt" => Value::Operation(Operation::Lt, args),
+                    "gte" => Value::Operation(Operation::Gte, args),
+                    "lte" => Value::Operation(Operation::Lte, args),
+                    "eq" => Value::Operation(Operation::Eq, args),
+                    "neq" => Value::Operation(Operation::Neq, args),
+                    "and" => Value::Operation(Operation::And, args),
+                    "or" => Value::Operation(Operation::Or, args),
+                    "xor" => Value::Operation(Operation::Xor, args),
+                    "not" => Value::Operation(Operation::Not, args),
+                    "typeof" => Value::Operation(Operation::Typeof, args),
                     _ => {
                         if let Some(base) = scope.all_locals.get(name) {
                             Value::FunctionCall(ValuePtr::new(Value::Local(base.ptr_clone())), args)
