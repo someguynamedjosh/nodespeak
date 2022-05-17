@@ -6,7 +6,7 @@ use std::{
 use super::{Operation, Value};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ValuePtr(Rc<Value>);
+pub struct ValuePtr(pub(super) Rc<Value>);
 
 impl ValuePtr {
     pub fn new(value: Value) -> Self {

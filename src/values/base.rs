@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, hash::{Hash, Hasher}, ops::Deref};
 
 use super::ValuePtr;
 use crate::types::Type;
@@ -22,6 +22,10 @@ pub enum Value {
         body: Vec<ValuePtr>,
     },
     FunctionCall(ValuePtr, Vec<ValuePtr>),
+    MultipleResults(Vec<ValuePtr>),
+    // Takes one of several results from an expression
+    ExtractResult(ValuePtr, usize),
+    Noop,
     Any,
 }
 
@@ -38,6 +42,22 @@ pub struct LocalPtr(Rc<Local>);
 impl PartialEq for LocalPtr {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for LocalPtr {}
+
+impl Hash for LocalPtr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.0).hash(state);
+    }
+}
+
+impl Deref for LocalPtr {
+    type Target = Local;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 

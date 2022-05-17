@@ -1,0 +1,202 @@
+use std::collections::HashMap;
+
+use itertools::Itertools;
+
+use super::{LocalPtr, Operation, Value, ValuePtr};
+use crate::types::{calculate_type_arithmetic, Type};
+
+fn int_op(op: Operation, lhs: i32, rhs: i32) -> Value {
+    match op {
+        Operation::Add => Value::IntLiteral(lhs + rhs),
+        Operation::Sub => Value::IntLiteral(lhs - rhs),
+        Operation::Mul => Value::IntLiteral(lhs * rhs),
+        Operation::Div => Value::IntLiteral(lhs / rhs),
+        Operation::Rem => Value::IntLiteral(lhs % rhs),
+
+        Operation::Gt => Value::BoolLiteral(lhs > rhs),
+        Operation::Lt => Value::BoolLiteral(lhs < rhs),
+        Operation::Gte => Value::BoolLiteral(lhs >= rhs),
+        Operation::Lte => Value::BoolLiteral(lhs <= rhs),
+        Operation::Eq => Value::BoolLiteral(lhs == rhs),
+        Operation::Neq => Value::BoolLiteral(lhs != rhs),
+
+        Operation::And => Value::IntLiteral(lhs & rhs),
+        Operation::Or => Value::IntLiteral(lhs | rhs),
+        Operation::Xor => Value::IntLiteral(lhs ^ rhs),
+
+        Operation::Not => unreachable!(),
+        Operation::Typeof => unreachable!(),
+    }
+}
+
+fn float_op(op: Operation, lhs: f32, rhs: f32) -> Value {
+    match op {
+        Operation::Add => Value::FloatLiteral(lhs + rhs),
+        Operation::Sub => Value::FloatLiteral(lhs - rhs),
+        Operation::Mul => Value::FloatLiteral(lhs * rhs),
+        Operation::Div => Value::FloatLiteral(lhs / rhs),
+        Operation::Rem => Value::FloatLiteral(lhs % rhs),
+
+        Operation::Gt => Value::BoolLiteral(lhs > rhs),
+        Operation::Lt => Value::BoolLiteral(lhs < rhs),
+        Operation::Gte => Value::BoolLiteral(lhs >= rhs),
+        Operation::Lte => Value::BoolLiteral(lhs <= rhs),
+        Operation::Eq => Value::BoolLiteral(lhs == rhs),
+        Operation::Neq => Value::BoolLiteral(lhs != rhs),
+
+        Operation::And => unreachable!(),
+        Operation::Or => unreachable!(),
+        Operation::Xor => unreachable!(),
+
+        Operation::Not => unreachable!(),
+        Operation::Typeof => unreachable!(),
+    }
+}
+
+fn bool_op(op: Operation, lhs: bool, rhs: bool) -> Value {
+    match op {
+        Operation::Add => unreachable!(),
+        Operation::Sub => unreachable!(),
+        Operation::Mul => unreachable!(),
+        Operation::Div => unreachable!(),
+        Operation::Rem => unreachable!(),
+
+        Operation::Gt => unreachable!(),
+        Operation::Lt => unreachable!(),
+        Operation::Gte => unreachable!(),
+        Operation::Lte => unreachable!(),
+        Operation::Eq => unreachable!(),
+        Operation::Neq => unreachable!(),
+
+        Operation::And => Value::BoolLiteral(lhs & rhs),
+        Operation::Or => Value::BoolLiteral(lhs | rhs),
+        Operation::Xor => Value::BoolLiteral(lhs ^ rhs),
+
+        Operation::Not => unreachable!(),
+        Operation::Typeof => unreachable!(),
+    }
+}
+
+pub struct SimplificationContext {
+    locals: HashMap<LocalPtr, ValuePtr>,
+}
+
+impl SimplificationContext {
+    pub fn new() -> Self {
+        Self {
+            locals: HashMap::new(),
+        }
+    }
+
+    pub fn assignments(self) -> Vec<(LocalPtr, ValuePtr)> {
+        self.locals.into_iter().collect()
+    }
+}
+
+impl ValuePtr {
+    pub fn typee(&self) -> Value {
+        match &*self.0 {
+            Value::TypeLiteral(..) => Value::TypeLiteral(Type::Type),
+            Value::FloatLiteral(_) => Value::TypeLiteral(Type::Float),
+            Value::IntLiteral(_) => Value::TypeLiteral(Type::Int),
+            Value::BoolLiteral(_) => Value::TypeLiteral(Type::Bool),
+            Value::Local(local) => (*local.typee).clone(),
+            Value::Operation(op, args) => Value::Operation(
+                *op,
+                args.iter()
+                    .map(ValuePtr::typee)
+                    .map(ValuePtr::new)
+                    .collect(),
+            ),
+            Value::Assignment { base, targets } => Value::TypeLiteral(Type::Malformed),
+            Value::Function {
+                inputs,
+                outputs,
+                locals,
+                body,
+            } => todo!(),
+            Value::FunctionCall(_, _) => todo!(),
+            Value::MultipleResults(_) => todo!(),
+            Value::ExtractResult(base, index) => Value::ExtractResult(ValuePtr::new(base.typee()), *index),
+            Value::Noop => Value::Noop,
+            Value::Any => Value::Any,
+        }
+    }
+
+    pub fn simplify(&self, ctx: &mut SimplificationContext) -> Self {
+        match &*self.0 {
+            Value::TypeLiteral(typ) => ValuePtr::new(Value::TypeLiteral(typ.simplify(ctx))),
+            Value::FloatLiteral(_)
+            | Value::IntLiteral(_)
+            | Value::BoolLiteral(_)
+            | Value::MultipleResults(_)
+            | Value::Noop
+            | Value::Function { .. }
+            | Value::Any => self.ptr_clone(),
+            Value::Local(local) => {
+                if let Some(value) = ctx.locals.get(local) {
+                    value.ptr_clone()
+                } else {
+                    panic!("Local used before assigned!");
+                }
+            }
+            Value::Operation(op, args) => {
+                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
+                let new_value = if args.len() == 2 {
+                    let mut args = args.clone().into_iter();
+                    let lhs = args.next().unwrap();
+                    let rhs = args.next().unwrap();
+                    match (&*lhs, &*rhs) {
+                        (&Value::IntLiteral(lhs), &Value::IntLiteral(rhs)) => {
+                            Some(int_op(*op, lhs, rhs))
+                        }
+                        (&Value::FloatLiteral(lhs), &Value::IntLiteral(rhs)) => {
+                            Some(float_op(*op, lhs, rhs as f32))
+                        }
+                        (&Value::IntLiteral(lhs), &Value::FloatLiteral(rhs)) => {
+                            Some(float_op(*op, lhs as f32, rhs))
+                        }
+                        (&Value::FloatLiteral(lhs), &Value::FloatLiteral(rhs)) => {
+                            Some(float_op(*op, lhs, rhs))
+                        }
+                        (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
+                            Some(bool_op(*op, lhs, rhs))
+                        }
+                        (Value::TypeLiteral(lhs), Value::TypeLiteral(rhs)) => {
+                            Some(calculate_type_arithmetic(*op, &[lhs.clone(), rhs.clone()]))
+                        }
+                        _ => None,
+                    }
+                } else if op == &Operation::Typeof {
+                    let mut args = args.clone().into_iter();
+                    let base = args.next().unwrap();
+                    Some(base.typee())
+                } else {
+                    None
+                };
+                ValuePtr::new(new_value.unwrap_or_else(|| Value::Operation(*op, args)))
+            }
+            Value::Assignment { base, targets } => {
+                let base = base.simplify(ctx);
+                for (index, target) in targets.iter().enumerate() {
+                    let value = if targets.len() == 1 {
+                        base.ptr_clone()
+                    } else {
+                        ValuePtr::new(Value::ExtractResult(base.ptr_clone(), index))
+                    };
+                    ctx.locals.insert(target.ptr_clone(), value);
+                }
+                ValuePtr::new(Value::Noop)
+            }
+            Value::ExtractResult(base, index) => {
+                let base = base.simplify(ctx);
+                if let Value::MultipleResults(results) = &*base {
+                    results[*index].ptr_clone()
+                } else {
+                    ValuePtr::new(Value::ExtractResult(base, *index))
+                }
+            }
+            Value::FunctionCall(_, _) => todo!(),
+        }
+    }
+}
