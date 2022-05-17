@@ -1,19 +1,29 @@
-use std::{rc::Rc, hash::{Hash, Hasher}, ops::Deref};
+use std::{
+    hash::{Hash, Hasher},
+    ops::Deref,
+    rc::Rc,
+};
 
 use super::ValuePtr;
-use crate::types::Type;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    TypeLiteral(Type),
+    BuiltinType(BuiltinType),
+    BuiltinOp(BuiltinOp),
+    Noop,
+    Any,
+    Malformed,
     FloatLiteral(f32),
     IntLiteral(i32),
     BoolLiteral(bool),
+    ArrayLiteral {
+        elements: Vec<ValuePtr>,
+        dims: Vec<ValuePtr>,
+    },
     Local(LocalPtr),
-    Operation(Operation, Vec<ValuePtr>),
     Assignment {
         base: ValuePtr,
-        targets: Vec<LocalPtr>,
+        target: LocalPtr,
     },
     Function {
         inputs: Vec<LocalPtr>,
@@ -21,12 +31,42 @@ pub enum Value {
         locals: Vec<LocalPtr>,
         body: Vec<ValuePtr>,
     },
-    FunctionCall(ValuePtr, Vec<ValuePtr>),
-    MultipleResults(Vec<ValuePtr>),
-    // Takes one of several results from an expression
-    ExtractResult(ValuePtr, usize),
-    Noop,
-    Any,
+    FunctionCall(ValuePtr, Vec<ValuePtr>, usize),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BuiltinType {
+    Int,
+    Float,
+    Bool,
+    Type,
+    Array,
+    InSet,
+    Function,
+    Malformed,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BuiltinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+
+    Gt,
+    Lt,
+    Gte,
+    Lte,
+    Eq,
+    Neq,
+
+    And,
+    Or,
+    Xor,
+    Not,
+
+    Typeof,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -88,5 +128,5 @@ pub enum Operation {
     Or,
     Xor,
     Not,
-    Typeof
+    Typeof,
 }

@@ -9,10 +9,7 @@ use nom::{
     IResult, InputIter, Parser,
 };
 
-use crate::{
-    types::Type,
-    values::{Local, LocalPtr, Operation, Value, ValuePtr},
-};
+use crate::values::{Local, LocalPtr, Operation, Value, ValuePtr, BuiltinOp, BuiltinType};
 
 #[derive(Clone, Debug)]
 pub struct Scope {
@@ -47,7 +44,10 @@ pub fn parse_root(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
     } else {
         Ok((
             input,
-            (scope, values.into_iter().filter_map(|x| x).collect()),
+            (
+                scope,
+                values.into_iter().flat_map(|x| x.into_iter()).collect(),
+            ),
         ))
     }
 }
@@ -61,7 +61,10 @@ fn parse_body<'b>(
             parse_statement(scope),
             tuple((ws, tag(";"), ws)),
         ))(input)?;
-        Ok((input, values.into_iter().filter_map(|x| x).collect()))
+        Ok((
+            input,
+            values.into_iter().flat_map(|x| x.into_iter()).collect(),
+        ))
     }
 }
 
@@ -160,7 +163,7 @@ fn parse_assignment_lhs<'b>(
 
 fn parse_assignment_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, ValuePtr> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
     move |input| {
         let mut targets = Vec::new();
         let mut input = input;
@@ -181,7 +184,27 @@ fn parse_assignment_statement<'b>(
             return fail(input);
         }
         let (input, base) = parse_basic_expression(scope)(input)?;
-        let value = ValuePtr::new(Value::Assignment { base, targets });
+        let value = if targets.len() == 1 {
+            let target = targets.into_iter().next().unwrap();
+            vec![ValuePtr::new(Value::Assignment { base, target })]
+        } else {
+            if let Value::FunctionCall(base, args, 0) = &*base {
+                let mut value = Vec::new();
+                for (index, target) in targets.into_iter().enumerate() {
+                    value.push(ValuePtr::new(Value::Assignment {
+                        base: ValuePtr::new(Value::FunctionCall(
+                            base.ptr_clone(),
+                            args.clone(),
+                            index,
+                        )),
+                        target,
+                    }));
+                }
+                value
+            } else {
+                todo!("Nice error, only function calls can have multiple outputs.")
+            }
+        };
         Ok((input, value))
     }
 }
@@ -214,24 +237,24 @@ fn parse_declaration_statement<'b>(
 
 fn parse_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, Option<ValuePtr>> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
     move |input| {
         {
             let result = opt(parse_assignment_statement(scope))(input)?;
             if let (input, Some(result)) = result {
-                return Ok((input, Some(result)));
+                return Ok((input, result));
             }
         }
         {
             let result = opt(parse_declaration_statement(scope))(input)?;
             if let (input, Some(result)) = result {
-                return Ok((input, None));
+                return Ok((input, vec![]));
             }
         }
         {
             let result = opt(parse_basic_expression(scope))(input)?;
             if let (input, Some(result)) = result {
-                return Ok((input, Some(result)));
+                return Ok((input, vec![result]));
             }
         }
         fail(input)
@@ -357,91 +380,70 @@ fn parse_expression_0<'b>(
             }
         }
         {
+            let result = opt(tag("MALFORMED"))(input)?;
+            if let (input, Some(_)) = result {
+                return Ok((input, ValuePtr::new(Value::Malformed)));
+            }
+        }
+        {
             let result = opt(tag("Int"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Int))));
+                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Int))));
             }
         }
         {
             let result = opt(tag("Float"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Float))));
+                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Float))));
             }
         }
         {
             let result = opt(tag("Bool"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Bool))));
-            }
-        }
-        {
-            let result = opt(tag("Type"))(input)?;
-            if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Type))));
+                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Bool))));
             }
         }
         {
             let result = opt(tag("Malformed"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::TypeLiteral(Type::Malformed))));
+                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Malformed))));
             }
         }
         {
             let result = opt(parse_function_call(scope))(input)?;
             if let (input, Some((name, args))) = result {
-                let value = match name {
-                    "Array" => {
-                        assert!(args.len() >= 2);
-                        let mut args = args.into_iter();
-                        let eltype = args.next().unwrap();
-                        let dims = args.collect();
-                        Value::TypeLiteral(Type::Array { eltype, dims })
-                    }
-                    "InSet" => {
-                        assert!(args.len() > 0);
-                        let mut base_type = ValuePtr::new(Value::Operation(
-                            Operation::Typeof,
-                            vec![args[0].ptr_clone()],
-                        ));
-                        for arg in &args[1..] {
-                            let typeof_this_arg = ValuePtr::new(Value::Operation(
-                                Operation::Typeof,
-                                vec![arg.ptr_clone()],
-                            ));
-                            base_type = ValuePtr::new(Value::Operation(
-                                Operation::Add,
-                                vec![base_type, typeof_this_arg],
-                            ));
-                        }
-                        Value::TypeLiteral(Type::InSet {
-                            base_type,
-                            allowed_values: args,
-                        })
-                    }
-                    "add" => Value::Operation(Operation::Add, args),
-                    "sub" => Value::Operation(Operation::Sub, args),
-                    "mul" => Value::Operation(Operation::Mul, args),
-                    "div" => Value::Operation(Operation::Div, args),
-                    "rem" => Value::Operation(Operation::Rem, args),
-                    "gt" => Value::Operation(Operation::Gt, args),
-                    "lt" => Value::Operation(Operation::Lt, args),
-                    "gte" => Value::Operation(Operation::Gte, args),
-                    "lte" => Value::Operation(Operation::Lte, args),
-                    "eq" => Value::Operation(Operation::Eq, args),
-                    "neq" => Value::Operation(Operation::Neq, args),
-                    "and" => Value::Operation(Operation::And, args),
-                    "or" => Value::Operation(Operation::Or, args),
-                    "xor" => Value::Operation(Operation::Xor, args),
-                    "not" => Value::Operation(Operation::Not, args),
-                    "typeof" => Value::Operation(Operation::Typeof, args),
+                let base = match name {
+                    "add" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Add)),
+                    "sub" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Sub)),
+                    "mul" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Mul)),
+                    "div" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Div)),
+                    "rem" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Rem)),
+
+                    "gt" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Gt)),
+                    "lt" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Lt)),
+                    "gte" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Gte)),
+                    "lte" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Lte)),
+                    "eq" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Eq)),
+                    "neq" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Neq)),
+
+                    "and" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::And)),
+                    "or" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Or)),
+                    "xor" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Xor)),
+                    "not" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Not)),
+
+                    "typeof" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Typeof)),
+
+                    "Array" => ValuePtr::new(Value::BuiltinType(BuiltinType::Array)),
+                    "InSet" => ValuePtr::new(Value::BuiltinType(BuiltinType::InSet)),
                     _ => {
                         if let Some(base) = scope.all_locals.get(name) {
-                            Value::FunctionCall(ValuePtr::new(Value::Local(base.ptr_clone())), args)
+                            ValuePtr::new(Value::Local(base.ptr_clone()))
                         } else {
                             return fail(input);
                         }
                     }
                 };
+                let value = Value::FunctionCall(base, args, 0);
                 return Ok((input, ValuePtr::new(value)));
             }
         }

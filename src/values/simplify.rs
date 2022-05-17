@@ -2,78 +2,77 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use super::{LocalPtr, Operation, Value, ValuePtr};
-use crate::types::{calculate_type_arithmetic, Type};
+use super::{BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr};
 
-fn int_op(op: Operation, lhs: i32, rhs: i32) -> Value {
+fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
     match op {
-        Operation::Add => Value::IntLiteral(lhs + rhs),
-        Operation::Sub => Value::IntLiteral(lhs - rhs),
-        Operation::Mul => Value::IntLiteral(lhs * rhs),
-        Operation::Div => Value::IntLiteral(lhs / rhs),
-        Operation::Rem => Value::IntLiteral(lhs % rhs),
+        BuiltinOp::Add => Value::IntLiteral(lhs + rhs),
+        BuiltinOp::Sub => Value::IntLiteral(lhs - rhs),
+        BuiltinOp::Mul => Value::IntLiteral(lhs * rhs),
+        BuiltinOp::Div => Value::IntLiteral(lhs / rhs),
+        BuiltinOp::Rem => Value::IntLiteral(lhs % rhs),
 
-        Operation::Gt => Value::BoolLiteral(lhs > rhs),
-        Operation::Lt => Value::BoolLiteral(lhs < rhs),
-        Operation::Gte => Value::BoolLiteral(lhs >= rhs),
-        Operation::Lte => Value::BoolLiteral(lhs <= rhs),
-        Operation::Eq => Value::BoolLiteral(lhs == rhs),
-        Operation::Neq => Value::BoolLiteral(lhs != rhs),
+        BuiltinOp::Gt => Value::BoolLiteral(lhs > rhs),
+        BuiltinOp::Lt => Value::BoolLiteral(lhs < rhs),
+        BuiltinOp::Gte => Value::BoolLiteral(lhs >= rhs),
+        BuiltinOp::Lte => Value::BoolLiteral(lhs <= rhs),
+        BuiltinOp::Eq => Value::BoolLiteral(lhs == rhs),
+        BuiltinOp::Neq => Value::BoolLiteral(lhs != rhs),
 
-        Operation::And => Value::IntLiteral(lhs & rhs),
-        Operation::Or => Value::IntLiteral(lhs | rhs),
-        Operation::Xor => Value::IntLiteral(lhs ^ rhs),
+        BuiltinOp::And => Value::IntLiteral(lhs & rhs),
+        BuiltinOp::Or => Value::IntLiteral(lhs | rhs),
+        BuiltinOp::Xor => Value::IntLiteral(lhs ^ rhs),
 
-        Operation::Not => unreachable!(),
-        Operation::Typeof => unreachable!(),
+        BuiltinOp::Not => unreachable!(),
+        BuiltinOp::Typeof => unreachable!(),
     }
 }
 
-fn float_op(op: Operation, lhs: f32, rhs: f32) -> Value {
+fn float_op(op: BuiltinOp, lhs: f32, rhs: f32) -> Value {
     match op {
-        Operation::Add => Value::FloatLiteral(lhs + rhs),
-        Operation::Sub => Value::FloatLiteral(lhs - rhs),
-        Operation::Mul => Value::FloatLiteral(lhs * rhs),
-        Operation::Div => Value::FloatLiteral(lhs / rhs),
-        Operation::Rem => Value::FloatLiteral(lhs % rhs),
+        BuiltinOp::Add => Value::FloatLiteral(lhs + rhs),
+        BuiltinOp::Sub => Value::FloatLiteral(lhs - rhs),
+        BuiltinOp::Mul => Value::FloatLiteral(lhs * rhs),
+        BuiltinOp::Div => Value::FloatLiteral(lhs / rhs),
+        BuiltinOp::Rem => Value::FloatLiteral(lhs % rhs),
 
-        Operation::Gt => Value::BoolLiteral(lhs > rhs),
-        Operation::Lt => Value::BoolLiteral(lhs < rhs),
-        Operation::Gte => Value::BoolLiteral(lhs >= rhs),
-        Operation::Lte => Value::BoolLiteral(lhs <= rhs),
-        Operation::Eq => Value::BoolLiteral(lhs == rhs),
-        Operation::Neq => Value::BoolLiteral(lhs != rhs),
+        BuiltinOp::Gt => Value::BoolLiteral(lhs > rhs),
+        BuiltinOp::Lt => Value::BoolLiteral(lhs < rhs),
+        BuiltinOp::Gte => Value::BoolLiteral(lhs >= rhs),
+        BuiltinOp::Lte => Value::BoolLiteral(lhs <= rhs),
+        BuiltinOp::Eq => Value::BoolLiteral(lhs == rhs),
+        BuiltinOp::Neq => Value::BoolLiteral(lhs != rhs),
 
-        Operation::And => unreachable!(),
-        Operation::Or => unreachable!(),
-        Operation::Xor => unreachable!(),
+        BuiltinOp::And => unreachable!(),
+        BuiltinOp::Or => unreachable!(),
+        BuiltinOp::Xor => unreachable!(),
 
-        Operation::Not => unreachable!(),
-        Operation::Typeof => unreachable!(),
+        BuiltinOp::Not => unreachable!(),
+        BuiltinOp::Typeof => unreachable!(),
     }
 }
 
-fn bool_op(op: Operation, lhs: bool, rhs: bool) -> Value {
+fn bool_op(op: BuiltinOp, lhs: bool, rhs: bool) -> Value {
     match op {
-        Operation::Add => unreachable!(),
-        Operation::Sub => unreachable!(),
-        Operation::Mul => unreachable!(),
-        Operation::Div => unreachable!(),
-        Operation::Rem => unreachable!(),
+        BuiltinOp::Add => unreachable!(),
+        BuiltinOp::Sub => unreachable!(),
+        BuiltinOp::Mul => unreachable!(),
+        BuiltinOp::Div => unreachable!(),
+        BuiltinOp::Rem => unreachable!(),
 
-        Operation::Gt => unreachable!(),
-        Operation::Lt => unreachable!(),
-        Operation::Gte => unreachable!(),
-        Operation::Lte => unreachable!(),
-        Operation::Eq => unreachable!(),
-        Operation::Neq => unreachable!(),
+        BuiltinOp::Gt => unreachable!(),
+        BuiltinOp::Lt => unreachable!(),
+        BuiltinOp::Gte => unreachable!(),
+        BuiltinOp::Lte => unreachable!(),
+        BuiltinOp::Eq => unreachable!(),
+        BuiltinOp::Neq => unreachable!(),
 
-        Operation::And => Value::BoolLiteral(lhs & rhs),
-        Operation::Or => Value::BoolLiteral(lhs | rhs),
-        Operation::Xor => Value::BoolLiteral(lhs ^ rhs),
+        BuiltinOp::And => Value::BoolLiteral(lhs & rhs),
+        BuiltinOp::Or => Value::BoolLiteral(lhs | rhs),
+        BuiltinOp::Xor => Value::BoolLiteral(lhs ^ rhs),
 
-        Operation::Not => unreachable!(),
-        Operation::Typeof => unreachable!(),
+        BuiltinOp::Not => unreachable!(),
+        BuiltinOp::Typeof => unreachable!(),
     }
 }
 
@@ -97,44 +96,70 @@ impl SimplificationContext {
 impl ValuePtr {
     pub fn typee(&self) -> Value {
         match &*self.0 {
-            Value::TypeLiteral(..) => Value::TypeLiteral(Type::Type),
-            Value::FloatLiteral(_) => Value::TypeLiteral(Type::Float),
-            Value::IntLiteral(_) => Value::TypeLiteral(Type::Int),
-            Value::BoolLiteral(_) => Value::TypeLiteral(Type::Bool),
+            Value::BuiltinType(typ) => match typ {
+                BuiltinType::Int
+                | BuiltinType::Float
+                | BuiltinType::Bool
+                | BuiltinType::Type
+                | BuiltinType::Array
+                | BuiltinType::InSet
+                | BuiltinType::Function
+                | BuiltinType::Malformed => Value::BuiltinType(BuiltinType::Type),
+            },
+            Value::Noop | Value::Any => Value::Any,
+            Value::Malformed => Value::BuiltinType(BuiltinType::Malformed),
+            Value::BuiltinOp(op) => match op {
+                BuiltinOp::Add
+                | BuiltinOp::Sub
+                | BuiltinOp::Mul
+                | BuiltinOp::Div
+                | BuiltinOp::Rem
+                | BuiltinOp::Gt
+                | BuiltinOp::Lt
+                | BuiltinOp::Gte
+                | BuiltinOp::Lte
+                | BuiltinOp::Eq
+                | BuiltinOp::Neq
+                | BuiltinOp::And
+                | BuiltinOp::Or
+                | BuiltinOp::Xor => todo!(),
+                BuiltinOp::Not | BuiltinOp::Typeof => todo!(),
+            },
+            Value::ArrayLiteral { elements, dims } => todo!(),
+            Value::FloatLiteral(_) => Value::BuiltinType(BuiltinType::Float),
+            Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
+            Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
             Value::Local(local) => (*local.typee).clone(),
-            Value::Operation(op, args) => Value::Operation(
-                *op,
-                args.iter()
-                    .map(ValuePtr::typee)
-                    .map(ValuePtr::new)
-                    .collect(),
-            ),
-            Value::Assignment { base, targets } => Value::TypeLiteral(Type::Malformed),
+            Value::Assignment { base, target } => Value::BuiltinType(BuiltinType::Malformed),
             Value::Function {
                 inputs,
                 outputs,
                 locals,
                 body,
             } => todo!(),
-            Value::FunctionCall(_, _) => todo!(),
-            Value::MultipleResults(_) => todo!(),
-            Value::ExtractResult(base, index) => {
-                Value::ExtractResult(ValuePtr::new(base.typee()), *index)
-            }
-            Value::Noop => Value::Noop,
-            Value::Any => Value::Any,
+            Value::FunctionCall(_, _, _) => todo!(),
         }
     }
 
     pub fn simplify(&self, ctx: &mut SimplificationContext) -> Self {
         match &*self.0 {
-            Value::TypeLiteral(typ) => ValuePtr::new(Value::TypeLiteral(typ.simplify(ctx))),
             Value::FloatLiteral(_)
             | Value::IntLiteral(_)
             | Value::BoolLiteral(_)
-            | Value::MultipleResults(_)
-            | Value::Noop
-            | Value::Any => self.ptr_clone(),
+            | Value::BuiltinType(_)
+            | Value::BuiltinOp(_)
+            | Value::Any
+            | Value::Malformed
+            | Value::Noop => self.ptr_clone(),
+            Value::ArrayLiteral { elements, dims } => Self::new(Value::ArrayLiteral {
+                elements: elements.iter().map(|x| x.simplify(ctx)).collect(),
+                dims: elements.iter().map(|x| x.simplify(ctx)).collect(),
+            }),
+            Value::Assignment { base, target } => {
+                let base = base.simplify(ctx);
+                ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
+                ValuePtr::new(Value::Noop)
+            }
             Value::Function {
                 inputs,
                 outputs,
@@ -150,7 +175,7 @@ impl ValuePtr {
                     if !ctx.locals.contains_key(key) {
                         new_body.push(ValuePtr::new(Value::Assignment {
                             base: value.ptr_clone(),
-                            targets: vec![key.ptr_clone()],
+                            target: key.ptr_clone(),
                         }));
                     }
                 }
@@ -161,77 +186,50 @@ impl ValuePtr {
                     body: new_body,
                 })
             }
-            Value::Local(local) => {
-                if let Some(value) = ctx.locals.get(local) {
-                    value.ptr_clone()
-                } else {
-                    self.ptr_clone()
-                }
-            }
-            Value::Operation(op, args) => {
-                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
-                let new_value = if args.len() == 2 {
-                    let mut args = args.clone().into_iter();
-                    let lhs = args.next().unwrap();
-                    let rhs = args.next().unwrap();
-                    match (&*lhs, &*rhs) {
-                        (&Value::IntLiteral(lhs), &Value::IntLiteral(rhs)) => {
-                            Some(int_op(*op, lhs, rhs))
-                        }
-                        (&Value::FloatLiteral(lhs), &Value::IntLiteral(rhs)) => {
-                            Some(float_op(*op, lhs, rhs as f32))
-                        }
-                        (&Value::IntLiteral(lhs), &Value::FloatLiteral(rhs)) => {
-                            Some(float_op(*op, lhs as f32, rhs))
-                        }
-                        (&Value::FloatLiteral(lhs), &Value::FloatLiteral(rhs)) => {
-                            Some(float_op(*op, lhs, rhs))
-                        }
-                        (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
-                            Some(bool_op(*op, lhs, rhs))
-                        }
-                        (Value::TypeLiteral(lhs), Value::TypeLiteral(rhs)) => {
-                            Some(calculate_type_arithmetic(*op, &[lhs.clone(), rhs.clone()]))
-                        }
-                        _ => None,
-                    }
-                } else if op == &Operation::Typeof {
-                    let mut args = args.clone().into_iter();
-                    let base = args.next().unwrap();
-                    Some(base.typee())
-                } else {
-                    None
-                };
-                ValuePtr::new(new_value.unwrap_or_else(|| Value::Operation(*op, args)))
-            }
-            Value::Assignment { base, targets } => {
+            Value::FunctionCall(base, args, output) => {
                 let base = base.simplify(ctx);
-                for (index, target) in targets.iter().enumerate() {
-                    let value = if targets.len() == 1 {
-                        base.ptr_clone()
+                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
+                if let Value::BuiltinOp(builtin) = &*base {
+                    let new_value = if args.len() == 2 {
+                        let mut args = args.clone().into_iter();
+                        let lhs = args.next().unwrap();
+                        let rhs = args.next().unwrap();
+                        match (&*lhs, &*rhs) {
+                            (&Value::IntLiteral(lhs), &Value::IntLiteral(rhs)) => {
+                                Some(int_op(*builtin, lhs, rhs))
+                            }
+                            (&Value::FloatLiteral(lhs), &Value::IntLiteral(rhs)) => {
+                                Some(float_op(*builtin, lhs, rhs as f32))
+                            }
+                            (&Value::IntLiteral(lhs), &Value::FloatLiteral(rhs)) => {
+                                Some(float_op(*builtin, lhs as f32, rhs))
+                            }
+                            (&Value::FloatLiteral(lhs), &Value::FloatLiteral(rhs)) => {
+                                Some(float_op(*builtin, lhs, rhs))
+                            }
+                            (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
+                                Some(bool_op(*builtin, lhs, rhs))
+                            }
+                            // (Value::Builtin(lhs), Value::TypeLiteral(rhs)) => {
+                            //     Some(calculate_type_arithmetic(*builtin, &[lhs.clone(),
+                            // rhs.clone()])) }
+                            _ => None,
+                        }
+                    } else if builtin == &BuiltinOp::Typeof {
+                        let mut args = args.clone().into_iter();
+                        let base = args.next().unwrap();
+                        Some(base.typee())
                     } else {
-                        ValuePtr::new(Value::ExtractResult(base.ptr_clone(), index))
+                        None
                     };
-                    ctx.locals.insert(target.ptr_clone(), value);
-                }
-                ValuePtr::new(Value::Noop)
-            }
-            Value::ExtractResult(base, index) => {
-                let base = base.simplify(ctx);
-                if let Value::MultipleResults(results) = &*base {
-                    results[*index].ptr_clone()
-                } else {
-                    ValuePtr::new(Value::ExtractResult(base, *index))
-                }
-            }
-            Value::FunctionCall(base, args) => {
-                let base = base.simplify(ctx);
-                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
-                if let Value::Function {
+                    if let Some(new_value) = new_value {
+                        return ValuePtr::new(new_value);
+                    }
+                } else if let Value::Function {
                     inputs,
                     outputs,
+                    locals,
                     body,
-                    ..
                 } = &*base
                 {
                     let mut new_ctx = ctx.clone();
@@ -250,13 +248,15 @@ impl ValuePtr {
                             panic!("Output not assigned in function body.");
                         }
                     }
-                    if results.len() == 1 {
-                        results.into_iter().next().unwrap()
-                    } else {
-                        ValuePtr::new(Value::MultipleResults(results))
-                    }
+                    return results.into_iter().skip(*output).next().unwrap();
+                }
+                ValuePtr::new(Value::FunctionCall(base, args, *output))
+            }
+            Value::Local(local) => {
+                if let Some(value) = ctx.locals.get(local) {
+                    value.ptr_clone()
                 } else {
-                    ValuePtr::new(Value::FunctionCall(base, args))
+                    self.ptr_clone()
                 }
             }
         }
