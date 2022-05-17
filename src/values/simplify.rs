@@ -224,7 +224,41 @@ impl ValuePtr {
                     ValuePtr::new(Value::ExtractResult(base, *index))
                 }
             }
-            Value::FunctionCall(_, _) => todo!(),
+            Value::FunctionCall(base, args) => {
+                let base = base.simplify(ctx);
+                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
+                if let Value::Function {
+                    inputs,
+                    outputs,
+                    body,
+                    ..
+                } = &*base
+                {
+                    let mut new_ctx = ctx.clone();
+                    assert_eq!(args.len(), inputs.len());
+                    for (input, arg) in inputs.iter().zip(args.iter()) {
+                        new_ctx.locals.insert(input.ptr_clone(), arg.ptr_clone());
+                    }
+                    for statement in body {
+                        statement.simplify(&mut new_ctx);
+                    }
+                    let mut results = Vec::new();
+                    for output in outputs {
+                        if let Some(result) = new_ctx.locals.get(output) {
+                            results.push(result.ptr_clone());
+                        } else {
+                            panic!("Output not assigned in function body.");
+                        }
+                    }
+                    if results.len() == 1 {
+                        results.into_iter().next().unwrap()
+                    } else {
+                        ValuePtr::new(Value::MultipleResults(results))
+                    }
+                } else {
+                    ValuePtr::new(Value::FunctionCall(base, args))
+                }
+            }
         }
     }
 }
