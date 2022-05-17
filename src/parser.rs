@@ -35,7 +35,7 @@ impl Scope {
 
 type Result<'a, T> = IResult<&'a str, T>;
 
-pub fn parse_body(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
+pub fn parse_root(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
     let (input, _) = ws(input)?;
     let mut scope = Scope::new();
     let (input, values) = many0(terminated(
@@ -49,6 +49,19 @@ pub fn parse_body(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
             input,
             (scope, values.into_iter().filter_map(|x| x).collect()),
         ))
+    }
+}
+
+fn parse_body<'b>(
+    scope: &'b mut Scope,
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
+    move |input| {
+        let (input, _) = ws(input)?;
+        let (input, values) = many0(terminated(
+            parse_statement(scope),
+            tuple((ws, tag(";"), ws)),
+        ))(input)?;
+        Ok((input, values.into_iter().filter_map(|x| x).collect()))
     }
 }
 
@@ -314,6 +327,12 @@ fn parse_expression_0<'b>(
 ) -> impl for<'a> FnMut(&'a str) -> Result<'a, ValuePtr> + 'b {
     move |input| {
         {
+            let result = opt(parse_function_def(scope))(input)?;
+            if let (input, Some(value)) = result {
+                return Ok((input, value));
+            }
+        }
+        {
             let result = opt(parse_int_literal)(input)?;
             if let (input, Some(result)) = result {
                 return Ok((input, result));
@@ -447,6 +466,33 @@ fn parse_function_call<'b>(
         let (input, args) = parse_comma_expression_list(scope)(input)?;
         let (input, _) = tuple((ws, tag(")"), ws))(input)?;
         Ok((input, (ident, args)))
+    }
+}
+
+fn parse_function_def<'b>(
+    scope: &'b mut Scope,
+) -> impl for<'a> FnMut(&'a str) -> Result<ValuePtr> + 'b {
+    move |input| {
+        let mut new_scope = scope.clone();
+        new_scope.plain_locals.clear();
+        new_scope.inputs.clear();
+        new_scope.outputs.clear();
+        let (input, _) = tag("fn")(input)?;
+        let (input, _) = ws(input)?;
+        let (input, _) = tag("{")(input)?;
+        let (input, _) = ws(input)?;
+        let (input, body) = parse_body(&mut new_scope)(input)?;
+        let (input, _) = ws(input)?;
+        let (input, _) = tag("}")(input)?;
+        Ok((
+            input,
+            ValuePtr::new(Value::Function {
+                inputs: new_scope.inputs,
+                outputs: new_scope.outputs,
+                locals: new_scope.plain_locals,
+                body,
+            }),
+        ))
     }
 }
 
