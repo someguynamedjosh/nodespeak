@@ -77,6 +77,7 @@ fn bool_op(op: Operation, lhs: bool, rhs: bool) -> Value {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SimplificationContext {
     locals: HashMap<LocalPtr, ValuePtr>,
 }
@@ -117,7 +118,9 @@ impl ValuePtr {
             } => todo!(),
             Value::FunctionCall(_, _) => todo!(),
             Value::MultipleResults(_) => todo!(),
-            Value::ExtractResult(base, index) => Value::ExtractResult(ValuePtr::new(base.typee()), *index),
+            Value::ExtractResult(base, index) => {
+                Value::ExtractResult(ValuePtr::new(base.typee()), *index)
+            }
             Value::Noop => Value::Noop,
             Value::Any => Value::Any,
         }
@@ -131,13 +134,38 @@ impl ValuePtr {
             | Value::BoolLiteral(_)
             | Value::MultipleResults(_)
             | Value::Noop
-            | Value::Function { .. }
             | Value::Any => self.ptr_clone(),
+            Value::Function {
+                inputs,
+                outputs,
+                locals,
+                body,
+            } => {
+                let mut new_body = Vec::new();
+                let mut new_ctx = ctx.clone();
+                for statement in body {
+                    new_body.push(statement.simplify(&mut new_ctx));
+                }
+                for (key, value) in &new_ctx.locals {
+                    if !ctx.locals.contains_key(key) {
+                        new_body.push(ValuePtr::new(Value::Assignment {
+                            base: value.ptr_clone(),
+                            targets: vec![key.ptr_clone()],
+                        }));
+                    }
+                }
+                ValuePtr::new(Value::Function {
+                    inputs: inputs.clone(),
+                    outputs: outputs.clone(),
+                    locals: locals.clone(),
+                    body: new_body,
+                })
+            }
             Value::Local(local) => {
                 if let Some(value) = ctx.locals.get(local) {
                     value.ptr_clone()
                 } else {
-                    panic!("Local used before assigned!");
+                    self.ptr_clone()
                 }
             }
             Value::Operation(op, args) => {
