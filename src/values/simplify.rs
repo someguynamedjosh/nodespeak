@@ -30,6 +30,7 @@ fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
 
         BuiltinOp::Not => unreachable!(),
         BuiltinOp::Typeof => unreachable!(),
+        BuiltinOp::Cast => unreachable!(),
     }
 }
 
@@ -57,6 +58,7 @@ fn float_op(op: BuiltinOp, lhs: f32, rhs: f32) -> Value {
 
         BuiltinOp::Not => unreachable!(),
         BuiltinOp::Typeof => unreachable!(),
+        BuiltinOp::Cast => unreachable!(),
     }
 }
 
@@ -84,6 +86,7 @@ fn bool_op(op: BuiltinOp, lhs: bool, rhs: bool) -> Value {
 
         BuiltinOp::Not => unreachable!(),
         BuiltinOp::Typeof => unreachable!(),
+        BuiltinOp::Cast => unreachable!(),
     }
 }
 
@@ -136,7 +139,7 @@ impl ValuePtr {
                 | BuiltinOp::And
                 | BuiltinOp::Or
                 | BuiltinOp::Xor => todo!(),
-                BuiltinOp::Not | BuiltinOp::Typeof => todo!(),
+                BuiltinOp::Not | BuiltinOp::Typeof | BuiltinOp::Cast => todo!(),
             },
             Value::ArrayLiteral {
                 elements: _,

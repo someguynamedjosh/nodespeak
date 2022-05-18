@@ -35,7 +35,7 @@ pub struct ConcreteType {
     pub dims: Vec<usize>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConcreteScalarType {
     Int,
     Float,
@@ -50,7 +50,11 @@ pub struct ConcreteProgram {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UnaryOp {
+    IntToFloat,
+    BoolToInt,
+    BoolToFloat,
     Not,
+    Noop,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,7 +138,7 @@ impl SolidificationContext {
                 BuiltinType::Function { .. } => panic!("Not available at runtime."),
                 BuiltinType::Malformed => panic!("Invalid operation."),
             },
-            _ => panic!("Not a type"),
+            _ => panic!("{:#?} is not a type", typee),
         }
     }
 
@@ -183,26 +187,48 @@ impl SolidificationContext {
             Value::FunctionCall(base, args, result) => {
                 assert_eq!(result, &0);
                 if args.len() == 2 {
-                    let lhs = self.solidify_value(&args[0]);
                     let rhs = self.solidify_value(&args[1]);
-                    let op = match &*base.borrow() {
-                        Value::BuiltinOp(BuiltinOp::Add) => BinaryOp::Add,
-                        Value::BuiltinOp(BuiltinOp::Sub) => BinaryOp::Sub,
-                        Value::BuiltinOp(BuiltinOp::Mul) => BinaryOp::Mul,
-                        Value::BuiltinOp(BuiltinOp::Div) => BinaryOp::Div,
-                        Value::BuiltinOp(BuiltinOp::Rem) => BinaryOp::Rem,
-                        Value::BuiltinOp(BuiltinOp::Gt) => BinaryOp::Gt,
-                        Value::BuiltinOp(BuiltinOp::Lt) => BinaryOp::Lt,
-                        Value::BuiltinOp(BuiltinOp::Gte) => BinaryOp::Gte,
-                        Value::BuiltinOp(BuiltinOp::Lte) => BinaryOp::Lte,
-                        Value::BuiltinOp(BuiltinOp::Eq) => BinaryOp::Eq,
-                        Value::BuiltinOp(BuiltinOp::Neq) => BinaryOp::Neq,
-                        Value::BuiltinOp(BuiltinOp::And) => BinaryOp::And,
-                        Value::BuiltinOp(BuiltinOp::Or) => BinaryOp::Or,
-                        Value::BuiltinOp(BuiltinOp::Xor) => BinaryOp::Xor,
-                        _ => panic!("Invalid binary operation."),
-                    };
-                    ConcreteValue::BinaryOp(op, lhs, rhs)
+                    if &*base.borrow() == &Value::BuiltinOp(BuiltinOp::Cast) {
+                        let new_type = self.solidify_type(args[0].borrow().clone());
+                        let rhs_type = self.solidify_type(args[1].typee());
+                        let op = if rhs_type.base == new_type.base {
+                            UnaryOp::Noop
+                        } else {
+                            match (rhs_type.base, new_type.base) {
+                                (ConcreteScalarType::Bool, ConcreteScalarType::Int) => {
+                                    UnaryOp::BoolToInt
+                                }
+                                (ConcreteScalarType::Bool, ConcreteScalarType::Float) => {
+                                    UnaryOp::BoolToFloat
+                                }
+                                (ConcreteScalarType::Int, ConcreteScalarType::Float) => {
+                                    UnaryOp::IntToFloat
+                                }
+                                _ => panic!("Invalid cast from {:?} to {:?}", rhs_type, new_type),
+                            }
+                        };
+                        ConcreteValue::UnaryOp(op, rhs)
+                    } else {
+                        let lhs = self.solidify_value(&args[0]);
+                        let op = match &*base.borrow() {
+                            Value::BuiltinOp(BuiltinOp::Add) => BinaryOp::Add,
+                            Value::BuiltinOp(BuiltinOp::Sub) => BinaryOp::Sub,
+                            Value::BuiltinOp(BuiltinOp::Mul) => BinaryOp::Mul,
+                            Value::BuiltinOp(BuiltinOp::Div) => BinaryOp::Div,
+                            Value::BuiltinOp(BuiltinOp::Rem) => BinaryOp::Rem,
+                            Value::BuiltinOp(BuiltinOp::Gt) => BinaryOp::Gt,
+                            Value::BuiltinOp(BuiltinOp::Lt) => BinaryOp::Lt,
+                            Value::BuiltinOp(BuiltinOp::Gte) => BinaryOp::Gte,
+                            Value::BuiltinOp(BuiltinOp::Lte) => BinaryOp::Lte,
+                            Value::BuiltinOp(BuiltinOp::Eq) => BinaryOp::Eq,
+                            Value::BuiltinOp(BuiltinOp::Neq) => BinaryOp::Neq,
+                            Value::BuiltinOp(BuiltinOp::And) => BinaryOp::And,
+                            Value::BuiltinOp(BuiltinOp::Or) => BinaryOp::Or,
+                            Value::BuiltinOp(BuiltinOp::Xor) => BinaryOp::Xor,
+                            _ => panic!("Invalid binary operation."),
+                        };
+                        ConcreteValue::BinaryOp(op, lhs, rhs)
+                    }
                 } else {
                     todo!()
                 }

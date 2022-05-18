@@ -441,6 +441,7 @@ fn parse_expression_0<'b>(
                     "xor" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Xor)),
                     "not" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Not)),
 
+                    "cast" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Cast)),
                     "typeof" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Typeof)),
 
                     "Array" => {

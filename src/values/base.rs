@@ -79,6 +79,7 @@ pub enum BuiltinOp {
     Xor,
     Not,
 
+    Cast,
     Typeof,
 }
 

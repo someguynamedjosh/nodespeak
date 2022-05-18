@@ -13,9 +13,15 @@ fn basic_parsing() {
     // };
     // test(add(1, 2));
     let file = r#"
+    local add_anything = fn {
+        input a: Float;
+        input b;
+        output x = sub(add(a, b), b);
+    };
     local thing = fn {
         input a: Int;
-        output b = add(a, 1);
+        input b: Array(Int, 10, 3);
+        output x = add_anything(cast(Float, a), b);
     };
 "#;
     let result = parse_root(file);
@@ -29,7 +35,11 @@ fn basic_parsing() {
         let assignments = ctx.finish();
         println!("{:#?}", simplified);
         println!("{:#?}", assignments);
-        println!("{:#?}", solidify(assignments[0].1.ptr_clone()));
+        for (local, value) in assignments {
+            if local.name == "thing" {
+                println!("{:#?}", solidify(value));
+            }
+        }
     } else {
         println!("{:#?}", result);
     }

@@ -150,7 +150,7 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
             let base = values.next().unwrap();
             base.clone()
         }
-        BuiltinOp::Typeof => BuiltinType::Type,
+        BuiltinOp::Typeof | BuiltinOp::Cast => BuiltinType::Type,
     };
     Value::BuiltinType(typ)
 }
