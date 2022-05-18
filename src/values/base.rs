@@ -63,6 +63,9 @@ pub enum BuiltinOp {
     Div,
     Rem,
 
+    Min,
+    Max,
+
     Gt,
     Lt,
     Gte,

@@ -13,7 +13,9 @@ fn basic_parsing() {
     // };
     // test(add(1, 2));
     let file = r#"
-    add(Array(Int, 1), Array(Int, 5));
+    local size: InSet(1, 2);
+    local size2: InSet(1, 2);
+    add(Array(Int, size), Array(Int, size2));
 "#;
     let result = parse_root(file);
     if let Ok((_, (_scope, statements))) = result {

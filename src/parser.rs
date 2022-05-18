@@ -447,11 +447,11 @@ fn parse_expression_0<'b>(
                     "InSet" => {
                         assert!(args.len() >= 1);
                         let mut iter = args.clone().into_iter();
-                        let mut eltype = iter.next().unwrap();
+                        let mut eltype = ValuePtr::new(iter.next().unwrap().typee());
                         for arg in iter {
                             eltype = ValuePtr::new(Value::FunctionCall(
                                 ValuePtr::new(Value::BuiltinOp(BuiltinOp::Add)),
-                                vec![eltype, arg],
+                                vec![eltype, ValuePtr::new(arg.typee())],
                                 0,
                             ));
                         }

@@ -1,14 +1,16 @@
 use itertools::Itertools;
 
-use super::BuiltinType;
+use super::{simplify::SimplificationContext, BuiltinType};
 use crate::values::{BuiltinOp, Value, ValuePtr};
 
 fn call(op: BuiltinOp, args: Vec<ValuePtr>) -> ValuePtr {
+    let mut ctx = SimplificationContext::new();
     ValuePtr::new(Value::FunctionCall(
         ValuePtr::new(Value::BuiltinOp(op)),
         args,
         0,
     ))
+    .simplify(&mut ctx)
 }
 
 pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value {
@@ -24,6 +26,9 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
         | BuiltinOp::Sub
         | BuiltinOp::Mul
         | BuiltinOp::Div
+        | BuiltinOp::Rem
+        | BuiltinOp::Min
+        | BuiltinOp::Max
         | BuiltinOp::Gt
         | BuiltinOp::Lt
         | BuiltinOp::Gte
@@ -32,8 +37,7 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
         | BuiltinOp::Neq
         | BuiltinOp::And
         | BuiltinOp::Or
-        | BuiltinOp::Xor
-        | BuiltinOp::Rem => {
+        | BuiltinOp::Xor => {
             let (lhs, rhs) = binary(values);
             match (lhs, rhs) {
                 (BuiltinType::Int, BuiltinType::Int) => BuiltinType::Int,
@@ -189,6 +193,83 @@ fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValueP
         }
         (Value::Local(left), Value::Local(right)) if left == right => Some(left_value.ptr_clone()),
         (left, right) if left == right => Some(left_value.ptr_clone()),
-        _ => None,
+        _ => {
+            let ltype = left_value.typee();
+            let rtype = right_value.typee();
+            match (ltype, rtype) {
+                (
+                    Value::BuiltinType(BuiltinType::Int),
+                    Value::BuiltinType(BuiltinType::InSet { elements, .. }),
+                ) if elements.len() == 1 && &*elements[0] == &Value::IntLiteral(1) => {
+                    Some(left_value.ptr_clone())
+                }
+                (
+                    Value::BuiltinType(BuiltinType::InSet { elements, .. }),
+                    Value::BuiltinType(BuiltinType::Int),
+                ) if elements.len() == 1 && &*elements[0] == &Value::IntLiteral(1) => {
+                    Some(right_value.ptr_clone())
+                }
+                (
+                    Value::BuiltinType(BuiltinType::InSet { elements: lhs, .. }),
+                    Value::BuiltinType(BuiltinType::InSet { elements: rhs, .. }),
+                ) if lhs.len() == 1 && rhs.len() == 1 => broadcast_dim(&lhs[0], &rhs[0]),
+                (
+                    Value::BuiltinType(BuiltinType::InSet { elements: lhs, .. }),
+                    Value::BuiltinType(BuiltinType::InSet { elements: rhs, .. }),
+                ) if lhs.len() == 2 && rhs.len() == 1 => {
+                    let a = broadcast_dim(&lhs[0], &rhs[0]);
+                    let b = broadcast_dim(&lhs[1], &rhs[0]);
+                    if let (Some(a), Some(b)) = (a, b) {
+                        if a == b {
+                            Some(right_value.ptr_clone())
+                        } else {
+                            Some(left_value.ptr_clone())
+                        }
+                    } else {
+                        None
+                    }
+                }
+                (
+                    Value::BuiltinType(BuiltinType::InSet { elements: lhs, .. }),
+                    Value::BuiltinType(BuiltinType::InSet { elements: rhs, .. }),
+                ) if lhs.len() == 1 && rhs.len() == 2 => {
+                    let a = broadcast_dim(&lhs[0], &rhs[0]);
+                    let b = broadcast_dim(&lhs[0], &rhs[1]);
+                    if let (Some(a), Some(b)) = (a, b) {
+                        if a == b {
+                            Some(left_value.clone())
+                        } else {
+                            Some(right_value.clone())
+                        }
+                    } else {
+                        None
+                    }
+                }
+                (
+                    Value::BuiltinType(BuiltinType::InSet { elements: lhs, .. }),
+                    Value::BuiltinType(BuiltinType::InSet { elements: rhs, .. }),
+                ) if lhs.len() == 2 && rhs.len() == 2 => {
+                    let a00 = broadcast_dim(&lhs[0], &rhs[0]);
+                    let a01 = broadcast_dim(&lhs[0], &rhs[1]);
+                    let a10 = broadcast_dim(&lhs[1], &rhs[0]);
+                    let a11 = broadcast_dim(&lhs[1], &rhs[1]);
+                    if let (Some(a00), Some(a01), Some(a10), Some(a11)) = (a00, a01, a10, a11) {
+                        if a00 == a01 && a01 == lhs[0] && a10 == a11 && a11 == lhs[1] {
+                            Some(left_value.ptr_clone())
+                        } else if a00 == a10 && a10 == rhs[0] && a01 == a11 && a11 == rhs[1] {
+                            Some(right_value.ptr_clone())
+                        } else {
+                            Some(call(
+                                BuiltinOp::Max,
+                                vec![left_value.ptr_clone(), right_value.ptr_clone()],
+                            ))
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
     }
 }

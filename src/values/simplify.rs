@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use super::{BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr, type_arithmetic::calculate_type_arithmetic};
+use super::{
+    type_arithmetic::calculate_type_arithmetic, BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr,
+};
 
 fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
     match op {
@@ -11,6 +13,9 @@ fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
         BuiltinOp::Mul => Value::IntLiteral(lhs * rhs),
         BuiltinOp::Div => Value::IntLiteral(lhs / rhs),
         BuiltinOp::Rem => Value::IntLiteral(lhs % rhs),
+
+        BuiltinOp::Min => Value::IntLiteral(lhs.min(rhs)),
+        BuiltinOp::Max => Value::IntLiteral(lhs.max(rhs)),
 
         BuiltinOp::Gt => Value::BoolLiteral(lhs > rhs),
         BuiltinOp::Lt => Value::BoolLiteral(lhs < rhs),
@@ -36,6 +41,9 @@ fn float_op(op: BuiltinOp, lhs: f32, rhs: f32) -> Value {
         BuiltinOp::Div => Value::FloatLiteral(lhs / rhs),
         BuiltinOp::Rem => Value::FloatLiteral(lhs % rhs),
 
+        BuiltinOp::Min => Value::FloatLiteral(lhs.min(rhs)),
+        BuiltinOp::Max => Value::FloatLiteral(lhs.max(rhs)),
+
         BuiltinOp::Gt => Value::BoolLiteral(lhs > rhs),
         BuiltinOp::Lt => Value::BoolLiteral(lhs < rhs),
         BuiltinOp::Gte => Value::BoolLiteral(lhs >= rhs),
@@ -59,6 +67,9 @@ fn bool_op(op: BuiltinOp, lhs: bool, rhs: bool) -> Value {
         BuiltinOp::Mul => unreachable!(),
         BuiltinOp::Div => unreachable!(),
         BuiltinOp::Rem => unreachable!(),
+
+        BuiltinOp::Min => Value::BoolLiteral(lhs.min(rhs)),
+        BuiltinOp::Max => Value::BoolLiteral(lhs.max(rhs)),
 
         BuiltinOp::Gt => unreachable!(),
         BuiltinOp::Lt => unreachable!(),
@@ -114,6 +125,8 @@ impl ValuePtr {
                 | BuiltinOp::Mul
                 | BuiltinOp::Div
                 | BuiltinOp::Rem
+                | BuiltinOp::Min
+                | BuiltinOp::Max
                 | BuiltinOp::Gt
                 | BuiltinOp::Lt
                 | BuiltinOp::Gte
@@ -231,9 +244,9 @@ impl ValuePtr {
                             (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
                                 Some(bool_op(*builtin, lhs, rhs))
                             }
-                            (Value::BuiltinType(lhs), Value::BuiltinType(rhs)) => {
-                                Some(calculate_type_arithmetic(*builtin, &[lhs.clone(),
-                            rhs.clone()])) }
+                            (Value::BuiltinType(lhs), Value::BuiltinType(rhs)) => Some(
+                                calculate_type_arithmetic(*builtin, &[lhs.clone(), rhs.clone()]),
+                            ),
                             _ => None,
                         }
                     } else if builtin == &BuiltinOp::Typeof {
