@@ -1,28 +1,30 @@
 use std::{
+    cell::{Ref, RefMut},
     ops::{Add, BitAnd, BitOr, Deref, Div, Mul, Not, Rem, Sub},
     rc::Rc,
 };
 
 use super::{BuiltinOp, Value};
+use crate::util::{rcrc, Rcrc};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ValuePtr(pub(super) Rc<Value>);
+pub struct ValuePtr(pub(super) Rcrc<Value>);
 
 impl ValuePtr {
     pub fn new(value: Value) -> Self {
-        Self(Rc::new(value))
+        Self(rcrc(value))
     }
 
     pub fn ptr_clone(&self) -> Self {
         Self(Rc::clone(&self.0))
     }
-}
 
-impl Deref for ValuePtr {
-    type Target = Value;
+    pub fn borrow(&self) -> Ref<Value> {
+        self.0.borrow()
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &*self.0
+    pub fn borrow_mut(&self) -> RefMut<Value> {
+        self.0.borrow_mut()
     }
 }
 
@@ -35,11 +37,11 @@ macro_rules! impl_op {
             type Output = Self;
 
             fn $fn_name(self, rhs: Self) -> Self {
-                Self(Rc::new(Value::FunctionCall(
+                Self::new(Value::FunctionCall(
                     ValuePtr::new(Value::BuiltinOp(BuiltinOp::$EnumVariant)),
                     vec![self, rhs],
                     0,
-                )))
+                ))
             }
         }
     };
@@ -49,11 +51,11 @@ macro_rules! impl_op_without_trait {
     ($EnumVariant:ident, $fn_name:ident) => {
         impl ValuePtr {
             pub fn $fn_name(&self, rhs: &Self) -> Self {
-                Self(Rc::new(Value::FunctionCall(
+                Self::new(Value::FunctionCall(
                     ValuePtr::new(Value::BuiltinOp(BuiltinOp::$EnumVariant)),
                     vec![self.ptr_clone(), rhs.ptr_clone()],
                     0,
-                )))
+                ))
             }
         }
     };
@@ -71,11 +73,11 @@ impl Not for ValuePtr {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        Self(Rc::new(Value::FunctionCall(
+        Self::new(Value::FunctionCall(
             ValuePtr::new(Value::BuiltinOp(BuiltinOp::Not)),
             vec![self],
             0,
-        )))
+        ))
     }
 }
 

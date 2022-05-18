@@ -188,7 +188,7 @@ fn parse_assignment_statement<'b>(
             let target = targets.into_iter().next().unwrap();
             vec![ValuePtr::new(Value::Assignment { base, target })]
         } else {
-            if let Value::FunctionCall(base, args, 0) = &*base {
+            if let Value::FunctionCall(base, args, 0) = &*base.borrow() {
                 let mut value = Vec::new();
                 for (index, target) in targets.into_iter().enumerate() {
                     value.push(ValuePtr::new(Value::Assignment {

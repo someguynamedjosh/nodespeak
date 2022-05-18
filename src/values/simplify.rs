@@ -99,14 +99,16 @@ impl SimplificationContext {
         }
     }
 
-    pub fn assignments(self) -> Vec<(LocalPtr, ValuePtr)> {
+    pub fn assignments(mut self) -> Vec<(LocalPtr, ValuePtr)> {
+        let mut sub_ctx = Self::new();
+        for (local, _) in &mut self.locals {}
         self.locals.into_iter().collect()
     }
 }
 
 impl ValuePtr {
     pub fn typee(&self) -> Value {
-        match &*self.0 {
+        match &*self.0.borrow() {
             Value::BuiltinType(typ) => match typ {
                 BuiltinType::Int
                 | BuiltinType::Float
@@ -145,7 +147,7 @@ impl ValuePtr {
             Value::FloatLiteral(_) => Value::BuiltinType(BuiltinType::Float),
             Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
             Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
-            Value::Local(local) => (*local.typee).clone(),
+            Value::Local(local) => (local.typee.borrow()).clone(),
             Value::Assignment { .. } => Value::BuiltinType(BuiltinType::Malformed),
             Value::Function {
                 inputs: _,
@@ -157,25 +159,22 @@ impl ValuePtr {
         }
     }
 
-    pub fn simplify(&self, ctx: &mut SimplificationContext) -> Self {
-        match &*self.0 {
+    pub fn simplify(&self, ctx: &mut SimplificationContext) {
+        let new_val = match &*self.0.borrow() {
             Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
-                Self::new(Value::BuiltinType(BuiltinType::Array {
-                    eltype: eltype.simplify(ctx),
-                    dims: dims.iter().map(|x| x.simplify(ctx)).collect(),
-                }))
+                eltype.simplify(ctx);
+                dims.iter().for_each(|x| x.simplify(ctx));
+                None
             }
             Value::BuiltinType(BuiltinType::InSet { eltype, elements }) => {
-                Self::new(Value::BuiltinType(BuiltinType::InSet {
-                    eltype: eltype.simplify(ctx),
-                    elements: elements.iter().map(|x| x.simplify(ctx)).collect(),
-                }))
+                eltype.simplify(ctx);
+                elements.iter().for_each(|x| x.simplify(ctx));
+                None
             }
             Value::BuiltinType(BuiltinType::Function { inputs, outputs }) => {
-                Self::new(Value::BuiltinType(BuiltinType::Function {
-                    inputs: inputs.iter().map(|x| x.simplify(ctx)).collect(),
-                    outputs: outputs.iter().map(|x| x.simplify(ctx)).collect(),
-                }))
+                inputs.iter().for_each(|x| x.simplify(ctx));
+                outputs.iter().for_each(|x| x.simplify(ctx));
+                None
             }
             Value::FloatLiteral(_)
             | Value::IntLiteral(_)
@@ -184,15 +183,16 @@ impl ValuePtr {
             | Value::BuiltinOp(_)
             | Value::Any
             | Value::Malformed
-            | Value::Noop => self.ptr_clone(),
-            Value::ArrayLiteral { elements, dims } => Self::new(Value::ArrayLiteral {
-                elements: elements.iter().map(|x| x.simplify(ctx)).collect(),
-                dims: dims.iter().map(|x| x.simplify(ctx)).collect(),
-            }),
+            | Value::Noop => None,
+            Value::ArrayLiteral { elements, dims } => {
+                elements.iter().for_each(|x| x.simplify(ctx));
+                dims.iter().for_each(|x| x.simplify(ctx));
+                None
+            }
             Value::Assignment { base, target } => {
-                let base = base.simplify(ctx);
+                base.simplify(ctx);
                 ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
-                ValuePtr::new(Value::Noop)
+                Some(Value::Noop)
             }
             Value::Function {
                 inputs,
@@ -200,10 +200,10 @@ impl ValuePtr {
                 locals,
                 body,
             } => {
-                let mut new_body = Vec::new();
+                let mut new_body = body.clone();
                 let mut new_ctx = ctx.clone();
                 for statement in body {
-                    new_body.push(statement.simplify(&mut new_ctx));
+                    statement.simplify(&mut new_ctx);
                 }
                 for (key, value) in &new_ctx.locals {
                     if !ctx.locals.contains_key(key) {
@@ -213,7 +213,7 @@ impl ValuePtr {
                         }));
                     }
                 }
-                ValuePtr::new(Value::Function {
+                Some(Value::Function {
                     inputs: inputs.clone(),
                     outputs: outputs.clone(),
                     locals: locals.clone(),
@@ -221,14 +221,14 @@ impl ValuePtr {
                 })
             }
             Value::FunctionCall(base, args, output) => {
-                let base = base.simplify(ctx);
-                let args = args.iter().map(|x| x.simplify(ctx)).collect_vec();
-                if let Value::BuiltinOp(builtin) = &*base {
+                base.simplify(ctx);
+                args.iter().for_each(|x| x.simplify(ctx));
+                if let Value::BuiltinOp(builtin) = &*base.borrow() {
                     let new_value = if args.len() == 2 {
                         let mut args = args.clone().into_iter();
                         let lhs = args.next().unwrap();
                         let rhs = args.next().unwrap();
-                        match (&*lhs, &*rhs) {
+                        let res = match (&*lhs.borrow(), &*rhs.borrow()) {
                             (&Value::IntLiteral(lhs), &Value::IntLiteral(rhs)) => {
                                 Some(int_op(*builtin, lhs, rhs))
                             }
@@ -248,7 +248,8 @@ impl ValuePtr {
                                 calculate_type_arithmetic(*builtin, &[lhs.clone(), rhs.clone()]),
                             ),
                             _ => None,
-                        }
+                        };
+                        res
                     } else if builtin == &BuiltinOp::Typeof {
                         let mut args = args.clone().into_iter();
                         let base = args.next().unwrap();
@@ -256,15 +257,17 @@ impl ValuePtr {
                     } else {
                         None
                     };
-                    if let Some(new_value) = new_value {
-                        return ValuePtr::new(new_value);
-                    }
+                    new_value.or(Some(Value::FunctionCall(
+                        base.ptr_clone(),
+                        args.clone(),
+                        *output,
+                    )))
                 } else if let Value::Function {
                     inputs,
                     outputs,
                     body,
                     ..
-                } = &*base
+                } = &*base.borrow()
                 {
                     let mut new_ctx = ctx.clone();
                     assert_eq!(args.len(), inputs.len());
@@ -282,17 +285,29 @@ impl ValuePtr {
                             panic!("Output not assigned in function body.");
                         }
                     }
-                    return results.into_iter().skip(*output).next().unwrap();
+                    Some(
+                        results
+                            .into_iter()
+                            .skip(*output)
+                            .next()
+                            .unwrap()
+                            .borrow()
+                            .clone(),
+                    )
+                } else {
+                    Some(Value::FunctionCall(base.ptr_clone(), args.clone(), *output))
                 }
-                ValuePtr::new(Value::FunctionCall(base, args, *output))
             }
             Value::Local(local) => {
                 if let Some(value) = ctx.locals.get(local) {
-                    value.ptr_clone()
+                    Some(value.borrow().clone())
                 } else {
-                    self.ptr_clone()
+                    None
                 }
             }
+        };
+        if let Some(new_val) = new_val {
+            *self.borrow_mut() = new_val;
         }
     }
 }

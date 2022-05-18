@@ -5,12 +5,13 @@ use crate::values::{BuiltinOp, Value, ValuePtr};
 
 fn call(op: BuiltinOp, args: Vec<ValuePtr>) -> ValuePtr {
     let mut ctx = SimplificationContext::new();
-    ValuePtr::new(Value::FunctionCall(
+    let ptr = ValuePtr::new(Value::FunctionCall(
         ValuePtr::new(Value::BuiltinOp(op)),
         args,
         0,
-    ))
-    .simplify(&mut ctx)
+    ));
+    ptr.simplify(&mut ctx);
+    ptr
 }
 
 pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value {
@@ -185,7 +186,7 @@ fn broadcast_array_dims(
 }
 
 fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValuePtr> {
-    match (&**left_value, &**right_value) {
+    match (&*left_value.borrow(), &*right_value.borrow()) {
         (&Value::IntLiteral(1), _) => Some(right_value.ptr_clone()),
         (_, &Value::IntLiteral(1)) => Some(left_value.ptr_clone()),
         (&Value::IntLiteral(left), &Value::IntLiteral(right)) if left == right => {
@@ -200,13 +201,13 @@ fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValueP
                 (
                     Value::BuiltinType(BuiltinType::Int),
                     Value::BuiltinType(BuiltinType::InSet { elements, .. }),
-                ) if elements.len() == 1 && &*elements[0] == &Value::IntLiteral(1) => {
+                ) if elements.len() == 1 && &*elements[0].borrow() == &Value::IntLiteral(1) => {
                     Some(left_value.ptr_clone())
                 }
                 (
                     Value::BuiltinType(BuiltinType::InSet { elements, .. }),
                     Value::BuiltinType(BuiltinType::Int),
-                ) if elements.len() == 1 && &*elements[0] == &Value::IntLiteral(1) => {
+                ) if elements.len() == 1 && &*elements[0].borrow() == &Value::IntLiteral(1) => {
                     Some(right_value.ptr_clone())
                 }
                 (
