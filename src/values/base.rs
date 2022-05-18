@@ -20,6 +20,7 @@ pub enum Value {
         elements: Vec<ValuePtr>,
         dims: Vec<ValuePtr>,
     },
+    Declaration(LocalPtr),
     Local(LocalPtr),
     Assignment {
         base: ValuePtr,

@@ -186,7 +186,8 @@ fn parse_assignment_statement<'b>(
         let (input, base) = parse_basic_expression(scope)(input)?;
         let value = if targets.len() == 1 {
             let target = targets.into_iter().next().unwrap();
-            vec![ValuePtr::new(Value::Assignment { base, target })]
+            vec![
+                ValuePtr::new(Value::Assignment { base, target })]
         } else {
             if let Value::FunctionCall(base, args, 0) = &*base.borrow() {
                 let mut value = Vec::new();
@@ -211,7 +212,7 @@ fn parse_assignment_statement<'b>(
 
 fn parse_declaration_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, ()> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
     move |input| {
         let mut targets = Vec::new();
         let mut input = input;
@@ -231,7 +232,13 @@ fn parse_declaration_statement<'b>(
         if targets.len() == 0 {
             return fail(input);
         }
-        Ok((input, ()))
+        Ok((
+            input,
+            targets
+                .into_iter()
+                .map(|x| ValuePtr::new(Value::Declaration(x)))
+                .collect(),
+        ))
     }
 }
 
@@ -247,8 +254,8 @@ fn parse_statement<'b>(
         }
         {
             let result = opt(parse_declaration_statement(scope))(input)?;
-            if let (input, Some(_)) = result {
-                return Ok((input, vec![]));
+            if let (input, Some(result)) = result {
+                return Ok((input, result));
             }
         }
         {

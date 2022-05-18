@@ -146,7 +146,9 @@ impl ValuePtr {
             Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
             Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
             Value::Local(local) => (local.typee.borrow()).clone(),
-            Value::Assignment { .. } => Value::BuiltinType(BuiltinType::Malformed),
+            Value::Assignment { .. } | Value::Declaration(..) => {
+                Value::BuiltinType(BuiltinType::Malformed)
+            }
             Value::Function {
                 inputs: _,
                 outputs: _,
@@ -302,6 +304,10 @@ impl ValuePtr {
                 } else {
                     None
                 }
+            }
+            Value::Declaration(local) => {
+                local.typee.simplify(ctx);
+                None
             }
         };
         if let Some(new_val) = new_val {
