@@ -10,7 +10,7 @@ fn call(op: BuiltinOp, args: Vec<ValuePtr>) -> ValuePtr {
         args,
         0,
     ));
-    ptr.simplify(&mut ctx);
+    ptr.check_and_simplify(&mut ctx);
     ptr
 }
 

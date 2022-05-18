@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use super::{BuiltinOp, Value};
+use super::{BuiltinOp, Value, BuiltinType};
 use crate::util::{rcrc, Rcrc};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -29,6 +29,18 @@ impl ValuePtr {
 
     pub fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0).cast()
+    }
+
+    pub(crate) fn as_type(&self) -> Option<BuiltinType> {
+        if let Value::BuiltinType(typee) = &*self.borrow() {
+            Some(typee.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        Self::new(self.0.borrow().deep_clone())
     }
 }
 

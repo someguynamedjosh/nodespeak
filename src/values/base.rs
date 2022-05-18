@@ -35,6 +35,47 @@ pub enum Value {
     FunctionCall(ValuePtr, Vec<ValuePtr>, usize),
 }
 
+impl Value {
+    pub fn deep_clone(&self) -> Self {
+        match &self {
+            Value::BuiltinType(_)
+            | Value::BuiltinOp(_)
+            | Value::Noop
+            | Value::Any
+            | Value::Malformed
+            | Value::FloatLiteral(_)
+            | Value::IntLiteral(_)
+            | Value::BoolLiteral(_)
+            | Value::Declaration(_)
+            | Value::Local(_) => self.clone(),
+            Value::ArrayLiteral { elements, dims } => Self::ArrayLiteral {
+                elements: elements.iter().map(ValuePtr::deep_clone).collect(),
+                dims: dims.iter().map(ValuePtr::deep_clone).collect(),
+            },
+            Value::Assignment { base, target } => Value::Assignment {
+                base: base.deep_clone(),
+                target: target.ptr_clone(),
+            },
+            Value::Function {
+                inputs,
+                outputs,
+                locals,
+                body,
+            } => Value::Function {
+                inputs: inputs.clone(),
+                outputs: outputs.clone(),
+                locals: locals.clone(),
+                body: body.iter().map(ValuePtr::deep_clone).collect(),
+            },
+            Value::FunctionCall(base, args, output) => Value::FunctionCall(
+                base.deep_clone(),
+                args.iter().map(ValuePtr::deep_clone).collect(),
+                *output,
+            ),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum BuiltinType {
     Int,

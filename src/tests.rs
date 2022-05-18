@@ -29,7 +29,7 @@ fn basic_parsing() {
         let mut ctx = SimplificationContext::new();
         let mut simplified = Vec::new();
         for statement in statements {
-            statement.simplify(&mut ctx);
+            statement.check_and_simplify(&mut ctx);
             simplified.push(statement);
         }
         let assignments = ctx.finish();

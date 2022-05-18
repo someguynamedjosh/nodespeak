@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use super::{
-    type_arithmetic::calculate_type_arithmetic, BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr,
+    type_arithmetic::calculate_type_arithmetic,
+    type_compatibility::type_a_is_compatible_with_type_b, BuiltinOp, BuiltinType, LocalPtr, Value,
+    ValuePtr,
 };
 
 fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
@@ -158,25 +160,46 @@ impl ValuePtr {
                 locals: _,
                 body: _,
             } => todo!(),
-            Value::FunctionCall(_, _, _) => todo!(),
+            Value::FunctionCall(base, args, _) => match &*base.borrow() {
+                Value::BuiltinOp(BuiltinOp::Add)
+                | Value::BuiltinOp(BuiltinOp::Sub)
+                | Value::BuiltinOp(BuiltinOp::Mul)
+                | Value::BuiltinOp(BuiltinOp::Div)
+                | Value::BuiltinOp(BuiltinOp::Rem)
+                | Value::BuiltinOp(BuiltinOp::Gt)
+                | Value::BuiltinOp(BuiltinOp::Lt)
+                | Value::BuiltinOp(BuiltinOp::Gte)
+                | Value::BuiltinOp(BuiltinOp::Lte)
+                | Value::BuiltinOp(BuiltinOp::Eq)
+                | Value::BuiltinOp(BuiltinOp::Neq)
+                | Value::BuiltinOp(BuiltinOp::And)
+                | Value::BuiltinOp(BuiltinOp::Or)
+                | Value::BuiltinOp(BuiltinOp::Xor) => Value::FunctionCall(
+                    base.ptr_clone(),
+                    args.iter().map(|x| ValuePtr::new(x.typee())).collect(),
+                    0,
+                ),
+                Value::BuiltinOp(BuiltinOp::Cast) => todo!(),
+                _ => todo!(),
+            },
         }
     }
 
-    pub fn simplify(&self, ctx: &mut SimplificationContext) {
+    pub fn check_and_simplify(&self, ctx: &mut SimplificationContext) {
         let new_val = match &*self.0.borrow() {
             Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
-                eltype.simplify(ctx);
-                dims.iter().for_each(|x| x.simplify(ctx));
+                eltype.check_and_simplify(ctx);
+                dims.iter().for_each(|x| x.check_and_simplify(ctx));
                 None
             }
             Value::BuiltinType(BuiltinType::InSet { eltype, elements }) => {
-                eltype.simplify(ctx);
-                elements.iter().for_each(|x| x.simplify(ctx));
+                eltype.check_and_simplify(ctx);
+                elements.iter().for_each(|x| x.check_and_simplify(ctx));
                 None
             }
             Value::BuiltinType(BuiltinType::Function { inputs, outputs }) => {
-                inputs.iter().for_each(|x| x.simplify(ctx));
-                outputs.iter().for_each(|x| x.simplify(ctx));
+                inputs.iter().for_each(|x| x.check_and_simplify(ctx));
+                outputs.iter().for_each(|x| x.check_and_simplify(ctx));
                 None
             }
             Value::FloatLiteral(_)
@@ -188,12 +211,20 @@ impl ValuePtr {
             | Value::Malformed
             | Value::Noop => None,
             Value::ArrayLiteral { elements, dims } => {
-                elements.iter().for_each(|x| x.simplify(ctx));
-                dims.iter().for_each(|x| x.simplify(ctx));
+                elements.iter().for_each(|x| x.check_and_simplify(ctx));
+                dims.iter().for_each(|x| x.check_and_simplify(ctx));
                 None
             }
             Value::Assignment { base, target } => {
-                base.simplify(ctx);
+                base.check_and_simplify(ctx);
+                let base_type = ValuePtr::new(base.typee());
+                let mut sub_ctx = SimplificationContext::new();
+                base_type.check_and_simplify(&mut sub_ctx);
+                target.typee.check_and_simplify(&mut sub_ctx);
+                if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
+                    println!("{:#?} => {:#?}", base_type, target.typee);
+                    panic!("Invalid assignment");
+                }
                 ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
                 Some(Value::Noop)
             }
@@ -206,13 +237,20 @@ impl ValuePtr {
                 let mut new_body = body.clone();
                 let mut new_ctx = ctx.clone();
                 for statement in body {
-                    statement.simplify(&mut new_ctx);
+                    statement.check_and_simplify(&mut new_ctx);
                 }
-                for (key, value) in &new_ctx.locals {
-                    if !ctx.locals.contains_key(key) {
+                for (target, base) in &new_ctx.locals {
+                    if !ctx.locals.contains_key(target) {
+                        let base_type = ValuePtr::new(base.typee());
+                        let mut sub_ctx = SimplificationContext::new();
+                        base_type.check_and_simplify(&mut sub_ctx);
+                        target.typee.check_and_simplify(&mut sub_ctx);
+                        if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
+                            panic!("Invalid assignment");
+                        }
                         new_body.push(ValuePtr::new(Value::Assignment {
-                            base: value.ptr_clone(),
-                            target: key.ptr_clone(),
+                            base: base.ptr_clone(),
+                            target: target.ptr_clone(),
                         }));
                     }
                 }
@@ -224,36 +262,64 @@ impl ValuePtr {
                 })
             }
             Value::FunctionCall(base, args, output) => {
-                base.simplify(ctx);
-                args.iter().for_each(|x| x.simplify(ctx));
-                if let Value::BuiltinOp(builtin) = &*base.borrow() {
+                base.check_and_simplify(ctx);
+                args.iter().for_each(|x| x.check_and_simplify(ctx));
+                if let Value::BuiltinOp(op) = &*base.borrow() {
                     let new_value = if args.len() == 2 {
+                        let mut sub_ctx = SimplificationContext::new();
                         let mut args = args.clone().into_iter();
                         let lhs = args.next().unwrap();
+                        lhs.check_and_simplify(ctx);
+                        let lhs_type = ValuePtr::new(lhs.typee());
+                        lhs_type.check_and_simplify(&mut sub_ctx);
                         let rhs = args.next().unwrap();
+                        rhs.check_and_simplify(ctx);
+                        let lhs_type = ValuePtr::new(lhs.typee());
+                        let rhs_type = ValuePtr::new(rhs.typee());
+                        rhs_type.check_and_simplify(&mut sub_ctx);
+                        if op == &BuiltinOp::Cast {
+                            if !type_a_is_compatible_with_type_b(
+                                &lhs_type,
+                                &ValuePtr::new(Value::BuiltinType(BuiltinType::Type)),
+                            ) {
+                                panic!("lhs is not a type");
+                            }
+                            if !type_a_is_compatible_with_type_b(&rhs_type, &lhs_type) {
+                                panic!("rhs is not castable to lhs");
+                            }
+                        } else {
+                            let combined_type = ValuePtr::new(Value::FunctionCall(
+                                ValuePtr::new(Value::BuiltinOp(*op)),
+                                vec![lhs_type, rhs_type],
+                                0,
+                            ));
+                            if &*combined_type.borrow() == &Value::Malformed {
+                                panic!("Invalid binary operation");
+                            }
+                        }
                         let res = match (&*lhs.borrow(), &*rhs.borrow()) {
                             (&Value::IntLiteral(lhs), &Value::IntLiteral(rhs)) => {
-                                Some(int_op(*builtin, lhs, rhs))
+                                Some(int_op(*op, lhs, rhs))
                             }
                             (&Value::FloatLiteral(lhs), &Value::IntLiteral(rhs)) => {
-                                Some(float_op(*builtin, lhs, rhs as f32))
+                                Some(float_op(*op, lhs, rhs as f32))
                             }
                             (&Value::IntLiteral(lhs), &Value::FloatLiteral(rhs)) => {
-                                Some(float_op(*builtin, lhs as f32, rhs))
+                                Some(float_op(*op, lhs as f32, rhs))
                             }
                             (&Value::FloatLiteral(lhs), &Value::FloatLiteral(rhs)) => {
-                                Some(float_op(*builtin, lhs, rhs))
+                                Some(float_op(*op, lhs, rhs))
                             }
                             (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
-                                Some(bool_op(*builtin, lhs, rhs))
+                                Some(bool_op(*op, lhs, rhs))
                             }
-                            (Value::BuiltinType(lhs), Value::BuiltinType(rhs)) => Some(
-                                calculate_type_arithmetic(*builtin, &[lhs.clone(), rhs.clone()]),
-                            ),
+                            (Value::BuiltinType(lhs), Value::BuiltinType(rhs)) => {
+                                Some(calculate_type_arithmetic(*op, &[lhs.clone(), rhs.clone()]))
+                            }
                             _ => None,
                         };
                         res
-                    } else if builtin == &BuiltinOp::Typeof {
+                    } else if op == &BuiltinOp::Typeof {
                         let mut args = args.clone().into_iter();
                         let base = args.next().unwrap();
                         Some(base.typee())
@@ -274,11 +340,18 @@ impl ValuePtr {
                 {
                     let mut new_ctx = ctx.clone();
                     assert_eq!(args.len(), inputs.len());
-                    for (input, arg) in inputs.iter().zip(args.iter()) {
-                        new_ctx.locals.insert(input.ptr_clone(), arg.ptr_clone());
+                    for (target, arg) in inputs.iter().zip(args.iter()) {
+                        let arg_type = ValuePtr::new(arg.typee());
+                        arg_type.check_and_simplify(&mut new_ctx);
+                        let target_type = target.typee.deep_clone();
+                        target_type.check_and_simplify(&mut new_ctx);
+                        if !type_a_is_compatible_with_type_b(&arg_type, &target_type) {
+                            panic!("Invalid argument.");
+                        }
+                        new_ctx.locals.insert(target.ptr_clone(), arg.ptr_clone());
                     }
                     for statement in body {
-                        statement.simplify(&mut new_ctx);
+                        statement.check_and_simplify(&mut new_ctx);
                     }
                     let mut results = Vec::new();
                     for output in outputs {
@@ -309,7 +382,7 @@ impl ValuePtr {
                 }
             }
             Value::Declaration(local) => {
-                local.typee.simplify(ctx);
+                local.typee.check_and_simplify(ctx);
                 None
             }
         };
