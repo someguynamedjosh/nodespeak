@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{parser::parse_root, values::simplify::SimplificationContext};
+use crate::{parser::parse_root, values::simplify::SimplificationContext, concrete::solidify};
 
 #[test]
 fn basic_parsing() {
@@ -13,9 +13,10 @@ fn basic_parsing() {
     // };
     // test(add(1, 2));
     let file = r#"
-    input size: InSet(1, 2);
-    input size2: InSet(1, 2);
-    add(Array(Int, size), Array(Int, size2));
+    local thing = fn {
+        input a: Int;
+        output b = add(a, 1);
+    };
 "#;
     let result = parse_root(file);
     if let Ok((_, (_scope, statements))) = result {
@@ -28,6 +29,7 @@ fn basic_parsing() {
         let assignments = ctx.finish();
         println!("{:#?}", simplified);
         println!("{:#?}", assignments);
+        println!("{:#?}", solidify(assignments[0].1.ptr_clone()));
     } else {
         println!("{:#?}", result);
     }

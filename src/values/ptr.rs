@@ -26,6 +26,10 @@ impl ValuePtr {
     pub fn borrow_mut(&self) -> RefMut<Value> {
         self.0.borrow_mut()
     }
+
+    pub fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0).cast()
+    }
 }
 
 macro_rules! impl_op {
