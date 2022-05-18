@@ -1,0 +1,194 @@
+use itertools::Itertools;
+
+use super::BuiltinType;
+use crate::values::{BuiltinOp, Value, ValuePtr};
+
+fn call(op: BuiltinOp, args: Vec<ValuePtr>) -> ValuePtr {
+    ValuePtr::new(Value::FunctionCall(
+        ValuePtr::new(Value::BuiltinOp(op)),
+        args,
+        0,
+    ))
+}
+
+pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value {
+    fn binary(values: &[BuiltinType]) -> (&BuiltinType, &BuiltinType) {
+        assert_eq!(values.len(), 2);
+        let mut values = values.iter();
+        let lhs = values.next().unwrap();
+        let rhs = values.next().unwrap();
+        (lhs, rhs)
+    }
+    let typ = match op {
+        BuiltinOp::Add
+        | BuiltinOp::Sub
+        | BuiltinOp::Mul
+        | BuiltinOp::Div
+        | BuiltinOp::Gt
+        | BuiltinOp::Lt
+        | BuiltinOp::Gte
+        | BuiltinOp::Lte
+        | BuiltinOp::Eq
+        | BuiltinOp::Neq
+        | BuiltinOp::And
+        | BuiltinOp::Or
+        | BuiltinOp::Xor
+        | BuiltinOp::Rem => {
+            let (lhs, rhs) = binary(values);
+            match (lhs, rhs) {
+                (BuiltinType::Int, BuiltinType::Int) => BuiltinType::Int,
+                (BuiltinType::Float, BuiltinType::Float)
+                | (BuiltinType::Int, BuiltinType::Float)
+                | (BuiltinType::Float, BuiltinType::Int) => BuiltinType::Float,
+                (_, BuiltinType::Bool) | (BuiltinType::Bool, _) => BuiltinType::Malformed,
+                (_, BuiltinType::Function { .. }) | (BuiltinType::Function { .. }, _) => {
+                    BuiltinType::Malformed
+                }
+                (_, BuiltinType::Malformed) | (BuiltinType::Malformed, _) => BuiltinType::Malformed,
+                (
+                    BuiltinType::Array {
+                        eltype: left_type,
+                        dims: left_dims,
+                    },
+                    BuiltinType::Array {
+                        eltype: right_type,
+                        dims: right_dims,
+                    },
+                ) => {
+                    let eltype = call(op, vec![left_type.ptr_clone(), right_type.ptr_clone()]);
+                    broadcast_array_dims(eltype, left_dims, right_dims)
+                }
+                (
+                    left_type,
+                    BuiltinType::Array {
+                        eltype: right_type,
+                        dims: right_dims,
+                    },
+                ) => {
+                    let left_type = ValuePtr::new(Value::BuiltinType(left_type.clone()));
+                    let eltype = call(op, vec![left_type, right_type.ptr_clone()]);
+                    broadcast_array_dims(eltype, &[], right_dims)
+                }
+                (
+                    BuiltinType::Array {
+                        eltype: left_type,
+                        dims: left_dims,
+                    },
+                    right_type,
+                ) => {
+                    let right_type = ValuePtr::new(Value::BuiltinType(right_type.clone()));
+                    let eltype = call(op, vec![left_type.ptr_clone(), right_type]);
+                    broadcast_array_dims(eltype, left_dims, &[])
+                }
+                (
+                    BuiltinType::InSet {
+                        eltype: left_eltype,
+                        elements: left_elements,
+                    },
+                    BuiltinType::InSet {
+                        eltype: right_eltype,
+                        elements: right_elements,
+                    },
+                ) => {
+                    let combined_eltype =
+                        call(op, vec![left_eltype.ptr_clone(), right_eltype.ptr_clone()]);
+                    let mut new_elements = Vec::new();
+                    for left in left_elements {
+                        for right in right_elements {
+                            new_elements.push(call(op, vec![left.ptr_clone(), right.ptr_clone()]));
+                        }
+                    }
+                    BuiltinType::InSet {
+                        eltype: combined_eltype,
+                        elements: new_elements,
+                    }
+                }
+                (
+                    BuiltinType::InSet {
+                        eltype: left_eltype,
+                        ..
+                    },
+                    right,
+                ) => {
+                    return Value::FunctionCall(
+                        ValuePtr::new(Value::BuiltinOp(op)),
+                        vec![
+                            left_eltype.ptr_clone(),
+                            ValuePtr::new(Value::BuiltinType(right.clone())),
+                        ],
+                        0,
+                    );
+                }
+                (
+                    left,
+                    BuiltinType::InSet {
+                        eltype: right_eltype,
+                        ..
+                    },
+                ) => {
+                    return Value::FunctionCall(
+                        ValuePtr::new(Value::BuiltinOp(op)),
+                        vec![
+                            ValuePtr::new(Value::BuiltinType(left.clone())),
+                            right_eltype.ptr_clone(),
+                        ],
+                        0,
+                    );
+                }
+                (BuiltinType::Type, BuiltinType::Type) => BuiltinType::Type,
+                (BuiltinType::Type, _) | (_, BuiltinType::Type) => BuiltinType::Malformed,
+            }
+        }
+        BuiltinOp::Not => {
+            assert_eq!(values.len(), 1);
+            let mut values = values.iter();
+            let base = values.next().unwrap();
+            base.clone()
+        }
+        BuiltinOp::Typeof => BuiltinType::Type,
+    };
+    Value::BuiltinType(typ)
+}
+
+fn broadcast_array_dims(
+    eltype: ValuePtr,
+    left_dims: &[ValuePtr],
+    right_dims: &[ValuePtr],
+) -> BuiltinType {
+    let one = ValuePtr::new(Value::IntLiteral(1));
+    let mut left_dims = left_dims.iter().collect_vec();
+    let mut right_dims = right_dims.iter().collect_vec();
+    // For each dimension that only the right has...
+    for _ in 0..right_dims.len().saturating_sub(left_dims.len()) {
+        left_dims.push(&one);
+    }
+    // For each dimension that only the left has...
+    for _ in 0..left_dims.len().saturating_sub(right_dims.len()) {
+        right_dims.push(&one);
+    }
+    let mut new_dims = Vec::new();
+    for (left, right) in left_dims.into_iter().zip(right_dims.into_iter()) {
+        if let Some(dim) = broadcast_dim(left, right) {
+            new_dims.push(dim);
+        } else {
+            return BuiltinType::Malformed;
+        }
+    }
+    BuiltinType::Array {
+        eltype,
+        dims: new_dims,
+    }
+}
+
+fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValuePtr> {
+    match (&**left_value, &**right_value) {
+        (&Value::IntLiteral(1), _) => Some(right_value.ptr_clone()),
+        (_, &Value::IntLiteral(1)) => Some(left_value.ptr_clone()),
+        (&Value::IntLiteral(left), &Value::IntLiteral(right)) if left == right => {
+            Some(left_value.ptr_clone())
+        }
+        (Value::Local(left), Value::Local(right)) if left == right => Some(left_value.ptr_clone()),
+        (left, right) if left == right => Some(left_value.ptr_clone()),
+        _ => None,
+    }
+}

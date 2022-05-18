@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use super::{BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr};
+use super::{BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr, type_arithmetic::calculate_type_arithmetic};
 
 fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
     match op {
@@ -231,9 +231,9 @@ impl ValuePtr {
                             (&Value::BoolLiteral(lhs), &Value::BoolLiteral(rhs)) => {
                                 Some(bool_op(*builtin, lhs, rhs))
                             }
-                            // (Value::Builtin(lhs), Value::TypeLiteral(rhs)) => {
-                            //     Some(calculate_type_arithmetic(*builtin, &[lhs.clone(),
-                            // rhs.clone()])) }
+                            (Value::BuiltinType(lhs), Value::BuiltinType(rhs)) => {
+                                Some(calculate_type_arithmetic(*builtin, &[lhs.clone(),
+                            rhs.clone()])) }
                             _ => None,
                         }
                     } else if builtin == &BuiltinOp::Typeof {
