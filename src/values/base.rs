@@ -11,7 +11,6 @@ pub enum Value {
     BuiltinType(BuiltinType),
     BuiltinOp(BuiltinOp),
     Noop,
-    Any,
     Malformed,
     FloatLiteral(f32),
     IntLiteral(i32),
@@ -41,7 +40,6 @@ impl Value {
             Value::BuiltinType(_)
             | Value::BuiltinOp(_)
             | Value::Noop
-            | Value::Any
             | Value::Malformed
             | Value::FloatLiteral(_)
             | Value::IntLiteral(_)
@@ -78,6 +76,7 @@ impl Value {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BuiltinType {
+    Any,
     Int,
     Float,
     Bool,

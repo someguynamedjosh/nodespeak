@@ -41,6 +41,8 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
         | BuiltinOp::Xor => {
             let (lhs, rhs) = binary(values);
             match (lhs, rhs) {
+                (BuiltinType::Any, _) => BuiltinType::Any,
+                (_, BuiltinType::Any) => BuiltinType::Any,
                 (BuiltinType::Int, BuiltinType::Int) => BuiltinType::Int,
                 (BuiltinType::Float, BuiltinType::Float)
                 | (BuiltinType::Int, BuiltinType::Float)

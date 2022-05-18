@@ -118,6 +118,7 @@ impl SolidificationContext {
                     base: ConcreteScalarType::Bool,
                     dims: vec![],
                 },
+                BuiltinType::Any => panic!("Any types are not available at runtime."),
                 BuiltinType::Type => panic!("Not available at runtime."),
                 BuiltinType::Array { eltype, dims } => {
                     let mut base = self.solidify_type(eltype.borrow().clone());
@@ -150,7 +151,6 @@ impl SolidificationContext {
             Value::BuiltinType(_) => panic!("Types are not available at runtime."),
             Value::BuiltinOp(_) => panic!("Functions are not available at runtime."),
             Value::Noop => panic!("Tried to take the value of a noop."),
-            Value::Any => panic!("Types are not available at runtime."),
             Value::Malformed => panic!("Tried to take the value of a malformed expression."),
             &Value::FloatLiteral(value) => ConcreteValue::FloatLiteral(value),
             &Value::IntLiteral(value) => ConcreteValue::IntLiteral(value),

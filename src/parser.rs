@@ -132,7 +132,7 @@ fn parse_assignment_lhs<'b>(
             let (input, typee) = parse_basic_expression(scope)(input)?;
             (input, typee)
         } else {
-            (input, ValuePtr::new(Value::Any))
+            (input, ValuePtr::new(Value::BuiltinType(BuiltinType::Any)))
         };
         let local = if label == "" || declaration_mode {
             if let Some(local) = scope.all_locals.get(name) {
@@ -186,8 +186,7 @@ fn parse_assignment_statement<'b>(
         let (input, base) = parse_basic_expression(scope)(input)?;
         let value = if targets.len() == 1 {
             let target = targets.into_iter().next().unwrap();
-            vec![
-                ValuePtr::new(Value::Assignment { base, target })]
+            vec![ValuePtr::new(Value::Assignment { base, target })]
         } else {
             if let Value::FunctionCall(base, args, 0) = &*base.borrow() {
                 let mut value = Vec::new();
@@ -383,7 +382,7 @@ fn parse_expression_0<'b>(
         {
             let result = opt(tag("ANY"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::Any)));
+                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Any))));
             }
         }
         {

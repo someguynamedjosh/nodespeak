@@ -2,6 +2,8 @@ use super::{BuiltinType, Value, ValuePtr};
 
 pub fn type_a_is_compatible_with_type_b(type_a: &ValuePtr, type_b: &ValuePtr) -> bool {
     match (&*type_a.borrow(), &*type_b.borrow()) {
+        (Value::BuiltinType(..), Value::BuiltinType(BuiltinType::Type)) => true,
+        (_, Value::BuiltinType(BuiltinType::Any)) => true,
         (Value::BuiltinType(BuiltinType::Bool), Value::BuiltinType(BuiltinType::Int)) => true,
         (Value::BuiltinType(BuiltinType::Bool), Value::BuiltinType(BuiltinType::Float)) => true,
         (Value::BuiltinType(BuiltinType::Int), Value::BuiltinType(BuiltinType::Float)) => true,

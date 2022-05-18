@@ -116,13 +116,14 @@ impl ValuePtr {
                 BuiltinType::Int
                 | BuiltinType::Float
                 | BuiltinType::Bool
+                | BuiltinType::Any
                 | BuiltinType::Type
                 | BuiltinType::Array { .. }
                 | BuiltinType::InSet { .. }
                 | BuiltinType::Function { .. }
                 | BuiltinType::Malformed => Value::BuiltinType(BuiltinType::Type),
             },
-            Value::Noop | Value::Any => Value::Any,
+            Value::Noop => Value::BuiltinType(BuiltinType::Any),
             Value::Malformed => Value::BuiltinType(BuiltinType::Malformed),
             Value::BuiltinOp(op) => match op {
                 BuiltinOp::Add
@@ -179,7 +180,7 @@ impl ValuePtr {
                     args.iter().map(|x| ValuePtr::new(x.typee())).collect(),
                     0,
                 ),
-                Value::BuiltinOp(BuiltinOp::Cast) => todo!(),
+                Value::BuiltinOp(BuiltinOp::Cast) => args[0].borrow().clone(),
                 _ => todo!(),
             },
         }
@@ -207,7 +208,6 @@ impl ValuePtr {
             | Value::BoolLiteral(_)
             | Value::BuiltinType(_)
             | Value::BuiltinOp(_)
-            | Value::Any
             | Value::Malformed
             | Value::Noop => None,
             Value::ArrayLiteral { elements, dims } => {
@@ -217,13 +217,15 @@ impl ValuePtr {
             }
             Value::Assignment { base, target } => {
                 base.check_and_simplify(ctx);
-                let base_type = ValuePtr::new(base.typee());
-                let mut sub_ctx = SimplificationContext::new();
-                base_type.check_and_simplify(&mut sub_ctx);
-                target.typee.check_and_simplify(&mut sub_ctx);
-                if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
-                    println!("{:#?} => {:#?}", base_type, target.typee);
-                    panic!("Invalid assignment");
+                if &*target.typee.borrow() != &Value::BuiltinType(BuiltinType::Any) {
+                    let base_type = ValuePtr::new(base.typee());
+                    let mut sub_ctx = SimplificationContext::new();
+                    base_type.check_and_simplify(&mut sub_ctx);
+                    target.typee.check_and_simplify(&mut sub_ctx);
+                    if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
+                        println!("{:#?} => {:#?}", base_type, target.typee);
+                        panic!("Invalid assignment");
+                    }
                 }
                 ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
                 Some(Value::Noop)
@@ -274,17 +276,17 @@ impl ValuePtr {
                         lhs_type.check_and_simplify(&mut sub_ctx);
                         let rhs = args.next().unwrap();
                         rhs.check_and_simplify(ctx);
-                        let lhs_type = ValuePtr::new(lhs.typee());
                         let rhs_type = ValuePtr::new(rhs.typee());
                         rhs_type.check_and_simplify(&mut sub_ctx);
                         if op == &BuiltinOp::Cast {
                             if !type_a_is_compatible_with_type_b(
-                                &lhs_type,
+                                &lhs,
                                 &ValuePtr::new(Value::BuiltinType(BuiltinType::Type)),
                             ) {
+                                println!("{:#?}", lhs);
                                 panic!("lhs is not a type");
                             }
-                            if !type_a_is_compatible_with_type_b(&rhs_type, &lhs_type) {
+                            if !type_a_is_compatible_with_type_b(&rhs_type, &lhs) {
                                 panic!("rhs is not castable to lhs");
                             }
                         } else {
@@ -346,6 +348,8 @@ impl ValuePtr {
                         let target_type = target.typee.deep_clone();
                         target_type.check_and_simplify(&mut new_ctx);
                         if !type_a_is_compatible_with_type_b(&arg_type, &target_type) {
+                            println!("{:#?}", arg_type);
+                            println!("{:#?}", target_type);
                             panic!("Invalid argument.");
                         }
                         new_ctx.locals.insert(target.ptr_clone(), arg.ptr_clone());
