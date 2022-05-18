@@ -99,9 +99,7 @@ impl SimplificationContext {
         }
     }
 
-    pub fn assignments(mut self) -> Vec<(LocalPtr, ValuePtr)> {
-        let mut sub_ctx = Self::new();
-        for (local, _) in &mut self.locals {}
+    pub fn finish(self) -> Vec<(LocalPtr, ValuePtr)> {
         self.locals.into_iter().collect()
     }
 }
