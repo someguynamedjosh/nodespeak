@@ -34,15 +34,24 @@ pub enum Value {
     FunctionCall(ValuePtr, Vec<ValuePtr>, usize),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BuiltinType {
     Int,
     Float,
     Bool,
     Type,
-    Array,
-    InSet,
-    Function,
+    Array {
+        eltype: ValuePtr,
+        dims: Vec<ValuePtr>,
+    },
+    InSet {
+        eltype: ValuePtr,
+        elements: Vec<ValuePtr>,
+    },
+    Function {
+        inputs: Vec<ValuePtr>,
+        outputs: Vec<ValuePtr>,
+    },
     Malformed,
 }
 

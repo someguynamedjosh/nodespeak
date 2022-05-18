@@ -6,10 +6,10 @@ use nom::{
     combinator::{fail, opt},
     multi::many0,
     sequence::{terminated, tuple},
-    IResult, InputIter, Parser,
+    IResult, Parser,
 };
 
-use crate::values::{Local, LocalPtr, Operation, Value, ValuePtr, BuiltinOp, BuiltinType};
+use crate::values::{BuiltinOp, BuiltinType, Local, LocalPtr, Value, ValuePtr};
 
 #[derive(Clone, Debug)]
 pub struct Scope {
@@ -247,7 +247,7 @@ fn parse_statement<'b>(
         }
         {
             let result = opt(parse_declaration_statement(scope))(input)?;
-            if let (input, Some(result)) = result {
+            if let (input, Some(_)) = result {
                 return Ok((input, vec![]));
             }
         }
@@ -406,7 +406,10 @@ fn parse_expression_0<'b>(
         {
             let result = opt(tag("Malformed"))(input)?;
             if let (input, Some(_)) = result {
-                return Ok((input, ValuePtr::new(Value::BuiltinType(BuiltinType::Malformed))));
+                return Ok((
+                    input,
+                    ValuePtr::new(Value::BuiltinType(BuiltinType::Malformed)),
+                ));
             }
         }
         {
@@ -433,8 +436,30 @@ fn parse_expression_0<'b>(
 
                     "typeof" => ValuePtr::new(Value::BuiltinOp(BuiltinOp::Typeof)),
 
-                    "Array" => ValuePtr::new(Value::BuiltinType(BuiltinType::Array)),
-                    "InSet" => ValuePtr::new(Value::BuiltinType(BuiltinType::InSet)),
+                    "Array" => {
+                        assert!(args.len() >= 2);
+                        let mut args = args.into_iter();
+                        let eltype = args.next().unwrap();
+                        let dims = args.collect();
+                        let value = Value::BuiltinType(BuiltinType::Array { eltype, dims });
+                        return Ok((input, ValuePtr::new(value)));
+                    }
+                    "InSet" => {
+                        assert!(args.len() >= 1);
+                        let mut iter = args.clone().into_iter();
+                        let mut eltype = iter.next().unwrap();
+                        for arg in iter {
+                            eltype = ValuePtr::new(Value::FunctionCall(
+                                ValuePtr::new(Value::BuiltinOp(BuiltinOp::Add)),
+                                vec![eltype, arg],
+                                0,
+                            ));
+                        }
+                        let elements = args;
+                        let value = Value::BuiltinType(BuiltinType::InSet { eltype, elements });
+                        return Ok((input, ValuePtr::new(value)));
+                    }
+                    "Fn" => todo!(),
                     _ => {
                         if let Some(base) = scope.all_locals.get(name) {
                             ValuePtr::new(Value::Local(base.ptr_clone()))

@@ -101,9 +101,9 @@ impl ValuePtr {
                 | BuiltinType::Float
                 | BuiltinType::Bool
                 | BuiltinType::Type
-                | BuiltinType::Array
-                | BuiltinType::InSet
-                | BuiltinType::Function
+                | BuiltinType::Array { .. }
+                | BuiltinType::InSet { .. }
+                | BuiltinType::Function { .. }
                 | BuiltinType::Malformed => Value::BuiltinType(BuiltinType::Type),
             },
             Value::Noop | Value::Any => Value::Any,
@@ -125,17 +125,20 @@ impl ValuePtr {
                 | BuiltinOp::Xor => todo!(),
                 BuiltinOp::Not | BuiltinOp::Typeof => todo!(),
             },
-            Value::ArrayLiteral { elements, dims } => todo!(),
+            Value::ArrayLiteral {
+                elements: _,
+                dims: _,
+            } => todo!(),
             Value::FloatLiteral(_) => Value::BuiltinType(BuiltinType::Float),
             Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
             Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
             Value::Local(local) => (*local.typee).clone(),
-            Value::Assignment { base, target } => Value::BuiltinType(BuiltinType::Malformed),
+            Value::Assignment { .. } => Value::BuiltinType(BuiltinType::Malformed),
             Value::Function {
-                inputs,
-                outputs,
-                locals,
-                body,
+                inputs: _,
+                outputs: _,
+                locals: _,
+                body: _,
             } => todo!(),
             Value::FunctionCall(_, _, _) => todo!(),
         }
@@ -143,6 +146,24 @@ impl ValuePtr {
 
     pub fn simplify(&self, ctx: &mut SimplificationContext) -> Self {
         match &*self.0 {
+            Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
+                Self::new(Value::BuiltinType(BuiltinType::Array {
+                    eltype: eltype.simplify(ctx),
+                    dims: dims.iter().map(|x| x.simplify(ctx)).collect(),
+                }))
+            }
+            Value::BuiltinType(BuiltinType::InSet { eltype, elements }) => {
+                Self::new(Value::BuiltinType(BuiltinType::InSet {
+                    eltype: eltype.simplify(ctx),
+                    elements: elements.iter().map(|x| x.simplify(ctx)).collect(),
+                }))
+            }
+            Value::BuiltinType(BuiltinType::Function { inputs, outputs }) => {
+                Self::new(Value::BuiltinType(BuiltinType::Function {
+                    inputs: inputs.iter().map(|x| x.simplify(ctx)).collect(),
+                    outputs: outputs.iter().map(|x| x.simplify(ctx)).collect(),
+                }))
+            }
             Value::FloatLiteral(_)
             | Value::IntLiteral(_)
             | Value::BoolLiteral(_)
@@ -153,7 +174,7 @@ impl ValuePtr {
             | Value::Noop => self.ptr_clone(),
             Value::ArrayLiteral { elements, dims } => Self::new(Value::ArrayLiteral {
                 elements: elements.iter().map(|x| x.simplify(ctx)).collect(),
-                dims: elements.iter().map(|x| x.simplify(ctx)).collect(),
+                dims: dims.iter().map(|x| x.simplify(ctx)).collect(),
             }),
             Value::Assignment { base, target } => {
                 let base = base.simplify(ctx);
@@ -228,8 +249,8 @@ impl ValuePtr {
                 } else if let Value::Function {
                     inputs,
                     outputs,
-                    locals,
                     body,
+                    ..
                 } = &*base
                 {
                     let mut new_ctx = ctx.clone();
