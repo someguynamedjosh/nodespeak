@@ -63,7 +63,7 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
                     },
                 ) => {
                     let eltype = call(op, vec![left_type.ptr_clone(), right_type.ptr_clone()]);
-                    broadcast_array_dims(eltype, left_dims, right_dims)
+                    broadcast_array_type(eltype, left_dims, right_dims)
                 }
                 (
                     left_type,
@@ -74,7 +74,7 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
                 ) => {
                     let left_type = ValuePtr::new(Value::BuiltinType(left_type.clone()));
                     let eltype = call(op, vec![left_type, right_type.ptr_clone()]);
-                    broadcast_array_dims(eltype, &[], right_dims)
+                    broadcast_array_type(eltype, &[], right_dims)
                 }
                 (
                     BuiltinType::Array {
@@ -85,7 +85,7 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
                 ) => {
                     let right_type = ValuePtr::new(Value::BuiltinType(right_type.clone()));
                     let eltype = call(op, vec![left_type.ptr_clone(), right_type]);
-                    broadcast_array_dims(eltype, left_dims, &[])
+                    broadcast_array_type(eltype, left_dims, &[])
                 }
                 (
                     BuiltinType::InSet {
@@ -152,16 +152,30 @@ pub fn calculate_type_arithmetic(op: BuiltinOp, values: &[BuiltinType]) -> Value
             let base = values.next().unwrap();
             base.clone()
         }
-        BuiltinOp::Typeof | BuiltinOp::Cast => BuiltinType::Type,
+        BuiltinOp::Typeof => BuiltinType::Type,
+        BuiltinOp::Cast => {
+            panic!("Must be handled elsewhere as the result depends on the *value* of the first argument and not its type.")
+        }
     };
     Value::BuiltinType(typ)
 }
 
-fn broadcast_array_dims(
+fn broadcast_array_type(
     eltype: ValuePtr,
     left_dims: &[ValuePtr],
     right_dims: &[ValuePtr],
 ) -> BuiltinType {
+    if let Some(dims) = broadcast_array_dims(left_dims, right_dims) {
+        BuiltinType::Array { eltype, dims }
+    } else {
+        BuiltinType::Malformed
+    }
+}
+
+pub fn broadcast_array_dims(
+    left_dims: &[ValuePtr],
+    right_dims: &[ValuePtr],
+) -> Option<Vec<ValuePtr>> {
     let one = ValuePtr::new(Value::IntLiteral(1));
     let mut left_dims = left_dims.iter().collect_vec();
     let mut right_dims = right_dims.iter().collect_vec();
@@ -178,13 +192,10 @@ fn broadcast_array_dims(
         if let Some(dim) = broadcast_dim(left, right) {
             new_dims.push(dim);
         } else {
-            return BuiltinType::Malformed;
+            return None;
         }
     }
-    BuiltinType::Array {
-        eltype,
-        dims: new_dims,
-    }
+    Some(new_dims)
 }
 
 fn broadcast_dim(left_value: &ValuePtr, right_value: &ValuePtr) -> Option<ValuePtr> {

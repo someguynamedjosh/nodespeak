@@ -1,4 +1,4 @@
-use super::{BuiltinType, Value, ValuePtr};
+use super::{type_arithmetic::broadcast_array_dims, BuiltinType, Value, ValuePtr};
 
 pub fn type_a_is_compatible_with_type_b(type_a: &ValuePtr, type_b: &ValuePtr) -> bool {
     match (&*type_a.borrow(), &*type_b.borrow()) {
@@ -7,6 +7,29 @@ pub fn type_a_is_compatible_with_type_b(type_a: &ValuePtr, type_b: &ValuePtr) ->
         (Value::BuiltinType(BuiltinType::Bool), Value::BuiltinType(BuiltinType::Int)) => true,
         (Value::BuiltinType(BuiltinType::Bool), Value::BuiltinType(BuiltinType::Float)) => true,
         (Value::BuiltinType(BuiltinType::Int), Value::BuiltinType(BuiltinType::Float)) => true,
+        (
+            Value::BuiltinType(BuiltinType::Array {
+                eltype: a_eltype,
+                dims: a_dims,
+            }),
+            Value::BuiltinType(BuiltinType::Array {
+                eltype: b_eltype,
+                dims: b_dims,
+            }),
+        ) => {
+            type_a_is_compatible_with_type_b(a_eltype, b_eltype)
+                && broadcast_array_dims(a_dims, b_dims).as_ref() == Some(b_dims)
+        }
+        (
+            _,
+            Value::BuiltinType(BuiltinType::Array {
+                eltype: b_eltype,
+                dims: b_dims,
+            }),
+        ) => {
+            type_a_is_compatible_with_type_b(type_a, b_eltype)
+                && broadcast_array_dims(&[], b_dims).as_ref() == Some(b_dims)
+        }
         (
             Value::BuiltinType(BuiltinType::InSet {
                 eltype: a_eltype,

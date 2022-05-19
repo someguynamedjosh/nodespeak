@@ -14,14 +14,12 @@ fn basic_parsing() {
     // test(add(1, 2));
     let file = r#"
     local add_anything = fn {
-        input a: Float;
-        input b;
-        output x = sub(add(a, b), b);
+        input a: Array(Array(Float, 2), 128);
+        output x = sub(add(a, 1), 0);
     };
     local thing = fn {
         input a: Int;
-        input b: Array(Int, 10, 3);
-        output x = add_anything(cast(Float, a), b);
+        output x = add_anything(cast(Float, a));
     };
 "#;
     let result = parse_root(file);
