@@ -191,7 +191,18 @@ impl ValuePtr {
             Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
                 eltype.check_and_simplify(ctx);
                 dims.iter().for_each(|x| x.check_and_simplify(ctx));
-                None
+                if let Value::BuiltinType(BuiltinType::Array {
+                    eltype: sub_eltype,
+                    dims: sub_dims,
+                }) = &*eltype.borrow()
+                {
+                    Some(Value::BuiltinType(BuiltinType::Array {
+                        eltype: sub_eltype.ptr_clone(),
+                        dims: [sub_dims.clone(), dims.clone()].concat(),
+                    }))
+                } else {
+                    None
+                }
             }
             Value::BuiltinType(BuiltinType::InSet { eltype, elements }) => {
                 eltype.check_and_simplify(ctx);
