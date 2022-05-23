@@ -301,12 +301,27 @@ impl ValuePtr {
                                 panic!("rhs is not castable to lhs");
                             }
                         } else {
-                            let combined_type = ValuePtr::new(Value::FunctionCall(
-                                ValuePtr::new(Value::BuiltinOp(*op)),
-                                vec![lhs_type, rhs_type],
-                                0,
-                            ));
-                            if &*combined_type.borrow() == &Value::Malformed {
+                            let combined_type = if let (
+                                Value::BuiltinType(lhs_type),
+                                Value::BuiltinType(rhs_type),
+                            ) = (&*lhs_type.borrow(), &*rhs_type.borrow())
+                            {
+                                ValuePtr::new(calculate_type_arithmetic(
+                                    *op,
+                                    &[lhs_type.clone(), rhs_type.clone()],
+                                ))
+                            } else {
+                                ValuePtr::new(Value::FunctionCall(
+                                    ValuePtr::new(Value::BuiltinOp(*op)),
+                                    vec![lhs_type.ptr_clone(), rhs_type.ptr_clone()],
+                                    0,
+                                ))
+                            };
+                            let mut sub_ctx = SimplificationContext::new();
+                            combined_type.check_and_simplify(&mut sub_ctx);
+                            if &*combined_type.borrow()
+                                == &Value::BuiltinType(BuiltinType::Malformed)
+                            {
                                 panic!("Invalid binary operation");
                             }
                         }
@@ -352,7 +367,7 @@ impl ValuePtr {
                 } = &*base.borrow()
                 {
                     let mut new_ctx = ctx.clone();
-                    assert_eq!(args.len(), inputs.len());
+                    assert_eq!(args.len(), inputs.len(), "Incorrect number of arguments.");
                     for (target, arg) in inputs.iter().zip(args.iter()) {
                         let arg_type = ValuePtr::new(arg.typee());
                         arg_type.check_and_simplify(&mut new_ctx);
