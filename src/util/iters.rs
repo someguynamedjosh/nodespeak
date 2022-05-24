@@ -25,6 +25,7 @@ impl Iterator for NdIndexIter {
     }
 }
 
+/// Returns an iterator over n-dimensional indexes, with the latest dimension advancing the quickest.
 pub fn nd_index_iter(mut dimensions: Vec<usize>) -> NdIndexIter {
     dimensions.reverse();
     let mut total = 1;
@@ -36,4 +37,16 @@ pub fn nd_index_iter(mut dimensions: Vec<usize>) -> NdIndexIter {
         next_index: 0,
         total,
     }
+}
+
+#[test]
+fn test_iter_1_2_3() {
+    let mut iter = nd_index_iter(vec![1, 2, 3]);
+    assert_eq!(iter.next(), Some(vec![0, 0, 0]));
+    assert_eq!(iter.next(), Some(vec![0, 0, 1]));
+    assert_eq!(iter.next(), Some(vec![0, 0, 2]));
+    assert_eq!(iter.next(), Some(vec![0, 1, 0]));
+    assert_eq!(iter.next(), Some(vec![0, 1, 1]));
+    assert_eq!(iter.next(), Some(vec![0, 1, 2]));
+    assert_eq!(iter.next(), None);
 }

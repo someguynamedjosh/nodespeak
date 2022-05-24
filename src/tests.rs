@@ -19,8 +19,8 @@ fn basic_parsing() {
         output x = add(a, b);
     };
     local thing = fn {
-        input a: Array(Int, 2, 1);
-        input b: Array(Int, 5);
+        input a: Array(Int, 1, 2);
+        input b: Array(Int, 8, 1);
         output x = add_anything(a, b);
     };
 "#;
