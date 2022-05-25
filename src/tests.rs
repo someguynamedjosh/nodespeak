@@ -4,24 +4,14 @@ use crate::{parser::parse_root, values::simplify::SimplificationContext, concret
 
 #[test]
 fn basic_parsing() {
-    // local GLOBAL_BUFFER_SIZE = 512;
-    // local GLOBAL_CHANNELS = 2;
-    // local Signal = Array(Int, InSet(1, GLOBAL_BUFFER_SIZE), InSet(1,
-    // GLOBAL_CHANNELS)); local test = fn {
-    //     input a;
-    //     output b = a;
-    // };
-    // test(add(1, 2));
     let file = r#"
-    local add_anything = fn {
-        input a;
-        input b;
-        output x = add(a, b);
-    };
     local thing = fn {
-        input a: Array(Int, 1, 2);
-        input b: Array(Int, 8, 1);
-        output x = add_anything(a, b);
+        input a: Float;
+        input b: Float;
+        input c: Array(Float, 16);
+        output d;
+
+        d = add(add(a, b), c);
     };
 "#;
     let result = parse_root(file);

@@ -522,7 +522,8 @@ impl SolidificationContext {
                                 op,
                                 lhs.get_scalar(next_index),
                                 rhs.get_scalar(next_index),
-                            )))
+                            )));
+                            next_index += 1;
                         }
                         println!("{:#?} {:#?}", lhs_indexes, rhs_indexes);
                         ConcreteMultiValue {
