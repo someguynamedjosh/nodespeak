@@ -7,6 +7,21 @@ use std::{
 use super::ValuePtr;
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Index {
+    pub indices: Vec<ValuePtr>,
+    pub eight_wide_mode: bool,
+}
+
+impl Index {
+    pub fn deep_clone(&self) -> Self {
+        Self {
+            indices: self.indices.iter().map(ValuePtr::deep_clone).collect(),
+            eight_wide_mode: self.eight_wide_mode,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     BuiltinType(BuiltinType),
     BuiltinOp(BuiltinOp),
@@ -23,6 +38,11 @@ pub enum Value {
     Local(LocalPtr),
     Assignment {
         base: ValuePtr,
+        target: LocalPtr,
+    },
+    IndexedAssignment {
+        base: ValuePtr,
+        index: Index,
         target: LocalPtr,
     },
     Function {
@@ -52,6 +72,15 @@ impl Value {
             },
             Value::Assignment { base, target } => Value::Assignment {
                 base: base.deep_clone(),
+                target: target.ptr_clone(),
+            },
+            Value::IndexedAssignment {
+                base,
+                index,
+                target,
+            } => Value::IndexedAssignment {
+                base: base.deep_clone(),
+                index: index.deep_clone(),
                 target: target.ptr_clone(),
             },
             Value::Function {

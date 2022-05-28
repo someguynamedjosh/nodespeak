@@ -6,12 +6,7 @@ use crate::{parser::parse_root, values::simplify::SimplificationContext, concret
 fn basic_parsing() {
     let file = r#"
     local thing = fn {
-        input a: Float;
-        input b: Float;
-        input c: Array(Float, 16);
-        output d;
-
-        d = add(add(a, b), c);
+        output d: Array(Int, 5);
     };
 "#;
     let result = parse_root(file);
@@ -25,11 +20,11 @@ fn basic_parsing() {
         let assignments = ctx.finish();
         println!("{:#?}", simplified);
         println!("{:#?}", assignments);
-        for (local, value) in assignments {
-            if local.name == "thing" {
-                println!("{:#?}", solidify(value));
-            }
-        }
+        // for (local, value) in assignments {
+        //     if local.name == "thing" {
+        //         println!("{:#?}", solidify(value));
+        //     }
+        // }
     } else {
         println!("{:#?}", result);
     }

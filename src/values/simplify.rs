@@ -152,7 +152,7 @@ impl ValuePtr {
             Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
             Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
             Value::Local(local) => (local.typee.borrow()).clone(),
-            Value::Assignment { .. } | Value::Declaration(..) => {
+            Value::Assignment { .. } | Value::IndexedAssignment { .. } | Value::Declaration(..) => {
                 Value::BuiltinType(BuiltinType::Malformed)
             }
             Value::Function {
@@ -234,6 +234,34 @@ impl ValuePtr {
                     base_type.check_and_simplify(&mut sub_ctx);
                     target.typee.check_and_simplify(&mut sub_ctx);
                     if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
+                        println!("{:#?} => {:#?}", base_type, target.typee);
+                        panic!("Invalid assignment");
+                    }
+                }
+                ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
+                Some(Value::Noop)
+            }
+            Value::IndexedAssignment {
+                base,
+                index,
+                target,
+            } => {
+                base.check_and_simplify(ctx);
+                if &*target.typee.borrow() != &Value::BuiltinType(BuiltinType::Any) {
+                    let base_type = ValuePtr::new(base.typee());
+                    let mut sub_ctx = SimplificationContext::new();
+                    base_type.check_and_simplify(&mut sub_ctx);
+                    target.typee.check_and_simplify(&mut sub_ctx);
+                    let target_typee = match &*target.typee.borrow() {
+                        Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
+                            if index.indices.len() < dims.len() {
+                                panic!("Not enough indices in assignment");
+                            }
+                            eltype.ptr_clone()
+                        }
+                        _ => todo!(),
+                    };
+                    if !type_a_is_compatible_with_type_b(&base_type, &target_typee) {
                         println!("{:#?} => {:#?}", base_type, target.typee);
                         panic!("Invalid assignment");
                     }

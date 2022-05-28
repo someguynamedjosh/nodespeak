@@ -427,6 +427,9 @@ impl SolidificationContext {
             Value::Assignment { .. } => {
                 panic!("Tried to take the value of an assignment.")
             }
+            Value::IndexedAssignment { .. } => {
+                panic!("Tried to take the value of an assignment.")
+            }
             Value::Function { .. } => panic!("Functions are not available at runtime."),
             Value::FunctionCall(base, args, result) => {
                 assert_eq!(result, &0);
