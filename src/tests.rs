@@ -7,6 +7,7 @@ fn basic_parsing() {
     let file = r#"
     local thing = fn {
         output d: Array(Int, 5);
+        d(1) = 5;
     };
 "#;
     let result = parse_root(file);

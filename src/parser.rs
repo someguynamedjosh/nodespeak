@@ -9,7 +9,7 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::values::{BuiltinOp, BuiltinType, Local, LocalPtr, Value, ValuePtr};
+use crate::values::{BuiltinOp, BuiltinType, Index, Local, LocalPtr, Value, ValuePtr};
 
 #[derive(Clone, Debug)]
 pub struct Scope {
@@ -109,7 +109,7 @@ fn parse_identifier<'b>(scope: &'b Scope) -> impl for<'a> Fn(&'a str) -> Result<
 fn parse_assignment_lhs<'b>(
     scope: &'b mut Scope,
     declaration_mode: bool,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, LocalPtr> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, (LocalPtr, Option<Index>)> + 'b {
     move |input| {
         let (input, label) = alt((
             tag("local"),
@@ -125,6 +125,16 @@ fn parse_assignment_lhs<'b>(
         }
         let (input, _) = ws(input)?;
         let (input, name) = parse_identifier_text(input)?;
+        let (input, _) = ws(input)?;
+        let (input, indices) = opt(parse_argument_list(scope))(input)?;
+        if indices.is_some() {
+            assert_eq!(
+                label, "",
+                "Cannot simultaneously declare and index a local."
+            );
+        }
+        let (input, _) = ws(input)?;
+        let (input, keyword_8wide) = opt(tag("8wide"))(input)?;
         let (input, _) = ws(input)?;
         let (input, has_colon) = opt(tag(":"))(input)?;
         let (input, typee) = if has_colon.is_some() {
@@ -157,7 +167,15 @@ fn parse_assignment_lhs<'b>(
                 scope.outputs.push(local.ptr_clone());
             }
         }
-        Ok((input, local))
+        let index = if let Some(indices) = indices {
+            Some(Index {
+                indices,
+                eight_wide_mode: keyword_8wide.is_some(),
+            })
+        } else {
+            None
+        };
+        Ok((input, (local, index)))
     }
 }
 
@@ -185,18 +203,23 @@ fn parse_assignment_statement<'b>(
         }
         let (input, base) = parse_basic_expression(scope)(input)?;
         let value = if targets.len() == 1 {
-            let target = targets.into_iter().next().unwrap();
-            vec![ValuePtr::new(Value::Assignment { base, target })]
+            let (target, index) = targets.into_iter().next().unwrap();
+            vec![ValuePtr::new(Value::Assignment {
+                base,
+                index,
+                target,
+            })]
         } else {
             if let Value::FunctionCall(base, args, 0) = &*base.borrow() {
                 let mut value = Vec::new();
-                for (index, target) in targets.into_iter().enumerate() {
+                for (target_index, (target, index)) in targets.into_iter().enumerate() {
                     value.push(ValuePtr::new(Value::Assignment {
                         base: ValuePtr::new(Value::FunctionCall(
                             base.ptr_clone(),
                             args.clone(),
-                            index,
+                            target_index,
                         )),
+                        index,
                         target,
                     }));
                 }
@@ -235,7 +258,10 @@ fn parse_declaration_statement<'b>(
             input,
             targets
                 .into_iter()
-                .map(|x| ValuePtr::new(Value::Declaration(x)))
+                .map(|x| {
+                    debug_assert!(x.1.is_none());
+                    ValuePtr::new(Value::Declaration(x.0))
+                })
                 .collect(),
         ))
     }
@@ -512,10 +538,19 @@ fn parse_function_call<'b>(
 ) -> impl for<'a> FnMut(&'a str) -> Result<(&'a str, Vec<ValuePtr>)> + 'b {
     move |input| {
         let (input, ident) = parse_identifier_text(input)?;
+        let (input, args) = parse_argument_list(scope)(input)?;
+        Ok((input, (ident, args)))
+    }
+}
+
+fn parse_argument_list<'b>(
+    scope: &'b mut Scope,
+) -> impl for<'a> FnMut(&'a str) -> Result<Vec<ValuePtr>> + 'b {
+    move |input| {
         let (input, _) = tuple((ws, tag("("), ws))(input)?;
         let (input, args) = parse_comma_expression_list(scope)(input)?;
         let (input, _) = tuple((ws, tag(")"), ws))(input)?;
-        Ok((input, (ident, args)))
+        Ok((input, args))
     }
 }
 

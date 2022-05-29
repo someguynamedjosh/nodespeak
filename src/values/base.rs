@@ -38,11 +38,7 @@ pub enum Value {
     Local(LocalPtr),
     Assignment {
         base: ValuePtr,
-        target: LocalPtr,
-    },
-    IndexedAssignment {
-        base: ValuePtr,
-        index: Index,
+        index: Option<Index>,
         target: LocalPtr,
     },
     Function {
@@ -70,17 +66,13 @@ impl Value {
                 elements: elements.iter().map(ValuePtr::deep_clone).collect(),
                 dims: dims.iter().map(ValuePtr::deep_clone).collect(),
             },
-            Value::Assignment { base, target } => Value::Assignment {
-                base: base.deep_clone(),
-                target: target.ptr_clone(),
-            },
-            Value::IndexedAssignment {
+            Value::Assignment {
                 base,
                 index,
                 target,
-            } => Value::IndexedAssignment {
+            } => Value::Assignment {
                 base: base.deep_clone(),
-                index: index.deep_clone(),
+                index: index.as_ref().map(|x| x.deep_clone()),
                 target: target.ptr_clone(),
             },
             Value::Function {

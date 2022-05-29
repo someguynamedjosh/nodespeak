@@ -427,9 +427,6 @@ impl SolidificationContext {
             Value::Assignment { .. } => {
                 panic!("Tried to take the value of an assignment.")
             }
-            Value::IndexedAssignment { .. } => {
-                panic!("Tried to take the value of an assignment.")
-            }
             Value::Function { .. } => panic!("Functions are not available at runtime."),
             Value::FunctionCall(base, args, result) => {
                 assert_eq!(result, &0);
@@ -562,9 +559,14 @@ pub fn solidify(function: ValuePtr) -> ConcreteProgram {
         }
         let mut outputs = Vec::new();
         'next_output: for output in liquid_outputs {
-            for statement in body {
-                if let Value::Assignment { base, target } = &*statement.borrow() {
-                    if target == output {
+            for statement in body.iter().rev() {
+                if let Value::Assignment {
+                    base,
+                    index,
+                    target,
+                } = &*statement.borrow()
+                {
+                    if target == output && index.is_none() {
                         outputs.push(ctx.solidify_value(base));
                         continue 'next_output;
                     }
