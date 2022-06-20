@@ -4,8 +4,8 @@ use itertools::Itertools;
 
 use super::{
     type_arithmetic::calculate_type_arithmetic,
-    type_compatibility::type_a_is_compatible_with_type_b, BuiltinOp, BuiltinType, LocalPtr, Value,
-    ValuePtr,
+    type_compatibility::type_a_is_compatible_with_type_b, BuiltinOp, BuiltinType, LocalPtr,
+    Statement, Value, ValuePtr,
 };
 
 fn int_op(op: BuiltinOp, lhs: i32, rhs: i32) -> Value {
@@ -94,18 +94,26 @@ fn bool_op(op: BuiltinOp, lhs: bool, rhs: bool) -> Value {
 
 #[derive(Clone, Debug)]
 pub struct SimplificationContext {
-    locals: HashMap<LocalPtr, ValuePtr>,
+    previous_blocks: Vec<HashMap<LocalPtr, ValuePtr>>,
+    current_block: HashMap<LocalPtr, ValuePtr>,
 }
 
 impl SimplificationContext {
     pub fn new() -> Self {
         Self {
-            locals: HashMap::new(),
+            previous_blocks: Vec::new(),
+            current_block: HashMap::new(),
         }
     }
 
-    pub fn finish(self) -> Vec<(LocalPtr, ValuePtr)> {
-        self.locals.into_iter().collect()
+    fn start_new_block(&mut self) {
+        self.previous_blocks
+            .push(std::mem::take(&mut self.current_block));
+    }
+
+    pub fn finish(mut self) -> Vec<HashMap<LocalPtr, ValuePtr>> {
+        self.start_new_block();
+        self.previous_blocks
     }
 }
 
@@ -123,7 +131,6 @@ impl ValuePtr {
                 | BuiltinType::Function { .. }
                 | BuiltinType::Malformed => Value::BuiltinType(BuiltinType::Type),
             },
-            Value::Noop => Value::BuiltinType(BuiltinType::Any),
             Value::Malformed => Value::BuiltinType(BuiltinType::Malformed),
             Value::BuiltinOp(op) => match op {
                 BuiltinOp::Add
@@ -152,9 +159,6 @@ impl ValuePtr {
             Value::IntLiteral(_) => Value::BuiltinType(BuiltinType::Int),
             Value::BoolLiteral(_) => Value::BuiltinType(BuiltinType::Bool),
             Value::Local(local) => (local.typee.borrow()).clone(),
-            Value::Assignment { .. } | Value::Declaration(..) => {
-                Value::BuiltinType(BuiltinType::Malformed)
-            }
             Value::Function {
                 inputs: _,
                 outputs: _,
@@ -219,44 +223,11 @@ impl ValuePtr {
             | Value::BoolLiteral(_)
             | Value::BuiltinType(_)
             | Value::BuiltinOp(_)
-            | Value::Malformed
-            | Value::Noop => None,
+            | Value::Malformed => None,
             Value::ArrayLiteral { elements, dims } => {
                 elements.iter().for_each(|x| x.check_and_simplify(ctx));
                 dims.iter().for_each(|x| x.check_and_simplify(ctx));
                 None
-            }
-            Value::Assignment {
-                base,
-                index,
-                target,
-            } => {
-                base.check_and_simplify(ctx);
-                if &*target.typee.borrow() != &Value::BuiltinType(BuiltinType::Any) {
-                    let base_type = ValuePtr::new(base.typee());
-                    let mut sub_ctx = SimplificationContext::new();
-                    base_type.check_and_simplify(&mut sub_ctx);
-                    target.typee.check_and_simplify(&mut sub_ctx);
-                    let target_typee = if let Some(index) = index {
-                        match &*target.typee.borrow() {
-                            Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
-                                if index.indices.len() < dims.len() {
-                                    panic!("Not enough indices in assignment");
-                                }
-                                eltype.ptr_clone()
-                            }
-                            _ => todo!(),
-                        }
-                    } else {
-                        target.typee.ptr_clone()
-                    };
-                    if !type_a_is_compatible_with_type_b(&base_type, &target_typee) {
-                        println!("{:#?} => {:#?}", base_type, target.typee);
-                        panic!("Invalid assignment");
-                    }
-                }
-                ctx.locals.insert(target.ptr_clone(), base.ptr_clone());
-                Some(Value::Noop)
             }
             Value::Function {
                 inputs,
@@ -269,8 +240,8 @@ impl ValuePtr {
                 for statement in body {
                     statement.check_and_simplify(&mut new_ctx);
                 }
-                for (target, base) in &new_ctx.locals {
-                    if !ctx.locals.contains_key(target) {
+                for (target, base) in &new_ctx.current_block {
+                    if !ctx.current_block.contains_key(target) {
                         let base_type = ValuePtr::new(base.typee());
                         let mut sub_ctx = SimplificationContext::new();
                         base_type.check_and_simplify(&mut sub_ctx);
@@ -278,11 +249,11 @@ impl ValuePtr {
                         if !type_a_is_compatible_with_type_b(&base_type, &target.typee) {
                             panic!("Invalid assignment");
                         }
-                        new_body.push(ValuePtr::new(Value::Assignment {
+                        new_body.push(Statement::Assignment {
                             base: base.ptr_clone(),
                             index: None,
                             target: target.ptr_clone(),
-                        }));
+                        });
                     }
                 }
                 Some(Value::Function {
@@ -396,14 +367,16 @@ impl ValuePtr {
                             println!("{:#?}", target_type);
                             panic!("Invalid argument.");
                         }
-                        new_ctx.locals.insert(target.ptr_clone(), arg.ptr_clone());
+                        new_ctx
+                            .current_block
+                            .insert(target.ptr_clone(), arg.ptr_clone());
                     }
                     for statement in body {
                         statement.check_and_simplify(&mut new_ctx);
                     }
                     let mut results = Vec::new();
                     for output in outputs {
-                        if let Some(result) = new_ctx.locals.get(output) {
+                        if let Some(result) = new_ctx.current_block.get(output) {
                             results.push(result.ptr_clone());
                         } else {
                             panic!("Output not assigned in function body.");
@@ -423,19 +396,58 @@ impl ValuePtr {
                 }
             }
             Value::Local(local) => {
-                if let Some(value) = ctx.locals.get(local) {
+                if let Some(value) = ctx.current_block.get(local) {
                     Some(value.borrow().clone())
                 } else {
                     None
                 }
             }
-            Value::Declaration(local) => {
-                local.typee.check_and_simplify(ctx);
-                None
-            }
         };
         if let Some(new_val) = new_val {
             *self.borrow_mut() = new_val;
         }
+    }
+}
+
+impl Statement {
+    pub fn check_and_simplify(&self, ctx: &mut SimplificationContext) {
+        match self {
+            Self::Assignment {
+                base,
+                index,
+                target,
+            } => {
+                base.check_and_simplify(ctx);
+                if &*target.typee.borrow() != &Value::BuiltinType(BuiltinType::Any) {
+                    let base_type = ValuePtr::new(base.typee());
+                    let mut sub_ctx = SimplificationContext::new();
+                    base_type.check_and_simplify(&mut sub_ctx);
+                    target.typee.check_and_simplify(&mut sub_ctx);
+                    let target_typee = if let Some(index) = index {
+                        match &*target.typee.borrow() {
+                            Value::BuiltinType(BuiltinType::Array { eltype, dims }) => {
+                                if index.indices.len() < dims.len() {
+                                    panic!("Not enough indices in assignment");
+                                }
+                                eltype.ptr_clone()
+                            }
+                            _ => todo!(),
+                        }
+                    } else {
+                        target.typee.ptr_clone()
+                    };
+                    if !type_a_is_compatible_with_type_b(&base_type, &target_typee) {
+                        println!("{:#?} => {:#?}", base_type, target.typee);
+                        panic!("Invalid assignment");
+                    }
+                }
+                ctx.current_block
+                    .insert(target.ptr_clone(), base.ptr_clone());
+            }
+            Self::Declaration(local) => {
+                local.typee.check_and_simplify(ctx);
+            }
+            Self::Noop => (),
+        };
     }
 }

@@ -9,7 +9,7 @@ use nom::{
     IResult, Parser,
 };
 
-use crate::values::{BuiltinOp, BuiltinType, Index, Local, LocalPtr, Value, ValuePtr};
+use crate::values::{BuiltinOp, BuiltinType, Index, Local, LocalPtr, Statement, Value, ValuePtr};
 
 #[derive(Clone, Debug)]
 pub struct Scope {
@@ -32,7 +32,7 @@ impl Scope {
 
 type Result<'a, T> = IResult<&'a str, T>;
 
-pub fn parse_root(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
+pub fn parse_root(input: &str) -> Result<(Scope, Vec<Statement>)> {
     let (input, _) = ws(input)?;
     let mut scope = Scope::new();
     let (input, values) = many0(terminated(
@@ -54,7 +54,7 @@ pub fn parse_root(input: &str) -> Result<(Scope, Vec<ValuePtr>)> {
 
 fn parse_body<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<Statement>> + 'b {
     move |input| {
         let (input, _) = ws(input)?;
         let (input, values) = many0(terminated(
@@ -181,7 +181,7 @@ fn parse_assignment_lhs<'b>(
 
 fn parse_assignment_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<Statement>> + 'b {
     move |input| {
         let mut targets = Vec::new();
         let mut input = input;
@@ -204,16 +204,16 @@ fn parse_assignment_statement<'b>(
         let (input, base) = parse_basic_expression(scope)(input)?;
         let value = if targets.len() == 1 {
             let (target, index) = targets.into_iter().next().unwrap();
-            vec![ValuePtr::new(Value::Assignment {
+            vec![Statement::Assignment {
                 base,
                 index,
                 target,
-            })]
+            }]
         } else {
             if let Value::FunctionCall(base, args, 0) = &*base.borrow() {
                 let mut value = Vec::new();
                 for (target_index, (target, index)) in targets.into_iter().enumerate() {
-                    value.push(ValuePtr::new(Value::Assignment {
+                    value.push(Statement::Assignment {
                         base: ValuePtr::new(Value::FunctionCall(
                             base.ptr_clone(),
                             args.clone(),
@@ -221,7 +221,7 @@ fn parse_assignment_statement<'b>(
                         )),
                         index,
                         target,
-                    }));
+                    });
                 }
                 value
             } else {
@@ -234,7 +234,7 @@ fn parse_assignment_statement<'b>(
 
 fn parse_declaration_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<Statement>> + 'b {
     move |input| {
         let mut targets = Vec::new();
         let mut input = input;
@@ -260,7 +260,7 @@ fn parse_declaration_statement<'b>(
                 .into_iter()
                 .map(|x| {
                     debug_assert!(x.1.is_none());
-                    ValuePtr::new(Value::Declaration(x.0))
+                    Statement::Declaration(x.0)
                 })
                 .collect(),
         ))
@@ -269,7 +269,7 @@ fn parse_declaration_statement<'b>(
 
 fn parse_statement<'b>(
     scope: &'b mut Scope,
-) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<ValuePtr>> + 'b {
+) -> impl for<'a> FnMut(&'a str) -> Result<'a, Vec<Statement>> + 'b {
     move |input| {
         {
             let result = opt(parse_assignment_statement(scope))(input)?;
@@ -285,8 +285,8 @@ fn parse_statement<'b>(
         }
         {
             let result = opt(parse_basic_expression(scope))(input)?;
-            if let (input, Some(result)) = result {
-                return Ok((input, vec![result]));
+            if let (input, Some(_result)) = result {
+                return Ok((input, vec![]));
             }
         }
         fail(input)

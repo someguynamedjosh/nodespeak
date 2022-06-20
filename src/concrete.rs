@@ -5,11 +5,13 @@ use std::{
 };
 
 use itertools::Itertools;
-use nom::multi;
 
 use crate::{
-    util::{nd_index_iter, NdIndexIter},
-    values::{simplify::SimplificationContext, BuiltinOp, BuiltinType, LocalPtr, Value, ValuePtr},
+    util::nd_index_iter,
+    values::{
+        simplify::SimplificationContext, BuiltinOp, BuiltinType, LocalPtr, Statement, Value,
+        ValuePtr,
+    },
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -317,7 +319,6 @@ impl SolidificationContext {
         let multi_value = match &*value.borrow() {
             Value::BuiltinType(_) => panic!("Types are not available at runtime."),
             Value::BuiltinOp(_) => panic!("Functions are not available at runtime."),
-            Value::Noop => panic!("Tried to take the value of a noop."),
             Value::Malformed => panic!("Tried to take the value of a malformed expression."),
             &Value::FloatLiteral(value) => ConcreteMultiValue {
                 typee: ConcreteType {
@@ -396,7 +397,6 @@ impl SolidificationContext {
                     components,
                 }
             }
-            Value::Declaration(_) => panic!("Tried to take the value of a declaration."),
             Value::Local(local) => {
                 let mut result = None;
                 for (input_index, input) in self.inputs.iter().enumerate() {
@@ -423,9 +423,6 @@ impl SolidificationContext {
                     }
                 }
                 result.expect("Tried to take the value of a local that isn't an input.")
-            }
-            Value::Assignment { .. } => {
-                panic!("Tried to take the value of an assignment.")
             }
             Value::Function { .. } => panic!("Functions are not available at runtime."),
             Value::FunctionCall(base, args, result) => {
@@ -560,11 +557,11 @@ pub fn solidify(function: ValuePtr) -> ConcreteProgram {
         let mut outputs = Vec::new();
         'next_output: for output in liquid_outputs {
             for statement in body.iter().rev() {
-                if let Value::Assignment {
+                if let Statement::Assignment {
                     base,
                     index,
                     target,
-                } = &*statement.borrow()
+                } = statement
                 {
                     if target == output && index.is_none() {
                         outputs.push(ctx.solidify_value(base));
