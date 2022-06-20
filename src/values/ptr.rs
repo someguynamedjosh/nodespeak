@@ -1,14 +1,21 @@
 use std::{
     cell::{Ref, RefMut},
+    fmt::{self, Debug, Formatter},
     ops::{Add, BitAnd, BitOr, Deref, Div, Mul, Not, Rem, Sub},
     rc::Rc,
 };
 
-use super::{BuiltinOp, Value, BuiltinType};
+use super::{BuiltinOp, BuiltinType, Value};
 use crate::util::{rcrc, Rcrc};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ValuePtr(pub(super) Rcrc<Value>);
+
+impl Debug for ValuePtr {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.borrow().fmt(f)
+    }
+}
 
 impl ValuePtr {
     pub fn new(value: Value) -> Self {

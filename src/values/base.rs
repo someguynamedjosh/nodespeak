@@ -1,7 +1,7 @@
 use std::{
     hash::{Hash, Hasher},
     ops::Deref,
-    rc::Rc,
+    rc::Rc, fmt::{Debug, Formatter, self},
 };
 
 use super::ValuePtr;
@@ -162,8 +162,14 @@ pub struct Local {
     pub typee: ValuePtr,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct LocalPtr(Rc<Local>);
+
+impl Debug for LocalPtr {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl PartialEq for LocalPtr {
     fn eq(&self, other: &Self) -> bool {
